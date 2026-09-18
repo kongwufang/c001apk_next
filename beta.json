@@ -1,0 +1,9 @@
+{
+  "versionName": "0ff1e95",
+  "versionCode": 467,
+  "changelog": "## 0ff1e95（Beta）\n\n- 与正式版 0ff1e95 相同，暂无 Beta 内容",
+  "download": [
+    { "name": "线路一", "url": "https://github.com/kongwufang/c001apk_next/releases" },
+    { "name": "线路二", "url": "https://github.com/kongwufang/c001apk_next/actions" }
+  ]
+}

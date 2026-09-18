@@ -1,0 +1,9 @@
+{
+  "versionName": "0ff1e95",
+  "versionCode": 467,
+  "changelog": "## 0ff1e95\n\n- 修复设置二级页无法进入的问题\n- 底栏「我的」图标换成 person\n- 关于页：新增开发者 kongwufang，更新检查开关与「立即检查」按钮\n- 启动时数字联盟 ID 为空会自动生成随机 ID",
+  "download": [
+    { "name": "线路一", "url": "https://github.com/kongwufang/c001apk_next/releases" },
+    { "name": "线路二", "url": "https://github.com/kongwufang/c001apk_next/actions" }
+  ]
+}
