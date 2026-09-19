@@ -1,7 +1,0 @@
-<resources>
-
-    <style name="UserTextColor">
-        <item name="android:textColor">@color/m3_dynamic_dark_default_color_primary_text</item>
-    </style>
-
-</resources>
