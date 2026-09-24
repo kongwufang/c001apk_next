@@ -80,6 +80,16 @@ class NetworkRepo @Inject constructor(
         )
     }
 
+    /** 搜索页默认态的「热门搜索 + 热搜榜」（一次请求拿全） */
+    suspend fun getSearchHot(refresh: Int = 0) = fire {
+        Result.success(apiService.getSearchHot(refresh = refresh).await())
+    }
+
+    /** 输入过程中的搜索联想 */
+    suspend fun getSuggestSearchWords(keyWord: String) = fire {
+        Result.success(apiService.getSuggestSearchWords(keyWord).await())
+    }
+
     suspend fun getReply2Reply(id: String, page: Int, lastItem: String?) = fire {
         Result.success(apiService.getReply2Reply(id, page, lastItem).await())
     }

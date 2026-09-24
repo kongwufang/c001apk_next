@@ -23,6 +23,8 @@ import com.example.c001apk.logic.model.MessageResponse
 import com.example.c001apk.logic.model.OSSUploadPrepareResponse
 import com.example.c001apk.logic.model.PostReplyResponse
 import com.example.c001apk.logic.model.ProfileEditResponse
+import com.example.c001apk.logic.model.SearchHotResponse
+import com.example.c001apk.logic.model.SearchSuggestResponse
 import com.example.c001apk.logic.model.StringDataResponse
 import com.example.c001apk.logic.model.TotalReplyResponse
 import com.example.c001apk.logic.model.UserProfileResponse
@@ -88,6 +90,21 @@ interface ApiService {
         @Query("lastItem") lastItem: String?,
         @Query("showAnonymous") showAnonymous: Int = -1
     ): Call<HomeFeedResponse>
+
+    /** 搜索页默认态：热门搜索 + 热搜榜（refresh=1 强制刷新热门搜索） */
+    @GET("/v6/search")
+    fun getSearchHot(
+        @Query("type") type: String = "hotSearch",
+        @Query("refresh") refresh: Int = 0,
+        @Query("returnType") returnType: String = "all"
+    ): Call<SearchHotResponse>
+
+    /** 输入过程中的搜索联想 */
+    @GET("/v6/search/suggestSearchWordsNew")
+    fun getSuggestSearchWords(
+        @Query("searchValue") searchValue: String,
+        @Query("type") type: String = "app"
+    ): Call<SearchSuggestResponse>
 
     @GET("/v6/feed/replyList?listType=&discussMode=0&feedType=feed_reply&blockStatus=0&fromFeedAuthor=0")
     fun getReply2Reply(

@@ -12,8 +12,11 @@ import android.widget.Toast
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.R
 import com.example.c001apk.databinding.FragmentSearchBinding
+import com.example.c001apk.logic.model.SearchHotResponse
 import com.example.c001apk.ui.base.BaseFragment
 import com.example.c001apk.ui.blacklist.IOnItemClickListener
 import com.google.android.flexbox.FlexDirection
@@ -21,6 +24,7 @@ import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.tabs.TabLayout
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -38,8 +42,16 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
             arguments?.getString("title").orEmpty(),
         )
     }
+
     private var mAdapter: HistoryAdapter? = null
     private var mLayoutManager: FlexboxLayoutManager? = null
+
+    private lateinit var hotAdapter: HotSearchAdapter
+    private lateinit var hotRankColumnAdapter: HotRankColumnAdapter
+    private lateinit var suggestAdapter: SearchSuggestAdapter
+
+    /** 由 TabLayout 主动切换榜单时置位，避免与横向滑动的回调用互相打架 */
+    private var isTabSelectedByUser = false
 
     companion object {
         @JvmStatic
@@ -57,24 +69,41 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
         super.onViewCreated(view, savedInstanceState)
 
         initView()
+        initHotRank()
+        initSuggest()
         initEditText()
         initButton()
         initClearHistory()
 
-        viewModel.blackListLiveData.observe(viewLifecycleOwner) {
-            mAdapter?.submitList(it)
-            binding.clearAll.isVisible = it.isNotEmpty()
+        viewModel.blackListLiveData.observe(viewLifecycleOwner) { list ->
+            mAdapter?.submitList(list)
+            // 没有历史时整块隐藏，别留一条空白标题
+            binding.historyHeader.isVisible = list.isNotEmpty()
         }
 
+        viewModel.hotSearch.observe(viewLifecycleOwner) { bindHotSearch(it) }
+        viewModel.suggest.observe(viewLifecycleOwner) { suggestAdapter.submitList(it) }
+
+        // 旋转屏幕后 ViewModel 里已有数据，不必再请求一次
+        if (viewModel.hotSearch.value == null)
+            viewModel.fetchHotSearch()
     }
+
+    // ---------------- 搜索历史 ----------------
 
     private fun initView() {
         mLayoutManager = FlexboxLayoutManager(requireContext(), FlexDirection.ROW, FlexWrap.WRAP)
         mAdapter = HistoryAdapter()
         mAdapter?.setOnItemClickListener(this)
-        binding.recyclerView.apply {
+        binding.historyRecyclerView.apply {
             adapter = mAdapter
             layoutManager = mLayoutManager
+        }
+
+        hotAdapter = HotSearchAdapter { onSearchWord(it.title) }
+        binding.hotRecyclerView.apply {
+            adapter = hotAdapter
+            layoutManager = FlexboxLayoutManager(requireContext(), FlexDirection.ROW, FlexWrap.WRAP)
         }
     }
 
@@ -91,53 +120,132 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
         }
     }
 
-    private fun initButton() {
-        binding.toolBar.apply {
-            setNavigationOnClickListener {
-                activity?.finish()
+    // ---------------- 热搜榜（tab + 横向榜单）----------------
+
+    private fun initHotRank() {
+        hotRankColumnAdapter = HotRankColumnAdapter { onSearchWord(it.title) }
+        binding.hotRankRecyclerView.apply {
+            adapter = hotRankColumnAdapter
+            layoutManager = LinearLayoutManager(requireContext(), RecyclerView.HORIZONTAL, false)
+            addOnScrollListener(hotRankScrollListener)
+        }
+        binding.hotTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                updateHotTabColors(tab.position)
+                if (!isTabSelectedByUser)
+                    binding.hotRankRecyclerView.smoothScrollToPosition(tab.position)
             }
-        }
-        binding.search.setOnClickListener {
-            search()
-        }
-        binding.clear.setOnClickListener {
-            binding.editText.text = null
+
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+        binding.refreshHot.setOnClickListener {
+            viewModel.fetchHotSearch(1)
         }
     }
 
-    private fun search() {
-        if (binding.editText.text.toString() == "") {
-            Toast.makeText(requireContext(), "请输入关键词", Toast.LENGTH_SHORT).show()
-        } else {
-            requireActivity().supportFragmentManager
-                .beginTransaction()
-                .setCustomAnimations(
-                    R.anim.right_in,
-                    R.anim.left_out_fragment,
-                    R.anim.left_in,
-                    R.anim.right_out
-                )
-                .replace(
-                    R.id.fragmentContainer,
-                    SearchResultFragment.newInstance(
-                        binding.editText.text.toString(),
-                        viewModel.pageType,
-                        viewModel.pageParam,
-                        viewModel.title
-                    )
-                )
-                .addToBackStack(null)
-                .commit()
-            updateHistory(binding.editText.text.toString())
-            hideKeyBoard()
+    /** 横向滑动时反查当前落在哪一列，同步选中对应的 tab */
+    private val hotRankScrollListener = object : RecyclerView.OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            if (dx == 0) return
+            val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+            val first = layoutManager.findFirstVisibleItemPosition()
+            if (first == RecyclerView.NO_POSITION) return
+            val child = layoutManager.findViewByPosition(first) ?: return
+            val width = child.width
+            if (width <= 0) return
+            // 左半屏被划走超过 50% 时，认为下一列才是当前列
+            val hiddenRatio = -child.left.toFloat() / width
+            selectHotTab(if (hiddenRatio > 0.5f) first + 1 else first)
         }
     }
 
-    private fun hideKeyBoard() {
-        binding.editText.clearFocus()
-        (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-            .hideSoftInputFromWindow(binding.editText.windowToken, 0)
+    private fun selectHotTab(position: Int) {
+        val tab = binding.hotTabLayout.getTabAt(position) ?: return
+        if (tab.isSelected) return
+        isTabSelectedByUser = true
+        tab.select()
+        isTabSelectedByUser = false
     }
+
+    /**
+     * 返回值为「热门搜索 + 热搜榜」两张卡片：
+     *  - hotSearch          → 扁平的热门搜索词条
+     *  - searchHotListCard  → 榜单 tab，每种 tab 里再嵌 10 条榜单项
+     */
+    private fun bindHotSearch(response: SearchHotResponse?) {
+        val cards = response?.data.orEmpty()
+
+        val hotItems = cards.firstOrNull { it.entityTemplate == "hotSearch" }?.entities
+        hotAdapter.submitList(hotItems)
+        binding.hotSearchGroup.isVisible = !hotItems.isNullOrEmpty()
+
+        val rankList = cards.firstOrNull { it.entityTemplate == "searchHotListCard" }?.entities
+        hotRankColumnAdapter.submitList(rankList)
+        binding.hotRankGroup.isVisible = !rankList.isNullOrEmpty()
+        buildHotTabs(rankList.orEmpty())
+    }
+
+    private fun buildHotTabs(list: List<SearchHotResponse.Item>) {
+        binding.hotTabLayout.removeAllTabs()
+        list.forEachIndexed { index, item ->
+            val tab = binding.hotTabLayout.newTab()
+            val titleView = layoutInflater
+                .inflate(R.layout.item_search_hot_tab, binding.hotTabLayout, false) as TextView
+            titleView.text = item.title
+            tab.customView = titleView
+            binding.hotTabLayout.addTab(tab, index == 0)
+        }
+        updateHotTabColors(0)
+    }
+
+    /** 自定义 tab 视图不吃 TabLayout 的 tabTextColors，只能自己上色 */
+    private fun updateHotTabColors(selected: Int) {
+        val selectedColor = MaterialColors.getColor(
+            binding.hotTabLayout,
+            com.google.android.material.R.attr.colorPrimary,
+            0
+        )
+        val normalColor = MaterialColors.getColor(
+            binding.hotTabLayout,
+            com.google.android.material.R.attr.colorOnSurfaceVariant,
+            0
+        )
+        for (i in 0 until binding.hotTabLayout.tabCount) {
+            val titleView = binding.hotTabLayout.getTabAt(i)?.customView as? TextView ?: continue
+            titleView.setTextColor(if (i == selected) selectedColor else normalColor)
+        }
+    }
+
+    // ---------------- 搜索联想 ----------------
+
+    private fun initSuggest() {
+        suggestAdapter = SearchSuggestAdapter(
+            onItemClick = { word, _ ->
+                binding.editText.setText(word)
+                binding.editText.setSelection(word.length)
+                startSearch(word)
+            },
+            onFillClick = { word ->
+                binding.editText.setText(word)
+                binding.editText.setSelection(word.length)
+            }
+        )
+        binding.suggestRecyclerView.apply {
+            adapter = suggestAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+        }
+    }
+
+    /** 有输入 → 展示联想；无输入 → 回到「历史 + 热门 + 热搜榜」 */
+    private fun updatePanelState() {
+        val typing = binding.editText.text?.isNotBlank() == true
+        binding.searchHome.isVisible = !typing
+        binding.suggestRecyclerView.isVisible = typing
+    }
+
+    // ---------------- 输入框与搜索动作 ----------------
 
     private fun initEditText() {
         binding.editText.apply {
@@ -159,27 +267,93 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
             else "搜索"
             setOnEditorActionListener(TextView.OnEditorActionListener { _, actionId, keyEvent ->
                 if ((actionId == EditorInfo.IME_ACTION_UNSPECIFIED || actionId == EditorInfo.IME_ACTION_SEARCH) && keyEvent != null) {
-                    search()
+                    startSearch(text.toString())
                     return@OnEditorActionListener false
                 }
                 false
             })
+            setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) updatePanelState()
+            }
 
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence, i: Int, i2: Int, i3: Int) {}
                 override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                     binding.clear.isVisible = s.isNotBlank()
+                    updatePanelState()
+                    if (s.isBlank()) viewModel.clearSuggest()
+                    else viewModel.fetchSuggest(s.toString())
                 }
+
                 override fun afterTextChanged(s: Editable) {}
             })
 
         }
     }
 
+    private fun initButton() {
+        binding.toolBar.apply {
+            setNavigationOnClickListener {
+                activity?.finish()
+            }
+        }
+        binding.search.setOnClickListener {
+            startSearch(binding.editText.text.toString())
+        }
+        binding.clear.setOnClickListener {
+            binding.editText.text = null
+        }
+    }
+
+    private fun startSearch(word: String) {
+        val keyWord = word.trim()
+        if (keyWord.isEmpty()) {
+            Toast.makeText(requireContext(), "请输入关键词", Toast.LENGTH_SHORT).show()
+            return
+        }
+        requireActivity().supportFragmentManager
+            .beginTransaction()
+            .setCustomAnimations(
+                R.anim.right_in,
+                R.anim.left_out_fragment,
+                R.anim.left_in,
+                R.anim.right_out
+            )
+            .replace(
+                R.id.fragmentContainer,
+                SearchResultFragment.newInstance(
+                    keyWord,
+                    viewModel.pageType,
+                    viewModel.pageParam,
+                    viewModel.title
+                )
+            )
+            .addToBackStack(null)
+            .commit()
+        updateHistory(keyWord)
+        hideKeyBoard()
+        // 结果页返回时直接看到默认态，而不是停留在联想列表
+        binding.searchHome.isVisible = true
+        binding.suggestRecyclerView.isVisible = false
+    }
+
+    private fun onSearchWord(word: String?) {
+        if (word.isNullOrBlank()) return
+        binding.editText.setText(word)
+        binding.editText.setSelection(word.length)
+        startSearch(word)
+    }
+
+    private fun hideKeyBoard() {
+        binding.editText.clearFocus()
+        (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+            .hideSoftInputFromWindow(binding.editText.windowToken, 0)
+    }
+
     override fun onItemClick(data: String) {
         binding.editText.setText(data)
         binding.editText.setSelection(data.length)
-        search()
+        startSearch(data)
     }
 
     private fun updateHistory(data: String) {
@@ -191,9 +365,11 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
+        binding.hotRankRecyclerView.removeOnScrollListener(hotRankScrollListener)
+        binding.hotTabLayout.clearOnTabSelectedListeners()
         mLayoutManager = null
         mAdapter = null
+        super.onDestroyView()
     }
 
 }

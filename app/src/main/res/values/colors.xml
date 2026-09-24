@@ -7,4 +7,8 @@
     <color name="ic_launcher_background">#607D8B</color>
     <color name="advanced_menu_item_text_not_checked">#232323</color>
     <color name="advanced_menu_item_text_checked">#ECECEC</color>
+    <!-- 搜索热搜榜前三名的名次底色 -->
+    <color name="search_rank_1">#F5455C</color>
+    <color name="search_rank_2">#FF9500</color>
+    <color name="search_rank_3">#FFC107</color>
 </resources>
