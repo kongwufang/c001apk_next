@@ -76,7 +76,21 @@ object UpdateChecker {
         val isNewer: Boolean get() = versionCode > BuildConfig.VERSION_CODE
     }
 
-    private val client by lazy { OkHttpClient() }
+    /**
+     * 独立客户端：不挂 Cookie / 日志拦截器 —— 更新接口是自建服务，
+     * 不该把酷安的登录凭证带过去。
+     *
+     * 也不套 [SslVerify.apply]：那条路径在「校验 SSL 证书」开启时要求证书链锚定在
+     * 随包内置的 Mozilla CA 库里，万一自建服务器的证书链不合规，更新检查会在握手阶段
+     * 静默失败（下面的 runCatching 会把异常吞掉，用户只看到「没有更新」），代价太大。
+     * 常规校验交给 network_security_config（信任锚 = 仅内置 Mozilla CA，
+     * 用户安装的抓包证书一样会被拒），这里只在「网络传输调试模式」下显式放开，
+     * 否则裸 OkHttpClient 走平台默认校验，抓包证书永远过不去。
+     */
+    private val client by lazy {
+        if (PrefManager.isSslDebug) SslVerify.applyDebug(OkHttpClient.Builder()).build()
+        else OkHttpClient()
+    }
 
     private val userAgent: String by lazy {
         val d = TokenDeviceUtils.detectRealDevice()
