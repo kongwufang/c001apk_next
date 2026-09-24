@@ -211,13 +211,25 @@ object PrefManager {
     /**
      * SSL 证书校验（默认开）。
      *
-     * 开启时不信任系统 CA，只认 api.coolapk.com / api2.coolapk.com 证书链里的固定公钥
-     * （见 [SslVerify]），可挡住用户自己装的根证书做中间人；
-     * 关闭则回落成系统默认校验。
+     * 开启时走 [SslVerify] 的双重校验（平台 PKIX + 信任锚必须落在内置 CA 库），
+     * 可挡住抓包工具/厂商私有根证书做中间人；关闭则回落成系统默认校验。
      */
     var isVerifySsl: Boolean
         get() = pref.getBoolean("verifySsl", true)
         set(value) = pref.edit().putBoolean("verifySsl", value).apply()
+
+    /**
+     * 网络传输调试模式（默认关，仅供抓包调试）。
+     *
+     * 开启后 [SslVerify] 彻底跳过 SSL 校验：既不校验证书链也不校验域名，
+     * 系统校验一并绕过（OkHttp / WebView / HttpsURLConnection 三层都放开）。
+     *
+     * 与 [isVerifySsl] 互斥：`校验 SSL 证书` 开着时本项被强制关闭；
+     * 且开关修改后需**重启应用**才生效（客户端实例在启动时构建）。
+     */
+    var isSslDebug: Boolean
+        get() = pref.getBoolean("sslDebug", false)
+        set(value) = pref.edit().putBoolean("sslDebug", value).apply()
 
     /** 其他屏蔽项（关键字/用户/节点）的服务端配置缓存，离线也能先过滤 */
     var spamConfig: String

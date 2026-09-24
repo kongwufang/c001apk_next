@@ -8,6 +8,8 @@ import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
@@ -38,6 +40,12 @@ import javax.net.ssl.X509TrustManager
  * 关闭开关则回落到系统默认校验（OkHttp 层不再做白名单限制）。
  * 注意：WebView / Glide 等系统默认网络栈走的是 res/xml/network_security_config.xml
  * （信任锚 = 仅内置 Mozilla CA，不受本开关控制，修改 NSC 需重新构建安装）。
+ *
+ * 「网络传输调试模式」（[PrefManager.isSslDebug]，设置里紧跟本开关的第二个开关，
+ * 与严格校验互斥）开启后**彻底跳过校验**，方便抓包调试：
+ * - OkHttp：[apply] 装全放行 TrustManager + 全放行 hostnameVerifier；
+ * - HttpsURLConnection 默认栈（Glide 默认图片栈等）：[applyDebugGlobally]；
+ * - WebView：onReceivedSslError 里直接 handler.proceed()。
  *
  * 注意：开关修改后需**重启应用**才生效（OkHttpClient 是单例，构建时固化了 TrustManager）。
  */
@@ -144,8 +152,61 @@ object SslVerify {
         }
     }
 
+    /** 调试模式用的全放行 TrustManager：不校验证书链 */
+    private val trustingTrustManager: X509TrustManager by lazy {
+        object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) = Unit
+
+            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) = Unit
+
+            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+        }
+    }
+
+    /** 调试模式用的全放行域名校验：证书里写的是哪个域名都放行 */
+    private val trustingHostnameVerifier = HostnameVerifier { _, _ -> true }
+
+    /** 调试模式：跳过全部校验（证书链 + 域名） */
+    fun applyDebug(builder: OkHttpClient.Builder): OkHttpClient.Builder {
+        Log.w(TAG, "网络传输调试模式：OkHttp 跳过全部 SSL 校验")
+        val sslContext = SSLContext.getInstance("TLS").apply {
+            init(null, arrayOf<TrustManager>(trustingTrustManager), SecureRandom())
+        }
+        return builder
+            .sslSocketFactory(sslContext.socketFactory, trustingTrustManager)
+            .hostnameVerifier(trustingHostnameVerifier)
+    }
+
+    /**
+     * 调试模式：把进程级 HttpsURLConnection 的默认校验也放开。
+     *
+     * WebView 走自己的网络栈（onReceivedSslError 放行）、OkHttp 走 [apply]，
+     * 而 Glide 的默认图片栈等用 HttpsURLConnection 的库吃的是这个进程级默认值，
+     * 不放开的话抓包时图片会全挂。开关本身要求重启应用，Application 启动调用一次即可。
+     */
+    fun applyDebugGlobally() {
+        if (!PrefManager.isSslDebug) return
+        runCatching {
+            val sslContext = SSLContext.getInstance("TLS").apply {
+                init(null, arrayOf<TrustManager>(trustingTrustManager), SecureRandom())
+            }
+            HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
+            HttpsURLConnection.setDefaultHostnameVerifier(trustingHostnameVerifier)
+            Log.w(TAG, "网络传输调试模式：HttpsURLConnection 默认栈跳过全部 SSL 校验")
+        }.onFailure { Log.w(TAG, "放开 HttpsURLConnection 默认校验失败", it) }
+    }
+
+    /**
+     * 图片加载（Mojito 的 Glide 走 OkHttp）用。
+     * 非调试模式返回 null = 沿用模块自带的默认客户端，行为不变。
+     */
+    fun debugImageClientOrNull(): OkHttpClient? =
+        if (PrefManager.isSslDebug) applyDebug(OkHttpClient.Builder()).build() else null
+
     /** 应用到 OkHttp 客户端；开关关闭时原样返回（走系统默认校验） */
     fun apply(builder: OkHttpClient.Builder): OkHttpClient.Builder {
+        // 调试模式优先：彻底跳过校验
+        if (PrefManager.isSslDebug) return applyDebug(builder)
         if (!PrefManager.isVerifySsl) return builder
 
         val sslContext = SSLContext.getInstance("TLS").apply {

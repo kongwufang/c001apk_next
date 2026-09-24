@@ -1,8 +1,15 @@
 package com.example.c001apk.ui.settings
 
 import android.annotation.SuppressLint
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
@@ -10,6 +17,8 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.graphics.ColorUtils
 import androidx.preference.Preference
@@ -36,6 +45,7 @@ import com.google.android.material.slider.Slider
 import rikka.core.util.ResourceUtils
 import rikka.material.preference.MaterialSwitchPreference
 import rikka.preference.SimpleMenuPreference
+import kotlin.system.exitProcess
 
 class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
@@ -102,6 +112,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
     override fun onResume() {
         super.onResume()
         syncToolbarTitle()
+        // 开关可能被别处改动（如风险弹窗里关闭了「校验 SSL 证书」），回到页面时重新同步互斥状态
+        syncSslDebugState()
     }
 
     class SettingsPreferenceDataStore : PreferenceDataStore() {
@@ -132,6 +144,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "isOpenLinkOutside" -> PrefManager.isOpenLinkOutside
                 "isColorFilter" -> PrefManager.isColorFilter
                 "verifySsl" -> PrefManager.isVerifySsl
+                "sslDebug" -> PrefManager.isSslDebug
                 else -> throw IllegalArgumentException("Invalid key: $key")
             }
         }
@@ -147,6 +160,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "isOpenLinkOutside" -> PrefManager.isOpenLinkOutside = value
                 "isColorFilter" -> PrefManager.isColorFilter = value
                 "verifySsl" -> PrefManager.isVerifySsl = value
+                "sslDebug" -> PrefManager.isSslDebug = value
                 else -> throw IllegalArgumentException("Invalid key: $key")
             }
         }
@@ -360,6 +374,151 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
+        // 「校验 SSL 证书」与「网络传输调试模式」互斥：
+        // 打开严格校验时强制关掉调试模式，并刷新调试开关的可用状态
+        findPreference<MaterialSwitchPreference>("verifySsl")?.setOnPreferenceChangeListener { _, value ->
+            if (value == true && PrefManager.isSslDebug) {
+                PrefManager.isSslDebug = false
+            }
+            syncSslDebugState()
+            true
+        }
+
+        // 「网络传输调试模式」：开启要二次确认 + 倒计时，关闭直接生效（两者都需重启应用）
+        syncSslDebugState()
+        findPreference<MaterialSwitchPreference>("sslDebug")?.setOnPreferenceChangeListener { _, value ->
+            when {
+                // 严格校验开着时不可开启（开关本应是禁用态，这里兜底拦截）
+                value == true && PrefManager.isVerifySsl -> false
+
+                // 开启：先弹二次确认，确认后再落库并刷新开关
+                value == true -> {
+                    showSslDebugConfirmDialog()
+                    false
+                }
+
+                // 关闭：直接落库 + 提示
+                else -> {
+                    PrefManager.isSslDebug = false
+                    syncSslDebugState()
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.ssl_debug_disabled_toast,
+                        Toast.LENGTH_LONG
+                    ).show()
+                    false
+                }
+            }
+        }
+
+    }
+
+    /** 按「校验 SSL 证书」的当前值刷新调试开关：互斥时禁用并换成说明文案 */
+    private fun syncSslDebugState() {
+        val debug = findPreference<MaterialSwitchPreference>("sslDebug") ?: return
+        val strict = PrefManager.isVerifySsl
+        if (strict && PrefManager.isSslDebug) {
+            PrefManager.isSslDebug = false
+        }
+        debug.isChecked = PrefManager.isSslDebug
+        debug.isEnabled = !strict
+        debug.summary = getString(
+            if (strict) R.string.settings_ssl_debug_locked_summary
+            else R.string.settings_ssl_debug_summary
+        )
+    }
+
+    /**
+     * 开启「网络传输调试模式」前的二次确认：正向按钮先禁用并倒计时，
+     * 防止误触一键放开全部 SSL 校验。
+     */
+    private fun showSslDebugConfirmDialog() {
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.ssl_debug_confirm_title)
+            .setMessage(R.string.ssl_debug_confirm_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.ssl_debug_confirm_ok, null)
+            .create()
+
+        dialog.setOnShowListener {
+            val confirm = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            val handler = Handler(Looper.getMainLooper())
+            var remain = 5
+            confirm.isEnabled = false
+            confirm.text = getString(R.string.ssl_debug_confirm_ok_wait, remain)
+
+            val tick = object : Runnable {
+                override fun run() {
+                    remain--
+                    if (remain > 0) {
+                        confirm.text = getString(R.string.ssl_debug_confirm_ok_wait, remain)
+                        handler.postDelayed(this, 1000L)
+                    } else {
+                        confirm.isEnabled = true
+                        confirm.text = getString(R.string.ssl_debug_confirm_ok)
+                    }
+                }
+            }
+            handler.postDelayed(tick, 1000L)
+
+            confirm.setOnClickListener {
+                handler.removeCallbacks(tick)
+                PrefManager.isSslDebug = true
+                syncSslDebugState()
+                dialog.dismiss()
+                Toast.makeText(
+                    requireContext(),
+                    R.string.ssl_debug_enabled_toast,
+                    Toast.LENGTH_LONG
+                ).show()
+                showSslDebugRestartDialog()
+            }
+        }
+        dialog.show()
+    }
+
+    /** 开启后提示需要重启（网络栈在 Application 启动时构建，只有整个进程重启才生效） */
+    private fun showSslDebugRestartDialog() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.ssl_debug_restart_title)
+            .setMessage(R.string.ssl_debug_restart_message)
+            .setNegativeButton(R.string.ssl_debug_restart_later, null)
+            .setPositiveButton(R.string.ssl_debug_restart_now) { _, _ -> restartApp() }
+            .show()
+    }
+
+    /**
+     * 立即重启应用：用 AlarmManager 预约拉起一个新的启动 Intent，再杀掉当前进程
+     * （直接杀进程系统不会自动拉起）。正式发布版本同样适用。
+     */
+    private fun restartApp() {
+        val appContext = requireContext().applicationContext
+        val intent = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
+        if (intent == null) {
+            // 拿不到启动 Intent（极罕见）：退化为重建当前 Activity，至少刷新界面
+            activity?.recreate()
+            return
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        val pendingIntent = PendingIntent.getActivity(
+            appContext,
+            0,
+            intent,
+            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        runCatching {
+            val am = appContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+                ?: return@runCatching
+            val triggerAt = System.currentTimeMillis() + 200L
+            // Android 12+ 未获精确闹钟授权时 setExact 会抛异常，此时退化为普通 set
+            val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+            if (canExact) {
+                am.setExact(AlarmManager.RTC, triggerAt, pendingIntent)
+            } else {
+                am.set(AlarmManager.RTC, triggerAt, pendingIntent)
+            }
+        }
+        exitProcess(0)
     }
 
     companion object {

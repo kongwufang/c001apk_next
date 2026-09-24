@@ -123,6 +123,14 @@
             android:key="verifySsl"
             android:summary="@string/settings_verify_ssl_summary"
             android:title="@string/settings_verify_ssl" />
+        <!-- 网络传输调试模式（彻底关闭 SSL 校验）：与上面的严格校验互斥，
+             严格校验开着时本项被禁用；开启需要二次确认 + 5 秒等待 -->
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="false"
+            android:icon="@drawable/ic_bug"
+            android:key="sslDebug"
+            android:summary="@string/settings_ssl_debug_summary"
+            android:title="@string/settings_ssl_debug" />
         <Preference
             android:icon="@drawable/ic_phone"
             android:key="szlmId"

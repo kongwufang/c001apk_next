@@ -67,6 +67,8 @@ object SslErrorPrompter {
      * @param error 仅用于日志/调试，可为 null（WebView 路径传 SslError.toString()）
      */
     fun onSslFailure(error: Exception?) {
+        // 「网络传输调试模式」下本来就不校验证书，弹风险提示只会干扰抓包
+        if (PrefManager.isSslDebug) return
         if (showing || pending) return
         showing = true
         val activity = currentActivity.get()

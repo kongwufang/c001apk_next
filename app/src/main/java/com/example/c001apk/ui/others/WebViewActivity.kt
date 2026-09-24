@@ -210,6 +210,11 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
                     override fun onReceivedSslError(
                         view: WebView?, handler: SslErrorHandler?, error: SslError?
                     ) {
+                        // 网络传输调试模式：直接放行（不校验证书链/域名），方便抓包调试
+                        if (PrefManager.isSslDebug) {
+                            handler?.proceed()
+                            return
+                        }
                         SslErrorPrompter.onSslFailure(error?.let {
                             java.security.cert.CertificateException(it.toString())
                         })
