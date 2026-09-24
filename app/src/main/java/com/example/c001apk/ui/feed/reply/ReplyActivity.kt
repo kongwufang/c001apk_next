@@ -467,6 +467,24 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
                 }
             binding.ratingLayout.isVisible = true
             initRatingItems()
+            // 面板底色：Activity 是半透明主题（AppThemeTranslucent），
+            // 评分面板不铺底色的话下层页面会直接透上来，评分项/输入框糊成一片
+            val sheetColor = color
+            binding.ratingLayout.background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(sheetColor)
+                cornerRadii = floatArrayOf(
+                    16.dp.toFloat(), 16.dp.toFloat(),
+                    0f, 0f,
+                    0f, 0f,
+                    0f, 0f
+                )
+            }
+            // 输入面板与评分面板同色，去掉上面两个圆角，避免接缝处露出断层
+            binding.inputLayout.background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(sheetColor)
+            }
         }
     }
 
