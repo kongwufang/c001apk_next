@@ -132,7 +132,11 @@ object ShuzilmProbe {
             runCatching {
                 val buf = readAsset(ctx, DEX_ASSET)
                 dexBuffer = buf
-                val l = InMemoryDexClassLoader(buf, nativeDir, parent)
+                // 注意：SDK 里没有「单个 ByteBuffer + librarySearchPath」这个重载，
+                // 带 native 库搜索路径的两个只接受 ByteBuffer[]，所以必须包成数组
+                // （单 buffer 的重载只有 (ByteBuffer, ClassLoader)，那会丢掉 native 库路径，
+                //   而 SDK 内部要 System.loadLibrary("du")）
+                val l = InMemoryDexClassLoader(arrayOf(buf), nativeDir, parent)
                 Class.forName("cn.shuzilm.core.Main", true, l)
                 l
             }.onSuccess {
