@@ -1,6 +1,8 @@
 package com.example.c001apk.probe
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -15,36 +17,51 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * 数盟（`cn.shuzilm.core`）SDK 探针 —— 只回答一个问题：
+ * 数盟（`cn.shuzilm.core`）SDK 探针 —— 回答两个问题：
  *
- * > 纯靠 SDK 向官方（`auni.telecome.cn`）要签发，能不能拿到一个被酷安服务端认可的 DUID？
- * > 而不是像现在这样，把别人签好的那一份内置进包里。
+ * 1. 纯靠 SDK 向官方要签发，能不能拿到一个被酷安服务端认可的 DUID？
+ * 2. 如果不能，**服务端凭什么判定调用方不是官方 App**？
  *
- * ## 为什么要探
+ * ## 已有的结论（见 `_rev/SZLM_SDK_SIGNING_VERDICT.md`）
  *
- * c001apk 的「数字联盟 ID」现在只能**外部输入**：它是数盟服务端在真机上签发的设备标识，
- * 客户端自己造不出来（随机值的实测结果是 `err_request_captcha_v2`，见 `_rev/probe_trust.py`）。
- * 于是只剩下内置别人那一份的路 —— 而一份值被多个安装共用，服务端就会算成同一台设备，
- * 最终落进 `-415 账号过多`（对照见 `_rev/SZLM_CANDIDATE_VERDICT.md`）。
+ * 第一轮实测：SDK 全链路跑通（init / setConfig / getQueryID / 通信 / 回调全绿），
+ * 但拿到的 `device_id` 是 **36 个 0**。同一台设备上官方酷安拿的是真值
+ * `DUFPnec5dST2pTeImYGBClyhOnoUecHYyWg9`，两边云控都落 32 条键、一一对应。
+ * 唯一变量是**包名**（+签名）。
  *
- * 如果 SDK 能在本应用里跑通，每台设备就各自签自己那一份：**一机一值，永不共用**。
+ * 静态侧只查到：`DUHelper` 那批 native 方法几乎全部接收 `Context`
+ * （`query(Context,…)` / `onEvent(Context,…)` / `dGZvcmRQ(Context,…)` …），
+ * 而 Java 层只调了 `getPackageInfo(pkg, 0)`，**不带签名** —— 采集在 native，
+ * `libdu.so` 串表运行期解密，静态看不到 JNI 方法名。
+ *
+ * ## 这一轮在测什么
+ *
+ * 不再猜，直接改实验变量：把传给 SDK 的 [Context] 包一层 [SpoofContext]，
+ * 让 `getPackageName()` 返回 [SPOOF_PKG]。设备上装着官方酷安，于是
+ * `getPackageManager().getPackageInfo(SPOOF_PKG, …)` 会查到**官方酷安真实的
+ * PackageInfo 和签名** —— 也就是说这一层伪装同时把包名和签名都对齐了官方。
+ *
+ * - 拿到真值 → 判据就是 (包名, 签名)，结论闭环，且机制明确
+ * - 还是全零 → 判据在别处（native 直接读 `/proc/self/cmdline`、或设备指纹、
+ *   或 apiKey 与服务端注册的 profile 绑定），继续收窄
  *
  * ## 怎么跑
  *
  * - 构建：`./gradlew :app:assembleRelease -PshuzilmProbe=true`
  *   （不开这个开关，本文件与 `src/probe/` 下的 dex/so/assets 都不参与构建）
- * - 触发：应用启动后自动执行，无需交互；结果只记一次，重跑要清应用数据
+ * - 触发：应用启动后自动执行，无需交互
  * - 看结果：Toast + logcat（`adb logcat -s ShuzilmProbe`）+ `Android/data/com.example.c001apk/files/shuzilm_probe.txt`
+ * - 改实验：调 [PROBE_VERSION] 即可强制重跑（不用清应用数据）
  *
  * ## 判读
  *
  * | verdict | 含义 |
  * |---|---|
  * | `signed` | 返回值以 `D` 开头 = 官方签发成功，闭环成立 |
- * | `rejected` | 有返回但不是 `D` 开头 = SDK 跑起来了但服务端没给 |
- * | `empty` | 回调是空 = 同上，且更彻底 |
+ * | `rejected` | 有返回但不是 `D` 开头（全零就是这个） |
+ * | `empty` | 回调是空 |
  * | `timeout` | 25 s 内没回调 = 请求没出网 / 端点不可达 |
- * | `sdk_crash` | SDK 自己的线程抛了未捕获异常，具体见 `detail` |
+ * | `sdk_crash` | SDK 自己线程抛了未捕获异常，具体见 `detail` |
  * | `error` | 探针自身抛异常，看 logcat 堆栈 |
  *
  * ## 为什么是三张 dex
@@ -54,24 +71,21 @@ import java.util.concurrent.TimeUnit
  *
  * | dex | 含有的 cn.shuzilm 类 |
  * |---|---|
- * | `classes01`（47 个） | `Main`、`DUHelper`、`Listener`、`dl`、`a`–`z`、`R`… |
- * | `classes09`（2 个） | `aa`、`BuildConfig` —— classes01 引用但没定义 |
- * | `classes10`（6 个） | `AIClient` 及内部类 —— classes01 引用但没定义 |
+ * | `shuzilm01.dex`（47 个） | `Main`、`DUHelper`、`Listener`、`dl`、`a`–`z`、`R`… |
+ * | `shuzilm09.dex`（2 个） | `aa`、`BuildConfig` —— classes01 引用但没定义 |
+ * | `shuzilm10.dex`（6 个） | `AIClient` 及内部类 —— classes01 引用但没定义 |
  *
- * 这三张是逐张解析 class_defs + type_ids 比对出来的最小集合。
+ * 逐张解析 class_defs + type_ids 比对出来的最小闭包（脚本 `_rev/_dex_scan.py`）。
  *
  * ## 加载方式与取舍
  *
- * SDK 的 class 不从源码编译进来，而是把这三张 dex 塞进 assets、运行时独立加载、反射调用：
+ * 独立 ClassLoader 加载，不把 SDK 编进源码：这三张 dex 里还有 `com.coolapk.*`
+ * 和大量第三方库，直接合进来会大面积类名冲突；只挑那 55 个类摘出来也不行 ——
+ * 它们对同 dex 内其它类的引用会一起断掉。
  *
- * 1. 它们是酷安**整个** dex 的前几张（18.7 + 8.2 + 9.3 MB），里面还有 `com.coolapk.*`
- *    和一堆第三方库，直接合进本工程会大面积类名冲突；
- * 2. 只挑那 55 个类摘出来也不行 —— 它们对同 dex 内其它类的引用会一起断掉；
- * 3. 独立 loader 天然隔离，探针砍掉时主工程零残留。
- *
- * API 29+ 走 [InMemoryDexClassLoader]（不落盘）；Android 10 才加上带 `librarySearchPath`
- * 的三参构造，Android 9 只有二参版本，而 SDK 内部要 `System.loadLibrary("du")`，
- * 缺库搜索路径会 `UnsatisfiedLinkError` —— 所以那边走落盘 [DexClassLoader]。
+ * API 29+ 走 [InMemoryDexClassLoader]（不落盘）；Android 9 只有二参版本，
+ * 而 SDK 内部要 `System.loadLibrary("du")`，缺库搜索路径会 `UnsatisfiedLinkError`
+ * —— 那边走落盘 [DexClassLoader]。
  *
  * `Listener` 是 SDK 的接口，本工程编译期不认识它，用 [Proxy] 动态代理实现。
  */
@@ -82,15 +96,32 @@ object ShuzilmProbe {
     /** 酷安官方接入用的数盟 apiKey（42 字符、`11` 前缀，SDK 侧只自校验这个格式） */
     private const val API_KEY = "11e7b222083a4b732b4b14811f6fc05995a01415eb"
 
+    /**
+     * 传给 SDK 的包名伪装目标。`null` = 用真实包名（基线）。
+     *
+     * 设成 `com.coolapk.market` 时，设备上装着的官方酷安会让
+     * `getPackageManager().getPackageInfo(该包名, …)` 返回**官方真实的签名与安装信息**，
+     * 于是「包名 + 签名」这两件事一起对齐了官方。
+     */
+    private val SPOOF_PKG: String? = "com.coolapk.market"
+
+    /**
+     * 实验版本号。改它就强制重跑（结果只对同版本有效）。
+     *
+     * - `baseline-1`：真实包名 → `rejected` / 全零（已完成）
+     * - `spoof-pkg-1`：伪装包名 → 本轮
+     */
+    private const val PROBE_VERSION = "spoof-pkg-1"
+
     /** 必须按 classes01 → 09 → 10 的顺序，且是 classes01 引用缺失类的最小闭包（见类注释） */
     private val DEX_ASSETS = listOf("shuzilm01.dex", "shuzilm09.dex", "shuzilm10.dex")
 
     private const val PREFS = "shuzilm_probe"
     private const val CALLBACK_TIMEOUT_SEC = 25L
 
+    private const val KEY_VERSION = "probe_version"
     private const val KEY_VERDICT = "verdict"
     private const val KEY_DID = "did"
-    private const val KEY_DEX = "dex"
     private const val KEY_DETAIL = "detail"
 
     private val CONFIGS = listOf("pkglist" to "1", "operation" to "1", "cdlmt" to "1")
@@ -105,16 +136,24 @@ object ShuzilmProbe {
     private var dexBuffers: List<ByteBuffer>? = null
 
     /**
-     * 入口。幂等；已有结果就不重复跑（想重跑清应用数据）。
+     * 入口。同一 [PROBE_VERSION] 只跑一次；换版本号即重跑。
      * 由 `MyApplication` 反射调用，所以是 `@JvmStatic`。
      */
     @JvmStatic
     fun maybeRun(ctx: Context) {
         val app = ctx.applicationContext
-        if (app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).contains(KEY_VERDICT)) {
-            Log.i(TAG, "已有结果，跳过（清应用数据可重跑）")
+        val sp = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (sp.getString(KEY_VERSION, null) == PROBE_VERSION && sp.contains(KEY_VERDICT)) {
+            Log.i(TAG, "版本 $PROBE_VERSION 已有结果，跳过")
             return
         }
+        sp.edit().clear().putString(KEY_VERSION, PROBE_VERSION).apply()
+        report(app, "run", "$PROBE_VERSION  spoofPkg=${SPOOF_PKG ?: "(真实包名)"}")
+
+        // 清掉数盟 SDK 自己的落盘：它会把 device_id 缓存进 _dna.xml，
+        // 不清的话这次实验读到的还是上一轮的旧值，白跑
+        clearSdkCache(app)
+
         Thread({
             val prepared = runCatching { prepare(app) }
             val loader = prepared.getOrNull()
@@ -132,10 +171,21 @@ object ShuzilmProbe {
         }, "shuzilm-probe").start()
     }
 
+    /** 删掉数盟 SDK 的 SP，强制它重新向服务端要签发（否则读缓存，实验无意义） */
+    private fun clearSdkCache(ctx: Context) {
+        val dir = File(ctx.dataDir, "shared_prefs")
+        val names = listOf("${ctx.packageName}_dna.xml", "${ctx.packageName}_prefs.xml")
+        for (n in names) {
+            val f = File(dir, n)
+            if (f.exists()) {
+                val ok = f.delete()
+                Log.i(TAG, "清 SDK 落盘 ${f.name} -> $ok")
+            }
+        }
+    }
+
     /**
      * 子线程：把 dex 准备好并建出 ClassLoader（首次要 dexopt 34 MB，几秒到二十几秒）。
-     *
-     * 两条路都试，谁先成用谁。
      */
     private fun prepare(ctx: Context): ClassLoader {
         val t0 = System.currentTimeMillis()
@@ -187,13 +237,17 @@ object ShuzilmProbe {
             latch.countDown()
         }
 
+        // 交给 SDK 的就是这一层包装；探针自己的落盘/日志仍用真实 ctx
+        val sdkCtx: Context = SPOOF_PKG?.let { SpoofContext(ctx, it) } ?: ctx
+        Log.i(TAG, "传给 SDK 的包名 = ${sdkCtx.packageName}（真实 ${ctx.packageName}）")
+
         try {
             val mainCls = Class.forName("cn.shuzilm.core.Main", true, loader)
             val listenerCls = Class.forName("cn.shuzilm.core.Listener", true, loader)
 
             mainCls.getMethod(
                 "init", Context::class.java, String::class.java, java.lang.Boolean.TYPE
-            ).invoke(null, ctx, API_KEY, false)
+            ).invoke(null, sdkCtx, API_KEY, false)
             Log.i(TAG, "Main.init(apiKey) ok")
 
             // 酷安接入时打的三条；失败不影响取 ID，只记日志
@@ -216,7 +270,7 @@ object ShuzilmProbe {
             mainCls.getMethod(
                 "getQueryID", Context::class.java, String::class.java,
                 String::class.java, java.lang.Boolean.TYPE, listenerCls,
-            ).invoke(null, ctx, "coolapk", "", true, listener)
+            ).invoke(null, sdkCtx, "coolapk", "", true, listener)
             Log.i(TAG, "getQueryID 已下发，等回调（≤${CALLBACK_TIMEOUT_SEC}s）")
         } catch (t: Throwable) {
             Log.e(TAG, "call 失败", t)
@@ -253,11 +307,23 @@ object ShuzilmProbe {
             report(ctx, KEY_VERDICT, verdict)
             report(ctx, KEY_DID, value.orEmpty())
             crash[0]?.let { report(ctx, KEY_DETAIL, it) }
+            // 顺带把 SDK 落盘的真实结果也捞出来对照（它才是 native 的最终输出）
+            report(ctx, "dna", readDna(ctx))
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(ctx, "数盟探针：$verdict\n${value ?: crash[0].orEmpty()}", Toast.LENGTH_LONG)
                     .show()
             }
         }, "shuzilm-await").start()
+    }
+
+    /** 读数盟 SDK 落盘的 `_dna.xml`（它记的才是 native 认定的 device_id） */
+    private fun readDna(ctx: Context): String {
+        val f = File(File(ctx.dataDir, "shared_prefs"), "${ctx.packageName}_dna.xml")
+        if (!f.exists()) return "(无 _dna.xml)"
+        return runCatching {
+            Regex("<string name=\"device_id\">([^<]*)</string>")
+                .find(f.readText())?.groupValues?.get(1) ?: "(无 device_id 键)"
+        }.getOrElse { "<读取失败 ${it.message}>" }
     }
 
     /** 读 assets 成 direct buffer（[InMemoryDexClassLoader] 直接引用这块内存，不能是临时对象） */
@@ -271,7 +337,7 @@ object ShuzilmProbe {
     }
 
     /**
-     * API 28 及以下才走这条路：把 dex 拷到 `filesDir/probe/` 并设只读。
+     * 落盘方案用：把 dex 拷到 `filesDir/probe/` 并设只读。
      *
      * 必须只读，否则 [DexClassLoader] 会拒绝加载（Android 14 起强制，低版本也认这个约定）。
      */
@@ -299,5 +365,21 @@ object ShuzilmProbe {
             dir.mkdirs()
             File(dir, "shuzilm_probe.txt").appendText("$key=$value\n")
         }.onFailure { Log.w(TAG, "落盘失败：${it.message}") }
+    }
+
+    /**
+     * 只包一层包名，其余全部走真身 —— 这样 SDK 通过
+     * `getPackageManager().getPackageInfo(getPackageName(), …)` 拿到的会是
+     * **官方酷安的 PackageInfo 与真实签名**（设备上装着官方版）。
+     */
+    private class SpoofContext(base: Context, private val spoofPkg: String) : ContextWrapper(base) {
+        override fun getPackageName(): String = spoofPkg
+
+        /** 部分 API 走这个而不是 getPackageName()，一起改掉才不漏 */
+        override fun getOpPackageName(): String = spoofPkg
+
+        override fun getApplicationInfo(): ApplicationInfo =
+            runCatching { baseContext.packageManager.getApplicationInfo(spoofPkg, 0) }
+                .getOrElse { super.getApplicationInfo() }
     }
 }
