@@ -110,6 +110,19 @@ val szlmId = (findProperty("szlmId") as String?)?.trim()?.takeIf { it.isNotEmpty
  */
 val shuzilmProbe = (findProperty("shuzilmProbe") as String?)?.toBoolean() ?: false
 
+/**
+ * 探针实验：让整个应用跑在指定进程名下（`<application android:process>`）。
+ *
+ * 为什么需要它：数盟 SDK 判定调用方身份用的是 **native 采集的真实进程名**
+ * （最可能直接读 `/proc/self/cmdline`）—— 实测把 Java 层 `Context.getPackageName()`
+ * 伪装成 `com.coolapk.market` 后 `device_label` 一字未变、device_id 仍是全零，
+ * 说明它压根不读 Java 那层。要验证这个判断，只能改**真实进程名**。
+ *
+ * 留空 = 显式写回本应用包名（等于不设该属性，行为与改动前一致）。
+ * 实验时传 `-PprobeProcess=com.coolapk.market`。
+ */
+val probeProcess = (findProperty("probeProcess") as String?)?.trim().orEmpty()
+
 android {
     // 注意：namespace 决定 R / ViewBinding / DataBinding 生成类的包名，
     // 源码里全是 import com.example.c001apk.R / com.example.c001apk.databinding.*，不能跟着改名
@@ -132,6 +145,9 @@ android {
 
         // 数盟 SDK 探针是否编进本包（默认 false；见文件上方 shuzilmProbe 注释）
         buildConfigField("boolean", "SHUZILM_PROBE", shuzilmProbe.toString())
+
+        // <application android:process> 的取值：留空即显式写回本应用包名，等同于不设
+        manifestPlaceholders["appProcess"] = probeProcess.ifEmpty { "com.example.c001apk" }
     }
 
     // 探针资产只在开关打开时才挂进 main sourceSet，默认构建完全不感知它们的存在

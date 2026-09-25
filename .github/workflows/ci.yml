@@ -92,11 +92,20 @@ jobs:
             echo "probe=false" >> $GITHUB_OUTPUT
           fi
 
+          # debug2 = 进程名伪装实验：验证数盟 SDK 是否靠 native 读 /proc/self/cmdline 认身份。
+          # 留空时 <application android:process> 会显式写回本应用包名，行为与改动前一致。
+          if [ "${GITHUB_REF_NAME}" = "debug2" ]; then
+            echo "probeProcess=com.coolapk.market" >> $GITHUB_OUTPUT
+            echo "::notice::进程名伪装实验：android:process=com.coolapk.market"
+          else
+            echo "probeProcess=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build release
         id: buildRelease
         run: |
           set -o pipefail
-          ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} -PshuzilmProbe=${{ steps.channel.outputs.probe }} 2>&1 | tee gradle-release.log
+          ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} -PshuzilmProbe=${{ steps.channel.outputs.probe }} -PprobeProcess=${{ steps.channel.outputs.probeProcess }} 2>&1 | tee gradle-release.log
           echo "releaseName=$(ls app/build/outputs/apk/release/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
       - name: Upload release
@@ -134,7 +143,7 @@ jobs:
         id: buildDebug
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug -PshuzilmProbe=${{ steps.channel.outputs.probe }} 2>&1 | tee gradle-debug.log
+          ./gradlew :app:assembleDebug -PshuzilmProbe=${{ steps.channel.outputs.probe }} -PprobeProcess=${{ steps.channel.outputs.probeProcess }} 2>&1 | tee gradle-debug.log
           echo "debugName=$(ls app/build/outputs/apk/debug/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
       - name: Upload debug

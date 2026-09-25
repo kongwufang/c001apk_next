@@ -99,19 +99,20 @@ object ShuzilmProbe {
     /**
      * 传给 SDK 的包名伪装目标。`null` = 用真实包名（基线）。
      *
-     * 设成 `com.coolapk.market` 时，设备上装着的官方酷安会让
-     * `getPackageManager().getPackageInfo(该包名, …)` 返回**官方真实的签名与安装信息**，
-     * 于是「包名 + 签名」这两件事一起对齐了官方。
+     * **实测无效**（`spoof-pkg-1`）：设成 `com.coolapk.market` 后 `device_id` 仍是全零，
+     * `device_label` 一字未变 —— 说明 SDK 不读 Java 层的 `getPackageName()`，
+     * 采集在 native（最可能是 `/proc/self/cmdline`）。这条留着作对照。
      */
-    private val SPOOF_PKG: String? = "com.coolapk.market"
+    private val SPOOF_PKG: String? = null
 
     /**
      * 实验版本号。改它就强制重跑（结果只对同版本有效）。
      *
-     * - `baseline-1`：真实包名 → `rejected` / 全零（已完成）
-     * - `spoof-pkg-1`：伪装包名 → 本轮
+     * - `baseline-1`：真实包名 → `rejected` / 全零
+     * - `spoof-pkg-1`：Java 层伪装包名 → 仍全零，device_label 未变（判据不在 Java 层）
+     * - `spoof-proc-1`：真实进程名伪装（`-PprobeProcess=com.coolapk.market`）→ 本轮
      */
-    private const val PROBE_VERSION = "spoof-pkg-1"
+    private const val PROBE_VERSION = "spoof-proc-1"
 
     /** 必须按 classes01 → 09 → 10 的顺序，且是 classes01 引用缺失类的最小闭包（见类注释） */
     private val DEX_ASSETS = listOf("shuzilm01.dex", "shuzilm09.dex", "shuzilm10.dex")
