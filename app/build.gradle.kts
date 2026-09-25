@@ -75,6 +75,41 @@ val channel = (findProperty("channel") as String?)?.takeIf { it.isNotBlank() } ?
 // versionName 统一前缀（与仓库同名）：c001apk_next-V1.0.1-release
 val apkPrefix = "c001apk_next"
 
+// 本地机密配置（local.properties 已在 .gitignore 里，不会入库）
+val localProperties = Properties().also {
+    val properties = rootProject.file("local.properties")
+    if (properties.exists())
+        it.load(properties.inputStream())
+}
+
+/**
+ * 数字联盟 ID（szlmId）：设备串 `X-App-Device` 的首字段，同时也是 WebView 的 `DID` cookie。
+ *
+ * 它是数字联盟（cn.shuzilm.core）服务端在真机上签发的设备标识，**刻意不写进源码**：
+ * 一旦随 APK 分发，所有安装都会被服务端算作同一台设备，触发 `-415 账号过多`
+ * （历史版本的写死事故见 `util/PrefManager.kt` 的 SZLMID 注释）。
+ *
+ * 取值优先级：`-PszlmId=xxx` > `local.properties` 里的 `SZLM_ID` > 空串（发布版默认）。
+ * 本机自用：往 `local.properties` 写一行 `SZLM_ID=<你自己那份>` 即可，无需改源码。
+ * CI 自用：在 workflow 里把同名值写进 local.properties（或传 `-PszlmId=`）。
+ */
+val szlmId = (findProperty("szlmId") as String?)?.trim()?.takeIf { it.isNotEmpty() }
+    ?: localProperties.getProperty("SZLM_ID").orEmpty().trim()
+
+/**
+ * 数盟（cn.shuzilm.core）SDK 探针开关：验证「纯靠 SDK 从官方签发 DUID」能否闭环。
+ *
+ * 默认 **关闭**。不开时 `src/probe/` 下的源码 / assets / jniLibs 一律不参与构建，
+ * 产物与改动前**零差异** —— 这是刻意设计：真要分发的包里不该出现数盟 SDK，
+ * 更不该背上那张 18.7 MB 的 dex。
+ *
+ * 开启：`./gradlew :app:assembleRelease -PshuzilmProbe=true`
+ *
+ * 探针内容见 `src/probe/java/com/example/c001apk/probe/ShuzilmProbe.kt`，
+ * 调用口在 `MyApplication`（反射调用，关掉时连编译期依赖都不存在）。
+ */
+val shuzilmProbe = (findProperty("shuzilmProbe") as String?)?.toBoolean() ?: false
+
 android {
     // 注意：namespace 决定 R / ViewBinding / DataBinding 生成类的包名，
     // 源码里全是 import com.example.c001apk.R / com.example.c001apk.databinding.*，不能跟着改名
@@ -91,13 +126,23 @@ android {
         versionName = "$apkPrefix-$verTag"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 数字联盟 ID：空串 = 未内置（客户端等同于留空，见 util/PrefManager.kt 的 SZLMID）
+        buildConfigField("String", "SZLM_ID", "\"$szlmId\"")
+
+        // 数盟 SDK 探针是否编进本包（默认 false；见文件上方 shuzilmProbe 注释）
+        buildConfigField("boolean", "SHUZILM_PROBE", shuzilmProbe.toString())
     }
 
-    val localProperties = Properties().also {
-        val properties = rootProject.file("local.properties")
-        if (properties.exists())
-            it.load(properties.inputStream())
+    // 探针资产只在开关打开时才挂进 main sourceSet，默认构建完全不感知它们的存在
+    sourceSets.getByName("main") {
+        if (shuzilmProbe) {
+            java.srcDir("src/probe/java")
+            assets.srcDir("src/probe/assets")
+            jniLibs.srcDir("src/probe/jniLibs")
+        }
     }
+
     val config = localProperties.getProperty("KEYSTORE_PATH")?.let {
         signingConfigs.create("release") {
             storeFile = file(it)

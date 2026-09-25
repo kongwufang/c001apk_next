@@ -211,3 +211,11 @@
 -keep class com.alibaba.sdk.android.oss.** { *; }
 -dontwarn okio.**
 -dontwarn org.apache.commons.codec.binary.**
+
+# ===== 数盟 SDK 探针（只在 -PshuzilmProbe=true 的构建里存在，见 app/build.gradle.kts）=====
+# MyApplication 里是 Class.forName(...).getMethod("maybeRun", ...) 反射调用，
+# R8 看不到静态引用，不 keep 会把整个类连同入口一起删掉，探针就静默不跑了。
+# 类名不存在时这条规则无副作用。
+-keep class com.example.c001apk.probe.** { *; }
+# dex 是运行时用 DexClassLoader 加载的 assets，不参与 R8；这里只为消掉警告
+-dontwarn cn.shuzilm.**

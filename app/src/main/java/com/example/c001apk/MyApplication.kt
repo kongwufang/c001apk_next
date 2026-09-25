@@ -43,6 +43,17 @@ class MyApplication : Application() {
             SketchImageLoadFactory()
         )
 
+        // 数盟 SDK 探针（验证「纯靠 SDK 从官方签发 DUID」是否闭环）。
+        // 只在 -PshuzilmProbe=true 时才会被打进包；这里用反射调用，
+        // 关掉开关时 src/probe/ 不参与编译，主工程连编译期依赖都没有。
+        if (BuildConfig.SHUZILM_PROBE) {
+            runCatching {
+                Class.forName("com.example.c001apk.probe.ShuzilmProbe")
+                    .getMethod("maybeRun", Context::class.java)
+                    .invoke(null, this)
+            }.onFailure { android.util.Log.w("MyApplication", "数盟探针未就绪：${it.message}") }
+        }
+
         Thread.setDefaultUncaughtExceptionHandler { _, paramThrowable ->
             val exceptionMessage = android.util.Log.getStackTraceString(paramThrowable)
 

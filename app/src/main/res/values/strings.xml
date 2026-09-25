@@ -113,9 +113,9 @@
     <string name="show_reply">查看评论</string>
     <string name="download">下载</string>
     <string name="szlmId">数字联盟ID</string>
-    <string name="szlmId_summary">默认留空：客户端既不内置也不生成设备标识</string>
+    <string name="szlmId_summary">默认沿用内置标识；填自己的数字联盟 ID 可覆盖，清空则不再携带</string>
     <string name="szlm_id_missing_title">设备标识说明</string>
-    <string name="szlm_id_missing_message">本客户端不内置任何设备标识，设备串的这一栏默认留空。\n\n酷安按「设备」做限制，所以详情页等接口可能返回「-415 账号过多」或要求人机验证。这是服务端按设备下发的限制，不是客户端故障，也与你的账号无关；一般过一段时间会自行解除，换一台未被限制的设备也能正常使用。\n\n这一栏是留给手头有自己数字联盟 ID 的用户的，留空不影响首页、搜索、个人页等页面的使用。</string>
+    <string name="szlm_id_missing_message">当前客户端没有可用的设备标识，设备串的这一栏是空的。\n\n酷安按「设备」做限制，所以详情页等接口可能返回「-415 账号过多」或要求人机验证。这是服务端按设备下发的限制，不是客户端故障，也与你的账号无关；一般过一段时间会自行解除，换一台未被限制的设备也能正常使用。\n\n这一栏是留给手头有自己数字联盟 ID 的用户的，留空不影响首页、搜索、个人页等页面的使用。</string>
     <string name="szlm_id_missing_goto">去设置</string>
     <string name="szlm_id_missing_later">知道了</string>
     <string name="params">机型参数</string>

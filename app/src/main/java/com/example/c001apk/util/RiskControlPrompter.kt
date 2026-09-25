@@ -32,7 +32,7 @@ import okhttp3.Response
  *  - 或运行中命中 [RiskControlInterceptor]（403 且响应体带 `-415` / `err_request_captcha_v2`）。
  *
  * 两者共用 [PrefManager.szlmIdNoticed]，一次安装最多打扰一次；
- * 用户自己填过 ID（[PrefManager.szlmIdConfigured]）则完全不出现。
+ * 当前已经有一份可用 ID（内置的或用户填的，见 [PrefManager.SZLMID]）则完全不出现。
  */
 object RiskControlPrompter {
 
@@ -78,8 +78,8 @@ object RiskControlPrompter {
         })
     }
 
-    /** 用户没填过自己的 ID，本次安装也还没说明过 → 值得说明一次 */
-    private fun shouldExplain() = !PrefManager.szlmIdConfigured && !PrefManager.szlmIdNoticed
+    /** 当前**确实拿不到**任何 ID（既没内置、用户也没填）且本次安装还没说明过 → 值得说明一次 */
+    private fun shouldExplain() = PrefManager.SZLMID.isEmpty() && !PrefManager.szlmIdNoticed
 
     /**
      * 网络层命中风控时调用（任意线程）。

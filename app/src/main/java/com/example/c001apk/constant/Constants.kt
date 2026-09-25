@@ -24,10 +24,11 @@ object Constants {
     /**
      * 默认设备串的骨架：解出来是 `; ; ; ; 厂商; 品牌; 型号; 版本号; 尾部64hex`。
      *
-     * ⚠️ **首字段 szlmId 是空的**，这是有意的：它由 [PrefManager.SZLMID] 在
-     * `TokenDeviceUtils.buildDeviceCode()` 里注入，默认值是本机随机生成的一份，
-     * 不再是某个具体设备的真实 ID（历史版本曾把真实 szlmId 写死在这里分发出去，
-     * 导致大量真实账号被服务端算到「同一台设备」上，触发 `-415 账号过多`）。
+     * ⚠️ **首字段 szlmId 在这里是空的**，这是有意的：它由 [PrefManager.SZLMID] 在
+     * `TokenDeviceUtils.buildDeviceCode()` 里注入，而那份 ID **不进源码**——本机编译时
+     * 从 `local.properties` 的 `SZLM_ID` 注入 `BuildConfig.SZLM_ID`，发布版默认空串。
+     * 历史版本把某台真实设备的 szlmId 写死在这里分发出去，导致大量真实账号被服务端
+     * 算到「同一台设备」上，触发 `-415 账号过多`。
      *
      * 这里只保留服务端认可的那几个结构性字段（机型 / 尾部 64hex），
      * 因为实测（`_rev/diff_headers.py` / `_rev/test_device_format.py`）：

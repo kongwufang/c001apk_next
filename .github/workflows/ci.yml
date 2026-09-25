@@ -2,9 +2,15 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      shuzilmProbe:
+        description: '打数盟 SDK 探针包（验证 SDK 能否从官方签发 DUID；产物约 +20 MB）'
+        type: boolean
+        default: false
   push:
     # main = 稳定线；beta / debug / update = 测试线，互不干扰、可随时回滚
-    branches: [ main, beta, debug, update ]
+    # debug2 = 数盟 SDK 探针专用线：构建时自动带探针资产，产物只进 Actions artifact
+    branches: [ main, beta, debug, debug2, update ]
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -67,6 +73,7 @@ jobs:
         run: chmod +x gradlew
 
       # 渠道只影响 versionName 后缀：c001apk_next-V1.0.1-release / -beta / -debug
+      # 顺带定探针开关：debug2 分支恒定开启，其它分支看手动触发的输入
       - name: Resolve channel
         id: channel
         run: |
@@ -78,11 +85,18 @@ jobs:
           echo "channel=$C" >> $GITHUB_OUTPUT
           echo "本次构建渠道：$C"
 
+          if [ "${GITHUB_REF_NAME}" = "debug2" ] || [ "${{ inputs.shuzilmProbe }}" = "true" ]; then
+            echo "probe=true" >> $GITHUB_OUTPUT
+            echo "::notice::已开启数盟 SDK 探针，产物约 +20 MB（说明见 app/src/probe/README.md）"
+          else
+            echo "probe=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build release
         id: buildRelease
         run: |
           set -o pipefail
-          ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} 2>&1 | tee gradle-release.log
+          ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} -PshuzilmProbe=${{ steps.channel.outputs.probe }} 2>&1 | tee gradle-release.log
           echo "releaseName=$(ls app/build/outputs/apk/release/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
       - name: Upload release
@@ -120,7 +134,7 @@ jobs:
         id: buildDebug
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug 2>&1 | tee gradle-debug.log
+          ./gradlew :app:assembleDebug -PshuzilmProbe=${{ steps.channel.outputs.probe }} 2>&1 | tee gradle-debug.log
           echo "debugName=$(ls app/build/outputs/apk/debug/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
       - name: Upload debug
@@ -136,7 +150,8 @@ jobs:
       #   debug → debug-latest（测试版，prerelease）
       # update 分支只放更新配置（json），不发布产物。
       - name: Publish to GitHub Releases
-        if: success() && github.event_name == 'push' && github.ref_name != 'update'
+        # debug2 是探针专用线：产物只留在 Actions artifact，不往任何 Release 上放
+        if: success() && github.event_name == 'push' && github.ref_name != 'update' && github.ref_name != 'debug2'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

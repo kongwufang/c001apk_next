@@ -3,6 +3,7 @@ package com.example.c001apk.util
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
+import com.example.c001apk.BuildConfig
 import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.constant.Constants
 
@@ -153,21 +154,25 @@ object PrefManager {
     /**
      * 数字联盟 ID：设备串（`X-App-Device`）的首字段，同时用作 WebView 的 `DID` cookie。
      *
-     * **默认为空** —— 客户端**不生成、也不内置**任何值。
+     * 取值分三层：
+     *  1. 用户在本机写过（含**清空**）→ 一律以本地为准。清空后不会被内置值顶回来，
+     *     这是「让用户能真正关掉它」的必要条件；
+     *  2. 本机从没写过 → 用编译期注入的 [BuildConfig.SZLM_ID]（来源见 `local.properties`
+     *     的 `SZLM_ID`，本文件不入库，发布版默认空串）；
+     *  3. 都没有 → 空串，客户端按「无设备标识」运行（首页 / 搜索 / 个人页正常，
+     *     `feed/detail` 一类接口可能被要求人机验证）。
      *
-     * 它是数字联盟(SZLM) SDK 在真机上签发的设备标识：客户端既无从获得，凭空造一个
-     * 也不被服务端认（详情页会被要求人机验证，且过码后同一设备串仍被拒，
-     * 实测见 `_rev/probe_trust.py`）。所以「填随机值」并不能绕过去，只是换一种被拦的方式。
-     *
-     * 历史版本曾把某个真实设备的 szlmId 写死后分发出去，导致大量真实账号被服务端
-     * 算到「同一台设备」上并触发 `-415 账号过多`（连 `feed/replyList` 都被拒）。
-     * 留空后服务端只把本机当陌生设备：首页 / 搜索 / 个人页 / 回复列表正常，
-     * 仅 `feed/detail` 一类接口可能要求验证码。
-     *
-     * 手头有自己设备那份 ID 的用户可以填进来（[szlmIdConfigured] 随之置位，说明弹窗不再出现）。
+     * 为什么不做成源码里的字面量常量：它是数字联盟(SZLM) SDK 在真机上由**服务端签发**
+     * 的设备标识，凭空造一个不被认（详情页会被要求人机验证，且过码后同一设备串仍被拒，
+     * 实测见 `_rev/probe_trust.py`）；而写死后随 APK 分发，会让所有安装被服务端算成
+     * **同一台设备**，触发 `-415 账号过多`（连 `feed/replyList` 都被拒）——历史版本
+     * 正是这么翻车的，所以改成「构建期注入、随包不带」。
      */
     var SZLMID: String
-        get() = pref.getString("SZLMID", "") ?: ""
+        get() {
+            pref.getString("SZLMID", null)?.let { return it }
+            return BuildConfig.SZLM_ID
+        }
         set(value) = pref.edit().putString("SZLMID", value).apply()
 
     /** 用户是否在设置里显式填过自己的数字联盟 ID（留空时为 false） */
