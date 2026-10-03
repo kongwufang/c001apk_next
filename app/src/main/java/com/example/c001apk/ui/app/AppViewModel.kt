@@ -36,7 +36,9 @@ class AppViewModel @AssistedInject constructor(
 
     // get download link params
     var appId: String? = null
-    private var packageName: String? = null
+
+    // 包名：评价/发现者/相关应用/收藏这几个接口要传包名，不能传数字 ID
+    var packageName: String? = null
     private var versionCode: String? = null
     val download = MutableLiveData<Event<Boolean>>()
 
@@ -77,7 +79,11 @@ class AppViewModel @AssistedInject constructor(
             versionCode = data.apkversioncode
 
             if (data.commentStatusText == "允许评论" || data.entityType == "appForum") {
-                tabList = listOf("最近回复", "最新发布", "热度排序")
+                // 前三个是应用「讨论」的排序，后四个对应应用详情页的其它区块
+                tabList = listOf(
+                    "最近回复", "最新发布", "热度排序",
+                    "版本历史", "发现者", "礼包", "相关应用"
+                )
             } else {
                 errMsg = data.commentStatusText
             }

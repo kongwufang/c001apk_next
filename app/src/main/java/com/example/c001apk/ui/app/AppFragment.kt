@@ -31,7 +31,10 @@ import dagger.hilt.android.AndroidEntryPoint
 class AppFragment : BasePagerFragment() {
 
     private val viewModel by viewModels<AppViewModel>(ownerProducer = { requireActivity() })
-    private val typeList = listOf("reply", "pub", "hot")
+
+    // 与 AppViewModel.handleAppData() 里的 tabList 一一对应
+    private val typeList =
+        listOf("reply", "pub", "hot", "version", "discoverer", "gift", "related")
     private lateinit var appBinding: BaseViewAppBinding
     private var menuSubscribe: MenuItem? = null
     private var menuBlock: MenuItem? = null
@@ -246,7 +249,9 @@ class AppFragment : BasePagerFragment() {
     ): Fragment =
         AppContentFragment.newInstance(
             typeList[position],
-            viewModel.appId ?: "4599"
+            // 版本历史/礼包要数字 ID，评价/发现者/相关应用要包名，两个都往下传
+            viewModel.appId ?: "4599",
+            viewModel.packageName.orEmpty()
         )
 
     override fun initTabList() {

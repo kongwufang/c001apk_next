@@ -382,6 +382,53 @@ class NetworkRepo @Inject constructor(
         Result.success(apiService.checkCount().await())
     }
 
+    // ===== 应用市场（apk）=====
+
+    /** 应用评价 / 讨论列表；listType：lastupdate_desc / dateline_desc / popular */
+    suspend fun getAppCommentList(id: String, listType: String, page: Int) = fire {
+        Result.success(apiService.getAppCommentList(id, listType, page).await())
+    }
+
+    /** 发表应用评价（id 用应用数字 ID） */
+    suspend fun postAppComment(id: String, message: String) = fire {
+        Result.success(apiService.postAppComment(id, message).await())
+    }
+
+    /** 历史版本列表（id 用应用数字 ID） */
+    suspend fun getAppVersionList(id: String, page: Int) = fire {
+        Result.success(apiService.getAppVersionList(id, page).await())
+    }
+
+    /** 应用发现者（id 用包名） */
+    suspend fun getAppDiscovererList(id: String, page: Int) = fire {
+        Result.success(apiService.getAppDiscovererList(id, page).await())
+    }
+
+    /** 应用礼包（apkId 用应用数字 ID） */
+    suspend fun getAppGiftList(apkId: String, page: Int) = fire {
+        Result.success(apiService.getAppGiftList(apkId, page).await())
+    }
+
+    /** 相关应用（q 用包名） */
+    suspend fun searchRelatedApp(q: String, page: Int) = fire {
+        Result.success(apiService.searchRelatedApp(q, "0", "related", page).await())
+    }
+
+    /** 收藏应用（id 用包名） */
+    suspend fun favoriteApp(id: String) = fire {
+        Result.success(apiService.favoriteApp(id).await())
+    }
+
+    /** 取消收藏应用（id 用包名） */
+    suspend fun unFavoriteApp(id: String) = fire {
+        Result.success(apiService.unFavoriteApp(id).await())
+    }
+
+    /** 给应用评分；value=0 取消评分（id 用应用数字 ID） */
+    suspend fun rateApp(id: String, value: Int) = fire {
+        Result.success(apiService.rateApp(id, value).await())
+    }
+
     private suspend fun <T> Call<T>.await(): T {
         return suspendCoroutine { continuation ->
             enqueue(object : Callback<T> {

@@ -10,36 +10,27 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class AppContentFragment : BaseAppFragment<AppContentViewModel>() {
 
-    private val type by lazy { arguments?.getString("type") }
+    private val type by lazy { arguments?.getString("type").orEmpty() }
 
     @Inject
     lateinit var viewModelAssistedFactory: AppContentViewModel.Factory
     override val viewModel by viewModels<AppContentViewModel> {
         AppContentViewModel.provideFactory(
             viewModelAssistedFactory,
+            type.ifEmpty { "reply" },
             arguments?.getString("id").orEmpty(),
-            when (type) {
-                "reply" -> ""
-                "pub" -> "&sort=dateline_desc"
-                "hot" -> "&sort=popular"
-                else -> ""
-            },
-            when (type) {
-                "reply" -> "最近回复"
-                "pub" -> "最新发布"
-                "hot" -> "热度排序"
-                else -> "最近回复"
-            }
+            arguments?.getString("packageName").orEmpty(),
         )
     }
 
     companion object {
         @JvmStatic
-        fun newInstance(type: String, id: String) =
+        fun newInstance(type: String, id: String, packageName: String) =
             AppContentFragment().apply {
                 arguments = Bundle().apply {
                     putString("type", type)
                     putString("id", id)
+                    putString("packageName", packageName)
                 }
             }
     }

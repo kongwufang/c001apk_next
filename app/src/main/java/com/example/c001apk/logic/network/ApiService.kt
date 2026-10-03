@@ -510,4 +510,73 @@ interface ApiService {
         @Field("url") url: String,
     ): Call<StringDataResponse>
 
+    // ===== 应用市场（apk）=====
+    // id 的取值按接口区分，传错不会报错，只会静默返回空列表：
+    //   包名（详情接口的 data.apkname）→ 评价/讨论、发现者、相关应用、收藏
+    //   应用数字 ID（详情接口的 data.id）→ 版本历史、礼包、评分、发表评价
+
+    /** 应用评价 / 讨论（listType：lastupdate_desc 最近回复 / dateline_desc 最新发布 / popular 热门） */
+    @GET("/v6/apk/commentList")
+    fun getAppCommentList(
+        @Query("id") id: String,
+        @Query("listType") listType: String,
+        @Query("page") page: Int,
+    ): Call<HomeFeedResponse>
+
+    /**
+     * 发表应用评价（id 用应用数字 ID）。
+     * 与 `/v6/feed/reply` 语义不同：后者发的是应用「讨论」下的动态回复。
+     */
+    @POST("/v6/apk/comment")
+    @FormUrlEncoded
+    fun postAppComment(
+        @Query("id") id: String,
+        @Field("message") message: String,
+    ): Call<LikeReplyResponse>
+
+    /** 历史版本（id 用应用数字 ID，传包名会恒返回「没有历史版本」） */
+    @GET("/v6/apk/downloadVersionList")
+    fun getAppVersionList(
+        @Query("id") id: String,
+        @Query("page") page: Int,
+    ): Call<HomeFeedResponse>
+
+    /** 应用发现者（id 用包名） */
+    @GET("/v6/apk/discovererList")
+    fun getAppDiscovererList(
+        @Query("id") id: String,
+        @Query("page") page: Int,
+    ): Call<HomeFeedResponse>
+
+    /** 应用礼包（apkId 用应用数字 ID） */
+    @GET("/v6/apk/giftList")
+    fun getAppGiftList(
+        @Query("apkId") apkId: String,
+        @Query("page") page: Int,
+    ): Call<HomeFeedResponse>
+
+    /** 相关应用（q 用包名，searchType=related） */
+    @GET("/v6/apk/search")
+    fun searchRelatedApp(
+        @Query("q") q: String,
+        @Query("apkType") apkType: String,
+        @Query("searchType") searchType: String,
+        @Query("page") page: Int,
+    ): Call<HomeFeedResponse>
+
+    /** 收藏应用（需登录，GET 写接口，id 用包名） */
+    @GET("/v6/apk/favorite")
+    fun favoriteApp(@Query("id") id: String): Call<LikeReplyResponse>
+
+    /** 取消收藏应用（id 用包名） */
+    @GET("/v6/apk/unFavorite")
+    fun unFavoriteApp(@Query("id") id: String): Call<LikeReplyResponse>
+
+    /** 给应用评分（需登录；value=0 表示取消评分；id 用应用数字 ID） */
+    @GET("/v6/apk/rating")
+    fun rateApp(
+        @Query("id") id: String,
+        @Query("value") value: Int,
+    ): Call<LikeReplyResponse>
+
 }

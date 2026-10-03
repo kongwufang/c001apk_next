@@ -8,6 +8,7 @@ import com.example.c001apk.adapter.LoadingState
 import com.example.c001apk.constant.Constants.LOADING_EMPTY
 import com.example.c001apk.constant.Constants.LOADING_END
 import com.example.c001apk.constant.Constants.LOADING_FAILED
+import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.logic.repository.BlackListRepo
 import com.example.c001apk.logic.repository.HistoryFavoriteRepo
 import com.example.c001apk.logic.repository.NetworkRepo
@@ -19,10 +20,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
+/**
+ * 应用详情页的各个区块：讨论的三种排序 + 版本历史 / 发现者 / 礼包 / 相关应用。
+ *
+ * id 的取法按区块区分，服务端不通用、传错只会静默返回空列表：
+ *  - 包名：评价/讨论、发现者、相关应用
+ *  - 应用数字 ID：版本历史、礼包
+ */
 class AppContentViewModel @AssistedInject constructor(
-    @Assisted("id") val id: String,
-    @Assisted("appCommentSort") val appCommentSort: String,
-    @Assisted("appCommentTitle") val appCommentTitle: String,
+    @Assisted("type") private val type: String,
+    @Assisted("appId") private val appId: String,
+    @Assisted("packageName") packageName: String,
     blackListRepo: BlackListRepo,
     historyRepo: HistoryFavoriteRepo,
     networkRepo: NetworkRepo
@@ -31,29 +39,48 @@ class AppContentViewModel @AssistedInject constructor(
     @AssistedFactory
     interface Factory {
         fun create(
-            @Assisted("id") id: String,
-            @Assisted("appCommentSort") appCommentSort: String,
-            @Assisted("appCommentTitle") appCommentTitle: String,
+            @Assisted("type") type: String,
+            @Assisted("appId") appId: String,
+            @Assisted("packageName") packageName: String,
         ): AppContentViewModel
     }
 
     @Suppress("UNCHECKED_CAST")
     companion object {
         fun provideFactory(
-            assistedFactory: Factory, id: String, appCommentSort: String, appCommentTitle: String,
+            assistedFactory: Factory,
+            type: String,
+            appId: String,
+            packageName: String,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return assistedFactory.create(id, appCommentSort, appCommentTitle) as T
+                return assistedFactory.create(type, appId, packageName) as T
             }
         }
     }
 
-    private val commentBaseUrl: String = "/page?url=/feed/apkCommentList?id="
+    // 详情接口偶尔不下发 apkname，这时退回数字 ID，避免整块列表空白
+    private val pkg: String = packageName.ifEmpty { appId }
+
+    private val isCommentTab: Boolean =
+        type !in listOf("version", "discoverer", "gift", "related")
+
+    private val listType: String = when (type) {
+        "pub" -> "dateline_desc"
+        "hot" -> "popular"
+        else -> "lastupdate_desc"
+    }
+
     override fun fetchData() {
         viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.getDataList(
-                commentBaseUrl + id + appCommentSort, appCommentTitle, null, lastItem, page
-            )
+            val flow = when (type) {
+                "version" -> networkRepo.getAppVersionList(appId, page)
+                "discoverer" -> networkRepo.getAppDiscovererList(pkg, page)
+                "gift" -> networkRepo.getAppGiftList(appId, page)
+                "related" -> networkRepo.searchRelatedApp(pkg, page)
+                else -> networkRepo.getAppCommentList(pkg, listType, page)
+            }
+            flow
                 .onStart {
                     if (isLoadMore) {
                         if (listSize <= 0)
@@ -63,31 +90,28 @@ class AppContentViewModel @AssistedInject constructor(
                     }
                 }
                 .collect { result ->
-                    val appCommentList = dataList.value?.toMutableList() ?: ArrayList()
-                    val comment = result.getOrNull()
-                    if (!comment?.message.isNullOrEmpty()) {
-                        comment?.message?.let {
+                    val contentList = dataList.value?.toMutableList() ?: ArrayList()
+                    val response = result.getOrNull()
+                    if (!response?.message.isNullOrEmpty()) {
+                        response?.message?.let {
                             if (listSize <= 0)
                                 loadingState.postValue(LoadingState.LoadingError(it))
                             else
                                 footerState.postValue(FooterState.LoadingError(it))
                         }
                         return@collect
-                    } else if (!comment?.data.isNullOrEmpty()) {
-                        lastItem = comment?.data?.last()?.id
+                    } else if (!response?.data.isNullOrEmpty()) {
+                        lastItem = response?.data?.last()?.id
                         if (isRefreshing)
-                            appCommentList.clear()
+                            contentList.clear()
                         if (isRefreshing || isLoadMore) {
-                            comment?.data?.let { data ->
-                                data.forEach {
-                                    if (it.entityType == "feed")
-                                        if (!blackListRepo.checkUid(
-                                                it.userInfo?.uid.toString()
-                                            ) && !blackListRepo.checkTopic(
-                                                it.tags + it.ttitle + it.relationRows?.getOrNull(0)?.title
-                                            )
-                                        )
-                                            appCommentList.add(it)
+                            response?.data?.forEach { item ->
+                                if (isCommentTab) {
+                                    // 评价区里混着 feed 与其它实体，只有 feed 要过黑名单
+                                    if (item.entityType == "feed" && !isBlocked(item))
+                                        contentList.add(item)
+                                } else {
+                                    contentList.add(item)
                                 }
                             }
                         }
@@ -96,8 +120,8 @@ class AppContentViewModel @AssistedInject constructor(
                             loadingState.postValue(LoadingState.LoadingDone)
                         else
                             footerState.postValue(FooterState.LoadingDone)
-                        dataList.postValue(appCommentList)
-                    } else if (comment?.data?.isEmpty() == true) {
+                        dataList.postValue(contentList)
+                    } else if (response?.data?.isEmpty() == true) {
                         isEnd = true
                         if (listSize <= 0)
                             loadingState.postValue(LoadingState.LoadingFailed(LOADING_EMPTY))
@@ -119,5 +143,12 @@ class AppContentViewModel @AssistedInject constructor(
                 }
         }
     }
+
+    private suspend fun isBlocked(data: HomeFeedResponse.Data): Boolean =
+        blackListRepo.checkUid(data.userInfo?.uid ?: data.uid.orEmpty())
+                || blackListRepo.checkTopic(
+            data.tags.orEmpty() + data.ttitle.orEmpty() +
+                    data.relationRows?.getOrNull(0)?.title.orEmpty()
+        )
 
 }
