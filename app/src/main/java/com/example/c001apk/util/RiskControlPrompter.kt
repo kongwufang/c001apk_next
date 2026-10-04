@@ -2,21 +2,19 @@ package com.example.c001apk.util
 
 import android.app.Activity
 import android.app.Application
-import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import com.example.c001apk.R
-import com.example.c001apk.ui.settings.SettingsActivity
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.lang.ref.WeakReference
 import okhttp3.Interceptor
 import okhttp3.Response
 
 /**
- * 「设备标识说明」弹窗：首启一次性说明 + 运行中命中风控时的补充说明。
+ * 「获取数字联盟 ID」知情同意弹窗：首启一次 + 运行中命中风控时的补充说明。
  *
- * 性质是**告知，不是闸门**：不阻塞任何界面，用户关掉就继续用。
+ * 性质是**知情同意，不是闸门**：不阻塞任何界面，用户关掉就继续用；
+ * 「我已知情并同意」会请求 [SzlmIdApi] 换取 DUID，「不同意」则转手动填入，
+ * 两个出口都在 [SzlmIdPrompt] 里。
  *
  * 为什么不做「填了才能进」的准入校验：
  *  1. 客户端**没有**能判定「通过」的状态。服务端对陌生设备只会要求人机验证，
@@ -108,20 +106,8 @@ object RiskControlPrompter {
         // 真正显示出来才记账，避免用户根本没看到就被永久静音
         PrefManager.szlmIdNoticed = true
 
-        val dialog = MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.szlm_id_missing_title)
-            .setMessage(R.string.szlm_id_missing_message)
-            .setPositiveButton(R.string.szlm_id_missing_goto) { d, _ ->
-                runCatching {
-                    activity.startActivity(Intent(activity, SettingsActivity::class.java))
-                }
-                d.dismiss()
-            }
-            .setNegativeButton(R.string.szlm_id_missing_later) { d, _ -> d.dismiss() }
-            .create()
-
-        dialog.setOnDismissListener { showing = false }
-        dialog.show()
+        // 同一套知情同意弹窗：不同意可手动填入，「我已同意」则向自建接口换取 DUID
+        SzlmIdPrompt.showConsent(activity) { showing = false }
     }
 }
 

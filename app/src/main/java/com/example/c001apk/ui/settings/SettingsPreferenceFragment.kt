@@ -14,13 +14,10 @@ import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.graphics.ColorUtils
 import androidx.preference.Preference
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceFragmentCompat
@@ -35,11 +32,9 @@ import com.example.c001apk.ui.settings.params.ParamsActivity
 import com.example.c001apk.util.CacheDataManager
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.PrefManager
-import com.example.c001apk.util.TokenDeviceUtils.applyDefaultFingerprint
-import com.example.c001apk.util.TokenDeviceUtils.randHexString
+import com.example.c001apk.util.SzlmIdPrompt
 import com.example.c001apk.util.doOnMainThreadIdle
 import com.example.c001apk.util.setBottomPaddingSpace
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import rikka.core.util.ResourceUtils
@@ -215,43 +210,9 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
+        // 「数字联盟ID」：与启动时同一个知情同意窗（同意则自动获取，不同意则手动填入）
         findPreference<Preference>("szlmId")?.setOnPreferenceClickListener {
-            val view = LayoutInflater.from(requireContext())
-                .inflate(R.layout.item_x_app_token, null, false)
-            val editText: EditText = view.findViewById(R.id.editText)
-            editText.highlightColor = ColorUtils.setAlphaComponent(
-                MaterialColors.getColor(
-                    requireContext(),
-                    com.google.android.material.R.attr.colorPrimaryDark,
-                    0
-                ), 128
-            )
-            editText.setText(PrefManager.SZLMID)
-            MaterialAlertDialogBuilder(requireContext()).apply {
-                setView(view)
-                setTitle(requireContext().getString(R.string.szlmId))
-                setNegativeButton(android.R.string.cancel, null)
-                setPositiveButton(android.R.string.ok) { _, _ ->
-                    val id = editText.text.toString().trim()
-                    PrefManager.SZLMID = id
-                    // 填过（非空）才算「已配置」，引导弹窗不再出现；清空则回到未配置状态
-                    PrefManager.szlmIdConfigured = id.isNotEmpty()
-                    // szlmId 是设备串首字段，改完必须重造设备串才能生效
-                    // （applyDefaultFingerprint 会把当前 SZLMID 写进首字段）。
-                    // 服务端认不认取决于这个值本身：填自己设备的能过，随机值仍会被要求验证码。
-                    applyDefaultFingerprint()
-                }
-                if (BuildConfig.DEBUG) {
-                    setNeutralButton(R.string.random_value) { _, _ ->
-                        // 调试用：换一份随机 szlmId（不置 szlmIdConfigured，仍算未配置）
-                        PrefManager.SZLMID = randHexString(16)
-                        applyDefaultFingerprint()
-                    }
-                }
-            }.create().apply {
-                window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
-                editText.requestFocus()
-            }.show()
+            activity?.let { SzlmIdPrompt.showConsent(it) }
             true
         }
 
