@@ -1,0 +1,9 @@
+{
+  "_comment": "反馈群组下发配置：buttons 可追加多个群组，name=按钮文字，url=跳转链接（一律用外部浏览器打开）",
+  "buttons": [
+    {
+      "name": "反馈群组",
+      "url": "https://yhfx.jwznb.com/share?key=mQLwXbo0Ypeo&ts=1789806080"
+    }
+  ]
+}
