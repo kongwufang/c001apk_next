@@ -135,9 +135,12 @@ class AppAdapter(
             if (data.message.isNullOrEmpty()) return
 
             binding.messageMore.setOnClickListener { view ->
+                // userInfo 在模型里是可空的（databinding 表达式里直接取字段不会报，
+                // Kotlin 侧必须自己兜住）
+                val userInfo = data.userInfo
                 listener.onViewFeed(
-                    view, data.id, data.userInfo.uid, data.userInfo.username,
-                    data.userInfo.userAvatar, data.deviceTitle, data.message,
+                    view, data.id, userInfo?.uid, userInfo?.username,
+                    userInfo?.userAvatar, data.deviceTitle, data.message,
                     data.dateline?.toString(), null, null, data
                 )
             }
