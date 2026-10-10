@@ -27,6 +27,31 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 object NetWorkUtil {
 
+    /** 剪贴板里的文本超过这个长度就别扫了（可能是整页日志，不是分享链接） */
+    private const val MAX_LINK_TEXT_LENGTH = 4096
+
+    /**
+     * http(s) 分享链接认这几个域名，与 [openLink] 能处理的（manifest 里 AppLinkActivity 声明的）一致。
+     * `m.coolapk.com` 是手机浏览器里的移动站，地址栏复制出来的就是它，也一并认。
+     */
+    private val LINK_HOSTS = setOf(
+        "coolapk.com", "www.coolapk.com", "m.coolapk.com",
+        "coolapk1s.com", "www.coolapk1s.com", "m.coolapk1s.com"
+    )
+
+    /** coolmarket:// 的 host 名单 */
+    private val LINK_SCHEME_HOSTS =
+        setOf("feed", "u", "apk", "live", "com.coolapk.market", "www.coolapk.com", "www.coolapk1s.com")
+
+    private val SHARE_LINK_PATTERN =
+        Regex("""(?:https?|coolmarket)://[^\s"'<>）)、，。；;】]+""")
+
+    private val WHITESPACE = Regex("""\s+""")
+
+    /** 句末标点跟着链接一起被复制过来是常态，校验前先削掉 */
+    private val TRAILING_PUNCTUATION =
+        charArrayOf('.', ',', '。', '，', '、', ')', '）', ']', '】', '"', '\'', '!', '！')
+
     fun isWifiConnected(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network: Network? = cm.activeNetwork
@@ -43,6 +68,60 @@ object NetWorkUtil {
         return false
     }
 
+    /**
+     * 从任意文本里揪出第一段能打开的酷安链接（剪贴板、搜索框共用），找不到返回 null。
+     *
+     * 只认 [LINK_HOSTS] / [LINK_SCHEME_HOSTS] 这几个域名，也就是 [openLink] 真能处理的那些：
+     * 剪贴板里躺着的大多是随手一段话，「看着像链接就弹」会变成骚扰。
+     *
+     * 微信 / QQ 的分享文案会把链接和说明黏在一起（「分享自酷安https://www.coolapk.com/feed/1?s=abc」），
+     * 所以先扫带 scheme 的子串，再退回按空白切词找裸域名（有些 App 复制时会把 `https://` 吃掉）。
+     */
+    fun findCoolapkLink(text: String): String? {
+        val raw = text.trim()
+        if (raw.isEmpty() || raw.length > MAX_LINK_TEXT_LENGTH) return null
+        SHARE_LINK_PATTERN.findAll(raw).forEach {
+            linkOfSchemeUrl(it.value)?.let { link -> return link }
+        }
+        for (token in raw.split(WHITESPACE)) {
+            linkOfBareHost(token)?.let { link -> return link }
+        }
+        return null
+    }
+
+    /**
+     * 带 scheme 的候选：域名得是我们能打开的，而且要落到具体路径上（只有域名首页不算分享链接）。
+     *
+     * scheme 和 host **故意不转小写**：下面的比对就是 [openLink] 的能力边界本身 ——
+     * 那边是大小写敏感的字符串替换，`HTTPS://WWW.COOLAPK.COM/feed/1` 它一样打不开。
+     * 这里若宽容地认下来，用户点「确认」只会换回一句 unsupported url。
+     */
+    private fun linkOfSchemeUrl(candidate: String): String? {
+        val text = candidate.trimEnd(*TRAILING_PUNCTUATION)
+        if (text.isEmpty()) return null
+        val uri = Uri.parse(text)
+        return when (uri.scheme) {
+            "http", "https" -> {
+                if (uri.host.orEmpty() in LINK_HOSTS && uri.path.orEmpty().length > 1) text else null
+            }
+
+            "coolmarket" -> if (uri.host.orEmpty() in LINK_SCHEME_HOSTS) text else null
+            else -> null
+        }
+    }
+
+    /**
+     * 裸域名候选（`www.coolapk.com/feed/74194931?s=...`）：[openLink] 自己会补 scheme，
+     * 这里只校验形状。必须带路径 —— 光粘个 `coolapk.com` 打不开任何具体页面，不该算分享链接。
+     */
+    private fun linkOfBareHost(candidate: String): String? {
+        val text = candidate.trimEnd(*TRAILING_PUNCTUATION)
+        if (!text.contains('/')) return null
+        val host = text.substringBefore('/')
+        val path = text.substringAfter('/', "")
+        return if (path.isNotEmpty() && host in LINK_HOSTS) text else null
+    }
+
     fun openLink(context: Context, url: String, title: String?) {
         val replace = url
             .replace("coolmarket://", "/")
@@ -50,6 +129,10 @@ object NetWorkUtil {
             .replace("http://", "")
             .replace("www.", "")
             .replace("coolapk1s", "coolapk")
+            // 手机浏览器里的移动站地址（m.coolapk.com/feed/<id>）要先把前导的 m. 收掉：
+            // 否则下面削掉 coolapk.com 之后只剩 "m./feed/<id>"，所有 startsWith 全部落空。
+            // 只吃 "m.coolapk" 这个子串，www./api./image. 这些都不含它，互不影响。
+            .replace("m.coolapk", "coolapk")
             .replace("coolapk.com", "")
             // coolmarket://<host>/... 这类要单独收尾，两个坑：
             // 1. 换 scheme 时留下了一个前导 "/"，再削掉 www. / coolapk.com 之后就成了

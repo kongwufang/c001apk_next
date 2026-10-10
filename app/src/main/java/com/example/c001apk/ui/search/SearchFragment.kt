@@ -19,6 +19,7 @@ import com.example.c001apk.databinding.FragmentSearchBinding
 import com.example.c001apk.logic.model.SearchHotResponse
 import com.example.c001apk.ui.base.BaseFragment
 import com.example.c001apk.ui.blacklist.IOnItemClickListener
+import com.example.c001apk.util.NetWorkUtil
 import com.example.c001apk.util.TransitionAnim
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
@@ -310,6 +311,11 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
         val keyWord = word.trim()
         if (keyWord.isEmpty()) {
             Toast.makeText(requireContext(), "请输入关键词", Toast.LENGTH_SHORT).show()
+            return
+        }
+        // 粘进来的是酷安分享链接就直接跳过去，别拿它当关键词去搜（与剪贴板识别同一套判定）
+        NetWorkUtil.findCoolapkLink(keyWord)?.let {
+            NetWorkUtil.openLink(requireContext(), it, null)
             return
         }
         requireActivity().supportFragmentManager

@@ -9,6 +9,7 @@ import com.example.c001apk.ui.others.BugHandlerActivity
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.RemoteConfig
 import com.example.c001apk.util.RiskControlPrompter
+import com.example.c001apk.util.ShareLinkPrompter
 import com.example.c001apk.util.SslErrorPrompter
 import com.example.c001apk.util.SslVerify
 import dagger.hilt.android.HiltAndroidApp
@@ -31,6 +32,9 @@ class MyApplication : Application() {
 
         // 风控命中（-415 账号过多 / err_request_captcha_v2）→ 「设备标识未配置」引导弹窗
         RiskControlPrompter.install(this)
+
+        // 每次进入应用读一次剪贴板：是酷安分享链接就弹「是否打开」
+        ShareLinkPrompter.install(this)
 
         // 网络传输调试模式（设置 - 高级）：放开进程级 HttpsURLConnection 默认校验，
         // 不放开的话抓包时走系统默认栈的图片会全部加载失败

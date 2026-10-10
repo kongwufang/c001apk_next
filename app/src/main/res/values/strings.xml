@@ -126,6 +126,10 @@
     <!-- 非可信链接跳外部浏览器前的二次确认 -->
     <string name="link_external_title">外部链接</string>
     <string name="link_external_confirm">确认</string>
+    <!-- 进入应用时读到剪贴板里的酷安分享链接 -->
+    <string name="share_link_title">识别到分享链接</string>
+    <string name="share_link_message">是否打开？</string>
+    <string name="share_link_confirm">确认</string>
     <!-- 关于页 - 反馈栏里的装机量统计入口 -->
     <string name="about_install_stats">查看本应用装机量</string>
     <string name="about_install_stats_desc">打开统计页面</string>
