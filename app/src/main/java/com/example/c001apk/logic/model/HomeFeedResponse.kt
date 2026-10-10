@@ -49,6 +49,12 @@ data class HomeFeedResponse(
         @SerializedName("ip_location") val ipLocation: String?,
         val isFeedAuthor: Int?,
         val topReplyRows: List<TotalReplyResponse.Data>?,
+        // 卡片自带的附加数据（JSON 字符串）。服务端下发的是字符串，但为防某个接口下发对象/
+        // 数组把整条响应解析炸掉（产品页 product_rating_specs 踩过同类坑），用宽松适配器兜住。
+        //   subTabFeedCard1 -> {"avgData":"6.9","countData":"303.0"}
+        //   subTabFeedCard2 -> {"aututu_score_avg":3041833,...,"geek_bench_single_score_avg":2814}
+        @field:JsonAdapter(LenientStringAdapter::class)
+        val extraData: String? = null,
         val extraDataArr: ExtraDataArr?,
         val intro: String?,
         @SerializedName("tag_pics") val tagPics: List<String>?,
@@ -386,6 +392,12 @@ data class HomeFeedResponse(
         @field:JsonAdapter(ProductRatingSpecsAdapter::class)
         val productRatingSpecs: Map<String, String>? = null,
         val description: String? = null,
+        // 实体副标题：topContent 的 headline 实体下发「来点评」这类引导词；应用类实体的
+        // subTitle 是包名/版本那类一行说明。两个字段都会出现在通用卡片里，都补上
+        @SerializedName("entityTypeName") val entityTypeName: String? = null,
+        val subTitle: String? = null,
+        // iconListCard 里的实体给的是 icon 而不是 logo
+        val icon: String? = null,
         // ---- 游戏频道（/v6/page/dataList?url=V15_YOUXI）下发的 topic 实体字段 ----
         // 讨论热度文本（热门新游卡片右下角那个数字）
         @SerializedName("hot_num_txt") val hotNumTxt: String? = null,
@@ -425,5 +437,28 @@ class ProductRatingSpecsAdapter : JsonDeserializer<Map<String, String>?> {
         } else {
             null
         }
+}
+
+/**
+ * `extraData` 这类「内容其实是 JSON 字符串」的字段的容错解析。
+ *
+ * 服务端一般把它下发成字符串（客户端再解一次），但类型并不统一：同一个 key 在有的接口里
+ * 是对象、有的是数组。直接声明成 String 时，遇到对象就抛
+ * `Expected STRING but was BEGIN_OBJECT`，整条响应解析失败、整页空白
+ * （跟 [ProductRatingSpecsAdapter] 是同一类坑，卡片统计那两张就这么来的）。
+ *
+ * 这里只保证「解析不炸」：是字符串原样拿、是对象/数组转成原文，内容怎么用交给调用方
+ * （[com.example.c001apk.util.CardUi.stats] 会再解一次 JSON）。
+ */
+class LenientStringAdapter : JsonDeserializer<String?> {
+    override fun deserialize(
+        json: JsonElement,
+        typeOfT: Type,
+        context: JsonDeserializationContext
+    ): String? = when {
+        json.isJsonNull -> null
+        json.isJsonPrimitive -> json.asString
+        else -> json.toString()
+    }
 }
 

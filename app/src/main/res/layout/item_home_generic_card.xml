@@ -52,6 +52,15 @@
                 android:visibility="gone"
                 tools:text="卡片自带的说明文字" />
 
+            <!-- 统计卡（subTabFeedCard1/2 那类）：每行「名称 值」，行由 CardUi.stats() 摊出来 -->
+            <LinearLayout
+                android:id="@+id/stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical"
+                android:visibility="gone" />
+
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/hero"
                 android:layout_width="match_parent"

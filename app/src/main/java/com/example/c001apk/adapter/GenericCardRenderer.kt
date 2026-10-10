@@ -1,8 +1,12 @@
 package com.example.c001apk.adapter
 
+import android.text.TextUtils
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -12,24 +16,20 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemHomeGenericCardBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardEntityBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
+import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.dp
 import org.jsoup.Jsoup
 
 /**
- * 通用卡片渲染：把服务端下发的任意卡片画出来，不再为每个模板写一个 ViewHolder。
+ * 通用卡片渲染：把服务端下发的任意卡片画出来，不再为每个模板写 ViewHolder。
  *
- * `_rev/card_tpl_scan.py` 实测服务端会下发 39 种顶层卡片模板，且随时会冒新的。
- * 这些卡片摊开看只有两种东西：
- *   1. 卡片自身的字段（title / description / pic / url）；
- *   2. 一个 `entities` 数组，每条实体的内容也跑不出几类（图标、应用/商品、动态、图片、纯文字）。
- * 所以渲染 = 「卡片四块 + 实体列表」，排列由 [GenericCardLayout] 按「模板名 + 实体数量」决定，
- * 每条实体的样式由 [GenericCardEntityAdapter] 按实体内容决定（有 logo 当图标、只有 pic 当大图、
- * 都没有就当纯文字）。新模板进来时这两处都不需要改代码。
+ * 「怎么画」不再写死在这里，而是查 [CardUi] 的规则表（App 内置默认表 + 服务端热更新的覆盖
+ * 表）：模板 → 骨架（竖排/横滚/宫格/统计/纯文本）+ 字段映射（标题取谁、副标题取谁）。
+ * 规则表里没有的模板按实体数量推断排列、按实体内容推断形状，所以完全没见过的新卡片也能出内容。
  *
- * 注意：`HomeFeedResponse.Entities` 的 `url` / `pic` / `title` 都声明成非空，但 Gson 不走构造器，
- * 运行时完全可能是 null（本项目踩过这个坑），所以这里全程按可空处理，
- * 并且**不碰** `entity.userInfo`——`selectorLink` / `iconTabLink` 这类实体压根不下发它。
+ * 注意：`HomeFeedResponse.Entities` 的 url/pic/title 声明成非空，但 Gson 不走构造器，
+ * 运行时可能是 null（本项目踩过），所以全程按可空处理。
  */
 object GenericCardRenderer {
 
@@ -38,26 +38,32 @@ object GenericCardRenderer {
         data: HomeFeedResponse.Data,
         listener: ItemListener
     ) {
+        val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
-        val title: String? = data.title
-        val summary = data.description?.takeIf { it.isNotBlank() }
-            ?: data.subTitle?.takeIf { it.isNotBlank() }
-            ?: plainText(data.message)
-        // 卡片自带配图：只有卡片里没有实体时才当主图用（imageScaleCard、只有图的 fabCard）
-        val hero = data.pic?.takeIf { it.isNotBlank() }?.takeIf { entities.isEmpty() }
+        val spec = CardUi.layout(template, entities.size)
+
+        // 卡片自身四块（取哪些字段可以被规则表改，默认还是原来那套）
+        val title = pickCard(data, CardUi.titleField(template))
+        val summary = pickCard(data, CardUi.summaryField(template))?.let { plainText(it) }
+        // 卡片自带配图只在没有实体时当主图（imageScaleCard、只有图的 fabCard）
+        val hero = pickCard(data, CardUi.heroField(template))?.takeIf { entities.isEmpty() }
 
         binding.title.isVisible = !title.isNullOrEmpty()
         binding.title.text = title
-
         binding.summary.isVisible = !summary.isNullOrEmpty()
         binding.summary.text = summary
-
         binding.hero.isVisible = hero != null
         if (hero != null) ImageUtil.showIMG(binding.hero, hero)
 
-        val spec = GenericCardLayout.resolve(data.entityTemplate, entities.size)
-        binding.recyclerView.isVisible = entities.isNotEmpty()
-        if (entities.isEmpty()) {
+        // 统计卡（subTabFeedCard1/2 那类）：内容全在 extraData 里，摊成几行「名称 值」
+        val stats = if (spec.stats) CardUi.stats(template, data.extraData) else emptyList()
+        binding.stats.removeAllViews()
+        binding.stats.isVisible = stats.isNotEmpty()
+        stats.forEach { (name, value) -> binding.stats.addView(statRow(binding, name, value)) }
+
+        val showEntities = entities.isNotEmpty() && !spec.stats && !spec.hidden
+        binding.recyclerView.isVisible = showEntities
+        if (!showEntities) {
             binding.recyclerView.adapter = null
         } else {
             binding.recyclerView.layoutManager = if (spec.horizontal) {
@@ -65,18 +71,18 @@ object GenericCardRenderer {
                     binding.root.context, LinearLayoutManager.HORIZONTAL, false
                 )
             } else {
-                GridLayoutManager(binding.root.context, spec.span)
+                GridLayoutManager(binding.root.context, spec.span.coerceAtLeast(1))
             }
-            binding.recyclerView.adapter =
-                GenericCardEntityAdapter(entities, listener, spec.horizontal)
+            binding.recyclerView.adapter = GenericCardEntityAdapter(
+                entities, listener, spec.horizontal, CardUi.itemRule(template)
+            )
         }
 
         // 一个能显示的东西都没有（sponsorArticleNews 只给 extraData 就是这种）：
-        // 正式包里直接不占位，别把「暂不支持」这种技术字样甩给用户；debug 频道里留一行提示
-        // 标明是哪种模板没渲染出来，便于排障（HTTP_LOG 只在 debug 频道为 true）
-        val label = data.entityTemplate?.takeIf { it.isNotBlank() } ?: data.entityType
-        val renderable =
-            !title.isNullOrEmpty() || !summary.isNullOrEmpty() || entities.isNotEmpty() || hero != null
+        // 正式包里不占位，别把「暂不支持」这种技术字样甩给用户；debug 频道留一行标明模板名排障
+        val label = template?.takeIf { it.isNotBlank() } ?: data.entityType
+        val renderable = !title.isNullOrEmpty() || !summary.isNullOrEmpty() ||
+                entities.isNotEmpty() || hero != null || stats.isNotEmpty()
         val debugTip = BuildConfig.HTTP_LOG && !label.isNullOrEmpty()
         binding.tip.isVisible = debugTip
         if (debugTip) {
@@ -84,9 +90,8 @@ object GenericCardRenderer {
                 if (renderable) R.string.generic_card else R.string.unsupported_card, label
             )
         }
-        binding.root.isVisible = renderable || debugTip
+        binding.root.isVisible = (renderable || debugTip) && !spec.hidden
 
-        // 整卡可点：实体各自会吃掉自己那份点击，落到这里的只有空白区域
         val url: String? = data.url
         val clickable = !url.isNullOrEmpty()
         binding.root.isClickable = clickable
@@ -97,77 +102,83 @@ object GenericCardRenderer {
         )
     }
 
+    /** 统计卡的一行：左名称（灰）、右数值（加粗），值太长时截断 */
+    private fun statRow(binding: ItemHomeGenericCardBinding, name: String, value: String): View {
+        val context = binding.root.context
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setPadding(0, 2.dp, 0, 2.dp)
+        }
+        row.addView(TextView(context).apply {
+            text = name
+            textSize = 13f
+            setTextColor(GRAY)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+        })
+        row.addView(TextView(context).apply {
+            text = value
+            textSize = 13f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = 8.dp }
+        })
+        return row
+    }
+
     /** 卡片正文可能是 HTML（feed 的 message 就带 `<a>`），排成纯文本，别把标签显示出来 */
     private fun plainText(raw: String?): String? =
         raw?.takeIf { it.isNotBlank() }
             ?.let { Jsoup.parse(it).text().takeIf { text -> text.isNotBlank() } }
-}
 
-/**
- * 卡片里实体的排列方式。
- *
- * 服务端不告诉我们「这张卡是横滚还是宫格」，所以按模板名查表；表里没有的按实体数量推断
- * （一两条竖排、四五条宫格、再多就横滚），所以没见过的模板也能排得像样。
- */
-object GenericCardLayout {
+    /** 统计行名称用的灰色（跟 XML 里的 darker_gray 一个观感） */
+    private val GRAY = 0xFF888888.toInt()
 
-    /** 宫格：每行放几个 */
-    private val SPAN_BY_TEMPLATE = mapOf(
-        "iconButtonGridCard" to 2,
-        "subTabLinkCard" to 2,
-        "verticalColumnsFullPageCard" to 2,
-        "feedCoolPictureGridCard" to 2,
-        "rankAwardCard" to 3,
-        "iconMiniLinkGridCard" to 3,
-        "capsuleListCard" to 3,
-        "iconTabLinkGridCard" to 4,
-        "linkCard" to 4,
-        "selectorLinkCard" to 4,
-        "titleCard" to 5,
-        "iconLinkGridCard" to 5,
-    )
-
-    /** 一条一条竖着排（应用/话题列表型卡片） */
-    private val VERTICAL_LIST = setOf(
-        "iconListCard", "apkListCard", "listCard", "feedListCard", "productTimelineListCard"
-    )
-
-    /** 横向滚动 */
-    private val HORIZONTAL_ROW = setOf(
-        "apkScrollCard", "apkScrollCardWithBackground", "apkImageScrollCard", "apkImageCard",
-        "colorfulScrollCard", "iconLargeScrollCard", "feedScrollCard", "imageScaleCard",
-        "iconScrollCard", "imageScrollCard", "imageCarouselCard", "iconMiniScrollCard",
-    )
-
-    data class Spec(val horizontal: Boolean, val span: Int)
-
-    fun resolve(template: String?, size: Int): Spec {
-        if (size <= 0) return Spec(false, 1)
-        if (template != null) {
-            if (template in HORIZONTAL_ROW) return Spec(true, 0)
-            if (template in VERTICAL_LIST) return Spec(false, 1)
-            SPAN_BY_TEMPLATE[template]?.let { return Spec(false, it.coerceAtMost(size)) }
+    /**
+     * 按字段链取卡片自己的字段，`"description|subTitle|message"` 取第一个非空。
+     * title/pic 这些声明成非空但运行时可能是 null，所以先当 Any? 判，别直接调方法。
+     */
+    private fun pickCard(data: HomeFeedResponse.Data, chain: List<String>): String? {
+        chain.forEach { name ->
+            val raw: Any? = when (name) {
+                "title" -> data.title
+                "description" -> data.description
+                "subTitle" -> data.subTitle
+                "message" -> data.message
+                "pic" -> data.pic
+                "cover" -> data.cover
+                "url" -> data.url
+                "extraData" -> data.extraData
+                else -> null
+            }
+            (raw as? String)?.takeIf { it.isNotBlank() }?.let { return it }
         }
-        return when {
-            size == 1 -> Spec(false, 1)
-            size <= 4 -> Spec(false, size)
-            else -> Spec(true, 0)
-        }
+        return null
     }
 }
 
 /**
- * 通用卡片里的实体列表。横向滚动时每条定宽（否则一条占满一屏），宫格/竖排时撑满自己的格子。
+ * 通用卡片里的实体列表。
  *
- * 样式只按「实体自己有什么」分，不看 entityType：
- *   - 有 logo → 图标（56dp 方图，应用/商品/用户都是这个形状）；
- *   - 只有 pic → 大图（动态、酷图那类，宽度撑满格子或定宽 130dp）；
- *   - 都没有 → 纯文字（热榜词条、子标签那种）。
+ * 形状（图标+标题+副标题横排 / 居中图标格 / 大图 / 纯文字）优先按 [CardUi] 规则表走，
+ * 规则表没规定时按「实体自己有什么」推：有图当图标、动态酷图那类 pic 当大图、都没图当纯文字。
+ * 宽度：横滚时定宽（否则一条占满一屏），宫格/竖排时撑满自己那一格。
  */
 class GenericCardEntityAdapter(
     private val entities: List<HomeFeedResponse.Entities>,
     private val listener: ItemListener,
-    private val horizontal: Boolean
+    private val horizontal: Boolean,
+    private val rule: CardUi.ItemRule
 ) : RecyclerView.Adapter<GenericCardEntityAdapter.EntityViewHolder>() {
 
     class EntityViewHolder(val binding: ItemHomeGenericCardEntityBinding) :
@@ -185,17 +196,18 @@ class GenericCardEntityAdapter(
     override fun onBindViewHolder(holder: EntityViewHolder, position: Int) {
         val entity = entities[position]
         val binding = holder.binding
+        val shape = shapeOf(entity)
+        val row = shape == CardUi.SHAPE_ROW
+        val cover = shape == CardUi.SHAPE_COVER
+        val image = pickEntity(entity, rule.icon)
 
-        val image = entity.logo?.takeIf { it.isNotBlank() } ?: entity.pic?.takeIf { it.isNotBlank() }
-        val wide = image != null && entity.logo.isNullOrEmpty() &&
-                entity.entityType.orEmpty() in WIDE_IMAGE_TYPES
+        // 排列：row 是「图标左 + 文字右」横排（置顶引导那类），其余竖排居中
+        binding.root.orientation = if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        binding.root.gravity = if (row) Gravity.CENTER_VERTICAL else Gravity.CENTER_HORIZONTAL
 
-        // 条目宽度：横滚时定宽（大图条目给宽一点），宫格/竖排时撑满自己那一格。
-        // 图本身非「大图」时一律 56dp 方图——宫格里 5 列时一格只有 70dp 出头，
-        // 再宽就顶出格子被裁掉了。
         binding.root.layoutParams = binding.root.layoutParams.apply {
             width = if (horizontal) {
-                (if (wide) WIDE_ITEM_WIDTH else ICON_ITEM_WIDTH).dp
+                (if (cover) WIDE_ITEM_WIDTH else ICON_ITEM_WIDTH).dp
             } else {
                 ViewGroup.LayoutParams.MATCH_PARENT
             }
@@ -207,23 +219,32 @@ class GenericCardEntityAdapter(
             ImageUtil.showIMG(binding.icon, image)
             binding.icon.layoutParams = binding.icon.layoutParams.apply {
                 width = when {
-                    !wide -> ICON_SIZE.dp
-                    horizontal -> WIDE_ITEM_WIDTH.dp
-                    else -> ViewGroup.LayoutParams.MATCH_PARENT
+                    cover && horizontal -> WIDE_ITEM_WIDTH.dp
+                    cover -> ViewGroup.LayoutParams.MATCH_PARENT
+                    row -> ROW_ICON_SIZE.dp
+                    else -> ICON_SIZE.dp
                 }
-                height = (if (wide) WIDE_HEIGHT else ICON_SIZE).dp
+                height = when {
+                    !cover -> (if (row) ROW_ICON_SIZE else ICON_SIZE).dp
+                    else -> WIDE_HEIGHT.dp
+                }
             }
         }
 
-        val title: String? = entity.title
+        val title = pickEntity(entity, rule.title)
         binding.title.isVisible = !title.isNullOrEmpty()
         binding.title.text = title
+        binding.title.gravity = if (row) Gravity.START else Gravity.CENTER
 
-        val desc = entity.description?.takeIf { it.isNotBlank() }
-            ?: plainText(entity.message)
+        val desc = pickEntity(entity, rule.subtitle)?.let { plainText(it) }
         binding.desc.isVisible = !desc.isNullOrEmpty()
         binding.desc.text = desc
+        binding.desc.gravity = if (row) Gravity.START else Gravity.CENTER
+        // row 形状把副标题挪到标题上面（「来点评」这类是标签，官方就排标题上方）
+        binding.root.removeView(binding.desc)
+        binding.root.addView(binding.desc, if (row) 1 else 2)
 
+        // 点击：有 url 走链接分发，apk 实体没有 url 时进应用详情
         val url: String? = entity.url
         val apkId: String? = if (entity.entityType == "apk") entity.id else null
         val hasAction = !url.isNullOrEmpty() || !apkId.isNullOrEmpty()
@@ -244,13 +265,23 @@ class GenericCardEntityAdapter(
         )
     }
 
+    /** 规则表定了形状就用它，否则按实体内容推（有图当图标、动态图当大图、没图当文字） */
+    private fun shapeOf(entity: HomeFeedResponse.Entities): String {
+        if (rule.shape != CardUi.SHAPE_AUTO) return rule.shape
+        val image = pickEntity(entity, rule.icon) ?: return CardUi.SHAPE_TEXT
+        val wide = entity.logo.isNullOrEmpty() &&
+                entity.entityType.orEmpty() in WIDE_IMAGE_TYPES
+        return if (wide && image.isNotEmpty()) CardUi.SHAPE_COVER else CardUi.SHAPE_TILE
+    }
+
     private fun plainText(raw: String?): String? =
         raw?.takeIf { it.isNotBlank() }
             ?.let { Jsoup.parse(it).text().takeIf { text -> text.isNotBlank() } }
 
     private companion object {
-        /** 图标尺寸（方形，宫格里也放得下） */
+        /** 图标尺寸（方形，宫格里也放得下）；横排时略小一点 */
         const val ICON_SIZE = 56
+        const val ROW_ICON_SIZE = 44
 
         /** 横滚时一个条目占多宽 */
         const val ICON_ITEM_WIDTH = 76
@@ -265,6 +296,29 @@ class GenericCardEntityAdapter(
             "coolPicture", "picCategory"
         )
     }
+}
+
+/**
+ * 按字段链取实体的字段，`"entityTypeName|description|message"` 取第一个非空。
+ * title/pic/url 声明成非空但 Gson 不走构造器、运行时可能是 null，所以先当 Any? 再判。
+ */
+private fun pickEntity(entity: HomeFeedResponse.Entities, chain: List<String>): String? {
+    chain.forEach { name ->
+        val raw: Any? = when (name) {
+            "title" -> entity.title
+            "logo" -> entity.logo
+            "pic" -> entity.pic
+            "icon" -> entity.icon
+            "url" -> entity.url
+            "description" -> entity.description
+            "message" -> entity.message
+            "subTitle" -> entity.subTitle
+            "entityTypeName" -> entity.entityTypeName
+            else -> null
+        }
+        (raw as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+    }
+    return null
 }
 
 /**

@@ -27,6 +27,7 @@ object RemoteConfig {
     fun initFromCache() {
         VerifyBadge.load(PrefManager.userVerifyConfig)
         LinkGuard.load(PrefManager.reliableLinkConfig)
+        CardUiRemote.initFromCache()
     }
 
     /** 后台刷新，不阻塞启动；失败只是继续用旧配置，不提示用户 */
@@ -38,6 +39,8 @@ object RemoteConfig {
             name = "remote-config"
             isDaemon = true
         }.start()
+        // 卡片规则表是两跳（先取清单、再按服务端给的地址下载），自己一条线程，别拖住上面这仨
+        CardUiRemote.refreshAsync()
     }
 
     /** 拉一遍两个接口；任一失败都保留原来的表 */

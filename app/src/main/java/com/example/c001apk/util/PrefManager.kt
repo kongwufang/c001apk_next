@@ -303,6 +303,16 @@ object PrefManager {
         get() = pref.getString("reliableLinkConfig", "")!!
         set(value) = pref.edit().putString("reliableLinkConfig", value).apply()
 
+    /** 卡片渲染规则表（cardui 拉到的 JSON 原文），空串＝还没拉到过，用 App 内置默认表 */
+    var cardUiConfig: String
+        get() = pref.getString("cardUiConfig", "")!!
+        set(value) = pref.edit().putString("cardUiConfig", value).apply()
+
+    /** 卡片规则表版本号（清单接口给的 version），用来判断要不要重新下载 */
+    var cardUiVersion: Int
+        get() = pref.getInt("cardUiVersion", 0)
+        set(value) = pref.edit().putInt("cardUiVersion", value).apply()
+
     var recentIds: String
         get() = pref.getString("recentIds", "")!!
         set(value) = pref.edit().putString("recentIds", value).apply()
