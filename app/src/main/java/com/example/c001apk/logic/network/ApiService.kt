@@ -28,6 +28,7 @@ import com.example.c001apk.logic.model.SearchSuggestResponse
 import com.example.c001apk.logic.model.StringDataResponse
 import com.example.c001apk.logic.model.TotalReplyResponse
 import com.example.c001apk.logic.model.UserProfileResponse
+import com.example.c001apk.logic.model.VideoUrlResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -60,6 +61,20 @@ interface ApiService {
         @Query("id") id: String,
         @Query("rid") rid: String?
     ): Call<FeedContentResponse>
+
+    /**
+     * 视频播放地址解析。`params` 必须是 `media_info.requestParams` 里的**单个档位对象**原文
+     * （形如 `{"fromType":"weiboDirect250924","0":"https://m.weibo.cn/status/..."}`）。
+     *
+     * 实测（2026-10-11，4 个 provider 各打一条）：传**整张档位表**只会拿到 `{"data":[]}`，
+     * 传单个档位对象才能换回 `{"data":{"urlList":[...],"audioList":[...]}}` ——
+     * 参考实现注释里那句「值是 provider-specific requestParams」说得含糊，按整表传是不通的。
+     */
+    @FormUrlEncoded
+    @POST("/v6/player/getUrl")
+    fun getVideoUrl(
+        @Field("params") params: String,
+    ): Call<VideoUrlResponse>
 
     @GET("/v6/event/detail")
     fun getEventDetail(

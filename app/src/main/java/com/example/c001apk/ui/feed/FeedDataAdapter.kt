@@ -92,6 +92,13 @@ class FeedDataAdapter(
                 // 列表项不下发这个字段（详情才有）：详情回来前当"未知"，按钮位转圈而不是错显"关注"
                 data?.userAction?.followAuthor ?: Constants.FOLLOW_AUTHOR_UNKNOWN
             )
+            // 视频槽：非视频动态内部会自己整块隐藏
+            binding.videoPart.bind(data)
+            // 附加信息槽：二手 / 商品清单的链接交给 ItemListener 的通用跳转
+            binding.extraPart.onOpen = { url, title ->
+                listener.onOpenLink(binding.root, url, title)
+            }
+            binding.extraPart.bind(data)
             binding.executePendingBindings()
         }
 

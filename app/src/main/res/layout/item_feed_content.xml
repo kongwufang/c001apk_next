@@ -240,6 +240,16 @@
             app:layout_constraintEnd_toStartOf="@id/favorite"
             app:layout_constraintTop_toBottomOf="@id/forwarded" />
 
+        <!-- 视频槽：视频动态的 pic/picArr 是空的，媒体区只能由它出图（见 FeedVideo 的口径） -->
+        <com.example.c001apk.view.FeedVideoView
+            android:id="@+id/videoPart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/message" />
+
         <com.example.c001apk.view.ninegridimageview.NineGridImageView
             android:id="@+id/multiImage"
             android:layout_width="match_parent"
@@ -250,6 +260,23 @@
             app:layout_constraintTop_toBottomOf="@id/message"
             app:pic="@{data.pic}"
             app:picArr="@{data.picArr}" />
+
+        <!-- 媒体区下沿：视频槽和九图槽共用位置，谁可见由谁决定下面的扩展区从哪开始 -->
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/mediaBarrier"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:barrierDirection="bottom"
+            app:constraint_referenced_ids="videoPart,multiImage" />
+
+        <!-- 附加信息槽（点评评分 / 二手 / 商品清单），与列表卡同一个控件；跳转交给 ItemListener -->
+        <com.example.c001apk.view.FeedExtraView
+            android:id="@+id/extraPart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/mediaBarrier" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/extraUrlLayout"
@@ -264,7 +291,7 @@
             android:padding="10dp"
             android:visibility="@{data.extraUrl == null || data.extraUrl.isEmpty || data.extraUrl.startsWith(`/goods/`) ? View.GONE : View.VISIBLE}"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/multiImage">
+            app:layout_constraintTop_toBottomOf="@id/extraPart">
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/extraPic"

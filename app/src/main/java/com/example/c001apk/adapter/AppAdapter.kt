@@ -95,6 +95,10 @@ class AppAdapter(
                     show()
                 }
             }
+            // 附加信息槽的链接（二手走闲鱼 / 商品清单）统一交给 ItemListener 的通用跳转
+            binding.extraPart.onOpen = { url, title ->
+                listener.onOpenLink(binding.root, url, title)
+            }
         }
 
         override fun bind(data: HomeFeedResponse.Data) {
@@ -125,6 +129,10 @@ class AppAdapter(
             binding.device.layoutParams = lp
 
             bindMessageMore(data)
+            // 视频槽：非视频动态（以及视频动态拿不到可播地址）内部会自己整块隐藏
+            binding.videoPart.bind(data)
+            // 附加信息槽：二手 / 商品清单的跳转交给 ItemListener（自己只认链接，不认页面）
+            binding.extraPart.bind(data)
         }
 
         /**

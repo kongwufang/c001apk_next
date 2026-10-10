@@ -241,6 +241,17 @@
                 app:layout_constraintBaseline_toBaselineOf="@id/pubDate"
                 app:layout_constraintEnd_toStartOf="@id/like" />
 
+            <!-- 视频槽：视频动态的 pic/picArr 实测是空的，媒体区只能由它出图（见 FeedVideo 里的口径）。
+                 与九图槽在数据上互斥，两个槽位落同一位置，谁显示由可见性决定。 -->
+            <com.example.c001apk.view.FeedVideoView
+                android:id="@+id/videoPart"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/messageMore" />
+
             <com.example.c001apk.view.ninegridimageview.NineGridImageView
                 android:id="@+id/multiImage"
                 android:layout_width="match_parent"
@@ -251,6 +262,25 @@
                 app:layout_constraintTop_toBottomOf="@id/messageMore"
                 app:pic="@{data.pic}"
                 app:picArr="@{data.picArr}" />
+
+            <!-- 媒体区下沿：视频槽 / 九图槽共用一个位置，谁可见就由谁决定下面的内容从哪开始。
+                 用 Barrier 而不是直接把热评挂到九图槽上，是为了不依赖「GONE 视图的边距算不算」这种细则。 -->
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/mediaBarrier"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierDirection="bottom"
+                app:constraint_referenced_ids="videoPart,multiImage" />
+
+            <!-- 附加信息槽（点评评分 / 二手 / 商品清单）：实测这三类基本互斥，共用一个槽位；
+                 跳转由 ViewHolder 通过 onOpen 交给 ItemListener.onOpenLink。 -->
+            <com.example.c001apk.view.FeedExtraView
+                android:id="@+id/extraPart"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/mediaBarrier" />
 
             <TextView
                 android:id="@+id/hotReply"
@@ -266,7 +296,7 @@
                 android:onLongClick="@{(view) -> listener.onCopyText(view, data.replyRows[0].message)}"
                 android:padding="10dp"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/multiImage"
+                app:layout_constraintTop_toBottomOf="@id/extraPart"
                 app:setHotReply="@{data.replyRows[0]}" />
 
             <LinearLayout

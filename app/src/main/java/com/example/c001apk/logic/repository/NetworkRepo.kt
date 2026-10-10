@@ -46,6 +46,14 @@ class NetworkRepo @Inject constructor(
         Result.success(api2Service.getFeedContent(id, rid).await())
     }
 
+    /**
+     * 视频播放地址解析。`params` 用 `media_info.requestParams` 里的单个档位对象原文，
+     * 口径与实测见 [com.example.c001apk.logic.network.ApiService.getVideoUrl]。
+     */
+    suspend fun getVideoUrl(params: String) = fire {
+        Result.success(api2Service.getVideoUrl(params).await())
+    }
+
     suspend fun getFeedContentReply(
         id: String,
         listType: String,
