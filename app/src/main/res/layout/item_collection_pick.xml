@@ -42,15 +42,22 @@
         app:layout_constraintStart_toEndOf="@id/cover"
         app:layout_constraintTop_toBottomOf="@id/name" />
 
+    <!--
+        app:tint 会覆盖 ic_check 向量自带的 #ECECEC —— 那个近白色是给深色背景用的
+        （见 activity_at_topic / ccv_clearIcon），放在弹窗的浅色底上等于看不见，
+        这里统一改成主题色。
+    -->
     <ImageView
         android:id="@+id/check"
         android:layout_width="22dp"
         android:layout_height="22dp"
+        android:layout_marginStart="8dp"
         android:contentDescription="@null"
         android:src="@drawable/ic_check"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="?attr/colorPrimary" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

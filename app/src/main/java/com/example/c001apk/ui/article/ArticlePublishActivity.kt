@@ -32,6 +32,7 @@ import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
@@ -133,10 +134,13 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
         binding.coverContainer.setOnClickListener { pickCover() }
         binding.addImage.setOnClickListener { pickBody() }
         binding.publish.setOnClickListener { publish() }
+        // 三样齐了才点亮发布：标题、封面、正文（与 publish() 的校验同一套条件）
+        binding.articleTitle.doAfterTextChanged { updatePublishState() }
         binding.emojiBtn.setOnClickListener(this)
         binding.atBtn.setOnClickListener(this)
         binding.tagBtn.setOnClickListener(this)
         binding.main.setOnVisibilityChangeListener(this)
+        updatePublishState()
         // 正文里的缩略图可点：点了弹窗写这张图的说明（对应 message 里 image 块的 description）
         binding.articleBody.setOnTouchListener { _, event ->
             val edit = binding.articleBody
@@ -166,7 +170,10 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
                     0
                 ), 128
             )
-            addTextChangedListener(EmojiTextWatcher(this@ArticlePublishActivity, textSize) {})
+            // 正文每次变化都刷一次发布按钮（插图/删图也会走到这里，占位符算正文）
+            addTextChangedListener(
+                EmojiTextWatcher(this@ArticlePublishActivity, textSize) { updatePublishState() }
+            )
             addTextChangedListener(OnTextInputListener("@") {
                 isFromAt = true
                 launchAtTopic("user")
@@ -324,6 +331,7 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
                         Glide.with(this).load(uri).into(binding.coverImage)
                         binding.coverImage.isVisible = true
                         binding.coverHint.isVisible = false
+                        updatePublishState()
                     }
                 }
             }
@@ -649,6 +657,26 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
     override fun onDestroy() {
         super.onDestroy()
         countDownTimer.cancel()
+    }
+
+    /**
+     * 发布按钮的可用态：标题、封面、正文（有文字或有图）三样齐了才点成主题色。
+     *
+     * 与 [publish] 的校验同一套条件，所以按钮亮着就一定能发出去，不用再靠 toast 提示缺什么。
+     * 用 isClickable 而不是 isEnabled —— 和发表动态页那个同款按钮一致（ReplyActivity 里
+     * 也是这么做的），isEnabled=false 会连 foreground 的点击反馈一起压暗。
+     */
+    private fun updatePublishState() {
+        val ready = binding.articleTitle.text.toString().trim().isNotEmpty() &&
+                coverUri != null &&
+                (!binding.articleBody.text.isNullOrBlank() || bodyImages().isNotEmpty())
+        binding.publish.isClickable = ready
+        binding.publish.setTextColor(
+            if (ready)
+                MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, 0)
+            else
+                getColor(android.R.color.darker_gray)
+        )
     }
 
     private fun publish() {
