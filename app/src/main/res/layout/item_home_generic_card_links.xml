@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    selectorLinkCard（模板 selectorLinkCard）照官方重画。
+
+    官方布局 _rev/ref_res/res/layout/item_selector_link_view.xml 只是个壳：CoolapkCardView 里挂
+    一个居中的 LinearAdapterLayout —— 那是个流式布局（横排、一行放不下就换行，整体居中），上下各 6dp。
+    这里用 FlexboxLayout 顶掉那个私有控件，行为一致（项目已有 google:flexbox 依赖）。
+
+    项本身官方是代码建的，样式照桌面版基准（_rev/ref_src 里 DiscoveryEntityCard.vue 的
+    .discovery-pill-btn）：高 30dp、圆角 15dp、浅底 + 1dp 描边、12.5sp 主色文字，带图标时
+    图标 15dp 排左、距文字 5dp。项的间距官方在容器里给，这里落到项的 marginEnd / marginBottom
+    各 8dp，容器只留官方的上下 6dp（单行整卡高 = 6 + 30 + 8 = 44dp）。
+
+    尺寸、颜色、文案全部由 GenericCardRenderer.bindLinksCard 填，布局里不写死。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data />
+
+    <com.google.android.flexbox.FlexboxLayout
+        android:id="@+id/linksRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="6dp"
+        app:alignItems="center"
+        app:flexWrap="wrap"
+        app:justifyContent="center" />
+
+</layout>

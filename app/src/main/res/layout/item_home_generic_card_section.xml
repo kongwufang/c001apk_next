@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    titleCard（模板 titleCard）照官方重画：分组标题行。
+
+    官方布局 _rev/ref_res/res/layout/item_title_card.xml 是个空壳（CoolapkCardView 里只有
+    一个 Space），标题与「更多」由 ViewHolder 动态填。实测下发的字段就三个：
+      · title    —— 分组名（「应用更新」这种）
+      · subTitle —— 右侧「更多」，卡片 url 为空时官方不显示
+      · url      —— 整卡跳转（#/apk/updateList?... 这种分组列表页）
+    extraData 里的 cardTitleMarginBottom / cardDivider* / cardTitleStyle 是官方卡片头的通用配置，
+    titleCard 因为下面没有内容，只用到「下留白」这一项（实测 8~10，这里取 10dp）。
+
+    卡片底子仍用骨架自带的 MaterialCardView（官方这里是 CoolapkCardView，cardStyle 走默认档，
+    跟随它自己的「卡片/列表」显示模式；本项目只有卡片模式）。
+
+    文案全部由 GenericCardRenderer.bindSectionCard 填。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/sectionTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            tools:text="应用更新" />
+
+        <TextView
+            android:id="@+id/sectionMore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="更多" />
+
+    </LinearLayout>
+
+</layout>

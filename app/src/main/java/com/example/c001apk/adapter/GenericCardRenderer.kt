@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -19,13 +20,16 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemHomeGenericCardBatteryBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardEntityBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardLinksBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.dp
+import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.color.MaterialColors
 import com.google.gson.JsonObject
 import org.json.JSONObject
@@ -73,7 +77,7 @@ object GenericCardRenderer {
         // 2x2 品牌渐变格），按通用骨架摊成「名称 值」完全不像，所以和 topContent 一样单独画。
         // 反编译记录与尺寸表见 _rev/SUBTAB_CARDS_SPEC.md。
         if (spec.official != null) {
-            renderOfficialCard(binding, spec.official, template, data, listener)
+            renderOfficialCard(binding, spec.official, template, data, listener, entities)
             return
         }
 
@@ -255,16 +259,19 @@ object GenericCardRenderer {
     /**
      * 照官方重画的那几张卡片的分派入口。
      *
-     * 官方对「产品页子版块」这几张卡都写了专门的 Compose 布局（不是通用卡片体系），所以这里不复用
-     * 骨架的 title/summary/实体列表，而是把它们全部收起来，再按 [official] 挑一块专属布局填进去。
-     * 尺寸一律照官方 Compose 的 dp 值，来源见 `_rev/SUBTAB_CARDS_SPEC.md`。
+     * 这几张卡的官方实现都不走通用卡片体系：产品页子版块那几张是专门的 Compose 布局，
+     * `selectorLinkCard` 是 CoolapkCardView 里挂一个流式的私有控件。所以这里不复用骨架的
+     * title/summary/实体列表，而是把它们全部收起来，再按 [official] 挑一块专属布局填进去。
+     * 尺寸来源：Compose 那几张见 `_rev/SUBTAB_CARDS_SPEC.md`，`selectorLinkCard` / `titleCard`
+     * 见 item_home_generic_card_links.xml / item_home_generic_card_section.xml 的注释。
      */
     private fun renderOfficialCard(
         binding: ItemHomeGenericCardBinding,
         official: String,
         template: String?,
         data: HomeFeedResponse.Data,
-        listener: ItemListener
+        listener: ItemListener,
+        entities: List<HomeFeedResponse.Entities>
     ) {
         binding.title.isVisible = false
         binding.summary.isVisible = false
@@ -283,6 +290,8 @@ object GenericCardRenderer {
         val cardView = when (official) {
             CardUi.SUBTAB_BATTERY -> bindBatteryCard(binding, extra)
             CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
+            CardUi.LINKS -> bindLinksCard(binding, entities, listener)
+            CardUi.SECTION -> bindSectionCard(binding, template, data)
             else -> null
         }
         if (cardView != null) {
@@ -291,7 +300,8 @@ object GenericCardRenderer {
             binding.content.addView(cardView)
         }
 
-        // 这两张卡官方都没有跳转目标（url 为空）：别给出「会亮但点了没反应」的按压反馈
+        // 卡片 url 为空时官方不带跳转（续航卡、跑分卡、selectorLinkCard 都是这种）：
+        // 别给出「会亮但点了没反应」的按压反馈
         val url: String? = data.url
         val clickable = !url.isNullOrEmpty()
         binding.root.isClickable = clickable
@@ -307,7 +317,8 @@ object GenericCardRenderer {
         if (debugTip) {
             binding.tip.text = binding.root.context.getString(R.string.official_card, template)
         }
-        binding.root.isVisible = true
+        // 专属布局没画出来时不占位（比如 selectorLinkCard 一条链接都没有）
+        binding.root.isVisible = cardView != null || debugTip
     }
 
     /**
@@ -410,6 +421,131 @@ object GenericCardRenderer {
             row.addView(cell.root, lp)
         }
         return card.root
+    }
+
+    /**
+     * 分组标题行（模板 `titleCard`）：左边加粗分组名，右边「更多」，整卡可点。
+     * 官方布局 item_title_card.xml 是个空壳（里面只有一个 Space），标题由 ViewHolder 动态填，
+     * 实测下发的就是 `title` + `subTitle`（「更多」）+ 卡片 url。卡片没 url 时「更多」没有去处，
+     * 按官方收起来。
+     */
+    private fun bindSectionCard(
+        binding: ItemHomeGenericCardBinding,
+        template: String?,
+        data: HomeFeedResponse.Data
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardSectionBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        card.sectionTitle.text = pickCard(data, CardUi.titleField(template))
+        val more = pickCard(data, CardUi.summaryField(template))
+        card.sectionMore.isVisible = !more.isNullOrEmpty() && !data.url.isNullOrEmpty()
+        card.sectionMore.text = more
+        return card.root
+    }
+
+    /**
+     * 一行居中的 pill 链接（模板 `selectorLinkCard`），照官方 item_selector_link_view.xml：
+     * CoolapkCardView 里挂一个居中的流式容器、上下 6dp；项样式照桌面版基准
+     * （`.discovery-pill-btn`：高 30dp、圆角 15dp、浅底 + 1dp 描边、12.5sp 主色文字，带图标时
+     * 15dp 图标排左、距文字 5dp）。
+     *
+     * 跳转目标是**每条实体自己的 url**（实测卡片自己的 url 为空），所以整卡不给点击反馈，
+     * 可点的是一个个 pill。
+     */
+    private fun bindLinksCard(
+        binding: ItemHomeGenericCardBinding,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardLinksBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        card.linksRow.removeAllViews()
+
+        val fill = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorSurfaceVariant
+        )
+        val stroke = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOutlineVariant
+        )
+        val textColor = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOnSurface
+        )
+        val iconChain = CardUi.chain(CardUi.DEFAULT_ICON, CardUi.DEFAULT_ICON)
+        val titleChain = CardUi.chain(CardUi.DEFAULT_ITEM_TITLE, CardUi.DEFAULT_ITEM_TITLE)
+
+        entities.forEach { entity ->
+            val title = pickEntity(entity, titleChain)
+            if (title.isNullOrEmpty()) return@forEach
+
+            val pill = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                setPadding(13.dp, 0, 13.dp, 0)
+                // 每个 pill 一份 drawable：共享同一个实例时某些 ROM 上按压/重绘会串
+                background = GradientDrawable().apply {
+                    cornerRadius = 15.dp.toFloat()
+                    setColor(fill)
+                    setStroke(1.dp, stroke)
+                }
+                layoutParams = FlexboxLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 30.dp
+                ).apply {
+                    marginEnd = 8.dp
+                    bottomMargin = 8.dp
+                }
+            }
+
+            val icon = pickEntity(entity, iconChain)
+            if (!icon.isNullOrEmpty()) {
+                pill.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(15.dp, 15.dp).apply { marginEnd = 5.dp }
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    ImageUtil.showIMG(this, icon)
+                })
+            }
+
+            pill.addView(TextView(context).apply {
+                text = title
+                textSize = 12.5f
+                setTextColor(textColor)
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            })
+
+            val url: String? = entity.url
+            if (!url.isNullOrEmpty()) {
+                pill.isClickable = true
+                pill.isFocusable = true
+                pill.setOnClickListener { view -> listener.onOpenLink(view, url, title) }
+            }
+            card.linksRow.addView(pill)
+        }
+        return card.root
+    }
+
+    /**
+     * 按字段链取实体自己的字段，规则与 [pickCard] 一致：先查实体留的原始 JSON，
+     * 再兜底声明过的字段。给不走 [GenericCardEntityAdapter] 的专属渲染取数用
+     * （比如 selectorLinkCard 的 pill 标题和图标）。
+     */
+    private fun pickEntity(entity: HomeFeedResponse.Entities, chain: List<String>): String? {
+        chain.forEach { name ->
+            entity.raw?.jsonString(name)?.let { return it }
+            val field: Any? = when (name) {
+                "title" -> entity.title
+                "pic" -> entity.pic
+                "logo" -> entity.logo
+                "url" -> entity.url
+                "entityTypeName" -> entity.entityTypeName
+                else -> null
+            }
+            (field as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+        }
+        return null
     }
 
     /** extraData 是 JSON 字符串；解析不出来（空的、被截断的）就当没有，别让整卡崩掉 */

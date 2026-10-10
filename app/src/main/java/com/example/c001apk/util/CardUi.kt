@@ -51,6 +51,19 @@ object CardUi {
     /** 照官方重画的跑分卡（模板 `subTabFeedCard2`）：2x2 品牌渐变格，官方对应 ScoreGridCard */
     const val SUBTAB_SCORE = "subtabScore"
 
+    /**
+     * 一行居中的 pill 链接（模板 `selectorLinkCard`）：官方布局是个壳（CoolapkCardView 里挂一个
+     * 居中的流式容器），实体是一条条带自己 url 的 `selectorLink`。按宫格排会变成一堆「无图标 +
+     * 标题」的方块，完全不像，所以走 [GenericCardRenderer] 的专属渲染。
+     */
+    const val LINKS = "links"
+
+    /**
+     * 分组标题行（模板 `titleCard`）：左边加粗分组名、右边「更多」，整卡可点。官方布局是个空壳
+     * （标题由 ViewHolder 填），按宫格排会把「更多」顶到第二行、还多出几个空方块，所以走专属渲染。
+     */
+    const val SECTION = "section"
+
     /** 只有标题/正文的纯文本卡 */
     const val TEXT = "text"
 
@@ -175,8 +188,6 @@ object CardUi {
         "capsuleListCard" to 3,
         "iconTabLinkGridCard" to 4,
         "linkCard" to 4,
-        "selectorLinkCard" to 4,
-        "titleCard" to 5,
         "iconLinkGridCard" to 5
     )
 
@@ -188,6 +199,12 @@ object CardUi {
         m["subTabFeedCard1"] = Rule(layout = SUBTAB_BATTERY)
         m["subTabFeedCard2"] = Rule(layout = SUBTAB_SCORE)
         m["subTabFeedCard3"] = Rule(layout = SUBTAB_SCORE)
+        // 首页/发现页顶部那排分类入口：官方是一行居中的 pill 链接（走专属渲染），
+        // 配成宫格会排成一堆方块
+        m["selectorLinkCard"] = Rule(layout = LINKS)
+        // 分组标题行（「应用更新」那类）：官方是一行「标题 + 更多」，配成宫格会把「更多」
+        // 挤到第二行，还会多出几个空方块
+        m["titleCard"] = Rule(layout = SECTION)
         // 置顶引导（topContent）不在这张表里：官方是话题/机型页单独画的一行式卡片，见
         // GenericCardRenderer.renderTopContent —— 原先这里配的 row 形状会把标题挤成 0 宽
         // 纯文本卡
@@ -238,6 +255,8 @@ object CardUi {
             STATS -> return CardLayout(stats = true)
             SUBTAB_BATTERY -> return CardLayout(official = SUBTAB_BATTERY)
             SUBTAB_SCORE -> return CardLayout(official = SUBTAB_SCORE)
+            LINKS -> return CardLayout(official = LINKS)
+            SECTION -> return CardLayout(official = SECTION)
             TEXT -> return CardLayout()
             HSCROLL -> return CardLayout(horizontal = true)
             LIST -> return CardLayout()
