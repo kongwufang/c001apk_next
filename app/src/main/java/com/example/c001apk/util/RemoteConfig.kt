@@ -12,6 +12,9 @@ import kotlinx.coroutines.runBlocking
  * 生命周期：
  *   1. 进程启动 [initFromCache]：把上次落盘的配置先装进内存（离线也不掉认证 / 白名单）；
  *   2. 随后 [refreshAsync] 后台刷新一次，拉到就覆盖缓存，拉不到什么都不做。
+ *
+ * 另外两张表（卡片规则表 cardui / 界面规格表 uiskin）是「清单 + 本体」两跳、各自带版本号，
+ * 所以不塞进 [refresh] 里，由各自的 Remote 对象单独起线程，公共实现在 [RemoteTwoHop]。
  */
 object RemoteConfig {
 
@@ -28,6 +31,7 @@ object RemoteConfig {
         VerifyBadge.load(PrefManager.userVerifyConfig)
         LinkGuard.load(PrefManager.reliableLinkConfig)
         CardUiRemote.initFromCache()
+        UiSkinRemote.initFromCache()
     }
 
     /** 后台刷新，不阻塞启动；失败只是继续用旧配置，不提示用户 */
@@ -39,8 +43,9 @@ object RemoteConfig {
             name = "remote-config"
             isDaemon = true
         }.start()
-        // 卡片规则表是两跳（先取清单、再按服务端给的地址下载），自己一条线程，别拖住上面这仨
+        // 这两张表是两跳（先取清单、再按服务端给的地址下载），各起一条线程，别拖住上面那俩
         CardUiRemote.refreshAsync()
+        UiSkinRemote.refreshAsync()
     }
 
     /** 拉一遍两个接口；任一失败都保留原来的表 */

@@ -18,6 +18,7 @@ import com.example.c001apk.databinding.ItemFeedContentBinding
 import com.example.c001apk.logic.model.FeedArticleContentBean
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.logic.model.Like
+import com.example.c001apk.util.UiSkin
 
 class FeedDataAdapter(
     private val listener: ItemListener,
@@ -74,6 +75,9 @@ class FeedDataAdapter(
     class FeedViewHolder(val binding: ItemFeedContentBinding, val listener: ItemListener) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(data: HomeFeedResponse.Data?) {
+            // 字号先定：点赞的图标边长是拿 textSize 铺出来的，必须早于 setVariable
+            applySkin()
+
             binding.setVariable(BR.data, data)
             binding.setVariable(BR.listener, listener)
             binding.setVariable(
@@ -89,6 +93,18 @@ class FeedDataAdapter(
                 data?.userAction?.followAuthor ?: Constants.FOLLOW_AUTHOR_UNKNOWN
             )
             binding.executePendingBindings()
+        }
+
+        /**
+         * 应用界面规格表（uiskin）：详情正文要比列表大一号、行距更松（官方是标题 18sp、行距 1.5），
+         * 以前这里和列表写死同一套值，层级拉不开。只覆盖配过的项，没配就继续用布局原值。
+         */
+        private fun applySkin() {
+            UiSkin.f("feedDetail.titleTextSize")?.let { binding.messageTitle.setTextSize(it) }
+            UiSkin.f("feedDetail.messageTextSize")?.let { binding.message.setTextSize(it) }
+            UiSkin.f("feedDetail.messageLineSpacing")?.let {
+                binding.message.lineSpacingMultiplier = it
+            }
         }
     }
 

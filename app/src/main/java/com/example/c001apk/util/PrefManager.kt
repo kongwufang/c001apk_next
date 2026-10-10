@@ -313,6 +313,16 @@ object PrefManager {
         get() = pref.getInt("cardUiVersion", 0)
         set(value) = pref.edit().putInt("cardUiVersion", value).apply()
 
+    /** 界面规格表（uiskin 拉到的 JSON 原文），空串＝还没拉到过，各处继续用布局里的原值 */
+    var uiSkinConfig: String
+        get() = pref.getString("uiSkinConfig", "")!!
+        set(value) = pref.edit().putString("uiSkinConfig", value).apply()
+
+    /** 界面规格表版本号（清单接口给的 version），用来判断要不要重新下载 */
+    var uiSkinVersion: Int
+        get() = pref.getInt("uiSkinVersion", 0)
+        set(value) = pref.edit().putInt("uiSkinVersion", value).apply()
+
     var recentIds: String
         get() = pref.getString("recentIds", "")!!
         set(value) = pref.edit().putString("recentIds", value).apply()
