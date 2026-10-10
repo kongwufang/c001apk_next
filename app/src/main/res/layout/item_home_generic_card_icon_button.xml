@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    iconButtonGridCard 里的一栏（照官方 item_icon_button_grid_card.xml 的一个槽位）：
+    一张宽高比 2.44 的背景图（实测实体给的就是 @468x192）＋ 压在图上居中的加粗文字。
+    官方那一栏里还有个 18dp 图标，实测这个实体不下发图标字段，所以只有文字（没有文字时整栏只剩图）。
+    尺寸填数在 GenericCardRenderer.bindIconButtonsCard。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/iconButtonImage"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@color/cover"
+            android:scaleType="centerCrop"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="H,2.44:1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:shapeAppearance="@style/roundImageStyle" />
+
+        <TextView
+            android:id="@+id/iconButtonTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/iconButtonImage"
+            app:layout_constraintEnd_toEndOf="@id/iconButtonImage"
+            app:layout_constraintStart_toStartOf="@id/iconButtonImage"
+            app:layout_constraintTop_toTopOf="@id/iconButtonImage"
+            tools:text="试试手气"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</layout>

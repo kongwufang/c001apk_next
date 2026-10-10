@@ -64,6 +64,13 @@ object CardUi {
      */
     const val SECTION = "section"
 
+    /**
+     * 两栏并排的图文按钮（模板 `iconButtonGridCard`）：官方是「宽高比 2.44 的背景图 + 压在图上
+     * 居中的文字」。实体下发的 pic 就是这种宽图，按宫格排会把它当图标塞进方形槽里，完全不像，
+     * 所以走专属渲染。
+     */
+    const val ICON_BUTTONS = "iconButtons"
+
     /** 只有标题/正文的纯文本卡 */
     const val TEXT = "text"
 
@@ -179,7 +186,6 @@ object CardUi {
 
     /** 宫格模板 → 每行几个（真源：_rev/card_tpl_shape.py 实测的实体形状） */
     private val GRID_TEMPLATES = mapOf(
-        "iconButtonGridCard" to 2,
         "subTabLinkCard" to 2,
         "verticalColumnsFullPageCard" to 2,
         "feedCoolPictureGridCard" to 2,
@@ -205,6 +211,8 @@ object CardUi {
         // 分组标题行（「应用更新」那类）：官方是一行「标题 + 更多」，配成宫格会把「更多」
         // 挤到第二行，还会多出几个空方块
         m["titleCard"] = Rule(layout = SECTION)
+        // 「试试手气 / 爆棚热门」这类两栏图文按钮：官方把宽图当底、文字压在图上
+        m["iconButtonGridCard"] = Rule(layout = ICON_BUTTONS)
         // 置顶引导（topContent）不在这张表里：官方是话题/机型页单独画的一行式卡片，见
         // GenericCardRenderer.renderTopContent —— 原先这里配的 row 形状会把标题挤成 0 宽
         // 纯文本卡
@@ -257,6 +265,7 @@ object CardUi {
             SUBTAB_SCORE -> return CardLayout(official = SUBTAB_SCORE)
             LINKS -> return CardLayout(official = LINKS)
             SECTION -> return CardLayout(official = SECTION)
+            ICON_BUTTONS -> return CardLayout(official = ICON_BUTTONS)
             TEXT -> return CardLayout()
             HSCROLL -> return CardLayout(horizontal = true)
             LIST -> return CardLayout()

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    iconButtonGridCard（模板 iconButtonGridCard）照官方重画：卡片里两栏并排的图文按钮。
+
+    官方布局 _rev/ref_res/res/layout/item_icon_button_grid_card.xml：CoolapkCardView(cardStyle=1)
+    里左右各留一刀（data_list_item_margin），中间两个等宽 FrameLayout，每栏是「宽高比 0.41 的
+    背景图（AspectRatioImageView）+ 压在图上居中的 18dp 图标和加粗文字」。
+    实测这个模板固定下发两个 `iconButton` 实体（pic 是 @468x192 这种宽图、title 是「试试手气」
+    这类），256 行的两个槽位就是照两个实体写死的，所以这里也按两栏排。
+
+    注意自适应：本项目按实体数两两分组（万一多发几个也不会丢）。单栏布局见
+    item_home_generic_card_icon_button.xml，填数在 GenericCardRenderer.bindIconButtonsCard。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <data />
+
+    <LinearLayout
+        android:id="@+id/iconButtonsColumn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp" />
+
+</layout>

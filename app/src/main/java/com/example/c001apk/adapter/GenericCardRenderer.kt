@@ -20,6 +20,8 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemHomeGenericCardBatteryBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardEntityBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardIconButtonBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardIconButtonsBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardLinksBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
@@ -292,6 +294,7 @@ object GenericCardRenderer {
             CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
             CardUi.LINKS -> bindLinksCard(binding, entities, listener)
             CardUi.SECTION -> bindSectionCard(binding, template, data)
+            CardUi.ICON_BUTTONS -> bindIconButtonsCard(binding, entities, listener)
             else -> null
         }
         if (cardView != null) {
@@ -419,6 +422,59 @@ object GenericCardRenderer {
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             if (index % 2 == 1) lp.marginStart = 8.dp
             row.addView(cell.root, lp)
+        }
+        return card.root
+    }
+
+    /**
+     * 两栏并排的图文按钮（模板 `iconButtonGridCard`），照官方 item_icon_button_grid_card.xml：
+     * 卡片左右各留 12dp，里面两栏等宽并排、间距 8dp；每栏一张宽高比 2.44 的图（实测实体下发的
+     * 就是 @468x192 这种宽图），文字压在图上居中。官方那栏里还有一枚 18dp 图标，实测这个实体
+     * 不带图标字段，所以只有文字。每一栏点自己的 url。
+     */
+    private fun bindIconButtonsCard(
+        binding: ItemHomeGenericCardBinding,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardIconButtonsBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        card.iconButtonsColumn.removeAllViews()
+        val titleChain = CardUi.chain(CardUi.DEFAULT_ITEM_TITLE, CardUi.DEFAULT_ITEM_TITLE)
+
+        entities.chunked(2).forEach { rowEntities ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            }
+            rowEntities.forEachIndexed { index, entity ->
+                val cell = ItemHomeGenericCardIconButtonBinding.inflate(
+                    LayoutInflater.from(context), row, false
+                )
+                cell.root.layoutParams = LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+                ).apply {
+                    if (index > 0) marginStart = 8.dp
+                }
+                ImageUtil.showIMG(cell.iconButtonImage, entity.pic)
+                val title = pickEntity(entity, titleChain)
+                cell.iconButtonTitle.isVisible = !title.isNullOrEmpty()
+                cell.iconButtonTitle.text = title
+                val url: String? = entity.url
+                if (!url.isNullOrEmpty()) {
+                    cell.root.isClickable = true
+                    cell.root.isFocusable = true
+                    cell.root.setOnClickListener { view ->
+                        listener.onOpenLink(view, url, title.orEmpty())
+                    }
+                }
+                row.addView(cell.root)
+            }
+            card.iconButtonsColumn.addView(row)
         }
         return card.root
     }
