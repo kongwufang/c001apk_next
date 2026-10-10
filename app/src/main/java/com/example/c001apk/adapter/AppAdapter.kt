@@ -19,6 +19,7 @@ import com.example.c001apk.databinding.ItemAppVersionBinding
 import com.example.c001apk.databinding.ItemCollectionListItemBinding
 import com.example.c001apk.databinding.ItemFeedReplyBinding
 import com.example.c001apk.databinding.ItemHomeFeedBinding
+import com.example.c001apk.databinding.ItemHomeFeedCoverBinding
 import com.example.c001apk.databinding.ItemHomeFeedRefreshCardBinding
 import com.example.c001apk.databinding.ItemHomeGameCardListBinding
 import com.example.c001apk.databinding.ItemHomeGameTabCardBinding
@@ -54,6 +55,23 @@ import com.google.android.material.color.MaterialColors
 class AppAdapter(
     private val listener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
+
+    // 封面式动态（entityTemplate=feedCover）：官方是「标题 + 摘要 + 右侧 106dp 封面图」的紧凑卡，
+    // 没有头像 / 用户名区，跟完整动态卡不是一个排法，所以单独一张布局
+    class FeedCoverViewHolder(
+        val binding: ItemHomeFeedCoverBinding,
+        val listener: ItemListener
+    ) :
+        BaseViewHolder<ViewDataBinding>(binding) {
+        override fun bind(data: HomeFeedResponse.Data) {
+            binding.setVariable(BR.data, data)
+            binding.setVariable(BR.listener, listener)
+            binding.setVariable(BR.likeData, Like(data.likenum ?: "0", data.userAction?.like ?: 0))
+            // 封面图：pic 优先，没有就用九图第一张（官方那个槽位也是这么落图的）
+            val cover = data.pic?.takeIf { it.isNotEmpty() } ?: data.picArr?.firstOrNull()
+            ImageUtil.showIMG(binding.coverImage, cover)
+        }
+    }
 
     class FeedViewHolder(val binding: ItemHomeFeedBinding, val listener: ItemListener) :
         BaseViewHolder<ViewDataBinding>(binding) {
@@ -1093,6 +1111,15 @@ class AppAdapter(
                 )
             }
 
+            27 -> {
+                FeedCoverViewHolder(
+                    ItemHomeFeedCoverBinding.inflate(
+                        LayoutInflater.from(parent.context), parent,
+                        false
+                    ), listener
+                )
+            }
+
             else -> {
                 UnsupportedViewHolder(
                     ItemHomeUnsupportedBinding.inflate(
@@ -1115,6 +1142,17 @@ class AppAdapter(
             if (payloads[0] == true) {
                 when (holder) {
                     is FeedViewHolder -> {
+                        holder.binding.setVariable(
+                            BR.likeData,
+                            Like(
+                                currentList[position].likenum ?: "0",
+                                currentList[position].userAction?.like ?: 0
+                            )
+                        )
+                        holder.binding.executePendingBindings()
+                    }
+
+                    is FeedCoverViewHolder -> {
                         holder.binding.setVariable(
                             BR.likeData,
                             Like(
@@ -1217,8 +1255,10 @@ class AppAdapter(
                 }
             }
 
-            "feed" -> when (currentList[position].feedType) {
-                "vote" -> 2//9
+            // 封面式动态（feedCover）：教程页 / 产品页晒单 / 数码首页下发的是「标题 + 摘要 +
+            // 右侧 106dp 封面图」的紧凑卡，跟完整动态卡排法不一样，单独一个 viewType
+            "feed" -> when {
+                currentList[position].entityTemplate == "feedCover" -> 27
                 else -> 2
             }
 

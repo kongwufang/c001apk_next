@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    feedCover（entityTemplate=feedCover 的动态）照官方重画。
+
+    官方布局 _rev/ref_res/res/layout/item_feed_cover_view.xml 跟完整动态卡不是一个排法：**没有
+    头像 / 用户名区**，内容就是「标题（16sp 加粗、最多 2 行）+ 正文摘要（14sp、最多 3 行）」在左，
+    「106dp 正方形封面图」在右，底下挂评论行与 58dp 的互动栏。
+    实测这条动态（教程页 V11_HOME_TAB_JC、产品页晒单、数码首页都会下发）给的是
+    title + message + picArr，正好对得上。
+
+    这里照它的骨架铺内容区；底部互动沿用本项目动态卡的写法（时间 / 回复 / 点赞），
+    缩略图圆角跟项目其它缩略图统一走 8dp（官方那张是直角 CardView）。
+    图片取数在 AppAdapter.FeedCoverViewHolder 里做（pic 优先、没有就用 picArr 第一张）。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+
+        <import type="android.view.View" />
+
+        <import type="com.example.c001apk.util.DateUtils" />
+
+        <variable
+            name="data"
+            type="com.example.c001apk.logic.model.HomeFeedResponse.Data" />
+
+        <variable
+            name="likeData"
+            type="com.example.c001apk.logic.model.Like" />
+
+        <variable
+            name="listener"
+            type="com.example.c001apk.adapter.ItemListener" />
+
+    </data>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="5dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:onClick="@{(view) -> listener.onViewFeed(view, data.id, data.userInfo.uid, data.userInfo.username, data.userInfo.userAvatar, data.deviceTitle, data.message, String.valueOf(data.dateline), null, null, data)}"
+        android:onLongClick="@{(view) -> listener.onCopyText(view, data.message)}"
+        app:cardBackgroundColor="@color/home_card_background_color"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="10dp">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/coverImage"
+                android:layout_width="106dp"
+                android:layout_height="106dp"
+                android:background="@color/cover"
+                android:scaleType="centerCrop"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:shapeAppearance="@style/roundImageStyle" />
+
+            <TextView
+                android:id="@+id/coverTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@{data.title}"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:visibility="@{data.title == null || data.title.isEmpty ? View.GONE : View.VISIBLE}"
+                app:layout_constraintEnd_toStartOf="@id/coverImage"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="重构想象——华为τ定律浅析" />
+
+            <TextView
+                android:id="@+id/coverMessage"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="10dp"
+                android:ellipsize="end"
+                android:maxLines="3"
+                android:text="@{data.message}"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toStartOf="@id/coverImage"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/coverTitle"
+                tools:text="正文摘要正文摘要正文摘要" />
+
+            <TextView
+                android:id="@+id/pubDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@{DateUtils.fromToday(data.dateline)}"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/coverImage"
+                tools:text="3小时前" />
+
+            <TextView
+                android:id="@+id/reply"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:background="?attr/actionBarItemBackground"
+                android:onClick="@{(view) -> listener.onViewFeed(view, data.id, data.userInfo.uid, data.userInfo.username, data.userInfo.userAvatar, data.deviceTitle, data.message, String.valueOf(data.dateline), null, true, data)}"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                app:customText="@{data.replynum}"
+                app:icon="@{@drawable/ic_message}"
+                app:layout_constraintBaseline_toBaselineOf="@id/pubDate"
+                app:layout_constraintEnd_toStartOf="@id/like" />
+
+            <TextView
+                android:id="@+id/like"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/actionBarItemBackground"
+                android:onClick="@{() -> listener.onLikeClick(data.entityType, data.id, likeData.isLike())}"
+                android:text="@{likeData.likeNum}"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                app:layout_constraintBaseline_toBaselineOf="@id/pubDate"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:setLike="@{likeData.isLike}" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</layout>
