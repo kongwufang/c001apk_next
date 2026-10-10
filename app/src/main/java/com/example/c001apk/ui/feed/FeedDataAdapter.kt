@@ -103,7 +103,7 @@ class FeedDataAdapter(
             UiSkin.f("feedDetail.titleTextSize")?.let { binding.messageTitle.setTextSize(it) }
             UiSkin.f("feedDetail.messageTextSize")?.let { binding.message.setTextSize(it) }
             UiSkin.f("feedDetail.messageLineSpacing")?.let {
-                binding.message.lineSpacingMultiplier = it
+                binding.message.setLineSpacing(binding.message.lineSpacingExtra, it)
             }
         }
     }

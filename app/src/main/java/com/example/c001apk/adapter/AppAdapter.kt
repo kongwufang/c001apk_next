@@ -173,8 +173,10 @@ class AppAdapter(
             UiSkin.f("feed.titleTextSize")?.let { binding.messageTitle.setTextSize(it) }
             UiSkin.f("feed.messageTextSize")?.let { binding.message.setTextSize(it) }
             UiSkin.f("feed.messageLineSpacing")?.let {
-                binding.message.lineSpacingMultiplier = it
-                binding.forwardedMess.lineSpacingMultiplier = it
+                // lineSpacingMultiplier 只有 getter，改行距要走 setLineSpacing(额外行距, 倍数)；
+                // 额外行距沿用布局里的现值，只覆盖倍数
+                binding.message.setLineSpacing(binding.message.lineSpacingExtra, it)
+                binding.forwardedMess.setLineSpacing(binding.forwardedMess.lineSpacingExtra, it)
             }
             UiSkin.f("feed.messageMaxLines")?.toInt()?.takeIf { it > 0 }?.let {
                 binding.message.maxLines = it
