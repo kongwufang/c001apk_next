@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.c001apk.logic.model.CollectionAction
 import com.example.c001apk.logic.model.CollectionData
 import com.example.c001apk.logic.repository.NetworkRepo
 import com.example.c001apk.util.Event
@@ -41,11 +42,13 @@ class CollectionPickViewModel @Inject constructor(
     val toastText = MutableLiveData<Event<String>>()
 
     /**
-     * 服务端回的最新收藏数（`addItem` 响应里的 `favnum`）。
-     * 多收藏夹下本地加减算不准——同一个夹重复点、别人同时收藏都会偏，
-     * 所以数字只认接口。详情页底栏的收藏数就靠它刷新。
+     * 一次 addItem 的净结果：服务端回的最新收藏数 + 该动态在本夹的状态。
+     *
+     * 多收藏夹下本地加减算不准——同一个夹重复点、别人同时收藏都会偏，所以数字只认接口返回值；
+     * 状态也不再去重拉列表或详情，弹窗和详情页都拿这个结果直接改 UI
+     * （详情那份 favnum 还有服务端缓存滞后，重拉反而更不准）。
      */
-    val favCount = MutableLiveData<Int>()
+    val actionState = MutableLiveData<CollectionAction>()
 
     fun load(feedId: String?) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -59,31 +62,43 @@ class CollectionPickViewModel @Inject constructor(
         }
     }
 
-    /** 点某个收藏夹：已在里面就取消，否则收藏进去 */
+    /**
+     * 点某个收藏夹：已在里面就取消，否则收藏进去。
+     *
+     * 只发这一枪，不再跟一次列表刷新：响应里就把最新收藏数和本夹状态给全了，
+     * 弹窗按结果就地改这一项的勾，详情页按结果改底栏数字与星标。
+     */
     fun toggle(feedId: String, item: CollectionData) {
         viewModelScope.launch(Dispatchers.IO) {
             val collected = item.isBeCollected == 1
-            val result = runCatching {
+            val body = runCatching {
                 networkRepo.addToCollection(
                     id = if (collected) "" else item.id.orEmpty(),
                     cancelId = if (collected) item.id.orEmpty() else "",
                     targetId = feedId,
                     type = "feed"
                 ).firstOrNull()
-            }.getOrNull()
-            val ok = result?.isSuccess == true
+            }.getOrNull()?.getOrNull()
+            // 成功体只有 data；失败才是 {"status":-5,"message":"该内容已存在"}，把服务端的话透出去
+            val action = body?.data
             toastText.postValue(
                 Event(
                     when {
-                        !ok -> "操作失败"
+                        action == null -> body?.message ?: "操作失败"
                         collected -> "已取消收藏"
                         else -> "已收藏到「${item.title.orEmpty()}」"
                     }
                 )
             )
-            if (ok) {
-                result?.getOrNull()?.favnum?.let { favCount.postValue(it) }
-                load(feedId)
+            action?.let {
+                actionState.postValue(
+                    CollectionAction(
+                        collectionId = item.id.orEmpty(),
+                        favnum = it.favnum,
+                        // 服务端没回 collect 就按点击方向推
+                        collect = it.collect ?: if (collected) 0 else 1
+                    )
+                )
             }
         }
     }
@@ -111,9 +126,17 @@ class CollectionPickViewModel @Inject constructor(
             if (ok && !newId.isNullOrEmpty() && !feedId.isNullOrEmpty()) {
                 val added = runCatching {
                     networkRepo.addToCollection(newId, "", feedId, "feed").firstOrNull()
-                }.getOrNull()
-                // 新建后顺带收藏也会让收藏数变，同样得把新数字带出去
-                added?.getOrNull()?.favnum?.let { favCount.postValue(it) }
+                }.getOrNull()?.getOrNull()?.data
+                // 新建后顺带收藏也会让收藏数变，把结果一起带出去（新夹还没进列表，弹窗只转发给详情页）
+                added?.let {
+                    actionState.postValue(
+                        CollectionAction(
+                            collectionId = newId,
+                            favnum = it.favnum,
+                            collect = it.collect ?: 1
+                        )
+                    )
+                }
             }
             toastText.postValue(
                 Event(

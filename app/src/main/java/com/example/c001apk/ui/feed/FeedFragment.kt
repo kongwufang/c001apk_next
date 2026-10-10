@@ -667,7 +667,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
             // 收藏数是服务端回的，回来后整条重绑卡片（见 feedFavState）
             CollectionPickBottomSheet().apply {
                 arguments = Bundle().apply { putString("feedId", id ?: viewModel.id) }
-                onChanged = { favNum -> viewModel.onFavoriteChanged(favNum) }
+                onChanged = { action -> viewModel.onFavoriteChanged(action) }
             }.show(childFragmentManager, "collectionPick")
         }
 

@@ -56,9 +56,9 @@
             android:layout_marginStart="20dp"
             android:background="?attr/actionBarItemBackground"
             android:onClick="@{() -> listener.onFavoriteClick(data.id)}"
+            android:text="@{data.favnum}"
             android:textColor="@android:color/darker_gray"
-            app:customText="@{data.favnum}"
-            app:icon="@{@drawable/ic_feed_favorite}" />
+            app:setFavorite="@{data.isFavorited}" />
 
         <TextView
             android:id="@+id/forward"

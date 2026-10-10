@@ -189,7 +189,15 @@ data class HomeFeedResponse(
         val versionDate: String? = null,
         val downloadFrom: String? = null,
         val packageName: String? = null,
-    ) : Parcelable
+    ) : Parcelable {
+
+        /**
+         * 是否已收藏。详情接口把收藏状态放在 `userAction` 的 `collect` / `favorite` 上
+         * （实测收藏/取消后两个键同步变化，列表项不下发），所以两个键要一起看，只看一个会漏。
+         */
+        val isFavorited: Boolean
+            get() = userAction?.collect == 1 || userAction?.favorite == 1
+    }
 
     /** 话题页头部「最近关注的人」（只要 uid + 头像） */
     @Parcelize
@@ -330,9 +338,10 @@ data class HomeFeedResponse(
     @Parcelize
     data class UserAction(
         var like: Int?,
-        val favorite: Int?,
+        // 收藏状态：详情接口下发；收藏夹弹窗操作后按 addItem 回的结果写回，所以是可变的
+        var favorite: Int?,
         var follow: Int?,
-        val collect: Int?,
+        var collect: Int?,
         var followAuthor: Int?,
         val authorFollowYou: Int?
     ) : Parcelable

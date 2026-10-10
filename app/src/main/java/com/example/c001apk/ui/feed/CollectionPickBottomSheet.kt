@@ -17,6 +17,7 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.DialogCollectionEditBinding
 import com.example.c001apk.databinding.FragmentCollectionPickBinding
 import com.example.c001apk.databinding.ItemCollectionPickBinding
+import com.example.c001apk.logic.model.CollectionAction
 import com.example.c001apk.logic.model.CollectionData
 import com.example.c001apk.util.Event
 import com.example.c001apk.util.ImageUtil
@@ -41,8 +42,8 @@ class CollectionPickBottomSheet : BottomSheetDialogFragment() {
     private var feedId: String = ""
     private var editCoverUri: Uri? = null
 
-    /** 收藏数变化后通知外面（动态详情页底栏刷数字），参数是服务端回的最新收藏数 */
-    var onChanged: ((Int?) -> Unit)? = null
+    /** 收藏结果通知外面（详情页底栏改收藏数 + 点亮/熄灭星标），参数是服务端回的最新状态 */
+    var onChanged: ((CollectionAction) -> Unit)? = null
 
     private val pickCover = registerForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -83,9 +84,15 @@ class CollectionPickBottomSheet : BottomSheetDialogFragment() {
                 requireContext().makeToast(it)
             }
         }
-        // 只有服务端回了新收藏数才通知外面：操作失败、纯改收藏夹信息都不该动底栏数字
-        viewModel.favCount.observe(viewLifecycleOwner) {
-            onChanged?.invoke(it)
+        // 只有服务端回了结果才动 UI：操作失败、纯改收藏夹信息都不该动底栏
+        viewModel.actionState.observe(viewLifecycleOwner) { action ->
+            // 勾就地改这一项，不再重拉列表。改的是同一个对象、内容比较看不出来，必须显式重绑这一行
+            val index = adapter.currentList.indexOfFirst { it.id == action.collectionId }
+            if (index >= 0) {
+                adapter.currentList[index].isBeCollected = action.collect
+                adapter.notifyItemChanged(index)
+            }
+            onChanged?.invoke(action)
         }
 
         viewModel.load(feedId)

@@ -6,6 +6,7 @@ import com.example.c001apk.adapter.FooterState
 import com.example.c001apk.adapter.LoadingState
 import com.example.c001apk.constant.Constants.LOADING_END
 import com.example.c001apk.constant.Constants.LOADING_FAILED
+import com.example.c001apk.logic.model.CollectionAction
 import com.example.c001apk.logic.model.FeedArticleContentBean
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.logic.model.TotalReplyResponse
@@ -94,8 +95,8 @@ class FeedViewModel @AssistedInject constructor(
     val feedReplyData = MutableLiveData<List<TotalReplyResponse.Data>>()
     val feedUserState = MutableLiveData<Event<Boolean>>()
 
-    /** 收藏数回写（见 [onFavoriteChanged]）：要整条重绑，不能混进 feedUserState 的 payload 分支 */
-    val feedFavState = MutableLiveData<Event<Int>>()
+    /** 收藏回写（见 [onFavoriteChanged]）：要整条重绑，不能混进 feedUserState 的 payload 分支 */
+    val feedFavState = MutableLiveData<Event<Boolean>>()
 
     fun onFollowUnFollow(url: String, uid: String, followAuthor: Int) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -323,14 +324,21 @@ class FeedViewModel @AssistedInject constructor(
         }
 
     /**
-     * 收藏夹弹窗回来：把服务端回的最新收藏数写回详情数据。
-     * 收藏数挂在 `data.favnum` 上，只有整条重绑才会刷新——`feedUserState` 那条事件带 payload，
-     * payload 分支只重绑点赞/关注，数字不会跟着变。
+     * 收藏夹弹窗回来：addItem 的响应里已经有最新收藏数和「是否已收藏」，就地写回详情数据即可。
+     * 不重拉详情——多一次往返不说，详情那份 favnum 还有服务端缓存滞后（实测取消后仍返回旧值）。
+     *
+     * 收藏数在 `data.favnum`、星标在 `data.userAction`，只有整条重绑才会刷新——
+     * `feedUserState` 那条事件带 payload，payload 分支只重绑点赞/关注，这两处不会跟着变。
      */
-    fun onFavoriteChanged(favNum: Int?) {
-        favNum ?: return
-        currentFeedData()?.favnum = favNum.toString()
-        feedFavState.postValue(Event(favNum))
+    fun onFavoriteChanged(action: CollectionAction) {
+        currentFeedData()?.let { data ->
+            action.favnum?.let { data.favnum = it.toString() }
+            data.userAction?.let { userAction ->
+                userAction.collect = action.collect
+                userAction.favorite = action.collect
+            }
+        }
+        feedFavState.postValue(Event(true))
     }
 
     fun onLikeFeed(id: String, isLike: Int) {

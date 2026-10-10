@@ -272,6 +272,32 @@ fun setLike(textView: TextView, isLike: Int?) {
     }
 }
 
+/**
+ * 收藏状态：已收藏把星标连同数字一起染成主题色，未收藏保持灰
+ * （`ic_feed_favorite` 向量自带的 darker_gray tint 会被这里的 setTint 覆盖掉）。
+ *
+ * 图标由本适配器自己挂——不能再同时写 `app:icon`，两个适配器都会调 setCompoundDrawables，
+ * 执行顺序不定，谁后跑谁说了算。
+ */
+@BindingAdapter("setFavorite")
+fun setFavorite(textView: TextView, isFavorite: Boolean?) {
+    val color = if (isFavorite == true)
+        MaterialColors.getColor(
+            textView.context,
+            androidx.appcompat.R.attr.colorPrimary,
+            0
+        )
+    else textView.context.getColor(android.R.color.darker_gray)
+    val size = textView.textSize.toInt()
+    val drawableFavorite = textView.context.getDrawable(R.drawable.ic_feed_favorite)
+        .also { drawable ->
+            drawable?.setBounds(0, 0, size, size)
+            drawable?.setTint(color)
+        }
+    textView.setCompoundDrawables(drawableFavorite, null, null, null)
+    textView.setTextColor(color)
+}
+
 @BindingAdapter(
     value = ["customText", "icon", "isHtml", "isRichText"], requireAll = false
 )
