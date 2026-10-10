@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    albumExpandCard（模板 albumExpandCard）照官方重画：大图打底的酷安集卡片。
+
+    官方布局 _rev/ref_res/res/layout/item_album_expand_card.xml：CoolapkCardView(cardStyle=2)
+    里两张图叠在一起 —— `bg_view` 是铺满整卡的封面（centerCrop），`content_layout` 是压在图上、
+    内边距 16dp 的竖排内容：
+      · title_view     —— 18sp 加粗白字（@color/light_text），最多两行
+      · info_view      —— 12sp 白字，上留白 12dp
+      · icon_list      —— 上留白 16dp 的横排：18dp 头像 + 用户名，右侧四个 24dp 应用图标
+                          （白底、1dp 内边距、互相叠 7dp），再一个 24dp 圆形槽位
+                          （白描边 1dp）盖着「还有多少个」
+    实测这卡的实体就是一条完整 album（title / description / logo / username / userAvatar /
+    apkRows / apkRowsMoreCount），一卡一集。
+
+    三处刻意与官方不同，都是为了正确性/可读性：
+      1. 封面与蒙层给**固定高度**（官方的 `bg_view` 是 match_parent）。这张卡是塞进
+         `item_home_generic_card.xml` 的 content 里的，外层高度由内容决定；match_parent 高度的
+         图在「wrap_content 的父容器」里量出来是「可用高度」，Glide 塞进图后会把整张卡撑到
+         一屏那么高。内容撑不满时留白 148dp，撑得比它高就露出卡底色。
+      2. 官方没画蒙层，白字直接压在图上（封面亮的时候会看不清），这里加一层自顶向下的深色渐变，
+         配合 root 的圆角裁剪，四角不会露直角。
+      3. 官方第 5 个圆形槽位是「1dp 白描边的圆图 + 白字 more_count_view_5」（白字压在图上看不清），
+         这里画成白底圆 + 深色「+N」。
+    填数在 GenericCardRenderer.bindAlbumExpandCard。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/album_expand_bg"
+        android:clipToOutline="true">
+
+        <ImageView
+            android:id="@+id/albumBg"
+            android:layout_width="match_parent"
+            android:layout_height="148dp"
+            android:background="@color/cover"
+            android:scaleType="centerCrop" />
+
+        <!-- 封面图上压的一层深色渐变，只为了让白字读得出来（官方没有这一层） -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="148dp"
+            android:background="@drawable/album_expand_scrim" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/albumTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@android:color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="原生与新声" />
+
+            <TextView
+                android:id="@+id/albumInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                tools:text="9 个应用" />
+
+            <LinearLayout
+                android:id="@+id/albumIconList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/albumAvatar"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:scaleType="centerCrop" />
+
+                <TextView
+                    android:id="@+id/albumUser"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    tools:text="秦渊" />
+
+                <!-- 应用图标由 bindAlbumExpandCard 追加到这个占位视图后面 -->
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</layout>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    albumExpandCard 里最后一个槽位的底：白底圆（官方对应 @color/white + RoundedImageView 的
+    riv_oval）。上面摆「+N」文字。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <solid android:color="@android:color/white" />
+
+</shape>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    capsuleListCard（模板 capsuleListCard）照官方重画：一行标题 + 一堆胶囊。
+
+    官方布局 _rev/ref_res/res/layout/item_capsule_list.xml：根是竖排 LinearLayout（背景
+    contentBackgroundColor，**没有 CoolapkCardView 外壳**），上半是 `title_container`
+    （16dp 图标 + 加粗 16sp 标题，上留白 10dp、左留白 12dp），下半是铺满宽的容器
+    （四边 6dp、上留白 4dp）。
+
+    实测这卡下发 10 个 `hotSearch` 实体（只有 title + `sub_title` 热度 + url），卡片自己的 title
+    是空串（只有部分场景才给），所以标题行按「有标题才显示」处理，胶囊只画词。
+
+    卡壳仍用骨架自带的 MaterialCardView（官方这里是自带背景色、满宽的容器，本项目列表统一带卡）。
+    填数在 GenericCardRenderer.bindCapsulesCard。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/capsuleTitleRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:id="@+id/capsuleIcon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="4dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/capsuleTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="热搜" />
+
+        </LinearLayout>
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/capsuleRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:paddingStart="6dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="6dp"
+            app:alignItems="center"
+            app:flexWrap="wrap"
+            app:justifyContent="flex_start" />
+
+    </LinearLayout>
+
+</layout>

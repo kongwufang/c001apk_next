@@ -11,17 +11,21 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
+import com.example.c001apk.databinding.ItemHomeGenericCardAlbumExpandBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardBatteryBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardCapsulesBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardEntityBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardIconButtonBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardIconButtonsBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardLinkTabsBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardLinksBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
@@ -295,6 +299,8 @@ object GenericCardRenderer {
             CardUi.LINKS -> bindLinksCard(binding, entities, listener)
             CardUi.SECTION -> bindSectionCard(binding, template, data)
             CardUi.ICON_BUTTONS -> bindIconButtonsCard(binding, entities, listener)
+            CardUi.LINK_TABS -> bindLinkTabsCard(binding, entities, listener)
+            CardUi.CAPSULES -> bindCapsulesCard(binding, template, data, entities, listener)
             else -> null
         }
         if (cardView != null) {
@@ -584,6 +590,168 @@ object GenericCardRenderer {
     }
 
     /**
+     * 横向滚动的分类入口（模板 `linkCard`），照官方 item_link_card.xml + item_link_card_tab.xml：
+     * 一条 56dp 高的横滚行，里面一项是一个 28dp 的胶囊（实心浅底 + 14dp 圆角，文字左右各 10dp，
+     * 项间距 12dp）。实测实体只给 title + url（样本里 4 条链接的 pic 是同一张遗留图，官方没用），
+     * 所以不摆图，每一项点自己的 url。
+     */
+    private fun bindLinkTabsCard(
+        binding: ItemHomeGenericCardBinding,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardLinkTabsBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        card.linkTabs.removeAllViews()
+
+        val fill = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorSurfaceVariant
+        )
+        val stroke = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOutlineVariant
+        )
+        val textColor = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOnSurface
+        )
+        val titleChain = CardUi.chain(CardUi.DEFAULT_ITEM_TITLE, CardUi.DEFAULT_ITEM_TITLE)
+
+        entities.forEach { entity ->
+            val title = pickEntity(entity, titleChain)
+            if (title.isNullOrEmpty()) return@forEach
+
+            val tab = TextView(context).apply {
+                text = title
+                textSize = 14f
+                setTextColor(textColor)
+                gravity = Gravity.CENTER
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                setPadding(10.dp, 0, 10.dp, 0)
+                // 每项一份 drawable：共享同一个实例时某些 ROM 上按压/重绘会串
+                background = GradientDrawable().apply {
+                    cornerRadius = 14.dp.toFloat()
+                    setColor(fill)
+                    setStroke(1.dp, stroke)
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 28.dp
+                ).apply { marginEnd = 12.dp }
+            }
+
+            val url: String? = entity.url
+            if (!url.isNullOrEmpty()) {
+                tab.isClickable = true
+                tab.isFocusable = true
+                tab.setOnClickListener { view -> listener.onOpenLink(view, url, title) }
+            }
+            card.linkTabs.addView(tab)
+        }
+        return card.root
+    }
+
+    /**
+     * 热搜胶囊（模板 `capsuleListCard`），照官方 item_capsule_list.xml：上面一行「16dp 图标 +
+     * 加粗 16sp 标题」，下面一片胶囊（官方是内边距 6dp、上留白 4dp 的可滚动容器）。
+     *
+     * 两个实测结论决定了这里的画法：
+     *   · 卡片自己的 title 实测是空串（extraData 里只有一个 includeTitleBackground），所以标题行
+     *     按「有标题才显示」处理，别留一条空白；
+     *   · 实体是 10 条 `hotSearch`，`sub_title` 是热度数字（1920 / 1886…），官方把热度带上来了，
+     *     胶囊就画成「词 + 热度」；只认数字，免得别的模板借这条规则时把一段描述塞进胶囊。
+     */
+    private fun bindCapsulesCard(
+        binding: ItemHomeGenericCardBinding,
+        template: String?,
+        data: HomeFeedResponse.Data,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardCapsulesBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        card.capsuleRow.removeAllViews()
+
+        val title = pickCard(data, CardUi.titleField(template))
+        // 官方标题行左侧那枚 16dp 图标：卡片级没有专门的 icon 字段，按 logo/pic 兜底
+        val icon = pickCard(data, listOf("logo", "pic", "icon"))
+        card.capsuleTitleRow.isVisible = !title.isNullOrEmpty()
+        card.capsuleTitle.text = title
+        card.capsuleIcon.isVisible = !icon.isNullOrEmpty()
+        if (!icon.isNullOrEmpty()) ImageUtil.showIMG(card.capsuleIcon, icon)
+
+        val fill = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorSurfaceVariant
+        )
+        val stroke = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOutlineVariant
+        )
+        val textColor = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOnSurface
+        )
+        val heatColor = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant
+        )
+        val titleChain = CardUi.chain(CardUi.DEFAULT_ITEM_TITLE, CardUi.DEFAULT_ITEM_TITLE)
+        val heatChain = listOf("sub_title", "subTitle", "count", "num")
+
+        entities.forEach { entity ->
+            val word = pickEntity(entity, titleChain)
+            if (word.isNullOrEmpty()) return@forEach
+
+            val capsule = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                setPadding(14.dp, 0, 14.dp, 0)
+                background = GradientDrawable().apply {
+                    cornerRadius = 16.dp.toFloat()
+                    setColor(fill)
+                    setStroke(1.dp, stroke)
+                }
+                layoutParams = FlexboxLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 32.dp
+                ).apply {
+                    marginEnd = 8.dp
+                    bottomMargin = 8.dp
+                }
+            }
+
+            capsule.addView(TextView(context).apply {
+                text = word
+                textSize = 13f
+                setTextColor(textColor)
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            })
+
+            // 热度只认数字：`sub_title` 在别的实体上是文本，别把一段话当热度画出来
+            val heat = pickEntity(entity, heatChain)?.takeIf { it.toFloatOrNull() != null }
+            if (!heat.isNullOrEmpty()) {
+                capsule.addView(TextView(context).apply {
+                    text = heat
+                    textSize = 11f
+                    setTextColor(heatColor)
+                    maxLines = 1
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { marginStart = 6.dp }
+                })
+            }
+
+            val url: String? = entity.url
+            if (!url.isNullOrEmpty()) {
+                capsule.isClickable = true
+                capsule.isFocusable = true
+                capsule.setOnClickListener { view -> listener.onOpenLink(view, url, word) }
+            }
+            card.capsuleRow.addView(capsule)
+        }
+        return card.root
+    }
+
+    /**
      * 按字段链取实体自己的字段，规则与 [pickCard] 一致：先查实体留的原始 JSON，
      * 再兜底声明过的字段。给不走 [GenericCardEntityAdapter] 的专属渲染取数用
      * （比如 selectorLinkCard 的 pill 标题和图标）。
@@ -715,29 +883,51 @@ object GenericCardRenderer {
  * 形状（图标+标题+副标题横排 / 居中图标格 / 大图 / 纯文字）优先按 [CardUi] 规则表走，
  * 规则表没规定时按「实体自己有什么」推：有图当图标、动态酷图那类 pic 当大图、都没图当纯文字。
  * 宽度：横滚时定宽（否则一条占满一屏），宫格/竖排时撑满自己那一格。
+ *
+ * 少数实体自己就带着「照官方重画」的模板名（见 [CardUi.entityLayout]，目前只有
+ * `albumExpandCard`）：这些实体的排版跟通用形状差太远，单独一个 viewType 走专属布局，
+ * 其余实体照旧。
  */
 class GenericCardEntityAdapter(
     private val entities: List<HomeFeedResponse.Entities>,
     private val listener: ItemListener,
     private val horizontal: Boolean,
     private val rule: CardUi.ItemRule
-) : RecyclerView.Adapter<GenericCardEntityAdapter.EntityViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     class EntityViewHolder(val binding: ItemHomeGenericCardEntityBinding) :
         RecyclerView.ViewHolder(binding.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EntityViewHolder =
-        EntityViewHolder(
-            ItemHomeGenericCardEntityBinding.inflate(
-                LayoutInflater.from(parent.context), parent, false
+    /** 实体级专属布局的 ViewHolder：目前只有酷安集一条 */
+    class OfficialEntityViewHolder(val album: ItemHomeGenericCardAlbumExpandBinding) :
+        RecyclerView.ViewHolder(album.root)
+
+    override fun getItemViewType(position: Int): Int =
+        if (CardUi.entityLayout(entities[position].entityTemplate) != null) VIEW_TYPE_OFFICIAL
+        else VIEW_TYPE_DEFAULT
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return if (viewType == VIEW_TYPE_OFFICIAL) {
+            OfficialEntityViewHolder(
+                ItemHomeGenericCardAlbumExpandBinding.inflate(inflater, parent, false)
             )
-        )
+        } else {
+            EntityViewHolder(
+                ItemHomeGenericCardEntityBinding.inflate(inflater, parent, false)
+            )
+        }
+    }
 
     override fun getItemCount() = entities.size
 
-    override fun onBindViewHolder(holder: EntityViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val entity = entities[position]
-        val binding = holder.binding
+        if (holder is OfficialEntityViewHolder) {
+            bindAlbumExpandEntity(holder.album, entity)
+            return
+        }
+        val binding = (holder as EntityViewHolder).binding
         val shape = shapeOf(entity)
         val row = shape == CardUi.SHAPE_ROW
         val cover = shape == CardUi.SHAPE_COVER
@@ -807,6 +997,83 @@ class GenericCardEntityAdapter(
         )
     }
 
+    /**
+     * 大图打底的酷安集条目（实体模板 `albumExpandCard`），照官方 item_album_expand_card.xml：
+     * 整张封面（centerCrop）+ 内边距 16dp 的白字内容（18sp 加粗标题两行、12sp 说明、底下一行
+     * 18dp 头像 + 用户名 + 一串 24dp 应用图标）。实测这条实体就是一条完整 album
+     * （title / description / logo / username / userAvatar / apkRows / apkRowsMoreCount）。
+     *
+     * 说明行取 `description`（实测 sample 里跟 `intro` 同值），没有就退成「N 个应用」。
+     */
+    private fun bindAlbumExpandEntity(
+        card: ItemHomeGenericCardAlbumExpandBinding,
+        entity: HomeFeedResponse.Entities
+    ) {
+        val context = card.root.context
+        ImageUtil.showIMG(card.albumBg, pickEntity(entity, listOf("logo", "icon", "pic", "bg")))
+        card.albumTitle.text = pickEntity(entity, CardUi.DEFAULT_ITEM_TITLE)
+        val info = pickEntity(entity, listOf("description", "intro"))
+            ?: pickEntity(entity, listOf("apknum"))?.let { "$it 个应用" }
+        card.albumInfo.isVisible = !info.isNullOrEmpty()
+        card.albumInfo.text = info
+
+        val user = pickEntity(entity, listOf("username"))
+        val avatar = pickEntity(entity, listOf("userAvatar"))
+        card.albumAvatar.isVisible = !avatar.isNullOrEmpty()
+        if (!avatar.isNullOrEmpty()) ImageUtil.showIMG(card.albumAvatar, avatar)
+        card.albumUser.isVisible = !user.isNullOrEmpty()
+        card.albumUser.text = user
+
+        // 整条可点（ViewHolder 会复用，没 url 时必须把上一轮的点击清掉，否则点了跳上一集的链接）
+        val url: String? = entity.url
+        val clickable = !url.isNullOrEmpty()
+        card.root.isClickable = clickable
+        card.root.isFocusable = clickable
+        card.root.setOnClickListener(
+            if (clickable) View.OnClickListener { view ->
+                listener.onOpenLink(view, url, card.albumTitle.text?.toString())
+            } else null
+        )
+
+        // 应用图标取原始 JSON 的 apkRows[].pic（模型里没有这个数组）
+        card.albumIconList.removeViews(ICON_LIST_FIXED_CHILDREN, card.albumIconList.childCount)
+        val icons = entity.raw?.get("apkRows")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?.mapNotNull { row ->
+                row.takeIf { it.isJsonObject }?.asJsonObject?.get("pic")
+                    ?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotEmpty() }
+            }.orEmpty()
+        val showIcons = !avatar.isNullOrEmpty() || !user.isNullOrEmpty() || icons.isNotEmpty()
+        card.albumIconList.isVisible = showIcons
+        if (!showIcons) return
+
+        // 官方那串图标白底 + 1dp 内边距、互相叠 7dp（第一个跟左边留 8dp）
+        icons.take(4).forEachIndexed { index, pic ->
+            val icon = ImageView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(24.dp, 24.dp).apply {
+                    marginStart = if (index == 0) 8.dp else -7.dp
+                }
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setBackgroundColor(Color.WHITE)
+                setPadding(1.dp, 1.dp, 1.dp, 1.dp)
+            }
+            ImageUtil.showIMG(icon, pic)
+            card.albumIconList.addView(icon)
+        }
+
+        // 第 5 个圆形槽位：「还有多少个」（官方 more_count_view_5，这里带上 `+` 更好读）
+        val more = entity.raw?.get("apkRowsMoreCount")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+        if (icons.isNotEmpty() && more > 0) {
+            card.albumIconList.addView(TextView(context).apply {
+                text = "+$more"
+                textSize = 10f
+                gravity = Gravity.CENTER
+                setTextColor(0xFF333333.toInt())
+                background = ContextCompat.getDrawable(context, R.drawable.album_more_circle)
+                layoutParams = LinearLayout.LayoutParams(24.dp, 24.dp).apply { marginStart = -7.dp }
+            })
+        }
+    }
+
     /** 规则表定了形状就用它，否则按实体内容推（有图当图标、动态图当大图、没图当文字） */
     private fun shapeOf(entity: HomeFeedResponse.Entities): String {
         if (rule.shape != CardUi.SHAPE_AUTO) return rule.shape
@@ -821,6 +1088,15 @@ class GenericCardEntityAdapter(
             ?.let { Jsoup.parse(it).text().takeIf { text -> text.isNotBlank() } }
 
     private companion object {
+        /** 通用实体排版 */
+        const val VIEW_TYPE_DEFAULT = 0
+
+        /** 走专属布局的实体（见 [CardUi.entityLayout]） */
+        const val VIEW_TYPE_OFFICIAL = 1
+
+        /** 专属布局里图标区自带的固定子 view 数（头像、用户名、占位 Space），追加图标前保留 */
+        const val ICON_LIST_FIXED_CHILDREN = 3
+
         /** 图标尺寸（方形，宫格里也放得下）；横排时略小一点 */
         const val ICON_SIZE = 56
         const val ROW_ICON_SIZE = 44

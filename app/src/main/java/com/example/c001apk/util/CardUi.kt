@@ -71,6 +71,25 @@ object CardUi {
      */
     const val ICON_BUTTONS = "iconButtons"
 
+    /**
+     * 横向滚动的分类入口（模板 `linkCard`）：官方根就是一条 56dp 高的横滚行，里面是圆角 14dp 的
+     * 文字胶囊（item_link_card.xml + item_link_card_tab.xml）。配成宫格会排成 4 个方块，不像。
+     */
+    const val LINK_TABS = "linkTabs"
+
+    /**
+     * 标题 + 胶囊列表（模板 `capsuleListCard`）：官方是「16dp 图标 + 加粗标题」一行，下面一堆
+     * 热词胶囊（item_capsule_list.xml）。实体是 `hotSearch`，宫格排法会浪费掉标题行。
+     */
+    const val CAPSULES = "capsules"
+
+    /**
+     * 大图打底的酷安集条目（**实体**模板 `albumExpandCard`）：官方是整卡封面 + 白字标题/说明 +
+     * 头像与应用图标叠放（item_album_expand_card.xml）。实体是一条完整 album，按通用实体排法
+     * （图标 + 标题）完全不像。
+     */
+    const val ALBUM_EXPAND = "albumExpand"
+
     /** 只有标题/正文的纯文本卡 */
     const val TEXT = "text"
 
@@ -191,9 +210,7 @@ object CardUi {
         "feedCoolPictureGridCard" to 2,
         "rankAwardCard" to 3,
         "iconMiniLinkGridCard" to 3,
-        "capsuleListCard" to 3,
         "iconTabLinkGridCard" to 4,
-        "linkCard" to 4,
         "iconLinkGridCard" to 5
     )
 
@@ -213,6 +230,12 @@ object CardUi {
         m["titleCard"] = Rule(layout = SECTION)
         // 「试试手气 / 爆棚热门」这类两栏图文按钮：官方把宽图当底、文字压在图上
         m["iconButtonGridCard"] = Rule(layout = ICON_BUTTONS)
+        // 「应用分类 / 游戏分类」这类横向滚动的分类入口（linkCard）：官方是一条 56dp 高的
+        // 横滚胶囊行，按宫格排会变成 4 个方块
+        m["linkCard"] = Rule(layout = LINK_TABS)
+        // 热搜胶囊（capsuleListCard）：官方是「图标 + 加粗标题」一行 + 一片胶囊，
+        // 实体是 hotSearch，按宫格排会把标题行丢掉
+        m["capsuleListCard"] = Rule(layout = CAPSULES)
         // 置顶引导（topContent）不在这张表里：官方是话题/机型页单独画的一行式卡片，见
         // GenericCardRenderer.renderTopContent —— 原先这里配的 row 形状会把标题挤成 0 宽
         // 纯文本卡
@@ -253,6 +276,25 @@ object CardUi {
     fun rule(template: String?): Rule? = template?.let { remote[it] ?: BUILTIN[it] }
 
     /**
+     * 实体级（**不是卡片级**）的官方重画表：实体自己的 `entityTemplate` 决定单个实体怎么画，
+     * 外层卡片照常走骨架。
+     *
+     * 实测 `albumExpandCard` 就是这样：外层卡片是 `listCard`（标题「推荐应用集」），里面的
+     * album 实体自带 `entityTemplate=albumExpandCard`（见
+     * `_rev/card_scan_out/16_V8_MARKET_ALBUM.json`）。DEX 侧也对得上 ——
+     * EntityListFragment 的卡片模板大表里没有它，它是单独一个按模板名判断的方法
+     * （`_rev/card_scan_out/_FEED_CHAIN.txt` 里 `ʱ(Ljava/lang/Object;)Z → 模板名: albumExpandCard`
+     * + 紧跟一个建 ViewHolder 的方法）。所以这张表配的是**实体**模板，别往下面的卡片表里加。
+     */
+    private val ENTITY_OFFICIAL = mapOf(
+        "albumExpandCard" to ALBUM_EXPAND
+    )
+
+    /** 实体级官方重画：返回该实体要用的专属布局名，没有就返回 null（走通用实体排版） */
+    fun entityLayout(entityTemplate: String?): String? =
+        entityTemplate?.let { ENTITY_OFFICIAL[it] }
+
+    /**
      * 实体的排列方式。规则表配了就用配的；没配过的模板按实体数量推断
      * （一两条竖排、四五条宫格、再多横滚），所以没见过的新模板也能排得像样。
      */
@@ -266,6 +308,8 @@ object CardUi {
             LINKS -> return CardLayout(official = LINKS)
             SECTION -> return CardLayout(official = SECTION)
             ICON_BUTTONS -> return CardLayout(official = ICON_BUTTONS)
+            LINK_TABS -> return CardLayout(official = LINK_TABS)
+            CAPSULES -> return CardLayout(official = CAPSULES)
             TEXT -> return CardLayout()
             HSCROLL -> return CardLayout(horizontal = true)
             LIST -> return CardLayout()

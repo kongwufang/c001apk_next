@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    linkCard（模板 linkCard）照官方重画：一条横向滚动的分类入口。
+
+    官方布局 _rev/ref_res/res/layout/item_link_card.xml：根就是 HorizontalScrollView（**没有
+    CoolapkCardView 外壳**），里面 `tab_layout` 是个高 56dp、垂直居中的横排容器、左右各 4dp；
+    每一项见 item_link_card_tab.xml —— 胶囊底 `link_card_tab_bg`（实心 mainBackgroundColor、圆角
+    14dp）+ 文字左右各 10dp，项外面再包 6dp 的左右留白（所以两项间距 12dp、首项文字距边 20dp）。
+
+    实测这卡的 `link` 实体只给 title + url（样本里 4 条链接的 pic 是同一张遗留图，官方没用），
+    所以这里只画文字胶囊，不摆图。
+
+    卡壳仍用骨架自带的 MaterialCardView（官方这里没有卡壳，本项目列表统一带卡，去掉会跟其他卡片
+    的间距割裂）。文字与跳转在 GenericCardRenderer.bindLinkTabsCard 里填。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <data />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/linkTabs"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp" />
+
+    </HorizontalScrollView>
+
+</layout>

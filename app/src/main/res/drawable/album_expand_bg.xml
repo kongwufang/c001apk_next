@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    albumExpandCard 的圆角裁剪壳：只有圆角、没有颜色。
+    官方 item_album_expand_card.xml 里 `bg_view`（铺满整卡）和内容都在同一个 CoolapkCardView 里，
+    靠卡壳裁圆角；本项目的卡壳是外层 MaterialCardView、这张卡是塞进 content 的，所以自己裁：
+    背景设成这个 12dp 圆角的空壳（跟 item_home_generic_card.xml 的 cardCornerRadius 一致），
+    再 clipToOutline，压在封面上的蒙层就不会在四角露出直角。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="@android:color/transparent" />
+
+    <corners android:radius="12dp" />
+
+</shape>
