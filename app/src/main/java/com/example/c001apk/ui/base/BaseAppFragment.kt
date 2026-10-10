@@ -56,7 +56,10 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
     }
 
     override fun initAdapter() {
-        appAdapter = AppAdapter(viewModel.ItemClickListener())
+        appAdapter = AppAdapter(viewModel.ItemClickListener()).apply {
+            // 页面要求 feedCover 也按完整动态卡排时（个人主页「图文」tab），由 ViewModel 说明
+            feedCoverAsFeed = viewModel.feedCoverAsFeed
+        }
         footerAdapter = FooterAdapter(ReloadListener())
         mAdapter = ConcatAdapter(HeaderAdapter(), appAdapter, footerAdapter)
     }

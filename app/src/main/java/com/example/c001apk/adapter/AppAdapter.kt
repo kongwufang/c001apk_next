@@ -56,6 +56,15 @@ class AppAdapter(
     private val listener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
 
+    /**
+     * feedCover 也按完整动态卡排。个人主页「图文」tab 实测在同一个列表里混下发两种模板
+     * （17 条里 5 条 feedCover、12 条 feed），照模板分派会在一页里混出两种卡片；
+     * 官方那一页与同页「动态」排法一致，所以整页统一走完整卡。
+     * 由 BaseAppFragment 按 ViewModel 的 feedCoverAsFeed 置位，默认 false ——
+     * 首页 / 教程页 / 产品页晒单 / 数码首页下发 feedCover 时仍走紧凑卡（viewType 27）。
+     */
+    var feedCoverAsFeed: Boolean = false
+
     // 封面式动态（entityTemplate=feedCover）：官方是「标题 + 摘要 + 右侧 106dp 封面图」的紧凑卡，
     // 没有头像 / 用户名区，跟完整动态卡不是一个排法，所以单独一张布局
     class FeedCoverViewHolder(
@@ -1251,9 +1260,10 @@ class AppAdapter(
             }
 
             // 封面式动态（feedCover）：教程页 / 产品页晒单 / 数码首页下发的是「标题 + 摘要 +
-            // 右侧 106dp 封面图」的紧凑卡，跟完整动态卡排法不一样，单独一个 viewType
+            // 右侧 106dp 封面图」的紧凑卡，跟完整动态卡排法不一样，单独一个 viewType。
+            // 个人主页「图文」tab 例外（feedCoverAsFeed）：那一页要和「动态」对齐，一律走完整卡
             "feed" -> when {
-                currentList[position].entityTemplate == "feedCover" -> 27
+                !feedCoverAsFeed && currentList[position].entityTemplate == "feedCover" -> 27
                 else -> 2
             }
 

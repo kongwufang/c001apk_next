@@ -38,6 +38,13 @@ abstract class BaseAppViewModel(
     protected open val appIdForDownload: String? get() = null
     protected open val packageNameForDownload: String? get() = null
 
+    /**
+     * 列表里下发的 feedCover 是否也按完整动态卡渲染，默认 false。
+     * 「图文」tab 那类页面会在同一列表中混下发 feedCover 与 feed，而官方那一页与「动态」排法一致。
+     * 由 [BaseAppFragment] 转交给 AppAdapter.feedCoverAsFeed。
+     */
+    open val feedCoverAsFeed: Boolean get() = false
+
     val apkDownload = MutableLiveData<Event<ApkDownloadInfo>>()
 
     val footerState = MutableLiveData<FooterState>()

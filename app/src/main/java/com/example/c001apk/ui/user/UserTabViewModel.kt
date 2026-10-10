@@ -52,6 +52,13 @@ class UserTabViewModel @AssistedInject constructor(
         }
     }
 
+    /**
+     * 「图文」tab 的接口在同一个列表里混下发两种模板（实测 17 条里 5 条 entityTemplate=feedCover、
+     * 12 条 feed），照模板分派会在同一页里混出「紧凑封面卡 / 完整动态卡」两种排法。官方这一页
+     * 与同页「动态」排法一致，所以整页统一按完整动态卡渲染（见 AppAdapter.feedCoverAsFeed）。
+     */
+    override val feedCoverAsFeed: Boolean get() = type == "article"
+
     // 这些列表官方都是翻页取（page），只有动态支持 lastItem
     private suspend fun request(): Flow<Result<HomeFeedResponse>> = when (type) {
         "article" -> networkRepo.getUserHtmlFeed(uid, page, null)
