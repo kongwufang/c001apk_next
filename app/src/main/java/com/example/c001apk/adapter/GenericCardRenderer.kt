@@ -368,10 +368,13 @@ object GenericCardRenderer {
         rows.forEach { it.removeAllViews() }
 
         val night = isNight(context)
+        // 注意：MaterialColors.getColor 没有 (Context, attr) 这个两参重载（只有 (View, attr) 和
+        // (Context, attr, 缺省值)），传 context 会被匹配到 View 那个签名而编译不过
         val divider =
-            MaterialColors.getColor(context, com.google.android.material.R.attr.colorOutlineVariant)
-        val muted =
-            MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnSurfaceVariant)
+            MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorOutlineVariant)
+        val muted = MaterialColors.getColor(
+            binding.root, com.google.android.material.R.attr.colorOnSurfaceVariant
+        )
 
         SCORE_ITEMS.forEachIndexed { index, item ->
             val row = rows[index / 2]
