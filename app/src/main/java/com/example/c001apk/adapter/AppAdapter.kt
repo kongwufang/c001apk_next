@@ -528,7 +528,6 @@ class AppAdapter(
         }
     }
 
-    // 未支持的卡片模板：显示一行提示，而不是抛异常让整页空白/崩溃
     // configCard（页面配置）/ sponsorCard（广告位）这类不该出现在列表里的卡片，占 0 高度
     class HiddenViewHolder(val binding: ItemHomeHiddenBinding) :
         BaseViewHolder<ViewDataBinding>(binding) {
@@ -536,16 +535,46 @@ class AppAdapter(
         }
     }
 
+    /**
+     * 未支持的卡片模板：不抛异常（会让整页空白/崩溃），也不只丢一行提示——把各模板都有的
+     * 通用字段排成一张卡片，能点就点，最后一行小字标明模板名。
+     *
+     * 服务端的卡片是配置驱动的，新模板会随时冒出来（`_rev/card_tpl_scan.py` 实测服务端会下发
+     * 39 种顶层模板，本地只实现了一部分）。所以这里要"接得住"：认不出的模板至少让用户看到
+     * 卡片里有什么、能顺着 url 进去，而不是只剩一行灰字。
+     *
+     * 通用字段的取值优先级：正文 message → description（活动/话题卡片常用后者），
+     * 标题 title；都没有就退回原来那行「不支持的卡片：xxx」。
+     */
     class UnsupportedViewHolder(
         val binding: ItemHomeUnsupportedBinding,
         val listener: ItemListener
     ) :
         BaseViewHolder<ViewDataBinding>(binding) {
         override fun bind(data: HomeFeedResponse.Data) {
+            binding.title.isVisible = !data.title.isNullOrEmpty()
+            binding.title.text = data.title
+
+            val summary = data.message?.takeIf { it.isNotBlank() } ?: data.description
+            binding.summary.isVisible = !summary.isNullOrEmpty()
+            binding.summary.text = summary
+
             binding.tip.text = binding.root.context.getString(
                 R.string.unsupported_card,
                 data.entityTemplate ?: data.entityType.orEmpty()
             )
+
+            // 有 url 才可点（点了走既有的链接分发，能进详情/H5 的都会进）；
+            // 没有 url 的（纯展示卡片）别给出会亮却没反应的按压反馈
+            val url = data.url
+            val clickable = !url.isNullOrEmpty()
+            binding.root.isClickable = clickable
+            binding.root.isFocusable = clickable
+            if (clickable) {
+                binding.root.setOnClickListener { view -> listener.onOpenLink(view, url, data.title) }
+            } else {
+                binding.root.setOnClickListener(null)
+            }
         }
     }
 

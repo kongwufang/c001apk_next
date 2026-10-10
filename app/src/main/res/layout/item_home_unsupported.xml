@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 未支持的卡片模板占位：宁可显示一行提示，也不要让整页空白/崩溃 -->
-<layout xmlns:android="http://schemas.android.com/apk/res/android">
+<!--
+    未支持卡片模板的兜底。
+
+    服务端的卡片是配置驱动的，随时会冒出新模板（实测服务端会下发 39 种顶层模板，本地只实现了
+    其中一部分）。以前这里只有一行灰字，虽然不会崩，但卡片内容整块丢掉，用户只看到
+    「不支持的卡片：xxx」，点了也没反应。
+
+    现在改成一张通用卡片：把各模板都有的那几个通用字段（title / message / description）按普通
+    卡片排版出来，有 url 就整卡可点，最下面留一行小字标明模板名，方便识别是哪种卡片没实现。
+    字段全空时退回原来那行灰字的样子，不会变成一块空白。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
@@ -9,14 +21,56 @@
             type="com.example.c001apk.logic.model.HomeFeedResponse.Data" />
     </data>
 
-    <TextView
-        android:id="@+id/tip"
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="8dp"
-        android:text="@{data.entityTemplate}"
-        android:textColor="@android:color/darker_gray"
-        android:textSize="12sp" />
+        android:layout_margin="5dp"
+        android:foreground="@drawable/selector_bg_12_trans"
+        app:cardBackgroundColor="@color/home_card_background_color"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@{data.title}"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="今日热榜" />
+
+            <TextView
+                android:id="@+id/summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:lineSpacingExtra="4dp"
+                android:maxLines="3"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="一句话说明这张卡片里有什么" />
+
+            <TextView
+                android:id="@+id/tip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="11sp"
+                tools:text="不支持的卡片：titleCard" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
 </layout>
