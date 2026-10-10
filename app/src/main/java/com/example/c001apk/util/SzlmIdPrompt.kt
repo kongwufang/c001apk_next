@@ -1,31 +1,27 @@
 package com.example.c001apk.util
 
 import android.app.Activity
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.WindowManager
 import android.widget.EditText
-import android.widget.Toast
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
+import com.example.c001apk.ui.others.SzlmIdWebActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 /**
  * 「获取数字联盟 ID」知情同意弹窗。
  *
  * 正文列出会被上传的设备信息，两个出口：
  *  - 不同意，手动填入自己的 ID；
- *  - 知情并同意，请求 [SzlmIdApi] 换取 DUID 并落到 [PrefManager.SZLMID]。
+ *  - 知情并同意，打开内置网页（[SzlmIdWebActivity]，人机验证 + 签名校验）换取 DUID，
+ *    结果落到 [PrefManager.SZLMID]。
  *
  * 触发点：应用启动时发现 SZLMID 为空（[RiskControlPrompter]），
  * 以及「设置 - 高级 - 数字联盟ID」被点击时。
  */
 object SzlmIdPrompt {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * 弹知情同意窗。
@@ -45,7 +41,7 @@ object SzlmIdPrompt {
             }
             .setPositiveButton(R.string.szlm_id_consent_agree) { d, _ ->
                 d.dismiss()
-                requestAndSave(activity)
+                openWeb(activity)
             }
             .setOnDismissListener { onDismiss?.invoke() }
             .show()
@@ -78,40 +74,20 @@ object SzlmIdPrompt {
         }.show()
     }
 
-    /** 请求接口取 DUID；期间显示不可取消的进度框 */
-    private fun requestAndSave(activity: Activity) {
-        val loading = MaterialAlertDialogBuilder(activity)
-            .setMessage(R.string.szlm_id_fetching)
-            .setCancelable(false)
-            .create()
-        runCatching { loading.show() }
-
-        scope.launch {
-            val result = runCatching { SzlmIdApi.fetch() }
-            runCatching { if (loading.isShowing) loading.dismiss() }
-            val ctx = activity.applicationContext
-            result.onSuccess {
-                save(it.duid)
-                Toast.makeText(
-                    ctx,
-                    ctx.getString(
-                        if (it.fromCache) R.string.szlm_id_fetch_ok_cached else R.string.szlm_id_fetch_ok,
-                        it.duid
-                    ),
-                    Toast.LENGTH_LONG
-                ).show()
-            }.onFailure {
-                Toast.makeText(
-                    ctx,
-                    ctx.getString(R.string.szlm_id_fetch_failed, it.message.orEmpty()),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
+    /**
+     * 打开内置网页换取 DUID（人机验证 + App 签名校验都在网页侧和服务端完成）。
+     *
+     * 不再由 App 直连接口：`szlmid/request_api.php` 已停用，直连只会拿到
+     * 「请求被拒绝，请升级最新版本」。参数经 JsBridge 交给网页，结果由网页回调回来，
+     * 保存动作见 [SzlmIdWebActivity.onIssued]。
+     */
+    private fun openWeb(activity: Activity) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        runCatching { activity.startActivity(Intent(activity, SzlmIdWebActivity::class.java)) }
     }
 
     /** 落盘 + 重建设备串（szlmId 是设备串首字段，改完必须重造才生效） */
-    private fun save(id: String) {
+    internal fun save(id: String) {
         PrefManager.SZLMID = id
         // 填过（非空）才算「已配置」；清空则回到未配置状态
         PrefManager.szlmIdConfigured = id.isNotEmpty()

@@ -476,6 +476,9 @@
             android:name=".ui.others.CopyActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.others.SzlmIdWebActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.others.WebViewActivity"
             android:exported="false"
             android:process=":webview" />

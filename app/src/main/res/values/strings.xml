@@ -145,13 +145,11 @@
     <string name="szlmId">数字联盟ID</string>
     <string name="szlmId_summary">点击可自动获取或手动填入自己的数字联盟 ID；清空则不再携带</string>
     <string name="szlm_id_consent_title">获取数字联盟ID</string>
-    <string name="szlm_id_consent_message">本应用创新性地内置了一套数字联盟 ID（DUID）的获取方法。为完成换取，需要把你的以下设备信息上传到本应用的服务器：\n\n· 机型参数：厂商、品牌、型号、版本号、Android 版本、API 等级\n· 安卓设备唯一标识 SSAID（ANDROID_ID）\n· 本应用的版本信息：版本名、版本号、包名\n· 本应用的真实 UA\n\n这些信息仅用于换取并缓存 DUID，不作其它用途，也不包含你的账号信息。需要你知情并同意。</string>
+    <string name="szlm_id_consent_message">本应用创新性地内置了一套数字联盟 ID（DUID）的获取方法。为完成换取，需要把你的以下设备信息上传到本应用的服务器：\n\n· 机型参数：厂商、品牌、型号、版本号、Android 版本、API 等级\n· 安卓设备唯一标识 SSAID（ANDROID_ID）\n· 本应用的版本信息：版本名、版本号、包名\n· 本应用的真实 UA\n· 本应用的签名证书指纹\n\n点「我已知情并同意」后会打开内置网页，需要经过一次人机验证；服务器还会核验 App 签名，非官方包会拒绝签发。\n\n这些信息仅用于换取并缓存 DUID，不作其它用途，也不包含你的账号信息。需要你知情并同意。</string>
     <string name="szlm_id_consent_manual">不同意并手动填入</string>
     <string name="szlm_id_consent_agree">我已知情并同意</string>
-    <string name="szlm_id_fetching">正在获取数字联盟 ID…</string>
     <string name="szlm_id_fetch_ok">获取成功，DUID：%1$s</string>
-    <string name="szlm_id_fetch_ok_cached">获取成功（命中缓存），DUID：%1$s</string>
-    <string name="szlm_id_fetch_failed">获取失败：%1$s</string>
+    <string name="szlm_id_web_title">获取数字联盟ID</string>
     <string name="params">机型参数</string>
     <string name="user_black_list">用户黑名单</string>
     <string name="add">添加</string>

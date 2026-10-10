@@ -1,87 +1,63 @@
 package com.example.c001apk.util
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.webkit.WebSettings
 import com.example.c001apk.BuildConfig
-import com.example.c001apk.MyApplication
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONObject
 
 /**
- * 数字联盟 ID（DUID）获取接口客户端。
+ * 「获取数字联盟 ID」流程的入参构造：交给 App 内置网页（szlmid/webgetv1）经 JsBridge 取用。
  *
- *   GET https://service.houlangs.cn/c001apk/szlmid/request_api.php
- *   X-App-reallyUA:   app 真实 UA
- *   X-App-deviceinfo: 本机真实机型参数 + 安卓唯一标识 SSAID
- *   X-App-info:       本应用真实版本信息
- *
- * 服务端按 `X-App-deviceinfo` 的**原文**做缓存键（永不过期、命中缓存不计限流），
+ * 网页端把这几项 POST 给服务端换取 DUID，服务端用 `deviceinfo` 的**原文**做指纹派生，
  * 所以三段内容必须稳定：同一台机器每次生成要逐字节一致，不能掺时间戳 / 随机数 /
  * 用户可改的伪装值。见各私有函数注释。
  *
- * 与酷安 API 隔离：独立 [OkHttpClient]，不挂 Cookie / 签名 / 日志拦截器。
+ * 历史：这里原来挂在 SzlmIdApi 上，直连 `szlmid/request_api.php` 取号；该入口现在只会回
+ * 「请求被拒绝，请升级最新版本」，取号统一改走带人机验证的内置网页，本文件只负责备料。
  */
-object SzlmIdApi {
+object SzlmIdParams {
 
-    const val ENDPOINT = "https://service.houlangs.cn/c001apk/szlmid/request_api.php"
+    /**
+     * 官方包的签名证书 SHA-256（小写 hex）。
+     *
+     * 与 [SignatureGuard] 里那份、以及 [UpdateChecker] 上报给服务端的那份**各自独立维护**：
+     * 三处签名校验互不复用，任何一处被二次开发者图省事删掉/绕过，其余两处仍然生效。
+     */
+    const val OFFICIAL_SIGNATURE =
+        "9e7692d0d3f996476c81be80841fc638530eeb1285c8ba325b65ca47af190ec8"
 
-    /** 三个必填业务参数，服务端规定走请求头（缺一即 400） */
-    const val HEADER_REAL_UA = "X-App-reallyUA"
-    const val HEADER_DEVICE_INFO = "X-App-deviceinfo"
-    const val HEADER_APP_INFO = "X-App-info"
-    private const val HEADER_USER_AGENT = "User-Agent"
+    /** 内置网页地址（人机验证 + 签名校验都过了才签发） */
+    const val WEB_ENTRY = "https://service.houlangs.cn/c001apk/szlmid/webgetv1/"
 
-    data class Result(val duid: String, val fromCache: Boolean)
+    private val HEX = "0123456789abcdef".toCharArray()
 
-    /** 独立客户端；只在网络传输调试模式下放开 SSL 校验 */
-    private val client by lazy {
-        if (PrefManager.isSslDebug) SslVerify.applyDebug(OkHttpClient.Builder()).build()
-        else OkHttpClient()
-    }
-
-    /** 取一个 DUID；失败抛异常，由调用方提示 */
-    suspend fun fetch(): Result {
-        val ctx = MyApplication.context
+    /**
+     * 组装给内置网页的全部参数（一次性备齐，JsBridge 被回调时同步返回）。
+     */
+    suspend fun buildForWeb(ctx: Context): String {
         // WebView 默认 UA 必须在主线程取，先拿到再进 IO
         val ua = withContext(Dispatchers.Main) { realUserAgent(ctx) }
-
-        val body = withContext(Dispatchers.IO) {
-            val deviceInfo = deviceInfoJson(ctx)
-            val appInfo = appInfoJson(ctx)
-            val request = Request.Builder()
-                .url(ENDPOINT)
-                .header(HEADER_REAL_UA, ua)
-                .header(HEADER_DEVICE_INFO, deviceInfo)
-                .header(HEADER_APP_INFO, appInfo)
-                // 显式覆盖：否则 OkHttp 自带 `User-Agent: okhttp/4.x`，那不是 app 真实 UA
-                .header(HEADER_USER_AGENT, ua)
-                .get()
-                .build()
-            client.newCall(request).execute().use { resp -> resp.body?.string().orEmpty() }
+        return withContext(Dispatchers.IO) {
+            JSONObject().apply {
+                put("ua", ua)
+                put("deviceinfo", deviceInfoJson(ctx))
+                put("appinfo", appInfoJson(ctx))
+                put("signature", signature(ctx))
+            }.toString()
         }
-
-        val json = runCatching { JSONObject(body) }.getOrElse {
-            error("响应不是 JSON：${body.take(120)}")
-        }
-        if (json.optInt("code", -1) != 0) {
-            error("${json.optInt("code")}: ${json.optString("message").ifBlank { "获取失败" }}")
-        }
-        return Result(
-            duid = json.getJSONObject("data").getString("duid"),
-            fromCache = json.optString("state") == "cache",
-        )
     }
 
     /**
-     * `X-App-deviceinfo`：**本机真实**机型参数 + SSAID。
+     * `deviceinfo`：**本机真实**机型参数 + SSAID。
      *
      * 刻意绕开 [PrefManager.MANUFACTURER] / [PrefManager.MODEL] 等字段：那些会被
-     * 「设置 - 机型参数」改写成伪装值（甚至随机值），而服务端拿这个 JSON 当缓存键，
+     * 「设置 - 机型参数」改写成伪装值（甚至随机值），而服务端拿这个 JSON 当指纹来源，
      * 一旦被改就会每次换一个新 DUID、白耗取号额度。这里直接读 [Build]
      * （走 [TokenDeviceUtils.detectRealDevice]），再加 SSAID，保证原文稳定。
      *
@@ -107,7 +83,7 @@ object SzlmIdApi {
     }
 
     /**
-     * `X-App-info`：本应用**真实**版本信息（服务端只记日志，不参与业务）。
+     * `appinfo`：本应用**真实**版本信息（服务端只记日志，不参与业务）。
      *
      * 用 [BuildConfig] 而非 [PrefManager.VERSION_NAME] —— 后者可能被伪装成酷安版本号，
      * 这里要的是这个客户端自己的版本。
@@ -132,4 +108,32 @@ object SzlmIdApi {
         runCatching { WebSettings.getDefaultUserAgent(ctx) }
             .getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
             ?: "c001apk_next/${BuildConfig.VERSION_NAME} (Android ${Build.VERSION.RELEASE}; ${Build.MODEL})"
+
+    /**
+     * 本包签名证书的 SHA-256（小写 hex；多签名时取第一个），随参数一起交给网页上报。
+     *
+     * 独立实现：**刻意不调** [UpdateChecker] / [SignatureGuard] 里那两份同类逻辑。
+     * 服务端拿它核验是不是官方包，不是就回「app签名校验失败，拒绝签发！」。
+     * 二次开发的人绕过弹出的自检弹窗时，只要没顺手改这里，上报的仍然是他真实包的签名。
+     */
+    @Suppress("DEPRECATION")
+    private fun signature(ctx: Context): String = runCatching {
+        val pm: PackageManager = ctx.packageManager
+        val pkg = ctx.packageName
+        val raw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            pm.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES)
+                .signingInfo?.apkContentsSigners?.firstOrNull()?.toByteArray()
+        } else {
+            pm.getPackageInfo(pkg, PackageManager.GET_SIGNATURES)
+                .signatures?.firstOrNull()?.toByteArray()
+        } ?: return ""
+
+        val digest = MessageDigest.getInstance("SHA-256").digest(raw)
+        val sb = StringBuilder(digest.size * 2)
+        for (b in digest) {
+            val v = b.toInt() and 0xFF
+            sb.append(HEX[v ushr 4]).append(HEX[v and 0x0F])
+        }
+        sb.toString()
+    }.getOrDefault("")
 }
