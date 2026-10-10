@@ -75,7 +75,9 @@ class SzlmIdWebActivity : BaseActivity<ActivitySzlmIdWebBinding>() {
             defaultTextEncodingName = "UTF-8"
             allowFileAccess = false
             // 刻意不套 PrefManager.USER_AGENT（那是给酷安接口伪装的 UA）：
-            // Turnstile 需要真实浏览器 UA，用系统默认即可
+            // Turnstile 要真实浏览器 UA，这里在系统默认 UA 上只追加一个私有标记，
+            // 服务端据此判定请求来自 App 内置 WebView（纯浏览器打开的一律拒绝签发）
+            userAgentString = SzlmIdParams.webUserAgent(this@SzlmIdWebActivity)
         }
 
         CookieManager.getInstance().apply {

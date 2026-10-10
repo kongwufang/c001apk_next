@@ -35,6 +35,15 @@ object SzlmIdParams {
     /** 内置网页地址（人机验证 + 签名校验都过了才签发） */
     const val WEB_ENTRY = "https://service.houlangs.cn/c001apk/szlmid/webgetv1/"
 
+    /**
+     * App 内置 WebView 的 UA 私有标记。
+     *
+     * 服务端要求请求的 User-Agent 同时带 `wv`（Android WebView 固有标记）和这个标记，
+     * 才会走下一条校验 —— 于是"在浏览器里直接打开网页"这条路拿不到号。
+     * 标记放在 UA 末尾，前面仍是真实浏览器 UA，不影响 Turnstile 判定。
+     */
+    const val WEB_UA_TAG = "C001ApkWebView"
+
     private val HEX = "0123456789abcdef".toCharArray()
 
     /**
@@ -110,10 +119,18 @@ object SzlmIdParams {
             ?: "c001apk_next/${BuildConfig.VERSION_NAME} (Android ${Build.VERSION.RELEASE}; ${Build.MODEL})"
 
     /**
+     * 交给内置 WebView 用的 UA：系统默认 UA + [WEB_UA_TAG]。
+     *
+     * 只有本 Activity 的 WebView 会带这个标记，服务端据此确认请求来自 App 内部。
+     * （纯粹的痕迹校验，不是密钥 —— 真正拦人的是签名白名单和人机验证。）
+     */
+    fun webUserAgent(ctx: Context): String = "${realUserAgent(ctx)} $WEB_UA_TAG"
+
+    /**
      * 本包签名证书的 SHA-256（小写 hex；多签名时取第一个），随参数一起交给网页上报。
      *
      * 独立实现：**刻意不调** [UpdateChecker] / [SignatureGuard] 里那两份同类逻辑。
-     * 服务端拿它核验是不是官方包，不是就回「app签名校验失败，拒绝签发！」。
+     * 服务端拿它核验是不是官方包，不是就拒绝签发（对外只说「访问被拒绝」，原因只写服务端日志）。
      * 二次开发的人绕过弹出的自检弹窗时，只要没顺手改这里，上报的仍然是他真实包的签名。
      */
     @Suppress("DEPRECATION")
