@@ -187,6 +187,25 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/messageTitle" />
 
+            <!--
+                正文被 5 行截断时才露出的「查看更多」，点了进详情页看全文。
+                显隐由 AppAdapter.FeedViewHolder 按 message 的排版结果决定；默认 GONE，
+                不占位，没被截断的条目不会平白多出一截空档。
+            -->
+            <TextView
+                android:id="@+id/messageMore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:text="查看更多"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/message" />
+
             <TextView
                 android:id="@+id/pubDate"
                 android:layout_width="wrap_content"
@@ -229,7 +248,7 @@
                 android:layout_marginTop="10dp"
                 app:feedType="@{data.feedType}"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/message"
+                app:layout_constraintTop_toBottomOf="@id/messageMore"
                 app:pic="@{data.pic}"
                 app:picArr="@{data.picArr}" />
 

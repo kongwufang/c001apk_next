@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
 import androidx.databinding.ViewDataBinding
 import androidx.recyclerview.widget.GridLayoutManager
@@ -117,6 +118,44 @@ class AppAdapter(
             // 设备串要停在「置顶 / 仅自己可见」两个小标记左侧（两个都隐藏时自动延伸到最右）
             lp.endToEnd = binding.topBadge.id
             binding.device.layoutParams = lp
+
+            bindMessageMore(data)
+        }
+
+        /**
+         * 正文被折叠成 [MESSAGE_COLLAPSED_LINES] 行时才露出「查看更多」（点了进详情页看全文）。
+         *
+         * 只能按排版结果判：同样的字数，窄屏 / 长链接都会让行数不同。而此刻
+         * `binding.message` 的 layout 还是上一条数据的，所以判定挂到 `doOnNextLayout` 上，
+         * 等这条绑定的文本排完版再算。回调有可能在 ViewHolder 被回收复用之后才跑到，
+         * 所以先用 id 对一下当前绑的还是不是同一条数据，别把别人的按钮点亮。
+         */
+        private fun bindMessageMore(data: HomeFeedResponse.Data) {
+            binding.messageMore.isVisible = false
+            if (data.message.isNullOrEmpty()) return
+
+            binding.messageMore.setOnClickListener { view ->
+                listener.onViewFeed(
+                    view, data.id, data.userInfo.uid, data.userInfo.username,
+                    data.userInfo.userAvatar, data.deviceTitle, data.message,
+                    data.dateline?.toString(), null, null, data
+                )
+            }
+
+            val bindId = id
+            binding.message.doOnNextLayout {
+                if (id != bindId) return@doOnNextLayout
+                val layout = binding.message.layout ?: return@doOnNextLayout
+                val lastLine = layout.lineCount - 1
+                val truncated = layout.lineCount > MESSAGE_COLLAPSED_LINES ||
+                        (lastLine >= 0 && layout.getEllipsisCount(lastLine) > 0)
+                binding.messageMore.isVisible = truncated
+            }
+        }
+
+        companion object {
+            /** 正文折叠行数，与 item_home_feed.xml 里 message 的 maxLines 保持一致 */
+            private const val MESSAGE_COLLAPSED_LINES = 5
         }
     }
 
