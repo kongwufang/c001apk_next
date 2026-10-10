@@ -206,11 +206,15 @@
         </LinearLayout>
 
         <!--
-            签名 + 展开按钮：按钮钉在父容器右边缘、与签名垂直居中。
+            签名 + 展开按钮：按钮排在签名文段之后（左对齐、紧跟文段下方），用主题色。
 
-            按钮用 INVISIBLE 而不是 GONE：它一占位就固定了签名的宽度，「要不要展开」的
-            判定就不会因为按钮自己显示/隐藏而改变可用宽度（否则判定是个反馈环，刷新一次
-            就可能翻到另一头，表现为「刚进页面有按钮、刷新后没了」）。判定见 bindBio。
+            原来是把按钮钉在父容器右边缘、与签名垂直居中，签名短的时候按钮会孤零零悬在
+            离文字很远的地方，看不出它是「这段文字的展开」。移到文段后面之后它跟着文字走，
+            左边缘与签名对齐。
+
+            按钮 GONE 而不是 INVISIBLE：放在签名下方就不再挤占签名的可用宽度，
+            「要不要展开」的判定不会因为按钮自己的显隐而改变（旧写法是并排在右侧，
+            必须常驻占位才不成反馈环）。判定见 UserPagerFragment.bindBio。
         -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/bioLayout"
@@ -232,8 +236,7 @@
                 android:maxLines="2"
                 android:text="@{userData.bio}"
                 android:textSize="13sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/bioExpand"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -241,18 +244,18 @@
                 android:id="@+id/bioExpand"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:gravity="center"
-                android:minWidth="40dp"
                 android:minHeight="28dp"
                 android:text="展开"
-                android:textColor="#B3FFFFFF"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:visibility="invisible"
+                android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintStart_toStartOf="@id/bio"
+                app:layout_constraintTop_toBottomOf="@id/bio" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <LinearLayout
