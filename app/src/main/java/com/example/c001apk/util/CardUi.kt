@@ -22,6 +22,12 @@ import org.json.JSONObject
  *   "stats":{"names":{"avgData":"平均分"},"avgSuffix":"_avg","countSuffix":"_count"}}}}
  * ```
  * 字段里带 `|` 是回退链：取第一个非空值（同一位置在不同模板下换字段名是常态）。
+ *
+ * 链里的字段名**不受「model 里声明过什么」限制**：卡片和实体都留了一份原始 JSON
+ * （`HomeFeedResponse.Data.raw` / `Entities.raw`），服务端把商品图叫 `goods_pic`、
+ * 把热搜热度叫 `sub_title`，规则表照配就能取到。以前取值是硬编码的九个字段名，
+ * 配什么都取不到，只能往 `Entities` 里加字段发版 —— 现在改配置即可。
+ *
  * 拉不到 / 解析失败一律静默退回内置表，绝不让配置问题把列表搞空白。
  */
 object CardUi {
@@ -64,18 +70,39 @@ object CardUi {
         "3d_mark" to "WildLife Extreme"
     )
 
+    /**
+     * 实体字段的默认回退链。
+     *
+     * 服务端字段名五花八门：应用列表给 `logo`、动态给 `pic`、京东商品给 `goods_pic`、
+     * 热搜的热度给 `sub_title`、机型别名给 `alias_title`……而 `Entities` 只声明了一部分。
+     * 实体现在带着原始 JSON（`Entities.raw`），这里配什么名字就能取到什么，
+     * 所以默认链尽量放宽 —— 规则表只在需要**改优先级**时才覆盖。
+     *
+     * `entityTypeName` 一律排最后：它多半是 `pear_goods`、`product` 这类内部名，
+     * 有真实描述时不该把它顶出来（京东商品卡以前就显示成「商品名 / pear_goods」）。
+     */
+    const val DEFAULT_ICON = "logo|pic|goods_pic|icon|tpic|userAvatar|cover"
+    const val DEFAULT_ITEM_TITLE = "title|goods_title|device_title|alias_title|config_name|name"
+    const val DEFAULT_ITEM_SUBTITLE =
+        "sub_title|subTitle|description|message|goods_promo_title|goods_promo_price|entityTypeName"
+
+    /** 卡片自身的字段默认链。卡片级字段名比实体级稳定（就那十几个），补下划线变体即可 */
+    const val DEFAULT_CARD_TITLE = "title|goods_title"
+    const val DEFAULT_CARD_SUMMARY = "description|subTitle|sub_title|message"
+    const val DEFAULT_CARD_HERO = "pic"
+
     data class ItemRule(
         val shape: String = SHAPE_AUTO,
-        val icon: String = "logo|pic",
-        val title: String = "title",
-        val subtitle: String = "entityTypeName|description|message",
+        val icon: String = DEFAULT_ICON,
+        val title: String = DEFAULT_ITEM_TITLE,
+        val subtitle: String = DEFAULT_ITEM_SUBTITLE,
         val action: String = "url"
     ) {
         /** 上面几个字段写的是 `|` 回退链，渲染前拆成列表（与 [CardUi.chain] 同一套规则） */
-        val iconChain: List<String> get() = CardUi.chain(icon, "logo|pic")
-        val titleChain: List<String> get() = CardUi.chain(title, "title")
+        val iconChain: List<String> get() = CardUi.chain(icon, DEFAULT_ICON)
+        val titleChain: List<String> get() = CardUi.chain(title, DEFAULT_ITEM_TITLE)
         val subtitleChain: List<String>
-            get() = CardUi.chain(subtitle, "entityTypeName|description|message")
+            get() = CardUi.chain(subtitle, DEFAULT_ITEM_SUBTITLE)
     }
 
     data class StatsRule(
@@ -87,9 +114,9 @@ object CardUi {
     data class Rule(
         val layout: String = AUTO,
         val span: Int = 0,
-        val titleField: String = "title",
-        val summaryField: String = "description|subTitle|message",
-        val heroField: String = "pic",
+        val titleField: String = DEFAULT_CARD_TITLE,
+        val summaryField: String = DEFAULT_CARD_SUMMARY,
+        val heroField: String = DEFAULT_CARD_HERO,
         val item: ItemRule? = null,
         val stats: StatsRule? = null
     )
@@ -103,7 +130,7 @@ object CardUi {
 
     private val HSCROLL_TEMPLATES = listOf(
         "apkScrollCard", "apkScrollCardWithBackground", "apkImageScrollCard", "apkImageCard",
-        "colorfulScrollCard", "iconLargeScrollCard", "feedScrollCard", "imageScaleCard",
+        "colorfulScrollCard", "iconLargeScrollCard", "feedScrollCard",
         "iconScrollCard", "imageScrollCard", "imageCarouselCard", "iconMiniScrollCard"
     )
 
@@ -151,11 +178,16 @@ object CardUi {
         // 纯文本卡
         m["messageCard"] = Rule(layout = TEXT)
         m["textCard"] = Rule(layout = TEXT)
-        m["sponsorArticleNews"] = Rule(layout = TEXT)
+        // 实测是「自绘广告占位卡」（只有 sponsorType / reward_type，没内容）：配 auto，
+        // 真有内容时能按实体排出来，没内容时自然不占高度，比写死 text 稳
+        m["sponsorArticleNews"] = Rule(layout = AUTO)
 
         HSCROLL_TEMPLATES.forEach { m[it] = Rule(layout = HSCROLL) }
         LIST_TEMPLATES.forEach { m[it] = Rule(layout = LIST) }
         GRID_TEMPLATES.forEach { (t, span) -> m[t] = Rule(layout = GRID, span = span) }
+
+        // 实测是 1080x240 的全宽横幅（不是横滚小图），竖排整宽才对
+        m["imageScaleCard"] = Rule(layout = LIST)
         m
     }
 
@@ -232,17 +264,17 @@ object CardUi {
         return Rule(
             layout = optString("layout", AUTO).lowercase().ifBlank { AUTO },
             span = optInt("span", 0),
-            titleField = optString("titleField", "title").ifBlank { "title" },
-            summaryField = optString("summaryField", "description|subTitle|message")
-                .ifBlank { "description|subTitle|message" },
-            heroField = optString("heroField", "pic").ifBlank { "pic" },
+            titleField = optString("titleField", DEFAULT_CARD_TITLE).ifBlank { DEFAULT_CARD_TITLE },
+            summaryField = optString("summaryField", DEFAULT_CARD_SUMMARY)
+                .ifBlank { DEFAULT_CARD_SUMMARY },
+            heroField = optString("heroField", DEFAULT_CARD_HERO).ifBlank { DEFAULT_CARD_HERO },
             item = itemObj?.let { o ->
                 ItemRule(
                     shape = o.optString("shape", SHAPE_AUTO).lowercase().ifBlank { SHAPE_AUTO },
-                    icon = o.optString("icon", "logo|pic").ifBlank { "logo|pic" },
-                    title = o.optString("title", "title").ifBlank { "title" },
-                    subtitle = o.optString("subtitle", "entityTypeName|description|message")
-                        .ifBlank { "entityTypeName|description|message" },
+                    icon = o.optString("icon", DEFAULT_ICON).ifBlank { DEFAULT_ICON },
+                    title = o.optString("title", DEFAULT_ITEM_TITLE).ifBlank { DEFAULT_ITEM_TITLE },
+                    subtitle = o.optString("subtitle", DEFAULT_ITEM_SUBTITLE)
+                        .ifBlank { DEFAULT_ITEM_SUBTITLE },
                     action = o.optString("action", "url").ifBlank { "url" }
                 )
             },

@@ -19,6 +19,7 @@ import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.dp
+import com.google.gson.JsonObject
 import org.jsoup.Jsoup
 
 /**
@@ -150,7 +151,11 @@ object GenericCardRenderer {
      */
     private fun pickCard(data: HomeFeedResponse.Data, chain: List<String>): String? {
         chain.forEach { name ->
-            val raw: Any? = when (name) {
+            // 先查原始 JSON：规则表里配的字段名不再受限于下面这份硬编码清单，
+            // 服务端换个 key（比如卡片标题叫 `goods_title`）只改云端规则表就行。
+            data.raw?.jsonString(name)?.let { return it }
+            // 兜底：raw 为空（对象经 Parcel 传递过、或代码手工构造）时仍按声明字段取
+            val field: Any? = when (name) {
                 "title" -> data.title
                 "description" -> data.description
                 "subTitle" -> data.subTitle
@@ -161,7 +166,7 @@ object GenericCardRenderer {
                 "extraData" -> data.extraData
                 else -> null
             }
-            (raw as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+            (field as? String)?.takeIf { it.isNotBlank() }?.let { return it }
         }
         return null
     }
@@ -304,7 +309,11 @@ class GenericCardEntityAdapter(
  */
 private fun pickEntity(entity: HomeFeedResponse.Entities, chain: List<String>): String? {
     chain.forEach { name ->
-        val raw: Any? = when (name) {
+        // 先查原始 JSON。实体侧字段名变数最大 —— 热搜的热度在 `sub_title`、
+        // 京东商品的图在 `goods_pic`、价格在 `goods_promo_price`，声明式字段表永远追不上，
+        // 但规则表里配什么名字这里就能取到什么。
+        entity.raw?.jsonString(name)?.let { return it }
+        val field: Any? = when (name) {
             "title" -> entity.title
             "logo" -> entity.logo
             "pic" -> entity.pic
@@ -316,10 +325,19 @@ private fun pickEntity(entity: HomeFeedResponse.Entities, chain: List<String>): 
             "entityTypeName" -> entity.entityTypeName
             else -> null
         }
-        (raw as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+        (field as? String)?.takeIf { it.isNotBlank() }?.let { return it }
     }
     return null
 }
+
+/**
+ * 从原始 JSON 里取一个文本字段，只认标量（字符串/数字/布尔）。
+ *
+ * 对象和数组不取：卡片上要显示的是文本，不是一段 JSON。`extraData` 那类
+ * 「内容其实是 JSON」的字段走各自的声明分支处理。
+ */
+private fun JsonObject.jsonString(name: String): String? =
+    get(name)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotBlank() }
 
 /**
  * 实体有没有可显示的内容。全空实体直接丢掉，免得卡片里留一个占位的空框。
