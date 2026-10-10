@@ -199,13 +199,13 @@ class GenericCardEntityAdapter(
         val shape = shapeOf(entity)
         val row = shape == CardUi.SHAPE_ROW
         val cover = shape == CardUi.SHAPE_COVER
-        val image = pickEntity(entity, rule.icon)
+        val image = pickEntity(entity, rule.iconChain)
 
         // 排列：row 是「图标左 + 文字右」横排（置顶引导那类），其余竖排居中
-        binding.root.orientation = if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-        binding.root.gravity = if (row) Gravity.CENTER_VERTICAL else Gravity.CENTER_HORIZONTAL
+        binding.container.orientation = if (row) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        binding.container.gravity = if (row) Gravity.CENTER_VERTICAL else Gravity.CENTER_HORIZONTAL
 
-        binding.root.layoutParams = binding.root.layoutParams.apply {
+        binding.container.layoutParams = binding.container.layoutParams.apply {
             width = if (horizontal) {
                 (if (cover) WIDE_ITEM_WIDTH else ICON_ITEM_WIDTH).dp
             } else {
@@ -231,18 +231,18 @@ class GenericCardEntityAdapter(
             }
         }
 
-        val title = pickEntity(entity, rule.title)
+        val title = pickEntity(entity, rule.titleChain)
         binding.title.isVisible = !title.isNullOrEmpty()
         binding.title.text = title
         binding.title.gravity = if (row) Gravity.START else Gravity.CENTER
 
-        val desc = pickEntity(entity, rule.subtitle)?.let { plainText(it) }
+        val desc = pickEntity(entity, rule.subtitleChain)?.let { plainText(it) }
         binding.desc.isVisible = !desc.isNullOrEmpty()
         binding.desc.text = desc
         binding.desc.gravity = if (row) Gravity.START else Gravity.CENTER
         // row 形状把副标题挪到标题上面（「来点评」这类是标签，官方就排标题上方）
-        binding.root.removeView(binding.desc)
-        binding.root.addView(binding.desc, if (row) 1 else 2)
+        binding.container.removeView(binding.desc)
+        binding.container.addView(binding.desc, if (row) 1 else 2)
 
         // 点击：有 url 走链接分发，apk 实体没有 url 时进应用详情
         val url: String? = entity.url
@@ -268,7 +268,7 @@ class GenericCardEntityAdapter(
     /** 规则表定了形状就用它，否则按实体内容推（有图当图标、动态图当大图、没图当文字） */
     private fun shapeOf(entity: HomeFeedResponse.Entities): String {
         if (rule.shape != CardUi.SHAPE_AUTO) return rule.shape
-        val image = pickEntity(entity, rule.icon) ?: return CardUi.SHAPE_TEXT
+        val image = pickEntity(entity, rule.iconChain) ?: return CardUi.SHAPE_TEXT
         val wide = entity.logo.isNullOrEmpty() &&
                 entity.entityType.orEmpty() in WIDE_IMAGE_TYPES
         return if (wide && image.isNotEmpty()) CardUi.SHAPE_COVER else CardUi.SHAPE_TILE

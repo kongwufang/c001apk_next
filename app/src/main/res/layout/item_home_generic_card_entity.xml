@@ -11,7 +11,12 @@
 
     <data />
 
+    <!--
+        这个 id 是必须的：DataBinding 下 binding.root 的类型是 View（ViewDataBinding.getRoot()），
+        拿不到 LinearLayout 的 orientation/gravity/addView，渲染时要靠 binding.container 操作。
+    -->
     <LinearLayout
+        android:id="@+id/container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"

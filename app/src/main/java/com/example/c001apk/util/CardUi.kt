@@ -70,7 +70,13 @@ object CardUi {
         val title: String = "title",
         val subtitle: String = "entityTypeName|description|message",
         val action: String = "url"
-    )
+    ) {
+        /** 上面几个字段写的是 `|` 回退链，渲染前拆成列表（与 [CardUi.chain] 同一套规则） */
+        val iconChain: List<String> get() = CardUi.chain(icon, "logo|pic")
+        val titleChain: List<String> get() = CardUi.chain(title, "title")
+        val subtitleChain: List<String>
+            get() = CardUi.chain(subtitle, "entityTypeName|description|message")
+    }
 
     data class StatsRule(
         val names: Map<String, String> = emptyMap(),
