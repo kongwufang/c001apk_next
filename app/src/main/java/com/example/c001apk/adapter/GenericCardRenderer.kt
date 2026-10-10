@@ -15,6 +15,7 @@ import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemHomeGenericCardBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardEntityBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
@@ -41,6 +42,19 @@ object GenericCardRenderer {
     ) {
         val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
+
+        // 骨架内边距按模板可变（见下面 renderTopContent），而 ViewHolder 是回收复用的，
+        // 先复位成 XML 里的 12dp，免得用上一次的模板留下的值
+        binding.content.setPadding(CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp)
+        binding.topContent.isVisible = false
+        binding.topContent.removeAllViews()
+
+        // 置顶内容卡官方不是通用卡片，是话题/机型页专门写的一行式「置顶内容」，照官方单独画
+        if (template == TOP_CONTENT) {
+            renderTopContent(binding, entities, listener)
+            return
+        }
+
         val spec = CardUi.layout(template, entities.size)
 
         // 卡片自身四块（取哪些字段可以被规则表改，默认还是原来那套）
@@ -103,6 +117,87 @@ object GenericCardRenderer {
         )
     }
 
+    /**
+     * 置顶内容卡（topContent）：官方没走卡片体系，是话题/机型页专门写的一行式「置顶内容」，
+     * 这里照官方 NodeTopContentComposeUI.kt 的 TopContentNewHeadlineUI 重写（反编译记录留在
+     * _rev/node_top_out/sources/defpackage/w0b.java，外层容器见同目录 c1b.java）：
+     *
+     * 每行 = 18dp 图标（染主题色）+ 标签 + 标题 + 右侧箭头，行内水平 12dp / 垂直 8dp，整行可点；
+     * 卡片自身没有标题 / 说明 / 配图，也不是整卡可点 —— 要跳的目标在每条实体自己的 url 上
+     * （这卡的实体 url 是 /t/xxx，卡片自己的 url 是 null）。
+     */
+    private fun renderTopContent(
+        binding: ItemHomeGenericCardBinding,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener
+    ) {
+        binding.title.isVisible = false
+        binding.summary.isVisible = false
+        binding.hero.isVisible = false
+        binding.stats.removeAllViews()
+        binding.stats.isVisible = false
+        binding.recyclerView.adapter = null
+        binding.recyclerView.isVisible = false
+
+        // 官方的留白全在行里（水平 12dp / 垂直 8dp），骨架自己的 12dp 要清掉，否则叠成 24dp
+        binding.content.setPadding(0, 0, 0, 0)
+        binding.topContent.isVisible = entities.isNotEmpty()
+        entities.forEach { entity ->
+            binding.topContent.addView(topContentRow(binding, entity, listener))
+        }
+
+        // 卡片自己没有 url：别给出「会亮但点了没反应」的按压反馈
+        binding.root.isClickable = false
+        binding.root.isFocusable = false
+        binding.root.setOnClickListener(null)
+
+        // 排障提示：debug 频道标出「这支是照官方重画的」，正式包看不到
+        val debugTip = BuildConfig.HTTP_LOG
+        binding.tip.isVisible = debugTip
+        if (debugTip) {
+            binding.tip.text = binding.root.context.getString(R.string.official_card, TOP_CONTENT)
+        }
+        binding.root.isVisible = entities.isNotEmpty() || debugTip
+    }
+
+    /** 置顶内容卡的一行，排布照官方 TopContentNewHeadlineUI（见行布局文件里的注释） */
+    private fun topContentRow(
+        binding: ItemHomeGenericCardBinding,
+        entity: HomeFeedResponse.Entities,
+        listener: ItemListener
+    ): View {
+        val row = ItemHomeGenericCardTopContentRowBinding.inflate(
+            LayoutInflater.from(binding.root.context), binding.topContent, false
+        )
+
+        // 官方的 logo 是 18dp 单色底图，颜色在布局里统一染成主题强调色
+        val logo: String? = entity.logo
+        row.icon.isVisible = !logo.isNullOrEmpty()
+        if (!logo.isNullOrEmpty()) ImageUtil.showIMG(row.icon, logo)
+
+        // entityTypeName 是标签（「来点评」），官方排在标题左边、用强调色；没有就整块不留
+        val tag: String? = entity.entityTypeName
+        row.tag.isVisible = !tag.isNullOrEmpty()
+        row.tag.text = tag
+
+        val title = entity.title.orEmpty()
+        row.title.isVisible = title.isNotEmpty()
+        row.title.text = title
+
+        // 点这一行进实体自己的 url；apk 实体在这张卡里没有（官方只认头条这类实体）
+        val url: String? = entity.url
+        if (url.isNullOrEmpty()) {
+            row.root.isClickable = false
+            row.root.isFocusable = false
+            row.root.setOnClickListener(null)
+        } else {
+            row.root.isClickable = true
+            row.root.isFocusable = true
+            row.root.setOnClickListener { view -> listener.onOpenLink(view, url, title) }
+        }
+        return row.root
+    }
+
     /** 统计卡的一行：左名称（灰）、右数值（加粗），值太长时截断 */
     private fun statRow(binding: ItemHomeGenericCardBinding, name: String, value: String): View {
         val context = binding.root.context
@@ -144,6 +239,12 @@ object GenericCardRenderer {
 
     /** 统计行名称用的灰色（跟 XML 里的 darker_gray 一个观感） */
     private val GRAY = 0xFF888888.toInt()
+
+    /** 骨架内边距，跟 item_home_generic_card.xml 里 content 的 12dp 对齐 */
+    private val CARD_PADDING = 12
+
+    /** 官方单独画的置顶内容卡模板名（官方对应 NodeTopContentViewHolder） */
+    private const val TOP_CONTENT = "topContent"
 
     /**
      * 按字段链取卡片自己的字段，`"description|subTitle|message"` 取第一个非空。

@@ -23,7 +23,9 @@
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp">
 
+        <!-- 内边距按模板可变（置顶内容卡要清零，留白全在行里），所以给它一个 id -->
         <LinearLayout
+            android:id="@+id/content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -51,6 +53,18 @@
                 android:textSize="14sp"
                 android:visibility="gone"
                 tools:text="卡片自带的说明文字" />
+
+            <!--
+                置顶内容卡（topContent）：官方没走卡片体系，是话题/机型页专门写的一行式「置顶内容」，
+                所以这里也只留一个容器，行由 GenericCardRenderer.renderTopContent 按官方排布塞进来
+                （行布局见 item_home_generic_card_top_content_row.xml）。
+            -->
+            <LinearLayout
+                android:id="@+id/topContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone" />
 
             <!-- 统计卡（subTabFeedCard1/2 那类）：每行「名称 值」，行由 CardUi.stats() 摊出来 -->
             <LinearLayout

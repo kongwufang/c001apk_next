@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    置顶内容卡（topContent）的一行，照官方重写。
+
+    官方这套在 NodeTopContentComposeUI.kt 的 TopContentNewHeadlineUI 里（反编译记录留在
+    _rev/node_top_out/sources/defpackage/w0b.java，外层容器见 c1b.java）：Compose 的 Row，
+    水平 padding 12dp、垂直 8dp、垂直居中，依次是
+
+        Image(logo, 18dp, FillBounds, 染 colorAccent)
+        Spacer(6dp)
+        Text(entityTypeName, 14sp, colorAccent)            「来点评」这类标签
+        Text(title, 14sp, textColorPrimary, 单行省略, start padding 16dp)
+        Spacer(weight 1f)                                  把箭头顶到最右
+        Icon(ic_chevron_right_grey600_18dp, tint grey_600)
+
+    唯一的差别：官方用「weight 1f 的空 Spacer」顶箭头，这里直接把 weight 给标题 —— 短标题效果
+    一样，长标题走省略号而不是溢出被裁掉。颜色对应关系（官方字段见 _rev 记录）：
+    colorAccent → 本项目的 ?attr/colorPrimary，textColorPrimary → ?attr/colorOnSurface。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp">
+
+        <!-- 官方的 logo 是单色底图，统一染成主题强调色 -->
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:tint="?attr/colorPrimary"
+            tools:src="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/tag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp"
+            tools:text="来点评" />
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            tools:text="京东方X2的屏幕怎么样？" />
+
+        <ImageView
+            android:id="@+id/arrow"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_chevron_right_grey600_18dp" />
+
+    </LinearLayout>
+
+</layout>

@@ -71,6 +71,13 @@ object CardUi {
     )
 
     /**
+     * 跑分卡 `extraData` 的键是 `<rule.name>_score_avg`，比 [SCORE_NAMES] 的键多一段 `_score`
+     * （2026-10-11 实测：`aututu_score_avg` / `aututu_score_count`）。
+     * 查 names 时这一层要去掉再试一次，否则两种配法有一种必然匹配不到、直接显示英文键名。
+     */
+    private const val SCORE_SUFFIX = "_score"
+
+    /**
      * 实体字段的默认回退链。
      *
      * 服务端字段名五花八门：应用列表给 `logo`、动态给 `pic`、京东商品给 `goods_pic`、
@@ -164,17 +171,8 @@ object CardUi {
         // 跑分统计：extraData 是成对的 *_avg / *_count
         m["subTabFeedCard2"] = Rule(layout = STATS, stats = StatsRule(names = SCORE_NAMES))
         m["subTabFeedCard3"] = Rule(layout = STATS, stats = StatsRule(names = SCORE_NAMES))
-        // 置顶引导（headline 实体：「来点评」+ 话题标题 + 图标，点了进话题）
-        m["topContent"] = Rule(
-            layout = LIST,
-            item = ItemRule(
-                shape = SHAPE_ROW,
-                icon = "logo",
-                title = "title",
-                subtitle = "entityTypeName|description",
-                action = "url"
-            )
-        )
+        // 置顶引导（topContent）不在这张表里：官方是话题/机型页单独画的一行式卡片，见
+        // GenericCardRenderer.renderTopContent —— 原先这里配的 row 形状会把标题挤成 0 宽
         // 纯文本卡
         m["messageCard"] = Rule(layout = TEXT)
         m["textCard"] = Rule(layout = TEXT)
@@ -310,7 +308,11 @@ object CardUi {
             avgKeys.forEach { key ->
                 val prefix = key.removeSuffix(rule.avgSuffix)
                 val value = obj.optString(key).takeIf { it.isNotBlank() } ?: return@forEach
-                val name = rule.names[prefix] ?: rule.names[key] ?: prefix
+                // 配 `<rule.name>_score`（服务端实际键形）或 `<rule.name>`（内置表写法）都能命中
+                val name = rule.names[prefix]
+                    ?: rule.names[prefix.removeSuffix(SCORE_SUFFIX)]
+                    ?: rule.names[key]
+                    ?: prefix
                 val countKey = prefix + rule.countSuffix
                 val count = if (obj.has(countKey)) obj.optString(countKey) else ""
                 rows += name to if (count.isNotBlank()) "${pretty(value)} · $count" else pretty(value)
