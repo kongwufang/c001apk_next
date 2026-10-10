@@ -2,6 +2,7 @@ package com.example.c001apk.util
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.widget.ScrollView
@@ -10,6 +11,7 @@ import android.widget.Toast
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.MyApplication
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -125,8 +127,32 @@ object UpdateChecker {
             "X-Update-Time" to info.lastUpdateTime.toString(),
             "X-Client-Version" to BuildConfig.VERSION_NAME,
             "X-Client-Code" to BuildConfig.VERSION_CODE.toString(),
+            // 本包真实签名证书的 SHA-256：服务端据此核验是不是官方包
+            // （不是就直接拒，连升级信息都不给），见接口里的 verify_client_signature()
+            "X-App-Signature" to packageSignature(pm, pkg).orEmpty(),
         ).filter { it.second.isNotEmpty() }
     }.getOrDefault(emptyList())
+
+    /**
+     * 本包签名证书的 SHA-256（小写 hex；多签名时取第一个）。
+     *
+     * 独立实现：**刻意不去调 [SignatureGuard] 里那套同类逻辑**。本机那套是弹给用户看的，
+     * 二次开发的人图省事把它删掉时，只要没顺手把这里也改了，上报的仍然是他真实包的签名，
+     * 服务端就能认出不是官方包，统计表进不了脏数据。改这个方法之前先想清楚这一点。
+     */
+    private fun packageSignature(pm: PackageManager, pkg: String): String? = runCatching {
+        @Suppress("DEPRECATION")
+        val certs = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            pm.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES)
+                .signingInfo?.apkContentsSigners?.toList()
+        } else {
+            pm.getPackageInfo(pkg, PackageManager.GET_SIGNATURES).signatures?.toList()
+        }).orEmpty()
+        certs.firstOrNull()?.let { cert ->
+            MessageDigest.getInstance("SHA-256").digest(cert.toByteArray())
+                .joinToString("") { b -> "%02x".format(b.toInt() and 0xff) }
+        }
+    }.getOrNull()
 
     /** 自建接口一次响应里的各段 JSON（原样留着，按需取用） */
     private class Snapshot(

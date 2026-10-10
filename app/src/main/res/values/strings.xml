@@ -130,6 +130,9 @@
     <string name="share_link_title">识别到分享链接</string>
     <string name="share_link_message">是否打开？</string>
     <string name="share_link_confirm">确认</string>
+    <!-- 本机签名校验失败：装的是被重新签名过的包 -->
+    <string name="signature_error_title">签名校验失败</string>
+    <string name="signature_error_message">App 签名校验错误，拒绝启动，请从官方渠道下载！</string>
     <!-- 关于页 - 反馈栏里的装机量统计入口 -->
     <string name="about_install_stats">查看本应用装机量</string>
     <string name="about_install_stats_desc">打开统计页面</string>

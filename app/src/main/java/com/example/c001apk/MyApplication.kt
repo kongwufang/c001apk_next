@@ -10,6 +10,7 @@ import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.RemoteConfig
 import com.example.c001apk.util.RiskControlPrompter
 import com.example.c001apk.util.ShareLinkPrompter
+import com.example.c001apk.util.SignatureGuard
 import com.example.c001apk.util.SslErrorPrompter
 import com.example.c001apk.util.SslVerify
 import dagger.hilt.android.HiltAndroidApp
@@ -35,6 +36,10 @@ class MyApplication : Application() {
 
         // 每次进入应用读一次剪贴板：是酷安分享链接就弹「是否打开」
         ShareLinkPrompter.install(this)
+
+        // 本机签名校验：装的不是官方包（且非 debug 包）就弹窗拒绝启动。
+        // 与升级接口里那套云端签名核验各写一份、互不引用，见 SignatureGuard 的注释
+        SignatureGuard.install(this)
 
         // 网络传输调试模式（设置 - 高级）：放开进程级 HttpsURLConnection 默认校验，
         // 不放开的话抓包时走系统默认栈的图片会全部加载失败
