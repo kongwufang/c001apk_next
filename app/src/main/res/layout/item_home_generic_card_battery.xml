@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    续航卡（模板 subTabFeedCard1），照官方 Compose 的 BatteryLifeSummaryCard 重画
+    （反编译记录 _rev/jadx_c6/sources/defpackage/e5g.java 的 m2929，尺寸表固化在 _rev/SUBTAB_CARDS_SPEC.md）：
+
+      · 整卡 80dp 高，四角 8dp。底色不再自己画一层 —— 外层通用卡片的 MaterialCardView 就是
+        官方的 contentBackgroundColor 那一档，自己再叠同色只会多出一圈不齐的圆角。
+      · 左上 offset(12dp,12dp)：16dp 电池图标（染 colorAccent）+ 4dp + 「续航时长」12sp
+      · 右上 offset(-15dp,12dp)：12sp 次要色的「303人提供数据」，超长省略
+      · 左下 offset(12dp,40dp) 高 28dp、底部对齐：「平均亮屏」12sp 次要色 + 4dp +
+        28sp 主色的数值 + 2dp + 「小时」10sp
+      · 右侧 offset(-11dp,38dp)：174x30dp 的自绘电池刻度条
+
+    颜色对应（官方 Compose 参数 → 本项目主题属性）：colorAccent → ?attr/colorPrimary，
+    textColorPrimary → ?attr/colorOnSurface，textColorSecondary / textColorTertiary →
+    ?attr/colorOnSurfaceVariant。
+
+    全部文案都由代码填：固定文案（「续航时长」「平均亮屏」「小时」）不放进 strings.xml，
+    跟项目里 topContent 那套一致。无数据时数据行与刻度条整块隐藏，只留标题行。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="80dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_batter"
+                android:tint="?attr/colorPrimary" />
+
+            <TextView
+                android:id="@+id/batteryTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp"
+                tools:text="续航时长" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/batteryCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="15dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            tools:text="303人提供数据" />
+
+        <LinearLayout
+            android:id="@+id/batteryAvgRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="12dp"
+            android:layout_marginBottom="12dp"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/batteryAvgLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="平均亮屏" />
+
+            <TextView
+                android:id="@+id/batteryAvg"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                tools:text="6.9" />
+
+            <TextView
+                android:id="@+id/batteryUnit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="10sp"
+                tools:text="小时" />
+        </LinearLayout>
+
+        <com.example.c001apk.view.BatterySliderView
+            android:id="@+id/batterySlider"
+            android:layout_width="174dp"
+            android:layout_height="30dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="38dp"
+            android:layout_marginEnd="11dp" />
+
+    </FrameLayout>
+
+</layout>

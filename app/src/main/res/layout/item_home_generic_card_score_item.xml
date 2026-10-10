@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    跑分卡里的一格，照官方 Compose 的 ScoreCard 重画
+    （反编译记录 _rev/jadx_c6/sources/defpackage/e5g.java 的 m2939 + m2909，尺寸表见 _rev/SUBTAB_CARDS_SPEC.md）：
+
+      · 圆角 8dp、1dp 描边，内部从上到下：标题 12sp → 4dp → 分数 18sp 加粗（用该跑分自己的
+        主题色）→ 2dp → 「N人分享」10sp 次要色
+      · 内容水平 12dp / 垂直 8dp，右侧给右下角那枚 20dp 品牌图标留出 32dp
+      · 背景是「顶部品牌浅色 → 底部透明」的垂直渐变，由代码按牌子下发（4 种配色不同），
+        所以这里不写死
+
+    高度用 minHeight 兜住官方那 73dp 的观感：两行共 4 格内容行数一致，自然等高。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="73dp">
+
+        <LinearLayout
+            android:id="@+id/scoreRoot"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="32dp"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:id="@+id/scoreTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp"
+                tools:text="安兔兔跑分" />
+
+            <TextView
+                android:id="@+id/scoreValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="3041833" />
+
+            <TextView
+                android:id="@+id/scoreCount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp"
+                tools:text="25人分享" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/scoreIcon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter" />
+
+    </FrameLayout>
+
+</layout>

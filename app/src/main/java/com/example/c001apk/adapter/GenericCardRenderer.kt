@@ -1,5 +1,8 @@
 package com.example.c001apk.adapter
 
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -13,15 +16,21 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
+import com.example.c001apk.databinding.ItemHomeGenericCardBatteryBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardEntityBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.dp
+import com.google.android.material.color.MaterialColors
 import com.google.gson.JsonObject
+import org.json.JSONObject
 import org.jsoup.Jsoup
+import java.util.Locale
 
 /**
  * 通用卡片渲染：把服务端下发的任意卡片画出来，不再为每个模板写 ViewHolder。
@@ -48,6 +57,9 @@ object GenericCardRenderer {
         binding.content.setPadding(CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp)
         binding.topContent.isVisible = false
         binding.topContent.removeAllViews()
+        // 照官方重画的卡片是直接 addView 进 content 的，而 ViewHolder 会回收复用，
+        // 先把自己上一轮塞进去的那张摘掉，否则越叠越多
+        binding.content.findViewWithTag<View>(OFFICIAL_TAG)?.let { binding.content.removeView(it) }
 
         // 置顶内容卡官方不是通用卡片，是话题/机型页专门写的一行式「置顶内容」，照官方单独画
         if (template == TOP_CONTENT) {
@@ -56,6 +68,14 @@ object GenericCardRenderer {
         }
 
         val spec = CardUi.layout(template, entities.size)
+
+        // 照官方重画的卡片（续航卡 / 跑分卡）：官方这几张是专门写的 Compose 布局（电池刻度条、
+        // 2x2 品牌渐变格），按通用骨架摊成「名称 值」完全不像，所以和 topContent 一样单独画。
+        // 反编译记录与尺寸表见 _rev/SUBTAB_CARDS_SPEC.md。
+        if (spec.official != null) {
+            renderOfficialCard(binding, spec.official, template, data, listener)
+            return
+        }
 
         // 卡片自身四块（取哪些字段可以被规则表改，默认还是原来那套）
         val title = pickCard(data, CardUi.titleField(template))
@@ -232,6 +252,224 @@ object GenericCardRenderer {
         return row
     }
 
+    /**
+     * 照官方重画的那几张卡片的分派入口。
+     *
+     * 官方对「产品页子版块」这几张卡都写了专门的 Compose 布局（不是通用卡片体系），所以这里不复用
+     * 骨架的 title/summary/实体列表，而是把它们全部收起来，再按 [official] 挑一块专属布局填进去。
+     * 尺寸一律照官方 Compose 的 dp 值，来源见 `_rev/SUBTAB_CARDS_SPEC.md`。
+     */
+    private fun renderOfficialCard(
+        binding: ItemHomeGenericCardBinding,
+        official: String,
+        template: String?,
+        data: HomeFeedResponse.Data,
+        listener: ItemListener
+    ) {
+        binding.title.isVisible = false
+        binding.summary.isVisible = false
+        binding.hero.isVisible = false
+        binding.stats.removeAllViews()
+        binding.stats.isVisible = false
+        binding.recyclerView.adapter = null
+        binding.recyclerView.isVisible = false
+        binding.topContent.isVisible = false
+        binding.topContent.removeAllViews()
+
+        // 官方的留白全在自己那块布局里，骨架自带的 12dp 要清掉，否则叠成 24dp
+        binding.content.setPadding(0, 0, 0, 0)
+
+        val extra = parseExtra(data.extraData)
+        val cardView = when (official) {
+            CardUi.SUBTAB_BATTERY -> bindBatteryCard(binding, extra)
+            CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
+            else -> null
+        }
+        if (cardView != null) {
+            // 打标记，好让 render() 开头能把上一轮塞进 content 的那张摘掉（ViewHolder 会复用）
+            cardView.tag = OFFICIAL_TAG
+            binding.content.addView(cardView)
+        }
+
+        // 这两张卡官方都没有跳转目标（url 为空）：别给出「会亮但点了没反应」的按压反馈
+        val url: String? = data.url
+        val clickable = !url.isNullOrEmpty()
+        binding.root.isClickable = clickable
+        binding.root.isFocusable = clickable
+        binding.root.setOnClickListener(
+            if (clickable) View.OnClickListener { view -> listener.onOpenLink(view, url, data.title) }
+            else null
+        )
+
+        // 排障提示：debug 频道标出「这支是照官方重画的」，正式包看不到
+        val debugTip = BuildConfig.HTTP_LOG && !template.isNullOrEmpty()
+        binding.tip.isVisible = debugTip
+        if (debugTip) {
+            binding.tip.text = binding.root.context.getString(R.string.official_card, template)
+        }
+        binding.root.isVisible = true
+    }
+
+    /**
+     * 续航卡（`subTabFeedCard1`），照官方 BatteryLifeSummaryCard 排
+     * （尺寸与配色对应关系写在 item_home_generic_card_battery.xml 的注释里）。
+     *
+     * 数据只有两个字段：`avgData` 是平均亮屏小时数、`countData` 是提供数据的人数。
+     * 官方在人数解析不出正数时不显示右上角那句，在小时数解析不出正数时把「平均亮屏 + 刻度条」
+     * 整块收起来、只留标题行 —— 这里照做，别拿 0 去画一根空电池。
+     */
+    private fun bindBatteryCard(
+        binding: ItemHomeGenericCardBinding,
+        extra: JSONObject?
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardBatteryBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        // 官方这三处是硬编码中文，不走 strings.xml（跟 topContent 那套一致）
+        card.batteryTitle.text = "续航时长"
+        card.batteryAvgLabel.text = "平均亮屏"
+        card.batteryUnit.text = "小时"
+
+        val count = extra.number("countData")
+        val hasCount = count != null && count > 0f
+        card.batteryCount.isVisible = hasCount
+        card.batteryCount.text = if (hasCount && count != null) "${count.toLong()}人提供数据" else ""
+
+        val hours = extra.number("avgData")
+        val hasData = hours != null && hours > 0f
+        card.batteryAvgRow.isVisible = hasData
+        card.batterySlider.isVisible = hasData
+        if (hasData && hours != null) {
+            card.batteryAvg.text = compactNumber(hours)
+            card.batterySlider.setHours(hours)
+        }
+        return card.root
+    }
+
+    /**
+     * 跑分卡（`subTabFeedCard2`），照官方 ScoreGridCard 排：两行两格，每格是「品牌名 → 分数 →
+     * N 人分享」加右下角品牌图标，底子是「顶部品牌浅色 → 底部透明」的垂直渐变（暗色主题另给一套
+     * 起始色）。四格的顺序、图标、强调色、渐变起始色都照官方写死，见 [SCORE_ITEMS]。
+     *
+     * extraData 是成对的 `xxx_score_avg` / `xxx_score_count`；某一格没数据时官方那格显示
+     * 「暂无人分享」并且分数行用次要色，这里照做。
+     */
+    private fun bindScoreCard(
+        binding: ItemHomeGenericCardBinding,
+        extra: JSONObject?
+    ): View {
+        val context = binding.root.context
+        val card = ItemHomeGenericCardScoreBinding.inflate(
+            LayoutInflater.from(context), binding.content, false
+        )
+        val inflater = LayoutInflater.from(context)
+        val rows = listOf(card.scoreRow1, card.scoreRow2)
+        rows.forEach { it.removeAllViews() }
+
+        val night = isNight(context)
+        val divider =
+            MaterialColors.getColor(context, com.google.android.material.R.attr.colorOutlineVariant)
+        val muted =
+            MaterialColors.getColor(context, com.google.android.material.R.attr.colorOnSurfaceVariant)
+
+        SCORE_ITEMS.forEachIndexed { index, item ->
+            val row = rows[index / 2]
+            val cell = ItemHomeGenericCardScoreItemBinding.inflate(inflater, row, false)
+            val score = extra.number("${item.prefix}_score_avg")
+            val count = extra.number("${item.prefix}_score_count")
+
+            cell.scoreTitle.text = CardUi.SCORE_NAMES[item.prefix]
+
+            val hasScore = score != null && score > 0f
+            cell.scoreValue.text =
+                if (hasScore && score != null) compactNumber(score) else "暂无人分享"
+            cell.scoreValue.setTextColor(if (hasScore) item.accent else muted)
+            cell.scoreValue.textSize = if (hasScore) 18f else 14f
+
+            val hasCount = count != null && count > 0f
+            cell.scoreCount.isVisible = hasCount
+            cell.scoreCount.text =
+                if (hasCount && count != null) "${count.toLong()}人分享" else ""
+
+            cell.scoreIcon.setImageResource(item.icon)
+
+            cell.root.background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(if (night) item.darkTop else item.lightTop, Color.TRANSPARENT)
+            ).apply {
+                cornerRadius = 8.dp.toFloat()
+                setStroke(1.dp, divider)
+            }
+
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            if (index % 2 == 1) lp.marginStart = 8.dp
+            row.addView(cell.root, lp)
+        }
+        return card.root
+    }
+
+    /** extraData 是 JSON 字符串；解析不出来（空的、被截断的）就当没有，别让整卡崩掉 */
+    private fun parseExtra(extraData: String?): JSONObject? =
+        runCatching { JSONObject(extraData.orEmpty()) }.getOrNull()
+
+    /**
+     * 从 extraData 取数值。服务端这两种写法都下发过：`"6.9"` 这种字符串、以及裸数字，
+     * 统一走 [JSONObject.optString] 再转，两种都能吃。字段不在就直接当没有 ——
+     * 官方「暂无人分享」那套就是靠 `has(key)` / 值 > 0 判的，别把缺失当成 0。
+     */
+    private fun JSONObject?.number(key: String): Float? {
+        val obj = this ?: return null
+        if (!obj.has(key)) return null
+        return obj.optString(key).toFloatOrNull()
+    }
+
+    /** 官方 m2947 那套：整数就显示整数，带小数才保留一位（`2814` / `6.9`） */
+    private fun compactNumber(value: Float): String =
+        if (value == value.toLong().toFloat()) value.toLong().toString()
+        else String.format(Locale.US, "%.1f", value)
+
+    private fun isNight(context: android.content.Context): Boolean =
+        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+
+    /**
+     * 跑分卡四格的固定顺序与配色，前缀跟 [CardUi.SCORE_NAMES] 对齐（真源一致）。
+     *
+     * 渐变是「顶部品牌浅色 → 底部透明」，浅色 / 深色主题各一套起始色；强调色用来染分数
+     * （安兔兔红、GeekBench 蓝、3DMark 橙），都照官方 ScoreGridCard 抄的。
+     */
+    private val SCORE_ITEMS = listOf(
+        ScoreItem(
+            "aututu", R.drawable.ic_antutu,
+            0xFFF44336.toInt(), 0xFFFFEBEE.toInt(), 0xFF360E15.toInt()
+        ),
+        ScoreItem(
+            "geek_bench_single", R.drawable.ic_geekbench,
+            0xFF2196F3.toInt(), 0xFFE3F2FD.toInt(), 0xFF0E2436.toInt()
+        ),
+        ScoreItem(
+            "geek_bench_multi", R.drawable.ic_geekbench,
+            0xFF2196F3.toInt(), 0xFFE3F2FD.toInt(), 0xFF0E2436.toInt()
+        ),
+        ScoreItem(
+            "3d_mark", R.drawable.ic_3dmark,
+            0xFFFF9800.toInt(), 0xFFFFF3E0.toInt(), 0xFF36250E.toInt()
+        )
+    )
+
+    private data class ScoreItem(
+        /** extraData 里的字段前缀，如 `aututu` → `aututu_score_avg` */
+        val prefix: String,
+        val icon: Int,
+        /** 分数文字色（官方每个牌子一个强调色） */
+        val accent: Int,
+        /** 浅色主题的渐变起始色（顶部），往下渐隐到透明 */
+        val lightTop: Int,
+        /** 深色主题的渐变起始色 */
+        val darkTop: Int
+    )
+
     /** 卡片正文可能是 HTML（feed 的 message 就带 `<a>`），排成纯文本，别把标签显示出来 */
     private fun plainText(raw: String?): String? =
         raw?.takeIf { it.isNotBlank() }
@@ -245,6 +483,9 @@ object GenericCardRenderer {
 
     /** 官方单独画的置顶内容卡模板名（官方对应 NodeTopContentViewHolder） */
     private const val TOP_CONTENT = "topContent"
+
+    /** 照官方重画的卡片塞进 content 时打的标记，供复用前清理（见 render 开头） */
+    private const val OFFICIAL_TAG = "officialCard"
 
     /**
      * 按字段链取卡片自己的字段，`"description|subTitle|message"` 取第一个非空。

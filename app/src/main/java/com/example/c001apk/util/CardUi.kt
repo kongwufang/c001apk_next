@@ -41,6 +41,16 @@ object CardUi {
     /** 把 extraData 摊成若干行「名称 值」（子版块统计那类） */
     const val STATS = "stats"
 
+    /**
+     * 照官方重画的续航卡（模板 `subTabFeedCard1`）：80dp 卡 + 电池刻度条 + 平均亮屏。
+     * 官方是专门的 Compose 布局 BatteryLifeSummaryCard，摊成「名称 值」完全不像，所以这里
+     * 不再走 [STATS] 兜底，改走专属渲染。渲染与尺寸见 [GenericCardRenderer] / `_rev/SUBTAB_CARDS_SPEC.md`。
+     */
+    const val SUBTAB_BATTERY = "subtabBattery"
+
+    /** 照官方重画的跑分卡（模板 `subTabFeedCard2`）：2x2 品牌渐变格，官方对应 ScoreGridCard */
+    const val SUBTAB_SCORE = "subtabScore"
+
     /** 只有标题/正文的纯文本卡 */
     const val TEXT = "text"
 
@@ -62,8 +72,12 @@ object CardUi {
     /** 只有文字 */
     const val SHAPE_TEXT = "text"
 
-    /** 跑分项前缀 → 中文名（真源是产品页 tab 的 rule.name） */
-    private val SCORE_NAMES = mapOf(
+    /**
+     * 跑分项前缀 → 中文名（真源是产品页 tab 的 `rule.name`）。
+     * 跑分卡现在走照官方重画的专属渲染，但「前缀 → 展示名」仍以这张表为唯一真源，
+     * [GenericCardRenderer] 直接复用，免得改一处名字要改两个文件。
+     */
+    val SCORE_NAMES = mapOf(
         "aututu" to "安兔兔跑分",
         "geek_bench_single" to "GeekBench 单核",
         "geek_bench_multi" to "GeekBench 多核",
@@ -132,7 +146,12 @@ object CardUi {
         val horizontal: Boolean = false,
         val span: Int = 1,
         val stats: Boolean = false,
-        val hidden: Boolean = false
+        val hidden: Boolean = false,
+        /**
+         * 非空表示这条模板走「照官方重画」的专属渲染，值就是骨架名（[SUBTAB_BATTERY] /
+         * [SUBTAB_SCORE] 这些）。普通骨架都为 null，所以老规则不受影响。
+         */
+        val official: String? = null
     )
 
     private val HSCROLL_TEMPLATES = listOf(
@@ -163,14 +182,12 @@ object CardUi {
 
     private val BUILTIN: Map<String, Rule> = run {
         val m = mutableMapOf<String, Rule>()
-        // 子版块统计：一个版块一个平均分
-        m["subTabFeedCard1"] = Rule(
-            layout = STATS,
-            stats = StatsRule(names = mapOf("avgData" to "平均分", "countData" to "参与人数"))
-        )
-        // 跑分统计：extraData 是成对的 *_avg / *_count
-        m["subTabFeedCard2"] = Rule(layout = STATS, stats = StatsRule(names = SCORE_NAMES))
-        m["subTabFeedCard3"] = Rule(layout = STATS, stats = StatsRule(names = SCORE_NAMES))
+        // 子版块续航卡 / 跑分卡：官方是专门的 Compose 布局（电池刻度条、2x2 品牌渐变格），
+        // 原先摊成「名称 值」完全不像官方，这里改走照官方重画的专属渲染
+        // （见 GenericCardRenderer.renderSubTabBattery / renderSubTabScore）
+        m["subTabFeedCard1"] = Rule(layout = SUBTAB_BATTERY)
+        m["subTabFeedCard2"] = Rule(layout = SUBTAB_SCORE)
+        m["subTabFeedCard3"] = Rule(layout = SUBTAB_SCORE)
         // 置顶引导（topContent）不在这张表里：官方是话题/机型页单独画的一行式卡片，见
         // GenericCardRenderer.renderTopContent —— 原先这里配的 row 形状会把标题挤成 0 宽
         // 纯文本卡
@@ -219,6 +236,8 @@ object CardUi {
         when (r?.layout) {
             HIDDEN -> return CardLayout(hidden = true)
             STATS -> return CardLayout(stats = true)
+            SUBTAB_BATTERY -> return CardLayout(official = SUBTAB_BATTERY)
+            SUBTAB_SCORE -> return CardLayout(official = SUBTAB_SCORE)
             TEXT -> return CardLayout()
             HSCROLL -> return CardLayout(horizontal = true)
             LIST -> return CardLayout()
