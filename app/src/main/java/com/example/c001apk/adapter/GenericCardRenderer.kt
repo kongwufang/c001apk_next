@@ -903,7 +903,7 @@ class GenericCardEntityAdapter(
         RecyclerView.ViewHolder(album.root)
 
     override fun getItemViewType(position: Int): Int =
-        if (CardUi.entityLayout(entities[position].entityTemplate) != null) VIEW_TYPE_OFFICIAL
+        if (CardUi.entityLayout(entityTemplateOf(entities[position])) != null) VIEW_TYPE_OFFICIAL
         else VIEW_TYPE_DEFAULT
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -1011,7 +1011,7 @@ class GenericCardEntityAdapter(
     ) {
         val context = card.root.context
         ImageUtil.showIMG(card.albumBg, pickEntity(entity, listOf("logo", "icon", "pic", "bg")))
-        card.albumTitle.text = pickEntity(entity, CardUi.DEFAULT_ITEM_TITLE)
+        card.albumTitle.text = pickEntity(entity, CardUi.chain(null, CardUi.DEFAULT_ITEM_TITLE))
         val info = pickEntity(entity, listOf("description", "intro"))
             ?: pickEntity(entity, listOf("apknum"))?.let { "$it 个应用" }
         card.albumInfo.isVisible = !info.isNullOrEmpty()
@@ -1115,6 +1115,16 @@ class GenericCardEntityAdapter(
         )
     }
 }
+
+/**
+ * 实体自己的模板名（实体级专属布局靠它分派）。
+ *
+ * `entityTemplate` 只在 [HomeFeedResponse.Data] 上声明了字段（卡片级），实体级没有这个属性，
+ * 只能从实体留的原始 JSON 里取 —— 别照 AppAdapter 里 `data.entityTemplate` 那样直接点出来，
+ * 那是在卡片上取的（编译能过的是 Data，实体会直接报 Unresolved reference）。
+ */
+private fun entityTemplateOf(entity: HomeFeedResponse.Entities): String? =
+    entity.raw?.jsonString("entityTemplate")
 
 /**
  * 按字段链取实体的字段，`"entityTypeName|description|message"` 取第一个非空。
