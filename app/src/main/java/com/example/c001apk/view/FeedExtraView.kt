@@ -155,6 +155,7 @@ class FeedExtraView @JvmOverloads constructor(
         ershouBlock.setPadding(10.dp, 10.dp, 10.dp, 10.dp)
         ershouBlock.isClickable = true
         ershouBlock.isFocusable = true
+        ershouBlock.gravity = Gravity.CENTER_VERTICAL
 
         thumb(ershouLogo)
         ershouBlock.addView(ershouLogo, LayoutParams(56.dp, 56.dp))
@@ -202,7 +203,9 @@ class FeedExtraView @JvmOverloads constructor(
         }
         ershouBlock.addView(
             ershouSource,
-            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP)
+            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            }
         )
         addBlock(ershouBlock)
     }
@@ -285,15 +288,21 @@ class FeedExtraView @JvmOverloads constructor(
         MaterialColors.getColor(this, BACKGROUND_COLOR_ATTR, 0)
 
     private companion object {
-        /** 块内文字：正文 / 次要说明 / 价格 */
-        const val TEXT_COLOR_ATTR = com.google.android.material.R.attr.colorOnSurface
-        const val HINT_COLOR_ATTR = com.google.android.material.R.attr.colorOnSurfaceVariant
-        const val PRICE_COLOR_ATTR = com.google.android.material.R.attr.colorPrimary
+        /**
+         * 块内文字：正文 / 次要说明 / 价格。
+         * 注意不能写成 `const val`：这些常量取自**依赖库的 R**（material / appcompat），
+         * 库模块的 R 字段不是 Kotlin 编译期常量，写 const 会报
+         * "Const 'val' initializer should be a constant value"（CI 上实测过）。
+         */
+        val TEXT_COLOR_ATTR = com.google.android.material.R.attr.colorOnSurface
+        val HINT_COLOR_ATTR = com.google.android.material.R.attr.colorOnSurfaceVariant
+        /** colorPrimary 在 appcompat 而不在 material，写 material.R.attr 会 Unresolved reference */
+        val PRICE_COLOR_ATTR = androidx.appcompat.R.attr.colorPrimary
         /**
          * 块底色：与卡片（colorSurfaceContainer）拉开一档，才能看出是卡片里的独立信息块。
          * 用 surface 而不是 surfaceVariant —— 卡片里的热评 / 转发块（`round_corners_12_win`）
          * 用的就是这个档，跟它们保持一致；variant 会把块整片压灰，和首页割裂。
          */
-        const val BACKGROUND_COLOR_ATTR = com.google.android.material.R.attr.colorSurface
+        val BACKGROUND_COLOR_ATTR = com.google.android.material.R.attr.colorSurface
     }
 }
