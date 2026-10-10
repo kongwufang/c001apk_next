@@ -7,8 +7,8 @@
     「不支持的卡片：xxx」，点了也没反应。
 
     现在改成一张通用卡片：把各模板都有的那几个通用字段（title / message / description）按普通
-    卡片排版出来，有 url 就整卡可点，最下面留一行小字标明模板名，方便识别是哪种卡片没实现。
-    字段全空时退回原来那行灰字的样子，不会变成一块空白。
+    卡片排版出来，有 url 就整卡可点。字段全空时整卡不占位，不会变成一块空白，也不显示模板名
+    之类的技术字样。
 -->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -59,15 +59,6 @@
                 android:textSize="14sp"
                 android:visibility="gone"
                 tools:text="一句话说明这张卡片里有什么" />
-
-            <TextView
-                android:id="@+id/tip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:textColor="@android:color/darker_gray"
-                android:textSize="11sp"
-                tools:text="不支持的卡片：titleCard" />
 
         </LinearLayout>
 

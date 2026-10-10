@@ -608,7 +608,7 @@ class AppAdapter(
      * viewType；留着它是为了万一漏了分支也不至于整页空白/崩溃。
      *
      * 真走到这里时把各类型都有的通用字段排成一张卡片（正文 message → description，
-     * 标题 title），能点就点，最后一行小字标明类型。
+     * 标题 title），能点就点。不标类型、不显示模板名。
      */
     class UnsupportedViewHolder(
         val binding: ItemHomeUnsupportedBinding,
@@ -622,11 +622,6 @@ class AppAdapter(
             val summary = data.message?.takeIf { it.isNotBlank() } ?: data.description
             binding.summary.isVisible = !summary.isNullOrEmpty()
             binding.summary.text = summary
-
-            binding.tip.text = binding.root.context.getString(
-                R.string.unsupported_card,
-                data.entityTemplate ?: data.entityType.orEmpty()
-            )
 
             // 有 url 才可点（点了走既有的链接分发，能进详情/H5 的都会进）；
             // 没有 url 的（纯展示卡片）别给出会亮却没反应的按压反馈

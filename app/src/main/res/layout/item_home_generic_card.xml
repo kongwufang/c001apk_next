@@ -92,17 +92,6 @@
                 android:nestedScrollingEnabled="false"
                 android:overScrollMode="never" />
 
-            <!-- 排障用：debug 频道标出这是哪种模板走的通用渲染，正式包看不到 -->
-            <TextView
-                android:id="@+id/tip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:textColor="@android:color/darker_gray"
-                android:textSize="11sp"
-                android:visibility="gone"
-                tools:text="通用渲染卡片：apkScrollCard" />
-
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>

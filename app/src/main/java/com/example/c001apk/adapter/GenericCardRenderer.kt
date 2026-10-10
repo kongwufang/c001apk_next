@@ -16,7 +16,6 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemHomeGenericCardAlbumExpandBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardBatteryBinding
@@ -123,19 +122,12 @@ object GenericCardRenderer {
             )
         }
 
-        // 一个能显示的东西都没有（sponsorArticleNews 只给 extraData 就是这种）：
-        // 正式包里不占位，别把「暂不支持」这种技术字样甩给用户；debug 频道留一行标明模板名排障
-        val label = template?.takeIf { it.isNotBlank() } ?: data.entityType
+        // 一个能显示的东西都没有（sponsorArticleNews 只给 extraData 就是这种）：整卡不占位。
+        // 这里原来在 debug 频道留过一行「通用渲染卡片：模板名 / 暂不支持的内容卡片：模板名」的
+        // 排障提示，模板都映射完了就撤掉 —— 这种技术字样不该出现在界面上
         val renderable = !title.isNullOrEmpty() || !summary.isNullOrEmpty() ||
                 entities.isNotEmpty() || hero != null || stats.isNotEmpty()
-        val debugTip = BuildConfig.HTTP_LOG && !label.isNullOrEmpty()
-        binding.tip.isVisible = debugTip
-        if (debugTip) {
-            binding.tip.text = binding.root.context.getString(
-                if (renderable) R.string.generic_card else R.string.unsupported_card, label
-            )
-        }
-        binding.root.isVisible = (renderable || debugTip) && !spec.hidden
+        binding.root.isVisible = renderable && !spec.hidden
 
         val url: String? = data.url
         val clickable = !url.isNullOrEmpty()
@@ -181,13 +173,7 @@ object GenericCardRenderer {
         binding.root.isFocusable = false
         binding.root.setOnClickListener(null)
 
-        // 排障提示：debug 频道标出「这支是照官方重画的」，正式包看不到
-        val debugTip = BuildConfig.HTTP_LOG
-        binding.tip.isVisible = debugTip
-        if (debugTip) {
-            binding.tip.text = binding.root.context.getString(R.string.official_card, TOP_CONTENT)
-        }
-        binding.root.isVisible = entities.isNotEmpty() || debugTip
+        binding.root.isVisible = entities.isNotEmpty()
     }
 
     /** 置顶内容卡的一行，排布照官方 TopContentNewHeadlineUI（见行布局文件里的注释） */
@@ -320,14 +306,8 @@ object GenericCardRenderer {
             else null
         )
 
-        // 排障提示：debug 频道标出「这支是照官方重画的」，正式包看不到
-        val debugTip = BuildConfig.HTTP_LOG && !template.isNullOrEmpty()
-        binding.tip.isVisible = debugTip
-        if (debugTip) {
-            binding.tip.text = binding.root.context.getString(R.string.official_card, template)
-        }
         // 专属布局没画出来时不占位（比如 selectorLinkCard 一条链接都没有）
-        binding.root.isVisible = cardView != null || debugTip
+        binding.root.isVisible = cardView != null
     }
 
     /**
