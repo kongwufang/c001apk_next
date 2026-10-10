@@ -180,6 +180,8 @@
     <string name="stick_top">置顶</string>
     <string name="unstick_top">取消置顶</string>
     <string name="unsupported_card">暂不支持的内容卡片：%1$s</string>
+    <!-- 通用渲染卡片（debug 频道标出模板名，正式包不显示） -->
+    <string name="generic_card">通用渲染卡片：%1$s</string>
     <string name="about_developer">开发者</string>
     <string name="backup">导出</string>
     <string name="restore">导入</string>

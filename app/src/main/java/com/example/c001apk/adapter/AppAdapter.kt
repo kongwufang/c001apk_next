@@ -22,6 +22,7 @@ import com.example.c001apk.databinding.ItemHomeFeedBinding
 import com.example.c001apk.databinding.ItemHomeFeedRefreshCardBinding
 import com.example.c001apk.databinding.ItemHomeGameCardListBinding
 import com.example.c001apk.databinding.ItemHomeGameTabCardBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardBinding
 import com.example.c001apk.databinding.ItemHomeHiddenBinding
 import com.example.c001apk.databinding.ItemHomeIconLinkGridCardBinding
 import com.example.c001apk.databinding.ItemHomeIconMiniScrollCardBinding
@@ -536,15 +537,13 @@ class AppAdapter(
     }
 
     /**
-     * 未支持的卡片模板：不抛异常（会让整页空白/崩溃），也不只丢一行提示——把各模板都有的
-     * 通用字段排成一张卡片，能点就点，最后一行小字标明模板名。
+     * 最后的网兜：只有 onCreateViewHolder 收到某个没有对应分支的 viewType 时才会走到。
+     * getItemViewType 已经把全部卡片模板和未知顶层实体都分流给了通用卡片
+     * （[GenericCardViewHolder]，见 [GenericCardRenderer]），正常渲染路径不会再产出 14 这个
+     * viewType；留着它是为了万一漏了分支也不至于整页空白/崩溃。
      *
-     * 服务端的卡片是配置驱动的，新模板会随时冒出来（`_rev/card_tpl_scan.py` 实测服务端会下发
-     * 39 种顶层模板，本地只实现了一部分）。所以这里要"接得住"：认不出的模板至少让用户看到
-     * 卡片里有什么、能顺着 url 进去，而不是只剩一行灰字。
-     *
-     * 通用字段的取值优先级：正文 message → description（活动/话题卡片常用后者），
-     * 标题 title；都没有就退回原来那行「不支持的卡片：xxx」。
+     * 真走到这里时把各类型都有的通用字段排成一张卡片（正文 message → description，
+     * 标题 title），能点就点，最后一行小字标明类型。
      */
     class UnsupportedViewHolder(
         val binding: ItemHomeUnsupportedBinding,
@@ -575,6 +574,22 @@ class AppAdapter(
             } else {
                 binding.root.setOnClickListener(null)
             }
+        }
+    }
+
+    /**
+     * 通用卡片：服务端下发的卡片模板太多（`_rev/card_tpl_scan.py` 实测 39 种，且随时会冒新的），
+     * 一个个写 ViewHolder 写不完。这里整个交给 [GenericCardRenderer]：卡片自身的标题 / 说明 /
+     * 配图照排，`entities` 按「模板名 + 实体数量」排成横滚 / 宫格 / 纵向列表，每条实体再按自己的
+     * 内容（有 logo 当图标、只有 pic 当大图、都没有当纯文字）选样式。
+     * 认不出的模板从此也能把内容显示出来，而不是只剩一张占位卡。
+     */
+    class GenericCardViewHolder(
+        val binding: ItemHomeGenericCardBinding,
+        val listener: ItemListener
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+        override fun bind(data: HomeFeedResponse.Data) {
+            GenericCardRenderer.render(binding, data, listener)
         }
     }
 
@@ -1022,6 +1037,15 @@ class AppAdapter(
                 )
             }
 
+            26 -> {
+                GenericCardViewHolder(
+                    ItemHomeGenericCardBinding.inflate(
+                        LayoutInflater.from(parent.context), parent,
+                        false
+                    ), listener
+                )
+            }
+
             else -> {
                 UnsupportedViewHolder(
                     ItemHomeUnsupportedBinding.inflate(
@@ -1114,10 +1138,11 @@ class AppAdapter(
                     "productConfigList" -> 15
 
                     // 产品页「参数」tab：同价位 / 同SoC / 同系列（实体是 product 才走原生模板）
+                    // 实体不是 product 的 listCard（话题、商品混排）交给通用卡片排
                     "listCard" ->
                         if (currentList[position].entities?.firstOrNull()?.entityType == "product")
                             16
-                        else 14
+                        else 26
 
                     // 活动/众测图文卡片
                     "imageTextGridCard" -> 17
@@ -1138,8 +1163,10 @@ class AppAdapter(
                     // 页面配置（configCard）/ 广告位（sponsorCard）：不渲染
                     "configCard", "sponsorCard" -> 25
 
-                    // 未支持的卡片模板交给占位 ViewHolder，避免整页空白/崩溃
-                    else -> 14
+                    // 其余卡片模板全部交给通用卡片：标题 / 说明 / 配图照排，entities 按
+                    // 「模板名 + 数量」排成横滚 / 宫格 / 纵向列表。实测 39 种顶层模板里还有 20 多种
+                    // 没单独实现，这里一次全接住，服务端以后再加新模板也不用改代码
+                    else -> 26
                 }
             }
 
@@ -1172,8 +1199,10 @@ class AppAdapter(
             // 用户主页「点评」tab 的评分实体
             "nodeRating" -> 21
 
-            // 未支持的实体类型同样兜底到占位，避免整页空白/崩溃
-            else -> 14
+            // 其余顶层实体（服务端随时会冒新 entityType）也交给通用卡片：它按 Data 自己的
+            // 标题 / 说明 / 配图 / entities 渲染，认得出内容就正常显示，一个字段都没有时
+            // 才退回那行「暂不支持的内容卡片：xxx」
+            else -> 26
         }
     }
 

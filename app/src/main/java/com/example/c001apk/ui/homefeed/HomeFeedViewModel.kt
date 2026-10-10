@@ -169,7 +169,15 @@ class HomeFeedViewModel @AssistedInject constructor(
                                                     currentList.add(it)
                                             }
 
-                                            else -> return@forEach
+                                            // 这几张不该出现在列表里：页面配置 / 广告位本就不渲染，
+                                            // refreshCard 由上面的刷新分支单独处理，noMoreDataCard 是分页哨兵。
+                                            // 其余模板一律放行 —— AppAdapter 里有通用卡片
+                                            // （GenericCardViewHolder）接住它们；用白名单丢掉会让整张卡片
+                                            // 凭空消失（实测 39 种顶层模板里 20 多种都栽在这个 return 上）
+                                            "configCard", "sponsorCard", "refreshCard",
+                                            "noMoreDataCard" -> return@forEach
+
+                                            else -> currentList.add(it)
                                         }
 
                                         "feed" -> {
@@ -304,7 +312,12 @@ class HomeFeedViewModel @AssistedInject constructor(
                                                 }
                                             }
 
-                                            else -> return@forEach
+                                            // 同 fetchHomeFeed：只挡掉本就不渲染的配置/广告/分页哨兵，
+                                            // 其余模板放行给通用卡片渲染
+                                            "configCard", "sponsorCard", "refreshCard",
+                                            "noMoreDataCard" -> return@forEach
+
+                                            else -> currentList.add(it)
                                         }
 
                                         "feed" -> {

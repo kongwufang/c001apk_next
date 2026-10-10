@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    通用卡片骨架：服务端下发的卡片是配置驱动的（实测 39 种顶层模板），为每个模板写一个
+    ViewHolder + 布局既写不完也维护不动。这里只留「标题 / 说明 / 可选配图 / 实体列表」四块，
+    排列（横滚 / 宫格 / 纵向列表）和每个实体的样式由 GenericCardRenderer 按「模板名 + 实体数量」
+    决定，所以服务端再冒出新模板也不用改布局。
+
+    RecyclerView 高度 wrap_content + 关掉嵌套滚动：它自己不能滚，滚动交给外层列表，
+    横滚方向由 LinearLayoutManager 处理。
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data />
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:foreground="@drawable/selector_bg_12_trans"
+        app:cardBackgroundColor="@color/home_card_background_color"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="热门应用" />
+
+            <TextView
+                android:id="@+id/summary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:lineSpacingExtra="4dp"
+                android:maxLines="4"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="卡片自带的说明文字" />
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/hero"
+                android:layout_width="match_parent"
+                android:layout_height="160dp"
+                android:layout_marginTop="6dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                app:shapeAppearance="@style/roundImageStyle" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never" />
+
+            <!-- 排障用：debug 频道标出这是哪种模板走的通用渲染，正式包看不到 -->
+            <TextView
+                android:id="@+id/tip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="通用渲染卡片：apkScrollCard" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</layout>
