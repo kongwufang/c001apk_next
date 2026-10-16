@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'components/custom_toast.dart';
 import 'constants/constants.dart';
 import 'logic/network/request.dart';
+import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
 import 'utils/storage_util.dart';
 import 'utils/utils.dart';
@@ -40,6 +41,11 @@ void main() async {
 
   await GStorage.init();
   HttpOverrides.global = CustomHttpOverrides();
+
+  // 其他屏蔽项（关键字 / 用户 / 节点）先用本地缓存初始化 ——
+  // **冷启动没网也要能过滤**，随后由 SpamConfigRepo.refresh() 拿网络结果覆盖。
+  // 对应 Android `SpamConfigRepo.init { spamConfig.postValue(cached) }`。
+  SpamConfigRepo.initFromCache();
 
   if (Platform.isAndroid || Platform.isIOS) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

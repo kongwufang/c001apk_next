@@ -358,6 +358,18 @@ class GStorage {
     return fresh;
   }
 
+  /// 其他屏蔽项（关键字/用户/节点）的配置原文 JSON。
+  ///
+  /// 对应 Android `PrefManager.spamConfig`。**冷启动没网也要能过滤**，
+  /// 所以缓存的是服务端原文，拿到网络结果后再覆盖。
+  static String get spamConfig {
+    return settings.get(SettingsBoxKey.spamConfig, defaultValue: '') as String;
+  }
+
+  static void saveSpamConfig(String raw) {
+    settings.put(SettingsBoxKey.spamConfig, raw);
+  }
+
   static double get fontScale {
     return settings.get(SettingsBoxKey.fontScale, defaultValue: 1.0);
   }
@@ -636,5 +648,7 @@ class SettingsBoxKey {
       userAvatar = 'userAvatar',
       exp = 'exp',
       nextExp = 'nextExp',
+      // 其他屏蔽项（关键字/用户/节点）的配置原文 JSON —— 冷启动没网也能先过滤
+      spamConfig = 'spamConfig',
       level = 'level';
 }

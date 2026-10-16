@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../components/footer.dart';
 import '../components/item_card.dart';
 import '../logic/model/feed/datum.dart';
+import '../logic/repo/spam_config_repo.dart';
 import '../logic/state/loading_state.dart';
 import '../pages/common/common_controller.dart';
 import '../utils/utils.dart';
@@ -86,6 +87,18 @@ Widget buildBody(
     case Success():
       var dataList = (commonController.loadingState.value as Success).response
           as List<Datum>;
+
+      // ★ 屏蔽项过滤（关键字 / 用户 / 节点）。
+      //
+      // 对应 Android `HomeFeedViewModel` 里逐条调 `SpamConfigRepo.isSpam` 的逻辑。
+      // 命中就不显示 —— 这里在**列表出数据前**统一过滤，
+      // 所以首页/话题/用户页等所有走 commonBody 的页面都生效。
+      //
+      // 注意：**不改动 `loadingState` 里的原始列表**，只过滤本地这一份视图，
+      // 否则分页判断（`isEnd` / 去重）会被污染。
+      if (SpamConfigRepo.current.isNotEmpty) {
+        dataList = dataList.where((e) => !SpamConfigRepo.isSpam(e)).toList();
+      }
 
       var bottomPadding = MediaQuery.of(Get.context!).padding.bottom;
 

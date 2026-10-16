@@ -114,6 +114,30 @@ class _SettingsPageState extends State<SettingsPage>
             title: const Text('参数'),
             onTap: () => Get.toNamed('/params'),
           ),
+          // ── 其他屏蔽项（关键字 / 用户 / 节点）──
+          //
+          // 对应 Android `SettingsPreferenceFragment` 里的三个 preference：
+          // `spamWord` / `spamUser` / `spamNode`，各自起一个 SpamShieldActivity。
+          // 读 `/v6/user/spamWordList`、写 `/v6/account/updateConfig`，
+          // 配置缓存在本地，冷启动没网也能先过滤。
+          ListTile(
+            leading: const Icon(Icons.block_outlined),
+            title: const Text('关键字屏蔽'),
+            subtitle: const Text('正文/标题命中即不显示'),
+            onTap: () => Get.toNamed('/spamShield/word'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_off_outlined),
+            title: const Text('用户屏蔽'),
+            subtitle: const Text('按 uid 屏蔽'),
+            onTap: () => Get.toNamed('/spamShield/user'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tag_outlined),
+            title: const Text('节点屏蔽'),
+            subtitle: const Text('按节点 ID / 名称屏蔽'),
+            onTap: () => Get.toNamed('/spamShield/node'),
+          ),
           // Theme
           ListTile(
             title: Text(

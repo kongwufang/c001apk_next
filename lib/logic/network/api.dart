@@ -55,4 +55,12 @@ class Api {
 
   static String postRequestValidate =
       '${Constants.URL_API_SERVICE}/v6/account/requestValidate';
+
+  // ===== 其他屏蔽项（关键字 / 用户 / 节点）：读 spamWordList，写 updateConfig =====
+  // 对应 Android `ApiService.getSpamWordList` / `updateConfig`
+  static String getSpamWordList =
+      '${Constants.URL_API_SERVICE}/v6/user/spamWordList';
+
+  static String postUpdateConfig =
+      '${Constants.URL_API_SERVICE}/v6/account/updateConfig';
 }

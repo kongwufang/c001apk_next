@@ -14,6 +14,30 @@ import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 
 class NetworkRepo {
+  /// 其他屏蔽项（关键字 / 用户 / 节点）的配置。
+  ///
+  /// 对应 Android `ApiService.getSpamWordList`：`GET /v6/user/spamWordList`，
+  /// 返回的 `data.spam_word_config` 是一个 **JSON 字符串**（还要再解一层）。
+  static Future<Response> getSpamWordList() async {
+    return Request().get(Api.getSpamWordList);
+  }
+
+  /// 写配置。对应 Android `ApiService.updateConfig`：
+  /// `POST /v6/account/updateConfig`，**urlencoded 表单**，字段是 `key` + `value`。
+  ///
+  /// ⚠️ `value` 本身是一段 JSON 字符串；且**关键字类的写键是 `word`，
+  /// 而读回来的键是 `custom`**（服务端读写不对称，见 [SpamConfigRepo]）。
+  static Future<Response> postUpdateConfig({
+    required String key,
+    required String value,
+  }) async {
+    return Request().post(
+      Api.postUpdateConfig,
+      data: {'key': key, 'value': value},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
   static Future<Response> postOSSUploadPrepare({
     required FormData data,
   }) async {

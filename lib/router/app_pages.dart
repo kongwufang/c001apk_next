@@ -21,6 +21,7 @@ import '../pages/search/search_page.dart';
 import '../pages/search/search_result_page.dart';
 import '../pages/settings/about_page.dart';
 import '../pages/settings/params_page.dart';
+import '../pages/spam/spam_shield_page.dart';
 import '../pages/szlm/szlm_id_web_page.dart';
 import '../pages/topic/topic_page.dart';
 import '../pages/user/user_page.dart';
@@ -148,6 +149,13 @@ class AppPages {
     _getPage(
       name: '/szlmId',
       page: () => const SzlmIdWebPage(),
+    ),
+    // 其他屏蔽项（关键字 / 用户 / 节点）。
+    // Android 是三个设置入口（spamWord / spamUser / spamNode）各起一个
+    // SpamShieldActivity，靠 intent 里的 `type` 区分；这里同样用一个页面按 type 切。
+    _getPage(
+      name: '/spamShield/:type',
+      page: () => SpamShieldPage(type: Get.parameters['type'] ?? 'word'),
     ),
   ];
 }
