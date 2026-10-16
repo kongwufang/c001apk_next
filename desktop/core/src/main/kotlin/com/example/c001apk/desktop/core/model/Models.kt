@@ -1,4 +1,4 @@
-﻿package com.example.c001apk.desktop.core.model
+package com.example.c001apk.desktop.core.model
 
 import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
@@ -94,6 +94,19 @@ data class Feed(
     @SerializedName("userInfo") val userInfo: UserInfo? = null,
     @SerializedName("liked") val liked: Int? = null,
     @SerializedName("isLiked") val isLiked: Int? = null,
+)
+
+/** 动态内嵌的用户信息（列表与详情共用一部分字段） */
+data class UserInfo(
+    @SerializedName("uid") val uid: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("userAvatar") val userAvatar: String? = null,
+    @SerializedName("level") val level: String? = null,
+    @SerializedName("verify_status") val verifyStatus: String? = null,
+    @SerializedName("isLogin") val isLogin: Int? = null,
+    @SerializedName("fans") val fans: Int? = null,
+    @SerializedName("follow") val follow: Int? = null,
+    @SerializedName("feed") val feed: Int? = null,
 )
 
 data class HomeEntity(
