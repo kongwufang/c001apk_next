@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -314,7 +314,7 @@ class _MinePageState extends State<MinePage> {
   Widget _menuCard() {
     final items = <_MenuItem>[
       _MenuItem('离线缓存', Icons.archive_outlined,
-          requiresLogin: false, onTap: _notImplemented),
+          requiresLogin: false, onTap: () => Get.toNamed('/offlineCache')),
       _MenuItem('我的关注', Icons.person_add_alt,
           requiresLogin: true,
           onTap: () => _openFFF('我的关注', FFFListType.FOLLOW)),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../constants/m3_tokens.dart';
@@ -21,6 +21,7 @@ import '../pages/search/search_page.dart';
 import '../pages/search/search_result_page.dart';
 import '../pages/settings/about_page.dart';
 import '../pages/settings/params_page.dart';
+import '../pages/offline/offline_cache_page.dart';
 import '../pages/spam/spam_shield_page.dart';
 import '../pages/szlm/szlm_id_web_page.dart';
 import '../pages/topic/topic_page.dart';
@@ -156,6 +157,11 @@ class AppPages {
     _getPage(
       name: '/spamShield/:type',
       page: () => SpamShieldPage(type: Get.parameters['type'] ?? 'word'),
+    ),
+    // 离线缓存列表（Android `OfflineCacheActivity`）
+    _getPage(
+      name: '/offlineCache',
+      page: () => const OfflineCachePage(),
     ),
   ];
 }

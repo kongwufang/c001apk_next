@@ -49,6 +49,13 @@ class FeedPage extends StatefulWidget {
 
 class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
   final String _id = Get.parameters['id'].orEmpty;
+
+  /// 离线模式标记。对应 Android `FeedActivity` 的 `offline=true` extra：
+  /// 只读本机存档，跳过所有网络请求。
+  bool get _offline {
+    final args = Get.arguments;
+    return args is Map && args['offline'] == true;
+  }
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
   AnimationController? _fabAnimationCtr;
   late bool _isFabVisible = true;
@@ -104,6 +111,9 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
     FeedController(
       id: _id,
       recordHistory: GStorage.recordHistory,
+      // 离线模式：只读本机存档、不发网络请求。
+      // 对应 Android `FeedActivity` 的 `offline=true` extra。
+      offline: _offline,
     ),
     tag: _id + _random,
   );

@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../components/network_image.dart';
 import '../../logic/model/collection/collection.dart';
 import '../../logic/network/network_repo.dart';
+import '../../logic/repo/offline_cache_repo.dart';
 import '../../utils/extensions.dart';
 
 /// 打开「收藏到」面板。
@@ -60,6 +61,27 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
   void initState() {
     super.initState();
     _load();
+    // 「缓存中…」跟着 repo 的 Rx 走
+    ever(OfflineCacheRepo.savingIds, (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  bool get _savingOffline => OfflineCacheRepo.isSaving(widget.feedId);
+
+  /// 把当前这条动态存成离线存档。
+  ///
+  /// **不 await** —— 缓存要下几十张图，用户点完就把面板划走了，
+  /// 下载不能跟面板的生命周期陪葬（`saveAsync` 里有同样的说明）。
+  void _saveOffline() {
+    SmartDialog.showToast('缓存中…'); // offline_cache_saving
+    OfflineCacheRepo.saveAsync(
+      widget.feedId,
+      onDone: (error) => SmartDialog.showToast(
+        error ?? '已离线缓存', // offline_cache_saved
+      ),
+    );
+    setState(() {});
   }
 
   /// 拉列表。带 `id=<动态id>&type=feed&showDefault=1`，
@@ -296,9 +318,8 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── 头部：收藏到 / 新建收藏夹 ──
-            // 对应 Android `fragment_collection_pick.xml` 的头部行。
-            // （那一行还有个「离线缓存」入口，本工程尚未实现离线缓存，先不放。）
+            // ── 头部：收藏到 / 离线缓存 / 新建收藏夹 ──
+            // 对应 Android `fragment_collection_pick.xml` 的头部行（三项齐全）。
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
               child: Row(
@@ -308,6 +329,26 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
+                  // ★ 离线缓存：这个面板里**唯一不依赖联网**的一步 ——
+                  // 收藏夹列表拉不到它也能用（Android 原注释）。
+                  // 保存中时禁用并把文案换成「缓存中…」。
+                  InkWell(
+                    onTap: _savingOffline ? null : _saveOffline,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Text(
+                        _savingOffline ? '缓存中…' : '离线缓存',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _savingOffline
+                              ? colorScheme.onSurfaceVariant
+                              : colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
                   InkWell(
                     onTap: _loading ? null : () => _openEdit(),
                     borderRadius: BorderRadius.circular(8),

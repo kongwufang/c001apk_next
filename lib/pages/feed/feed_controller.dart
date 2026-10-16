@@ -8,6 +8,7 @@ import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/user_action.dart';
 import '../../logic/model/feed_article/feed_article.dart';
 import '../../logic/network/network_repo.dart';
+import '../../logic/repo/offline_cache_repo.dart';
 import '../../logic/state/loading_state.dart';
 import '../../pages/common/common_controller.dart';
 import '../../pages/feed/feed_page.dart' show ReplySortType;
@@ -15,9 +16,20 @@ import '../../utils/extensions.dart';
 import '../../utils/storage_util.dart';
 
 class FeedController extends CommonController {
-  FeedController({required this.id, required this.recordHistory});
+  FeedController({
+    required this.id,
+    required this.recordHistory,
+    this.offline = false,
+  });
   final String id;
   final bool recordHistory;
+
+  /// **离线模式**：只读本机存档，不发任何网络请求。
+  ///
+  /// 对应 Android `FeedActivity` 的 `offline=true` extra +
+  /// `FeedViewModel.loadOffline`。离线存档解回 `Datum` 走的是**同一条渲染路径**，
+  /// 所以这里只需要换掉「数据从哪来」。
+  final bool offline;
 
   String listType = 'lastupdate_desc';
   final int _discussMode = 1;
@@ -47,7 +59,15 @@ class FeedController extends CommonController {
   }
 
   @override
-  Future<LoadingState> customGetData() {
+  Future<LoadingState> customGetData() async {
+    if (offline) {
+      final entity = OfflineCacheRepo.get(id);
+      if (entity == null) return const LoadingState.error('这条动态没有离线存档');
+      // ★ 存档就这么多：第二页直接给 Empty，让 `onGetData` 收敛到 `isEnd = true`
+      //   （Success 会被当成还有下一页，于是无限翻页）
+      if (page > 1) return const LoadingState.empty();
+      return Success(OfflineCacheRepo.replyListOf(entity));
+    }
     return NetworkRepo.getFeedReply(
       id: id,
       listType: listType,
@@ -62,8 +82,9 @@ class FeedController extends CommonController {
   }
 
   Future<void> getFeedData() async {
-    LoadingState<dynamic> response =
-        await NetworkRepo.getDataFromUrl(url: '/v6/feed/detail?id=$id');
+    LoadingState<dynamic> response = offline
+        ? _offlineFeedState()
+        : await NetworkRepo.getDataFromUrl(url: '/v6/feed/detail?id=$id');
     if (response is Success) {
       Datum data = (response.response as Datum);
       if (data.messageRawOutput != 'null') {
@@ -109,6 +130,16 @@ class FeedController extends CommonController {
   void onFav() {
     Datum data = (feedState.value as Success).response;
     GStorage.favFeed.put(id, getFeed(data));
+  }
+
+  /// 离线存档 → `Success(Datum)`。存档解回 `Datum` 后，
+  /// 详情页走的渲染路径与在线完全一致（图片已经是本地 `file://` 地址）。
+  LoadingState<dynamic> _offlineFeedState() {
+    final entity = OfflineCacheRepo.get(id);
+    if (entity == null) return const LoadingState.error('这条动态没有离线存档');
+    final data = OfflineCacheRepo.feedDataOf(entity);
+    if (data == null) return const LoadingState.error('离线存档已损坏');
+    return Success(data);
   }
 
   /// 收藏夹面板（「收藏到」）回传的净结果。
