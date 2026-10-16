@@ -1,0 +1,24 @@
+feat(home): tab 中文本地化 + 顶栏消息入口（对齐 Android 横屏 U1/U5）
+
+## U1 tab 文案
+之前用 `type.name` 直接取枚举名 → 界面显示 FOLLOW/FEED/HOT/TOPIC/PRODUCT/COOLPIC。
+给 TabType 加 label 字段，取「关注/应用/头条/热榜/话题/数码/酷图」
+（对齐 Android `HomeViewModel.defaultList`）。
+★ 枚举名不能动：它被当作 GetX 的 tag 用（`tag: widget.tabType.name`）。
+
+## U2 默认 tab（核查结论：本来就是对的，无需改）
+`_tabList.removeLast()` 去掉 NONE，非 Android 再 `removeAt(1)` 去掉「应用」，
+得到 [FOLLOW, FEED, HOT, TOPIC, PRODUCT, COOLPIC]，`initialIndex: 1` = FEED = 头条。
+与 Android `setCurrentItem(enableList.indexOf("头条"))` 一致。
+
+## U5 顶栏消息入口 + 未读角标
+Android 的 fragment_home.xml 顶栏顺序：TabLayout → search → message（最右）。
+Flutter 原本只有 search。补上 message：
+- 图标 message_outlined + `Badge.count`，数据来自 `NetworkRepo.checkCount()`
+  的 `data.badge`（与 Android UnreadCounter 同源口径）
+- `isLabelVisible: count > 0`；`Badge.count` 自带 >99 显示 99+ 的行为
+- 点击进入消息中心
+
+## 顺带
+tabAlignment 统一为 startOffset。Android 实测 7 个 tab 在 853dp 横屏下
+每个 56dp 且左对齐（首 tab x=106dp = 导航栏 96dp + 10dp），不是居中。
