@@ -172,9 +172,9 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
   /// 对应 Android `CollectionPickBottomSheet.showEditDialog(item)`：
   /// **同一个对话框两用**，只有保存时走的分支不同。
   Future<void> _openEdit([CollectionData? item]) async {
-    final result = await showDialog<_CollectionEditResult>(
+    final result = await showDialog<CollectionEditResult>(
       context: context,
-      builder: (_) => _CollectionEditDialog(item: item),
+      builder: (_) => CollectionEditDialog(item: item),
     );
     if (result == null || !mounted) return;
 
@@ -203,7 +203,7 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
 
   /// 新建：建好后若当前有动态，就顺带收藏进去
   Future<void> _doCreate(
-    _CollectionEditResult result,
+    CollectionEditResult result,
     String pic,
     bool coverFailed,
   ) async {
@@ -267,38 +267,12 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
   /// 修改：标题 / 简介 / 公开私密 / 封面
   Future<void> _doUpdate(
     CollectionData item,
-    _CollectionEditResult result,
+    CollectionEditResult result,
     String uploadedPic,
     bool coverFailed,
   ) async {
-    // ★ 没换封面就**沿用旧封面** —— Android 是 `pic = uploaded ?: oldCover.orEmpty()`。
-    // 不这么做的话，「只改标题」会把封面清掉。
-    final pic = uploadedPic.isNotEmpty ? uploadedPic : (item.coverPic ?? '');
-
-    var ok = false;
-    try {
-      final res = await NetworkRepo.postCollectionUpdate(
-        id: item.id ?? '',
-        title: result.title,
-        description: result.description,
-        pic: pic,
-        isOpen: result.isOpen,
-      );
-      final body = res.data;
-      ok = body is Map &&
-          CollectionDetailResponse.fromJson(Map<String, dynamic>.from(body))
-                  .data !=
-              null;
-    } catch (_) {
-      ok = false;
-    }
-
     SmartDialog.showToast(
-      !ok
-          ? '保存失败'
-          : coverFailed
-              ? '已保存，但封面上传失败'
-              : '已保存',
+      await applyCollectionEdit(item, result, uploadedPic, coverFailed),
     );
   }
 
@@ -458,8 +432,8 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
 }
 
 /// 新建 / 编辑收藏夹对话框的返回值
-class _CollectionEditResult {
-  const _CollectionEditResult({
+class CollectionEditResult {
+  const CollectionEditResult({
     required this.title,
     required this.description,
     required this.isOpen,
@@ -480,16 +454,16 @@ class _CollectionEditResult {
 /// 字段顺序与 hint 都取自 Android：
 /// 封面（`collection_cover`=封面（可选），120dp）→ 名称（`collection_title_hint`）→
 /// 简介（`collection_desc_hint`=简介（可选））→ 公开开关（`collection_open`=公开）。
-class _CollectionEditDialog extends StatefulWidget {
-  const _CollectionEditDialog({this.item});
+class CollectionEditDialog extends StatefulWidget {
+  const CollectionEditDialog({this.item});
 
   final CollectionData? item;
 
   @override
-  State<_CollectionEditDialog> createState() => _CollectionEditDialogState();
+  State<CollectionEditDialog> createState() => CollectionEditDialogState();
 }
 
-class _CollectionEditDialogState extends State<_CollectionEditDialog> {
+class CollectionEditDialogState extends State<CollectionEditDialog> {
   late final _titleCtrl =
       TextEditingController(text: widget.item?.title ?? '');
   late final _descCtrl =
@@ -599,7 +573,7 @@ class _CollectionEditDialogState extends State<_CollectionEditDialog> {
               return;
             }
             Get.back(
-              result: _CollectionEditResult(
+              result: CollectionEditResult(
                 title: title,
                 description: _descCtrl.text.trim(),
                 isOpen: _isOpen ? 1 : 0,
@@ -614,8 +588,44 @@ class _CollectionEditDialogState extends State<_CollectionEditDialog> {
   }
 }
 
-/// 上传封面图，成功返回图片 URL，失败返回 null。
+/// 保存收藏夹修改（标题 / 简介 / 公开私密 / 封面）。返回**给用户看的提示**。
 ///
+/// 抽成公共函数是为了让「收藏到」面板与**收藏夹详情页**共用同一套逻辑
+/// （Android 那边也是共用 `CollectionPickViewModel.update`）。
+///
+/// ★ **没换封面就沿用旧封面** —— Android 是 `pic = uploaded ?: oldCover.orEmpty()`。
+/// 不这么做的话，「只改标题」会把封面清掉。
+Future<String> applyCollectionEdit(
+  CollectionData item,
+  CollectionEditResult result,
+  String uploadedPic,
+  bool coverFailed,
+) async {
+  final pic = uploadedPic.isNotEmpty ? uploadedPic : (item.coverPic ?? '');
+
+  var ok = false;
+  try {
+    final res = await NetworkRepo.postCollectionUpdate(
+      id: item.id ?? '',
+      title: result.title,
+      description: result.description,
+      pic: pic,
+      isOpen: result.isOpen,
+    );
+    final body = res.data;
+    ok = body is Map &&
+        CollectionDetailResponse.fromJson(Map<String, dynamic>.from(body))
+                .data !=
+            null;
+  } catch (_) {
+    ok = false;
+  }
+
+  if (!ok) return '保存失败';
+  return coverFailed ? '已保存，但封面上传失败' : '已保存';
+}
+
+/// 上传封面图，成功返回图片 URL，失败返回 null。///
 /// 对应 Android `CollectionPickViewModel.upload`。
 ///
 /// ## ★ 服务端的类型校验规则（Android 端 curl 实测，务必遵守）

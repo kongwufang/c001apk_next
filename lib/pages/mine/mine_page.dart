@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -332,7 +332,9 @@ class _MinePageState extends State<MinePage> {
           onTap: () => _openFFF('我的关注', FFFListType.FOLLOW)),
       _MenuItem('我的收藏', Icons.star_outline,
           requiresLogin: true,
-          onTap: () => _openFFF('我的收藏', FFFListType.COLLECTION)),
+          // 标题用「我的收藏单」—— 对齐 Android `CollectionFragment`
+          // 的 `title.ifEmpty { "我的收藏单" }`
+          onTap: () => _openFFF('我的收藏单', FFFListType.COLLECTION)),
       _MenuItem('我的赞', Icons.thumb_up_outlined,
           requiresLogin: true,
           onTap: () => _openFFF('我的赞', FFFListType.LIKE)),

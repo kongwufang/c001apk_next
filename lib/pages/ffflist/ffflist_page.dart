@@ -1,10 +1,14 @@
-// ignore_for_file: constant_identifier_names
+﻿// ignore_for_file: constant_identifier_names
 
 import 'package:flutter/material.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 import '../../pages/carousel/carousel_page.dart';
 import '../../pages/ffflist/ffflist_content.dart';
+import '../../logic/model/collection/collection.dart';
+import '../../logic/network/network_repo.dart';
+import '../../pages/collection/collection_pick_sheet.dart';
 import '../../utils/global_data.dart';
 
 enum FFFListType {
@@ -59,7 +63,7 @@ class _FFFListPageState extends State<FFFListPage>
         FFFListType.RECENT => '我的常去',
         FFFListType.LIKE => '我的赞',
         FFFListType.REPLY => '我的回复',
-        FFFListType.COLLECTION => '我的收藏',
+        FFFListType.COLLECTION => '我的收藏单',
         FFFListType.APK => '',
         FFFListType.REPLYME => '',
         FFFListType.FAV => '',
@@ -76,6 +80,12 @@ class _FFFListPageState extends State<FFFListPage>
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        // ★ 收藏夹内容页（进入具体某个夹）才有右上角编辑菜单 ——
+        //   对应 Android `CollectionFragment.initEditEntry`（`if (id.isNullOrEmpty()) return`）。
+        //   「我的收藏单」那一级（COLLECTION）不显示。
+        actions: _type == FFFListType.COLLECTION_ITEM
+            ? [_collectionMenu()]
+            : null,
         bottom: _tabList != null
             ? TabBar(
                 controller: _tabController,
@@ -119,5 +129,147 @@ class _FFFListPageState extends State<FFFListPage>
               type: _type,
             ),
     );
+  }
+
+  // ─────────── 收藏夹编辑菜单（仅内容页）───────────
+  //
+  // 对应 Android `CollectionFragment.showEditActions`：
+  // 三个动作 —— 编辑收藏夹信息 / 清除无效内容 / 删除收藏夹。
+
+  Widget _collectionMenu() {
+    return PopupMenuButton<int>(
+      onSelected: (v) {
+        switch (v) {
+          case 0:
+            _editCollectionInfo();
+            break;
+          case 1:
+            _confirmClearUnUse();
+            break;
+          case 2:
+            _confirmDelete();
+            break;
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 0, child: Text('编辑收藏夹信息')),
+        PopupMenuItem(value: 1, child: Text('清除无效内容')),
+        PopupMenuItem(value: 2, child: Text('删除收藏夹')),
+      ],
+    );
+  }
+
+  /// 编辑收藏夹信息：先拉一次**最新**的详情（Android 也是 `loadDetail` 后再弹），
+  /// 再复用「收藏到」面板那个对话框。
+  Future<void> _editCollectionInfo() async {
+    final id = _id;
+    if (id.isNullOrEmpty) return;
+
+    SmartDialog.showLoading();
+    CollectionData? item;
+    try {
+      final res = await NetworkRepo.getCollectionDetail(id: id);
+      final body = res.data;
+      if (body is Map) {
+        item = CollectionDetailResponse.fromJson(
+                Map<String, dynamic>.from(body))
+            .data;
+      }
+    } catch (_) {
+      item = null;
+    }
+    SmartDialog.dismiss();
+    if (!mounted) return;
+    if (item == null) {
+      SmartDialog.showToast('加载收藏夹信息失败');
+      return;
+    }
+
+    final result = await showDialog<CollectionEditResult>(
+      context: context,
+      builder: (_) => CollectionEditDialog(item: item),
+    );
+    if (result == null) return;
+
+    var pic = '';
+    var coverFailed = false;
+    if (result.cover != null) {
+      final uploaded = await uploadCollectionCover(result.cover!);
+      if (uploaded == null) {
+        coverFailed = true;
+      } else {
+        pic = uploaded;
+      }
+    }
+    SmartDialog.showToast(
+      await applyCollectionEdit(item, result, pic, coverFailed),
+    );
+  }
+
+  /// 清除无效内容（服务端异步执行，约 5 分钟后生效）
+  Future<void> _confirmClearUnUse() async {
+    final id = _id;
+    if (id.isNullOrEmpty) return;
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('清除无效内容'),
+        content: const Text('将清除该收藏夹内已失效的内容，约 5 分钟后生效，确定继续？'),
+        actions: [
+          TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('确定')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    SmartDialog.showLoading();
+    String? msg;
+    try {
+      final res = await NetworkRepo.postCollectionRemoveUnUseItem(colId: id);
+      final body = res.data;
+      if (body is Map) msg = body['data']?.toString();
+    } catch (_) {}
+    SmartDialog.dismiss();
+    SmartDialog.showToast(msg ?? '操作失败');
+  }
+
+  Future<void> _confirmDelete() async {
+    final id = _id;
+    if (id.isNullOrEmpty) return;
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('删除收藏夹'),
+        content: Text('删除后不可恢复，确定删除「$_titleText」？'),
+        actions: [
+          TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('确定')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    SmartDialog.showLoading();
+    var success = false;
+    String? msg;
+    try {
+      final res = await NetworkRepo.postCollectionDelete(id: id);
+      final body = res.data;
+      if (body is Map) {
+        msg = body['data']?.toString();
+        // 返回纯文本提示（「删除成功」）；有 data 就算成功
+        success = body['data'] != null;
+      }
+    } catch (_) {}
+    SmartDialog.dismiss();
+    SmartDialog.showToast(msg ?? (success ? '删除成功' : '删除失败'));
+    if (success) Get.back();
   }
 }
