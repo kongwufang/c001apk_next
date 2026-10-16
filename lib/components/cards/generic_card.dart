@@ -89,9 +89,14 @@ Widget _genericSkeleton(Datum data, CardLayout layout) {
   }
 
   // 统计卡：内容全在 extraData 里，摊成几行「名称 值」
+  //
+  // ⚠️ `extraData` 在 Dart 模型里是**被注释掉的**（`// String? extraData;`），
+  // 所以直接从 `raw`（原始 JSON）读 —— 这正是保留 raw 的用处：
+  // 服务端给了、模型没声明的字段，规则表照取不误，不必改模型发版。
   if (layout.stats) {
-    final stats = CardUi.stats(template, data.extraData);
-    for (final row in stats) {
+    final extraData = data.raw?['extraData']?.toString();
+    final rows2 = CardUi.statRows(template, extraData);
+    for (final row in rows2) {
       rows.add(_statRow(row.key, row.value));
     }
   } else if (entities.isNotEmpty) {

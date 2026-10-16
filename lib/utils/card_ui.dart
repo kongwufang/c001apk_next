@@ -265,7 +265,10 @@ class CardUi {
   /// 把统计卡的 `extraData` 摊成「名称 → 值」。两种下发形式都见过：
   ///   - 平铺：`{"avgData":"6.9","countData":"303.0"}`（names 里配中文名）；
   ///   - 成对：`{"aututu_score_avg":3041833,"aututu_score_count":25,...}`
-  static List<MapEntry<String, String>> stats(
+  ///
+  /// 注：方法名是 [statRows] 而不是 `stats` —— `stats` 已被上面那个
+  /// **骨架常量**占用了，同名会报 `duplicate_definition`。
+  static List<MapEntry<String, String>> statRows(
       String? template, String? extraData) {
     if (extraData == null || extraData.isEmpty) return const [];
     Object? decoded;
