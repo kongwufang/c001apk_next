@@ -1,0 +1,62 @@
+name: Desktop CI
+
+# 桌面端（Windows）实验性构建线。
+#
+# 为什么单独一个 workflow：
+#   * 现有 ci.yml 只在 main/debug/update 上跑，且用 ubuntu-latest 出 Android APK；
+#   * 桌面端是独立 Gradle 构建（desktop/settings.gradle.kts），与 Android 工程隔离，
+#     根 settings.gradle.kts 未做任何改动，所以 Android CI 完全不受影响。
+#
+# 触发：推 debug2 分支，或手动 workflow_dispatch。
+on:
+  workflow_dispatch:
+  push:
+    branches: [ debug2 ]
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gradle wrapper validation
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          cache: gradle
+
+      - name: Show versions
+        working-directory: desktop
+        run: |
+          java -version
+          .\gradlew.bat --version
+
+      - name: Compile core
+        working-directory: desktop
+        run: .\gradlew.bat :core:compileKotlin --stacktrace
+
+      # 黄金向量单测：用 12 个真机抓包 token 校验 v3 签名实现（离线，不访问网络）
+      - name: Run core tests
+        working-directory: desktop
+        run: .\gradlew.bat :core:test --stacktrace --info
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-core-test-report
+          path: desktop/core/build/reports/tests/**
+          if-no-files-found: ignore
