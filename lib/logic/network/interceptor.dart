@@ -157,6 +157,12 @@ class ApiInterceptor extends Interceptor {
       case DioExceptionType.unknown:
         final String res = await checkConnect();
         return '$res，网络异常！';
+      // 新版 Dart / dio 增加了 transformTimeout（以后还会继续加）。
+      // 原写法是穷尽 switch，缺一个值就直接编译失败：
+      //   error G42E56F65: not exhaustively matched ... 'transformTimeout'
+      // 这里补一个 default，升级 SDK 就不会再因为这个挂掉。
+      default:
+        return '网络异常，请稍后重试！';
     }
   }
 
