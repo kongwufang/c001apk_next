@@ -145,15 +145,20 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
     setState(() => _loading = false);
   }
 
-  /// 新建收藏夹；建好后若当前有动态，就顺带收藏进去
-  Future<void> _create() async {
-    final result = await showDialog<_NewCollectionResult>(
+  /// 打开编辑对话框。[item] 为 null → 新建；否则 → 编辑。
+  ///
+  /// 对应 Android `CollectionPickBottomSheet.showEditDialog(item)`：
+  /// **同一个对话框两用**，只有保存时走的分支不同。
+  Future<void> _openEdit([CollectionData? item]) async {
+    final result = await showDialog<_CollectionEditResult>(
       context: context,
-      builder: (_) => const _CollectionEditDialog(),
+      builder: (_) => _CollectionEditDialog(item: item),
     );
     if (result == null || !mounted) return;
 
     setState(() => _loading = true);
+
+    // 上传新封面（选了才传）
     var pic = '';
     var coverFailed = false;
     if (result.cover != null) {
@@ -165,6 +170,21 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
       }
     }
 
+    if (item == null) {
+      await _doCreate(result, pic, coverFailed);
+    } else {
+      await _doUpdate(item, result, pic, coverFailed);
+    }
+
+    await _load();
+  }
+
+  /// 新建：建好后若当前有动态，就顺带收藏进去
+  Future<void> _doCreate(
+    _CollectionEditResult result,
+    String pic,
+    bool coverFailed,
+  ) async {
     String? newId;
     var ok = false;
     try {
@@ -220,8 +240,44 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
               ? '创建成功，但封面上传失败'
               : '创建成功',
     );
+  }
 
-    await _load();
+  /// 修改：标题 / 简介 / 公开私密 / 封面
+  Future<void> _doUpdate(
+    CollectionData item,
+    _CollectionEditResult result,
+    String uploadedPic,
+    bool coverFailed,
+  ) async {
+    // ★ 没换封面就**沿用旧封面** —— Android 是 `pic = uploaded ?: oldCover.orEmpty()`。
+    // 不这么做的话，「只改标题」会把封面清掉。
+    final pic = uploadedPic.isNotEmpty ? uploadedPic : (item.coverPic ?? '');
+
+    var ok = false;
+    try {
+      final res = await NetworkRepo.postCollectionUpdate(
+        id: item.id ?? '',
+        title: result.title,
+        description: result.description,
+        pic: pic,
+        isOpen: result.isOpen,
+      );
+      final body = res.data;
+      ok = body is Map &&
+          CollectionDetailResponse.fromJson(Map<String, dynamic>.from(body))
+                  .data !=
+              null;
+    } catch (_) {
+      ok = false;
+    }
+
+    SmartDialog.showToast(
+      !ok
+          ? '保存失败'
+          : coverFailed
+              ? '已保存，但封面上传失败'
+              : '已保存',
+    );
   }
 
   @override
@@ -253,7 +309,7 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
                   ),
                   const Spacer(),
                   InkWell(
-                    onTap: _loading ? null : _create,
+                    onTap: _loading ? null : () => _openEdit(),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
                       padding:
@@ -308,6 +364,8 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
     return InkWell(
       // 点一下 = 收藏/取消
       onTap: _loading ? null : () => _toggle(item),
+      // **长按 = 编辑**（与 Android `root.setOnLongClickListener { showEditDialog(item) }` 一致）
+      onLongPress: _loading ? null : () => _openEdit(item),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -358,9 +416,9 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
   }
 }
 
-/// 新建收藏夹对话框的返回值
-class _NewCollectionResult {
-  const _NewCollectionResult({
+/// 新建 / 编辑收藏夹对话框的返回值
+class _CollectionEditResult {
+  const _CollectionEditResult({
     required this.title,
     required this.description,
     required this.isOpen,
@@ -373,21 +431,32 @@ class _NewCollectionResult {
   final XFile? cover;
 }
 
-/// 新建收藏夹对话框。
+/// 新建 / 编辑收藏夹对话框。
 ///
-/// 对应 Android `dialog_collection_edit.xml`：封面 + 名称 + 简介 + 「公开」开关。
+/// 对应 Android `dialog_collection_edit.xml` + `CollectionPickBottomSheet.showEditDialog`：
+/// **同一个对话框两用** —— [item] 为 null 是「新建收藏夹」，否则是「编辑收藏夹」。
+///
+/// 字段顺序与 hint 都取自 Android：
+/// 封面（`collection_cover`=封面（可选），120dp）→ 名称（`collection_title_hint`）→
+/// 简介（`collection_desc_hint`=简介（可选））→ 公开开关（`collection_open`=公开）。
 class _CollectionEditDialog extends StatefulWidget {
-  const _CollectionEditDialog();
+  const _CollectionEditDialog({this.item});
+
+  final CollectionData? item;
 
   @override
   State<_CollectionEditDialog> createState() => _CollectionEditDialogState();
 }
 
 class _CollectionEditDialogState extends State<_CollectionEditDialog> {
-  final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  bool _isOpen = true;
+  late final _titleCtrl =
+      TextEditingController(text: widget.item?.title ?? '');
+  late final _descCtrl =
+      TextEditingController(text: widget.item?.description ?? '');
+  late bool _isOpen = (widget.item?.isOpen ?? 1) == 1;
   XFile? _cover;
+
+  bool get _isEdit => widget.item != null;
 
   @override
   void dispose() {
@@ -404,33 +473,47 @@ class _CollectionEditDialogState extends State<_CollectionEditDialog> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final oldCover = widget.item?.coverPic ?? '';
     return AlertDialog(
-      title: const Text('新建收藏夹'), // collection_create
+      // collection_create / collection_edit
+      title: Text(_isEdit ? '编辑收藏夹' : '新建收藏夹'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 封面：Android 高 120dp
             InkWell(
               onTap: _pickCover,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                width: 88,
-                height: 88,
+                width: double.infinity,
+                height: 120,
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: _cover == null
-                    ? Icon(Icons.add_photo_alternate_outlined,
-                        color: colorScheme.onSurfaceVariant)
-                    : ClipRRect(
+                child: _cover != null
+                    ? ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.file(File(_cover!.path), fit: BoxFit.cover),
-                      ),
+                      )
+                    : !oldCover.isNullOrEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: networkImage(oldCover, fit: BoxFit.cover),
+                          )
+                        : Icon(Icons.add_photo_alternate_outlined,
+                            color: colorScheme.onSurfaceVariant),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
+            Text(
+              '封面（可选）', // collection_cover
+              style: TextStyle(
+                  fontSize: 12, color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
             TextField(
               controller: _titleCtrl,
               decoration: const InputDecoration(
@@ -444,7 +527,7 @@ class _CollectionEditDialogState extends State<_CollectionEditDialog> {
               controller: _descCtrl,
               maxLines: 2,
               decoration: const InputDecoration(
-                labelText: '简介',
+                labelText: '简介（可选）', // collection_desc_hint
                 isDense: true,
                 border: OutlineInputBorder(),
               ),
@@ -452,7 +535,7 @@ class _CollectionEditDialogState extends State<_CollectionEditDialog> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Expanded(child: Text('公开收藏夹')),
+                const Expanded(child: Text('公开')), // collection_open
                 Switch(
                   value: _isOpen,
                   onChanged: (v) => setState(() => _isOpen = v),
@@ -469,13 +552,14 @@ class _CollectionEditDialogState extends State<_CollectionEditDialog> {
         ),
         FilledButton(
           onPressed: () {
-            if (_titleCtrl.text.trim().isEmpty) {
+            final title = _titleCtrl.text.trim();
+            if (title.isEmpty) {
               SmartDialog.showToast('请填写收藏夹名称');
               return;
             }
             Get.back(
-              result: _NewCollectionResult(
-                title: _titleCtrl.text.trim(),
+              result: _CollectionEditResult(
+                title: title,
                 description: _descCtrl.text.trim(),
                 isOpen: _isOpen ? 1 : 0,
                 cover: _cover,
