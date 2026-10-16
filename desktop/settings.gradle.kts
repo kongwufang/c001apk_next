@@ -26,4 +26,3 @@ rootProject.name = "c001apk-desktop"
 
 include(":core")
 include(":app")
-project(":app").projectDir = file("app")

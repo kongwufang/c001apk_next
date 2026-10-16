@@ -10,6 +10,11 @@ name: Desktop CI
 # 触发：推 debug2 分支，或手动 workflow_dispatch。
 on:
   workflow_dispatch:
+    inputs:
+      package:
+        description: '是否打包可执行产物（便携 zip / MSI）'
+        type: boolean
+        default: true
   push:
     branches: [ debug2 ]
     paths-ignore:
@@ -51,12 +56,44 @@ jobs:
       # 黄金向量单测：用 12 个真机抓包 token 校验 v3 签名实现（离线，不访问网络）
       - name: Run core tests
         working-directory: desktop
-        run: .\gradlew.bat :core:test --stacktrace --info
+        run: .\gradlew.bat :core:test --stacktrace
 
-      - name: Upload test report
+      - name: Upload core test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: desktop-core-test-report
           path: desktop/core/build/reports/tests/**
+          if-no-files-found: ignore
+
+      - name: Compile desktop app
+        working-directory: desktop
+        run: .\gradlew.bat :app:compileKotlin --stacktrace
+
+      # 便携版：jpackage app-image（内嵌精简 JRE，解压即用）
+      - name: Package portable image
+        if: github.event_name != 'push' || github.event.inputs.package != 'false'
+        working-directory: desktop
+        run: .\gradlew.bat :app:packageDistributionForCurrentOS --stacktrace
+
+      - name: Upload portable image
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-desktop-portable-windows
+          path: desktop/app/build/compose/binaries/main/app/**
+          if-no-files-found: ignore
+
+      # MSI 安装包（windows-latest 预装 WiX）。失败不阻断，便于先跑通便携版
+      - name: Package MSI
+        continue-on-error: true
+        working-directory: desktop
+        run: .\gradlew.bat :app:packageMsi --stacktrace
+
+      - name: Upload MSI
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-desktop-msi
+          path: desktop/app/build/compose/binaries/main/msi/**
           if-no-files-found: ignore
