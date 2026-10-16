@@ -141,13 +141,35 @@ private fun checkIntegrityOrExit(args: Array<String>) {
     }
 }
 
+/**
+ * 推断安装根目录（含 `app/` 与 `runtime/` 两层）。
+ *
+ * 顺序很重要：
+ *  1. `jpackage.app-path` —— launcher 会设置，最可靠；
+ *  2. **本类所在 jar 的位置** —— 便携版是 `…/app/app-xxx.jar`，其父目录的父目录即根目录。
+ *     这一条是必需的：从命令行/快捷方式启动时**工作目录不可靠**，
+ *     早期版本回退到 `Paths.get("")`，导致明明有 `integrity.sig` 却报「未找到」（已实测踩坑）；
+ *  3. 最后才退回工作目录。
+ */
 private fun resolveAppDir(): Path? {
-    val appPath = System.getProperty("jpackage.app-path")
-    if (!appPath.isNullOrBlank()) {
-        val p = runCatching { Paths.get(appPath).toAbsolutePath().normalize() }.getOrNull()
-        val root = p?.parent?.parent
-        if (root != null) return root
+    // ① jpackage launcher 提供的路径：<root>/app/<name>.exe
+    System.getProperty("jpackage.app-path")?.takeIf { it.isNotBlank() }?.let { appPath ->
+        runCatching { Paths.get(appPath).toAbsolutePath().normalize() }.getOrNull()
+            ?.parent?.parent?.let { return it }
     }
+
+    // ② 从自身 jar 推断：…/app/<jar> → 上一层是 app/，再上一层是安装根目录
+    runCatching {
+        val src = object {}.javaClass.protectionDomain?.codeSource?.location
+        if (src != null) {
+            val p = Paths.get(src.toURI()).toAbsolutePath().normalize()
+            // p 可能是 jar 文件，也可能是 classes 目录（开发期）
+            val parent = if (p.toString().endsWith(".jar")) p.parent else p
+            if (parent?.fileName?.toString() == "app") return parent.parent
+        }
+    }
+
+    // ③ 兜底
     return runCatching { Paths.get("").toAbsolutePath() }.getOrNull()
 }
 
