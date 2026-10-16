@@ -10,12 +10,13 @@ name: Desktop CI
 # 签名 / 完整性自校验所需的 Secrets（照 Android 端 SIGN_KEYSTORE_BASE64 那套做法）：
 #   DESKTOP_SIGN_KEY_BASE64    base64(ed25519_private.pem)   签「完整性清单」
 #   DESKTOP_CODESIGN_PFX_B64   base64(codesign.pfx)          签安装包 exe
-#   DESKTOP_CODESIGN_PFX_PWD   codesign_pfx 的密码
+#   DESKTOP_CODESIGN_PFX_PWD   codesign.pfx 的密码
 #
 #   生成方式：python _rev/win_ref/make_desktop_keys.py
-#   未配置这些 Secrets 时，构建仍会成功，但：
-#     * 公钥为空 → 程序启动时自动跳过完整性校验（本地/测试可用）
-#     * 跳过安装包签名
+#   未配置时构建仍成功，但程序会跳过完整性校验、安装包不签名。
+#
+# ⚠️ 注意：step 的 `if:` 里**不能**引用 secrets 上下文（GitHub 限制），
+#    所以这里统一用 `env:` 把 secret 传进步骤，在 shell 内判断。
 #
 # 触发：推 debug2 分支，或手动 workflow_dispatch。
 on:
@@ -29,8 +30,6 @@ permissions:
   contents: read
 
 env:
-  PKG_NAME: c001apk-desktop
-  # 应用镜像输出目录（jpackage app-image）
   APP_IMAGE_DIR: desktop/app/build/compose/binaries/main/app/c001apk-desktop
   PUBKEY_KT: desktop/core/src/main/kotlin/com/example/c001apk/desktop/core/security/IntegrityPublicKey.kt
 
@@ -63,14 +62,15 @@ jobs:
       # ─────────────── 注入发行公钥（必须在打包之前，公钥要编译进程序） ───────────────
       - name: Embed integrity public key
         shell: pwsh
+        env:
+          SIGN_KEY_B64: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}
         run: |
-          $b64 = "${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}"
-          if ([string]::IsNullOrWhiteSpace($b64)) {
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_KEY_B64)) {
             Write-Host "::warning::未配置 DESKTOP_SIGN_KEY_BASE64，跳过公钥注入（程序将跳过完整性校验）"
             exit 0
           }
           $env:PYTHONIOENCODING = 'utf-8'
-          python _rev/win_ref/embed_public_key.py --key-b64 $b64 --out-kt "${{ env.PUBKEY_KT }}"
+          python _rev/win_ref/embed_public_key.py --key-b64 $env:SIGN_KEY_B64 --out-kt "${{ env.PUBKEY_KT }}"
 
       # ─────────────── 编译与单测 ───────────────
       - name: Compile core
@@ -122,26 +122,34 @@ jobs:
 
       # ─────────────── 生成并签名完整性清单（放进应用镜像） ───────────────
       - name: Generate integrity manifest
-        if: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 != '' }}
         shell: pwsh
+        env:
+          SIGN_KEY_B64: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_KEY_B64)) {
+            Write-Host "::warning::未配置签名密钥，跳过清单生成（程序将跳过完整性校验）"
+            exit 0
+          }
           $env:PYTHONIOENCODING = 'utf-8'
-          $keyB64 = "${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}"
           $keyPem = Join-Path $env:RUNNER_TEMP "ed25519_private.pem"
-          [IO.File]::WriteAllBytes($keyPem, [Convert]::FromBase64String(($keyB64 -replace '\s','')))
+          [IO.File]::WriteAllBytes($keyPem, [Convert]::FromBase64String(($env:SIGN_KEY_B64 -replace '\s','')))
           python _rev/win_ref/make_integrity.py `
             --app-dir "${{ env.APP_IMAGE_DIR }}" `
             --key $keyPem `
             --out-kt "${{ env.PUBKEY_KT }}"
 
       - name: Verify manifest before upload
-        if: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 != '' }}
         shell: pwsh
+        env:
+          SIGN_KEY_B64: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_KEY_B64)) {
+            Write-Host "未配置签名密钥，跳过清单检查"
+            exit 0
+          }
           $mf = Join-Path "${{ env.APP_IMAGE_DIR }}" "integrity.sig"
           if (-not (Test-Path $mf)) { throw "清单未生成：$mf" }
           Write-Host ("清单大小: {0:N1} KB" -f ((Get-Item $mf).Length / 1KB))
-          # 确认清单自身没被算进去
           $listed = (Select-String -Path $mf -Pattern 'integrity\.sig' -AllMatches).Matches.Count
           if ($listed -ne 0) { throw "清单不应把自己列入 entries" }
           Write-Host "清单内容检查通过"
@@ -174,23 +182,28 @@ jobs:
 
       # 用发行证书给安装包签名（自签；不消除 SmartScreen，但能显示我们自己的发布者）
       - name: Sign EXE installer
-        if: ${{ secrets.DESKTOP_CODESIGN_PFX_B64 != '' }}
         shell: pwsh
+        env:
+          CODESIGN_PFX_B64: ${{ secrets.DESKTOP_CODESIGN_PFX_B64 }}
+          CODESIGN_PFX_PWD: ${{ secrets.DESKTOP_CODESIGN_PFX_PWD }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:CODESIGN_PFX_B64)) {
+            Write-Host "::warning::未配置 DESKTOP_CODESIGN_PFX_B64，跳过安装包签名"
+            exit 0
+          }
           $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
-          [IO.File]::WriteAllBytes(
-            $pfx,
-            [Convert]::FromBase64String(("${{ secrets.DESKTOP_CODESIGN_PFX_B64 }}" -replace '\s','')))
-          $pwdPlain = "${{ secrets.DESKTOP_CODESIGN_PFX_PWD }}"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String(($env:CODESIGN_PFX_B64 -replace '\s','')))
 
           $exe = Get-ChildItem "desktop/app/build/compose/binaries/main/exe" -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $exe) { Write-Host "::warning::未找到 exe，跳过签名"; exit 0 }
+          Write-Host "待签文件：$($exe.FullName)"
 
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
                       Where-Object { $_.FullName -match 'x64' } | Select-Object -Last 1
           if (-not $signtool) { Write-Host "::warning::未找到 signtool，跳过签名"; exit 0 }
+          Write-Host "signtool：$($signtool.FullName)"
 
-          & $signtool.FullName sign /f $pfx /p $pwdPlain /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe.FullName
+          & $signtool.FullName sign /f $pfx /p $env:CODESIGN_PFX_PWD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe.FullName
           if ($LASTEXITCODE -ne 0) { Write-Host "::warning::signtool 退出码 $LASTEXITCODE（时间戳服务不可达时属正常）" }
           & $signtool.FullName verify /pa /v $exe.FullName
 
