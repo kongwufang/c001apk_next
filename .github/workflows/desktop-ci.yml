@@ -85,9 +85,11 @@ jobs:
         run: .\gradlew.bat :core:compileKotlin --stacktrace
 
       # 离线测试：v3 签名黄金向量（12 个真机向量）+ 完整性校验逻辑
+      # 注意：-DrunLiveTests=true 才会真的打网络接口。
+      # 之前没传，所有 live 测试其实都在「跳过」状态 —— 绿灯但没有验证力。
       - name: Run core tests
         working-directory: desktop
-        run: .\gradlew.bat :core:test --stacktrace
+        run: .\gradlew.bat :core:test --stacktrace -DrunLiveTests=true
 
       - name: Upload core test report
         if: always()
