@@ -159,6 +159,16 @@ class NetworkRepo {
     return Request().get(Api.getProfile, queryParameters: {'uid': uid});
   }
 
+  /// 官方酷安 App 的详情（用于**跟随官方最新版本号**）。
+  ///
+  /// 对应 Android `ApiService.getAppInfo(id, installed)`：
+  /// `GET /v6/apk/detail?id=com.coolapk.market&installed=1`
+  /// 返回体里的 `data.apkversionname` / `data.apkversioncode` 就是官方当前版本。
+  static Future<Response> apkDetail(String id) async {
+    return Request().get(Api.getAppInfo,
+        queryParameters: {'id': id, 'installed': 1});
+  }
+
   static Future<Response> onLogin(
     String requestHash,
     String account,

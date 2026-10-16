@@ -30,7 +30,8 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
-    _mainController.checkLoginInfo();
+    // 先跟随官方最新版本号，再校验登录态（顺序见 MainController.initAndCheckLogin）
+    _mainController.initAndCheckLogin();
   }
 
   @override
