@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../constants/m3_tokens.dart';
 import '../pages/app/app_page.dart';
 import '../pages/blacklist/black_list_page.dart';
 import '../pages/carousel/carousel_page.dart';
@@ -24,8 +25,17 @@ import '../pages/szlm/szlm_id_web_page.dart';
 import '../pages/topic/topic_page.dart';
 import '../pages/user/user_page.dart';
 import '../pages/webview/webview_page.dart';
+import '../utils/m3_transition.dart';
 
 class AppPages {
+  /// 统一页面转场 —— 对齐用户 Android app 的二级页转场。
+  ///
+  /// 用户 2026-10-06 真机实测拍板：
+  /// **曲线 M3 standard + 类型水平滑动 + 进入 400ms**（退出规则上应 350ms，
+  /// 但 GetX 的 GetPage 不支持单独设反向时长，见 [M3SlideTransition] 注释）。
+  ///
+  /// 原来这里是 `Transition.native`（各平台系统默认，Windows 上是 Windows
+  /// 自己的转场），与 Android 端不一致。
   static GetPage _getPage({
     required String name,
     required Widget Function() page,
@@ -33,7 +43,10 @@ class AppPages {
     return GetPage(
       name: name,
       page: page,
-      transition: Transition.native,
+      transition: Transition.rightToLeft,
+      transitionDuration: M3Transition.enterDuration,
+      curve: M3Easing.standard,
+      customTransition: const M3SlideTransition(),
     );
   }
 
