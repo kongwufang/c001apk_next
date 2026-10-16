@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +7,7 @@ import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/entity.dart';
 import '../../utils/card_ui.dart';
 import '../../utils/extensions.dart';
+import '../../utils/utils.dart';
 import '../network_image.dart';
 
 /// 通用卡片渲染：把服务端下发的**任意**卡片画出来，不再为每个模板写一个组件。
@@ -51,6 +52,9 @@ Widget genericCard(Datum data) {
     case CardUi.subtabScore:
       // 跑分卡（subTabFeedCard2/3）：2x2 品牌渐变格
       return _scoreGridCard(data);
+    case CardUi.iconButtons:
+      // 两栏并排的图文按钮（iconButtonGridCard）
+      return _iconButtonsCard(data);
     // 尚未移植的专属骨架（两栏图文按钮 / 专辑大图）先退回通用骨架，
     // 至少能出内容，不会空白
   }
@@ -223,6 +227,15 @@ String _effectiveShape(ItemRule rule, List<Entity> entities) {
 }
 
 Widget _entityTile(Entity e, ItemRule rule, String shape) {
+  // ★ 实体级「照官方重画」：`entityTemplate == albumExpandCard` 时走专属布局。
+  //
+  // 注意这张表配的是**实体**模板，不是卡片模板 —— 实测 `albumExpandCard`
+  // 是这样出现的：外层卡片是 `listCard`，里面的 album 实体自带
+  // `entityTemplate=albumExpandCard`。
+  if (CardUi.entityLayout(e.entityTemplate) == CardUi.albumExpand) {
+    return _albumExpandEntity(e);
+  }
+
   final colorScheme = Theme.of(Get.context!).colorScheme;
   final icon = readField(e.raw, rule.iconChain) ?? e.pic ?? e.logo;
   final title = readField(e.raw, rule.titleChain) ?? e.title.orEmpty;
@@ -493,6 +506,249 @@ Widget _linkTabsCard(Datum data) {
             ),
           );
         },
+      ),
+    ),
+  );
+}
+
+// ─────────── 两栏图文按钮（iconButtonGridCard）───────────
+//
+// 照 Android `item_icon_button_grid_card.xml` + `GenericCardRenderer.bindIconButtonsCard`：
+// 卡片左右各留 12dp、上下 10dp，里面两栏**等宽**并排、间距 8dp；
+// 每栏一张**宽高比 2.44** 的图（实测实体下发的就是 `@468x192` 这种宽图，
+// 468/192 = 2.4375），文字压在图**上居中**（白色 14sp 加粗）。
+// 官方那栏里还有一枚 18dp 图标，实测这个实体不带图标字段，所以只有文字。
+// 每一栏点**自己的** url。
+
+Widget _iconButtonsCard(Datum data) {
+  final entities = data.entities ?? const <Entity>[];
+  if (entities.isEmpty) return const SizedBox.shrink();
+  final rule = CardUi.itemRule(data.entityTemplate);
+
+  final rows = <Widget>[];
+  for (var i = 0; i < entities.length; i += 2) {
+    final slice = entities.sublist(
+      i,
+      (i + 2) > entities.length ? entities.length : (i + 2),
+    );
+    rows.add(Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var k = 0; k < 2; k++) ...[
+          if (k > 0) const SizedBox(width: 8),
+          // 不足两栏时补空位，保证已有一栏仍是「一半宽」
+          Expanded(
+            child: k < slice.length
+                ? _iconButtonCell(slice[k], rule)
+                : const SizedBox(),
+          ),
+        ],
+      ],
+    ));
+  }
+
+  return _cardShell(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Column(children: rows),
+    ),
+  );
+}
+
+Widget _iconButtonCell(Entity e, ItemRule rule) {
+  final colorScheme = Theme.of(Get.context!).colorScheme;
+  final pic = readField(e.raw, rule.iconChain) ?? e.pic;
+  final title = readField(e.raw, rule.titleChain) ?? e.title.orEmpty;
+  final url = e.url;
+
+  return InkWell(
+    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url, title),
+    borderRadius: BorderRadius.circular(8),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: AspectRatio(
+        // 官方实测实体下发的是 @468x192
+        aspectRatio: 2.44,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (pic == null || pic.isEmpty)
+              Container(color: colorScheme.surfaceContainerHigh)
+            else
+              networkImageOf(pic),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  // 官方就是纯白 14sp 加粗，没有描边/阴影
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ─────────── 大图打底的酷安集条目（实体模板 albumExpandCard）───────────
+//
+// 照 Android `item_home_generic_card_album_expand.xml` +
+// `GenericCardRenderer.bindAlbumExpandEntity`：
+// 整张封面（**148dp 高**，centerCrop）+ **16dp 内边距**的白字内容
+// （18sp 加粗标题两行、12sp 说明、底下一行 18dp 头像 + 用户名 + 一串 24dp 应用图标）。
+//
+// ★ 三点值得注意：
+// 1. 封面**额外压了一层渐变蒙层**（上 `#99000000` → 下透明）。
+//    Android 的 drawable 注释写明：**官方布局没有这一层**，但标题/说明是白色直接压在封面上，
+//    封面偏亮时读不出来，所以补一层。这是 app 自己加的改进，本工程照做。
+// 2. 应用图标取自 **`raw['apkRows'][].pic`** —— 模型里没有这个数组（又一次靠 `raw`）。
+// 3. 图标白底 + 1dp 内边距、**互相叠 7dp**（第一个跟左边留 8dp）；
+//    第 5 个槽位是白底圆里的 `+N`（`raw['apkRowsMoreCount']`）。
+
+Widget _albumExpandEntity(Entity e) {
+  final raw = e.raw;
+  final bg = readField(raw, const ['logo', 'icon', 'pic', 'bg']);
+  final title = readField(raw, CardUi.chain(null, CardUi.defaultItemTitle)) ??
+      e.title.orEmpty;
+  final apknum = readField(raw, const ['apknum']);
+  final info = readField(raw, const ['description', 'intro']) ??
+      (apknum == null ? null : '$apknum 个应用');
+  final user = readField(raw, const ['username']);
+  final avatar = readField(raw, const ['userAvatar']);
+
+  // 应用图标取原始 JSON 的 apkRows[].pic（模型里没有这个数组）
+  final icons = <String>[];
+  final rows = raw?['apkRows'];
+  if (rows is List) {
+    for (final r in rows) {
+      if (r is Map) {
+        final p = r['pic']?.toString();
+        if (p != null && p.isNotEmpty) icons.add(p);
+      }
+    }
+  }
+  final more = int.tryParse(raw?['apkRowsMoreCount']?.toString() ?? '') ?? 0;
+  final showIcons = !avatar.isNullOrEmpty || !user.isNullOrEmpty || icons.isNotEmpty;
+
+  final url = e.url;
+
+  return InkWell(
+    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url, title),
+    child: SizedBox(
+      height: 148,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (bg == null || bg.isEmpty)
+            Container(color: Theme.of(Get.context!).colorScheme.surfaceContainerHigh)
+          else
+            networkImageOf(bg),
+          // ★ app 自加的渐变蒙层（官方没有），保证白字可读
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x99000000), Color(0x00000000)],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title.isNotEmpty)
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                if (!info.isNullOrEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    info!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+                const Spacer(),
+                if (showIcons)
+                  SizedBox(
+                    height: 24,
+                    child: Row(
+                      children: [
+                        if (!avatar.isNullOrEmpty)
+                          ClipOval(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: networkImageOf(avatar!),
+                            ),
+                          ),
+                        if (!user.isNullOrEmpty) ...[
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              user!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        // 一串应用图标：4 个 + 可能一个 +N
+                        for (var i = 0; i < icons.length && i < 4; i++)
+                          Container(
+                            width: 24,
+                            height: 24,
+                            // 第一个跟左边留 8dp，之后互相叠 7dp
+                            margin: EdgeInsets.only(left: i == 0 ? 8 : -7),
+                            padding: const EdgeInsets.all(1),
+                            color: Colors.white,
+                            child: networkImageOf(icons[i]),
+                          ),
+                        if (icons.isNotEmpty && more > 0)
+                          Container(
+                            width: 24,
+                            height: 24,
+                            margin: const EdgeInsets.only(left: -7),
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '+$more',
+                              style: const TextStyle(
+                                  fontSize: 10, color: Color(0xFF333333)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     ),
   );
