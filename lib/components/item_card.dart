@@ -5,6 +5,7 @@ import '../components/cards/carousel_card.dart';
 import '../components/cards/collection_card.dart';
 import '../components/cards/feed_card.dart';
 import '../components/cards/feed_reply_card.dart';
+import '../components/cards/generic_card.dart';
 import '../components/cards/icon_link_grid_card.dart';
 import '../components/cards/icon_mini_grid_card.dart';
 import '../components/cards/icon_mini_scroll_card.dart';
@@ -59,6 +60,13 @@ Widget itemCard(
           return TextCard(text: data.description.orEmpty, isMessage: true);
         case 'refreshCard':
           return TextCard(text: data.title.orEmpty, isRefreshCard: true);
+        default:
+          // ★ 未单独适配的卡片模板 → 走**通用卡片**（规则表驱动），
+          //   而不是什么都不渲染。对应 Android `AppAdapter` 的
+          //   `else -> 26`（GenericCardViewHolder）。
+          //   用户 app 的 release-notes：「一次接住服务端下发的全部卡片模板，
+          //   没单独适配的模板也有兜底卡片，不再出现空白或错版」。
+          return genericCard(data);
       }
     case 'feed':
       return FeedCard(
@@ -143,8 +151,11 @@ Widget itemCard(
     case 'collection':
       return CollectionCard(data: data);
   }
-  return ListTile(
-    title: Text(data.entityType.toString()),
-    subtitle: Text(data.entityTemplate.toString()),
-  );
+  // ★ 顶层 `entityType` 也没匹配到 → 同样交给通用卡片。
+  //
+  // 原来这里是 `ListTile(title: entityType, subtitle: entityTemplate)`，
+  // **把内部类型名直接显示给用户**（如「pear_goods / pear_goods」）。
+  // Android 端明确撤掉了这种排障提示：
+  // 「这种技术字样不该出现在界面上」（见 GenericCardRenderer.render 的注释）。
+  return genericCard(data);
 }

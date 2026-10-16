@@ -474,7 +474,40 @@ class Datum {
     this.isFollow,
   });
 
-  factory Datum.fromJson(Map<String, dynamic> json) => _$DatumFromJson(json);
+  /// **原始 JSON** —— 规则表（`CardUi`）按任意服务端字段名取值靠它。
+  ///
+  /// 对应 Android `HomeFeedResponse.Data.raw`。由 [Datum.fromJson] 回填，
+  /// 不进构造函数、不参与 toJson（它是解析产物，不是接口字段）。
+  Map<String, dynamic>? raw;
+
+  /// 解析并**回填 raw**。
+  ///
+  /// 对齐 Android 的 `DataListAdapter` / `EntitiesListAdapter`（字段级 JsonAdapter）：
+  /// 它们先正常解析，再把对应的原始 JSON 挂到 `raw` 上。
+  /// Dart 这边没有字段级 adapter 的等价物，就在 factory 里统一做。
+  ///
+  /// 为什么需要：`CardUi` 规则表靠 `raw` 才能读到模型里没声明的字段
+  /// （`goods_pic` / `goods_promo_price` / `sub_title` / `alias_title` …）。
+  factory Datum.fromJson(Map<String, dynamic> json) {
+    final datum = _$DatumFromJson(json);
+    datum.raw = json;
+
+    // 实体级 raw：与 `entities` 数组按下标一一对应
+    final rawEntities = json['entities'];
+    final parsedEntities = datum.entities;
+    if (rawEntities is List && parsedEntities != null) {
+      final n = parsedEntities.length < rawEntities.length
+          ? parsedEntities.length
+          : rawEntities.length;
+      for (var i = 0; i < n; i++) {
+        final e = rawEntities[i];
+        if (e is Map) {
+          parsedEntities[i].raw = Map<String, dynamic>.from(e);
+        }
+      }
+    }
+    return datum;
+  }
 
   Map<String, dynamic> toJson() => _$DatumToJson(this);
 }
