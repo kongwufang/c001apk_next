@@ -67,8 +67,9 @@ class LiveApiTest {
             url = "/topic/hotTagList", hotType = "total", recommend = 1
         ).executeSync()
         checkStatus(resp, "话题列表")
-        assertTrue(!resp.data.isNullOrEmpty(), "话题列表为空")
-        println("话题条数：${resp.data.size}")
+        val topics = resp.data
+        assertTrue(!topics.isNullOrEmpty(), "话题列表为空")
+        println("话题条数：${topics.size}")
     }
 
     // ─────────────── 登录态 ───────────────
@@ -94,8 +95,9 @@ class LiveApiTest {
 
         val feeds = c.api.getUserFeedList(uid = uid, page = 1).executeSync()
         checkStatus(feeds, "我的动态")
-        assertTrue(!feeds.data.isNullOrEmpty(), "我的动态为空")
-        println("我的动态条数：${feeds.data.size}")
+        val myFeeds = feeds.data
+        assertTrue(!myFeeds.isNullOrEmpty(), "我的动态为空")
+        println("我的动态条数：${myFeeds.size}")
 
         val collections = c.api.getCollectionList().executeSync()
         checkStatus(collections, "收藏夹")
