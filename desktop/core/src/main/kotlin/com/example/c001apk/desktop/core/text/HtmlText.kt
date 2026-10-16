@@ -43,9 +43,6 @@ object HtmlText {
         data class Emoji(val code: String, override val href: String? = null) : Piece
     }
 
-    /** 兼容旧名（早期只有纯文本片段） */
-    typealias TextRun = Piece.Text
-
     /**
      * 片段的「文本形态」：
      * * [Piece.Text] → 文字本身
