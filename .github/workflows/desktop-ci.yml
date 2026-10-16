@@ -1,0 +1,84 @@
+name: Build
+
+# 桌面端主线已切到 Flutter（原 Compose Desktop 方案见 c001apk_next 的 debug2 分支）。
+# 这个 workflow 负责出 Windows 桌面版；顺带出 Android 版 —— 跨平台正是切过来的主要收益。
+on:
+  push:
+    branches:
+      - flutter
+  workflow_dispatch:
+
+jobs:
+  # ── Windows 桌面版（主线目标）──
+  windows:
+    name: Windows x64
+    # ★ 必须用 windows-2022，不能用 windows-latest。
+    #
+    # windows-latest 现在是 VS 18（MSVC 14.51），它**移除了 /await 编译选项**，
+    # 而 `flutter_inappwebview_windows` 用的是旧式 C++/WinRT 协程
+    # （`<experimental/coroutine>`），会报：
+    #   error C2338: static assertion failed: 'error STL1011: The /await compiler option...'
+    # VS 2022（MSVC 14.4x）仍支持 /await。
+    # 这是插件滞后于工具链，不是我们代码的问题 —— 实测确认换运行器即可。
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-windows-x64
+          path: build/windows/x64/runner/Release/
+          compression-level: 9
+
+  # ── Android 版（跨平台收益；APK 用于和真机横屏对照）──
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-android-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          compression-level: 9
