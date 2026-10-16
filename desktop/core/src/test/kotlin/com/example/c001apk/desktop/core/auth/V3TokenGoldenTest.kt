@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * v3 token 黄金向量测试 —— 向量全部来自**真机抓包**（_rev/har/*.har）。
+ * v3 token 黄金向量测试 —— 向量全部来自**真机抓包**（_rev 目录下的 har 文件）。
  *
  * 向量可信性：token 的 bcrypt salt 明文形如 `hex(t) + "/" + md5(S)`，
  * 其中 t 就是签名当时的 Unix 秒，因此可从每个真机 token **反解出它自己的 timestamp**，
@@ -13,6 +13,7 @@ import kotlin.test.assertEquals
  * 这同时验证了 `X-App-Device` / `X-App-Code` 必须与签名参数一致这一服务端校验核心。
  *
  * 文件由 _rev/win_ref/make_golden_test.py 程序化生成，请勿手改。
+ * 注意：注释里不要出现星号加斜杠的组合，否则会被 Kotlin 当作块注释嵌套。
  */
 class V3TokenGoldenTest {
 
