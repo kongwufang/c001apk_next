@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -43,8 +45,14 @@ Widget genericCard(Datum data) {
       return _capsulesCard(data);
     case CardUi.linkTabs:
       return _linkTabsCard(data);
-    // 尚未移植的专属骨架（续航卡 / 跑分卡 / 两栏图文按钮 / 专辑大图）
-    // 先退回通用骨架，至少能出内容，不会空白
+    case CardUi.subtabBattery:
+      // 续航卡（subTabFeedCard1）：80dp 卡 + 电池刻度条 + 平均亮屏
+      return _batteryCard(data);
+    case CardUi.subtabScore:
+      // 跑分卡（subTabFeedCard2/3）：2x2 品牌渐变格
+      return _scoreGridCard(data);
+    // 尚未移植的专属骨架（两栏图文按钮 / 专辑大图）先退回通用骨架，
+    // 至少能出内容，不会空白
   }
 
   return _genericSkeleton(data, layout);
@@ -489,6 +497,402 @@ Widget _linkTabsCard(Datum data) {
     ),
   );
 }
+
+// ────────────────── 续航卡（subTabFeedCard1）──────────────────
+//
+// 规格真源：`_rev/SUBTAB_CARDS_SPEC.md`（逆向自官方 16.6.4 dex 的
+// `SubTabComponent.kt` 的 `BatteryLifeSummaryCard`，line 211）。
+// card1 走 `isSummary=true` 分支。
+
+/// 读出 `extraData`（服务端给的是**JSON 字符串**）。
+///
+/// 注意 `extraData` 在 Dart 模型里是注释掉的，所以从 [Datum.raw] 取。
+Map<String, dynamic>? _extraDataOf(Datum data) {
+  final s = data.raw?['extraData']?.toString();
+  if (s == null || s.isEmpty) return null;
+  try {
+    final v = jsonDecode(s);
+    return v is Map ? Map<String, dynamic>.from(v) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 续航卡：80dp 卡 + 电池刻度条 + 「平均亮屏 N 小时」
+Widget _batteryCard(Datum data) {
+  final colorScheme = Theme.of(Get.context!).colorScheme;
+  final extra = _extraDataOf(data);
+
+  final avg = double.tryParse(extra?['avgData']?.toString() ?? '');
+  final countRaw = double.tryParse(extra?['countData']?.toString() ?? '');
+  // countData → 取整后拼「N人提供数据」
+  final count = countRaw?.toInt();
+  final hasData = avg != null && avg > 0;
+
+  // 刻度条进度：量程 2h ~ 17h（规格：((avg - 2) / 15).coerceIn(0, 1)）
+  final progress = hasData ? ((avg - 2) / 15).clamp(0.0, 1.0) : 0.0;
+
+  return _cardShell(
+    child: SizedBox(
+      height: 80,
+      child: Stack(
+        children: [
+          // 顶部：图标 + 「续航时长」+ 右侧「N人提供数据」
+          Positioned(
+            left: 12,
+            top: 12,
+            right: 15,
+            child: Row(
+              children: [
+                Icon(Icons.battery_full,
+                    size: 16, color: colorScheme.primary),
+                const SizedBox(width: 4),
+                const Text('续航时长', style: TextStyle(fontSize: 12)),
+                const Spacer(),
+                if (count != null && count > 0)
+                  Text(
+                    '$count人提供数据',
+                    maxLines: 1,
+                    style: TextStyle(
+                        fontSize: 12, color: colorScheme.onSurfaceVariant),
+                  ),
+              ],
+            ),
+          ),
+
+          if (hasData) ...[
+            // 平均亮屏 N 小时
+            Positioned(
+              left: 12,
+              top: 40,
+              height: 28,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text('平均亮屏',
+                      style: TextStyle(
+                          fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                  const SizedBox(width: 4),
+                  Text(
+                    _avgText(avg),
+                    style: const TextStyle(
+                        fontSize: 28, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 2),
+                  const Text('小时', style: TextStyle(fontSize: 10)),
+                ],
+              ),
+            ),
+            // 电池刻度条：174×30、圆角 6dp，贴在右下
+            Positioned(
+              right: 11,
+              top: 38,
+              child: SizedBox(
+                width: 174,
+                height: 30,
+                child: _BatterySlider(progress: progress),
+              ),
+            ),
+          ] else
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 12,
+              height: 51,
+              child: Center(
+                child: Text(
+                  '暂无人分享续航时长',
+                  style: TextStyle(
+                      fontSize: 12, color: colorScheme.onSurfaceVariant),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// avgData → 整数显示整数、否则一位小数（规格：`%.1f`）
+String _avgText(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+
+/// 电池刻度条。规格见 `_rev/SUBTAB_CARDS_SPEC.md` 的「续航刻度条」一节。
+class _BatterySlider extends StatelessWidget {
+  const _BatterySlider({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _BatteryPainter(
+        progress: progress,
+        outline: Theme.of(context).colorScheme.outlineVariant,
+        bg: Theme.of(context).colorScheme.surfaceContainerHigh,
+        tickColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+class _BatteryPainter extends CustomPainter {
+  _BatteryPainter({
+    required this.progress,
+    required this.outline,
+    required this.bg,
+    required this.tickColor,
+  });
+
+  final double progress;
+  final Color outline;
+  final Color bg;
+  final Color tickColor;
+
+  /// 电池主体宽 171dp、圆角 6dp；终端凸起比例取官方 `ea` 配置
+  static const double _bodyWidth = 171;
+  static const double _corner = 6;
+  static const double _terminalWidthRatio = 0.0117;
+  static const double _terminalHeightRatio = 0.3333;
+
+  /// 颜色随进度插值：<7h 红、7~12h 橙、≥12h 绿
+  static const List<(double, Color)> _stops = [
+    (0.0, Color(0xFFF44336)),
+    (0.2, Color(0x80F44336)),
+    (0.4, Color(0x80FF9800)),
+    (0.6, Color(0xFFFF9800)),
+    (0.8, Color(0x804CAF50)),
+    (1.0, Color(0xFF4CAF50)),
+  ];
+
+  Color _colorAt(double t) {
+    for (var i = 0; i < _stops.length - 1; i++) {
+      final (p0, c0) = _stops[i];
+      final (p1, c1) = _stops[i + 1];
+      if (t <= p1) {
+        final f = p1 == p0 ? 0.0 : ((t - p0) / (p1 - p0)).clamp(0.0, 1.0);
+        return Color.lerp(c0, c1, f) ?? c1;
+      }
+    }
+    return _stops.last.$2;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 刻度区在底部：标签字号约 10，占 12dp；电池主体占上半
+    const labelH = 12.0;
+    final bodyH = size.height - labelH;
+    final bodyW = _bodyWidth;
+
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, bodyW, bodyH),
+      const Radius.circular(_corner),
+    );
+
+    // 电池主体：底色 + 1dp 描边
+    canvas.drawRRect(bodyRect, Paint()..color = bg);
+    canvas.drawRRect(
+      bodyRect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = outline,
+    );
+
+    // 右侧终端凸起
+    final termW = bodyW * _terminalWidthRatio;
+    final termH = bodyH * _terminalHeightRatio;
+    final termRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(bodyW + 1, (bodyH - termH) / 2, termW, termH),
+      Radius.circular((termH * 0.4).clamp(0.0, _corner)),
+    );
+    canvas.drawRRect(termRect, Paint()..color = outline);
+
+    // 进度填充：内缩 1dp，(宽-2dp)×progress，水平渐变（50% → 100% alpha）
+    if (progress > 0) {
+      final innerW = (bodyW - 2) * progress;
+      final c = _colorAt(progress);
+      final fillRect = Rect.fromLTWH(1, 1, innerW, bodyH - 2);
+      canvas.save();
+      canvas.clipRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(1, 1, innerW, bodyH - 2),
+        const Radius.circular(_corner - 1),
+      ));
+      canvas.drawRect(
+        fillRect,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [c.withValues(alpha: c.a * 0.5), c],
+          ).createShader(fillRect),
+      );
+      canvas.restore();
+
+      // 进度足够宽时，末端画一个 5×16dp 的白色 0.8 alpha 手柄
+      if (innerW > 12) {
+        final handleRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(1 + innerW - 5, (bodyH - 16) / 2, 5, 16),
+          const Radius.circular(2.5),
+        );
+        canvas.drawRRect(
+          handleRect,
+          Paint()..color = Colors.white.withValues(alpha: 0.8),
+        );
+      }
+    }
+
+    // 刻度：4 个固定档位，2.0h ~ 17.0h 等分 → 2h / 7h / 12h / 17h
+    const labels = ['2h', '7h', '12h', '17h'];
+    final tickPaint = Paint()..color = tickColor;
+    for (var i = 0; i < labels.length; i++) {
+      final x = bodyW * (i / (labels.length - 1));
+      // 刻度线（小圆角竖线）
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x - 0.5, bodyH - 4, 1, 4),
+          const Radius.circular(0.5),
+        ),
+        tickPaint,
+      );
+      // 标签
+      final tp = TextPainter(
+        text: TextSpan(
+          text: labels[i],
+          style: TextStyle(
+              fontSize: 9, fontWeight: FontWeight.w500, color: tickColor),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      var dx = x - tp.width / 2;
+      dx = dx.clamp(0.0, size.width - tp.width);
+      tp.paint(canvas, Offset(dx, bodyH));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BatteryPainter old) =>
+      old.progress != progress || old.bg != bg || old.outline != outline;
+}
+
+// ────────────────── 跑分卡（subTabFeedCard2/3）──────────────────
+//
+// 规格真源：`_rev/SUBTAB_CARDS_SPEC.md` 的「跑分卡（card2）规格」。
+// 2x2 网格，每格 = 品牌渐变底 + 标题/分数/人数 + 右下角品牌图标。
+// ⚠️ 该文档特别更正过：**不是**「ScoreChipsRow 胶囊行」，那是另一张综合评分卡。
+
+/// 四格的固定顺序 + 展示名 + 强调色（前缀对齐 `CardUi.scoreNames`）。
+///
+/// ⚠️ 记录类型只能用**位置**字段 `(String, String, Color, IconData)`；
+/// 写成 `(String prefix, String name, ...)` 是**非法**的（那是命名字段，
+/// 需要 `({String prefix, ...})` 才对），而解构 `final (a,b,c,d) = e` 走的也是位置。
+const List<(String, String, Color, IconData)> _scoreCells = [
+  ('aututu', '安兔兔跑分', Color(0xFFF44336), Icons.speed),
+  ('geek_bench_single', 'GeekBench 单核', Color(0xFF2196F3), Icons.memory),
+  ('geek_bench_multi', 'GeekBench 多核', Color(0xFF2196F3), Icons.developer_board),
+  ('3d_mark', 'WildLife Extreme', Color(0xFFFF9800), Icons.videogame_asset),
+];
+
+Widget _scoreGridCard(Datum data) {
+  final extra = _extraDataOf(data);
+
+  Widget cell((String, String, Color, IconData) c) {
+    final (prefix, name, accent, icon) = c;
+    // 实测键形是 `<前缀>_score_avg` / `<前缀>_score_count`
+    // （服务端把 Antutu 拼成 `aututu`，不是 `antutu`）
+    final avg = double.tryParse(extra?['${prefix}_score_avg']?.toString() ?? '');
+    final count =
+        double.tryParse(extra?['${prefix}_score_count']?.toString() ?? '');
+    final hasScore = avg != null && avg > 0;
+
+    return Container(
+      height: 73,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        // 品牌浅色 → 透明（官方浅/深主题各一套起始色；这里按强调色低透明度近似）
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [accent.withValues(alpha: 0.18), Colors.transparent],
+        ),
+        border: Border.all(
+          color: Theme.of(Get.context!).colorScheme.outlineVariant,
+          width: 1,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            // 右侧留 32dp 给图标
+            padding: const EdgeInsets.fromLTRB(12, 8, 32, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(
+                  hasScore ? _scoreText(avg) : '暂无人分享',
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: hasScore ? accent : null,
+                  ),
+                ),
+                // 人数行：分数缺失时收起
+                if (hasScore && count != null && count > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '${count.toInt()}人分享',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(Get.context!)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Positioned(
+            right: 6,
+            bottom: 6,
+            child: Icon(icon, size: 20, color: accent.withValues(alpha: 0.85)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  return _cardShell(
+    child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          Row(children: [
+            Expanded(child: cell(_scoreCells[0])),
+            const SizedBox(width: 8),
+            Expanded(child: cell(_scoreCells[1])),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: cell(_scoreCells[2])),
+            const SizedBox(width: 8),
+            Expanded(child: cell(_scoreCells[3])),
+          ]),
+        ],
+      ),
+    ),
+  );
+}
+
+/// 跑分数字：整数显示整数、否则一位小数
+String _scoreText(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
 // ─────────────────────────── 卡片外壳 ───────────────────────────
 
