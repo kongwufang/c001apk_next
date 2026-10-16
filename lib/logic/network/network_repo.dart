@@ -185,6 +185,28 @@ class NetworkRepo {
     );
   }
 
+  /// 酷安**云端**浏览历史。
+  ///
+  /// 对应 Android `NetworkRepo.getHitHistoryList`。
+  ///
+  /// ★ **分页参数照抄官方**（Android 注释）：
+  /// 首页只带 `page`；后续页带**首页首条**的 id 当 `firstItem` +
+  /// **上一页末条**的 id 当 `lastItem`。
+  static Future<Response> getHitHistoryList({
+    required int page,
+    String? firstItem,
+    String? lastItem,
+  }) async {
+    return Request().get(
+      Api.getHitHistoryList,
+      queryParameters: {
+        'page': page,
+        if (!firstItem.isNullOrEmpty) 'firstItem': firstItem,
+        if (!lastItem.isNullOrEmpty) 'lastItem': lastItem,
+      },
+    );
+  }
+
   static Future<Response> postOSSUploadPrepare({
     required FormData data,
   }) async {

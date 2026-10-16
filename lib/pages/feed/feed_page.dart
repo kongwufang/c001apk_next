@@ -137,7 +137,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.all(10.0),
-            child: const Text('EMPTY'),
+            child: const Text('暂无内容'),
           ),
         );
       case Error():
@@ -358,7 +358,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
             height: 80,
             alignment: Alignment.center,
             padding: const EdgeInsets.all(10.0),
-            child: const Text('EMPTY'),
+            child: const Text('暂无内容'),
           ),
         );
       case Error():

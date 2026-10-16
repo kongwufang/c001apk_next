@@ -78,7 +78,7 @@ class _MessagePageState extends State<MessagePage>
             height: 80,
             alignment: Alignment.center,
             padding: const EdgeInsets.all(10.0),
-            child: const Text('EMPTY'),
+            child: const Text('暂无内容'),
           ),
         );
       case Error():

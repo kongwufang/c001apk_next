@@ -124,7 +124,7 @@ class _BlackListPageState extends State<BlackListPage> {
                   ),
                 ),
                 icon: const Icon(Icons.clear_all),
-                tooltip: 'Clear All',
+                tooltip: '清空',
               ),
             IconButton(
               onPressed: () async {

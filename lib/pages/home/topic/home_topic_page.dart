@@ -148,7 +148,7 @@ class _HomeTopicPageState extends State<HomeTopicPage>
         child: Container(
           alignment: Alignment.center,
           padding: const EdgeInsets.all(10.0),
-          child: const Text('EMPTY'),
+          child: const Text('暂无内容'),
         ),
       ),
       onError: (error) => GestureDetector(

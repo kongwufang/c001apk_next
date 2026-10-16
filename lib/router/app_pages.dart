@@ -10,6 +10,7 @@ import '../pages/coolpic/coolpic_page.dart';
 import '../pages/dyh/dyh_page.dart';
 import '../pages/feed/feed_page.dart';
 import '../pages/ffflist/ffflist_page.dart';
+import '../pages/history/cloud_history_page.dart';
 import '../pages/history/history_page.dart';
 import '../pages/home/app/update/app_update_page.dart';
 import '../pages/login/login_page.dart';
@@ -136,6 +137,11 @@ class AppPages {
     _getPage(
       name: '/history',
       page: () => const HistoryPage(),
+    ),
+    // 云端浏览历史（Android HistoryActivity，2026-09-19 由本地改云端）
+    _getPage(
+      name: '/cloudHistory',
+      page: () => const CloudHistoryPage(),
     ),
     _getPage(
       name: '/blacklist',

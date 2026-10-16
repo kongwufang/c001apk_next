@@ -430,7 +430,7 @@ class _ChatPageState extends State<ChatPage> {
                   icon: Icon(snapshot.data == true
                       ? Icons.send
                       : Icons.add_photo_alternate_outlined),
-                  tooltip: snapshot.data == true ? 'Send' : 'Image',
+                  tooltip: snapshot.data == true ? '发送' : '图片',
                 );
               }),
         ],

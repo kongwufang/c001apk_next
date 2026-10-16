@@ -95,7 +95,7 @@ class _AppUpdatePageState extends State<AppUpdatePage> {
           },
           child: const Padding(
             padding: EdgeInsets.all(10.0),
-            child: Text('EMPTY'),
+            child: Text('暂无内容'),
           ),
         );
       case Error():

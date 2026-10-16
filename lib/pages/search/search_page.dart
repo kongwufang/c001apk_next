@@ -120,7 +120,7 @@ class _SearchPageState extends State<SearchPage> {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Clear All',
+                      tooltip: '清空',
                       onPressed: () => showDialog(
                           context: context,
                           builder: (context) => AlertDialog(

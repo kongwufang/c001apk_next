@@ -330,8 +330,10 @@ class _MinePageState extends State<MinePage> {
       _MenuItem('我的常去', Icons.place_outlined,
           requiresLogin: true,
           onTap: () => _openFFF('我的常去', FFFListType.RECENT)),
+      // 浏览历史走**云端**（Android 2026-09-19 由本地 Room 改为
+      // `GET /v6/user/hitHistoryList`；浏览记录由服务端自动写入，客户端无上报接口）
       _MenuItem('浏览历史', Icons.history,
-          requiresLogin: false, onTap: () => Get.toNamed('/history')),
+          requiresLogin: false, onTap: () => Get.toNamed('/cloudHistory')),
       _MenuItem('我的装备', Icons.devices_other,
           requiresLogin: false, onTap: _openEquipment),
     ];

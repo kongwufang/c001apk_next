@@ -100,4 +100,12 @@ class Api {
 
   static String postCollectionDelete =
       '${Constants.URL_API_SERVICE}/v6/collection/delete';
+
+  // ===== 云端浏览历史 =====
+  //
+  // 对应 Android `ApiService.getHitHistoryList`。
+  // ★ 浏览记录由**服务端**在打开详情（feed / topic / product / apk detail）时
+  //   自动写入，客户端**没有**上报接口（Android 已实测验证）。
+  static String getHitHistoryList =
+      '${Constants.URL_API_SERVICE}/v6/user/hitHistoryList';
 }

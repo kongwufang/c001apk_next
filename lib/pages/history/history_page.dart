@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../components/cards/feed_card.dart';
@@ -66,7 +66,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       ),
                     ),
                     icon: const Icon(Icons.clear_all),
-                    tooltip: 'Clear All',
+                    tooltip: '清空',
                   )
                 ]
               : null,
@@ -92,7 +92,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 separatorBuilder: (_, index) => const SizedBox(height: 10),
               )
             : const Center(
-                child: Text('EMPTY'),
+                child: Text('暂无内容'),
               ),
       ),
     );
