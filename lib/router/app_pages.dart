@@ -20,6 +20,7 @@ import '../pages/search/search_page.dart';
 import '../pages/search/search_result_page.dart';
 import '../pages/settings/about_page.dart';
 import '../pages/settings/params_page.dart';
+import '../pages/szlm/szlm_id_web_page.dart';
 import '../pages/topic/topic_page.dart';
 import '../pages/user/user_page.dart';
 import '../pages/webview/webview_page.dart';
@@ -128,6 +129,12 @@ class AppPages {
     _getPage(
       name: '/chat',
       page: () => const ChatPage(),
+    ),
+    // 「获取数字联盟 ID」：内置 WebView 换取 DUID
+    // （Android 是 SzlmIdWebActivity，横屏下也是独立页）
+    _getPage(
+      name: '/szlmId',
+      page: () => const SzlmIdWebPage(),
     ),
   ];
 }

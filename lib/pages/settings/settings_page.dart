@@ -101,6 +101,14 @@ class _SettingsPageState extends State<SettingsPage>
             boxKey: SettingsBoxKey.szlmId,
             needUpdateXAppDevice: true,
           ),
+          // 取号入口（对齐 Android 设置里的「获取数字联盟 ID」）：
+          // 内置网页经 JsBridge 拿参数、过 Cloudflare Turnstile 后签发 DUID。
+          ListTile(
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: const Text('获取数字联盟ID'),
+            subtitle: const Text('内置网页取号（人机验证 + 签名校验）'),
+            onTap: () => Get.toNamed('/szlmId'),
+          ),
           ListTile(
             leading: const Icon(Icons.developer_mode),
             title: const Text('参数'),

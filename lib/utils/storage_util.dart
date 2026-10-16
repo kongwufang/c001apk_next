@@ -213,6 +213,46 @@ class GStorage {
     settings.put(SettingsBoxKey.szlmId, value);
   }
 
+  /// 保存数字联盟 ID，并把设备串的**首字段**换成它。
+  ///
+  /// 对齐 Android `SzlmIdPrompt.save` + `TokenDeviceUtils.buildDeviceCode`：
+  /// **只替换首字段 szlmId**，机型 / MAC / 尾字段一律保留。
+  /// 原因（Android `Constants.DEFAULT_DEVICE_CODE` 注释与 `_rev/win_ref/README.md` §2.4）：
+  /// - 首字段是服务端认设备的 szlmId，换成**已注册**的值才放行；
+  /// - 而把整串连机型/尾字段一起新造，会被风控要求人机验证
+  ///   （`err_request_captcha_v2`），详情页等接口直接加载失败。
+  static Future<void> saveSzlmId(String duid) async {
+    final id = duid.trim();
+    if (id.isEmpty) return;
+    setSzlmId(id);
+    // 首次运行还没有设备串时，用已验证可用的那份当底
+    var device = xAppDevice;
+    if (device.isEmpty) device = Constants.DEFAULT_DEVICE_CODE;
+    try {
+      final parts = TokenUtils.decodeDevice(device).split(';');
+      if (parts.length >= 8) {
+        parts[0] = id;
+        setXAppDevice(await TokenUtils.encodeDevice(parts.join(';')));
+      }
+    } catch (_) {
+      // 解不出结构（畸形串）就只存 szlmId，不硬改设备串
+    }
+  }
+
+  /// SSAID —— 对应 Android 的 `Settings.Secure.ANDROID_ID`。
+  ///
+  /// 用途：让取号服务端唯一认出这台设备（见 `SzlmIdParams.deviceInfoJson()`）。
+  /// Android 是从系统读的真实值；桌面端没有这个概念，于是**首次访问时生成一次
+  /// 并持久化**，之后恒定不变 —— 必须稳定，否则服务端每次派生出的指纹都不同，
+  /// 会白耗取号额度。
+  static String get ssaid {
+    final existing = settings.get(SettingsBoxKey.ssaid, defaultValue: '') as String;
+    if (existing.isNotEmpty) return existing;
+    final fresh = DeviceUtil.randHexString(16).toLowerCase();
+    settings.put(SettingsBoxKey.ssaid, fresh);
+    return fresh;
+  }
+
   static double get fontScale {
     return settings.get(SettingsBoxKey.fontScale, defaultValue: 1.0);
   }
@@ -460,6 +500,8 @@ class SettingsBoxKey {
       staticColor = 'staticColor',
       selectedTheme = 'selectedTheme',
       szlmId = 'szlmId',
+      // 取号用的 SSAID（对应 Android 的 Settings.Secure.ANDROID_ID），首次生成后持久化
+      ssaid = 'ssaid',
       fontScale = 'fontScale',
       followType = 'followType',
       imageQuality = 'imageQuality',
