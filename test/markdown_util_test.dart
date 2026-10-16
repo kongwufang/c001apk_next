@@ -48,25 +48,48 @@ void main() {
     });
   });
 
-  group('isMarkdown —— 弱特征：要累计 2 个以上', () {
-    test('只有一条无序列表 → 不算 md（避免误报）', () {
-      expect(isMarkdown('- 只有一个列表项而已'), isFalse);
+  group('isMarkdown —— 弱特征：每个类目最多 1 分，要两个**不同**类目', () {
+    // ★ 这一组是**照着 Android 的实际行为**写的，直觉上容易写错，特此说明：
+    //
+    //   var score = 0
+    //   if (count(bulletPattern, t) >= 2) score++      // ← 整个类目只 +1
+    //   if (orderedPattern...) score++
+    //   if (quotePattern...) score++
+    //   if (hrPattern...) score++
+    //   if (count(tableRowPattern, t) >= 2) score++    // ← 整个类目只 +1
+    //   return score >= 2
+    //
+    // 也就是说**同一个弱特征类目来多少条都只算 1 分**。所以「只有两条无序列表」
+    // 或「只有一张表格」都**不算** md，必须有**两个不同类目**才行。
+    // 这个反直觉之处是 Android 原实现的行为，移植时**照抄**，不要「顺手修正」。
+
+    test('同一个弱特征多来几条也只 1 分 —— 两条无序列表不算 md', () {
+      expect(isMarkdown('- 第一项\n- 第二项'), isFalse);
+      expect(isMarkdown('- 一\n- 二\n- 三\n- 四'), isFalse);
     });
 
-    test('两条无序列表 → 算 md', () {
-      expect(isMarkdown('- 第一项\n- 第二项'), isTrue);
+    test('表格行多行也只 1 分 —— 单独一张表不算 md', () {
+      expect(
+        isMarkdown('| 参数 | 值 |\n| --- | --- |\n| 屏幕 | 6.7 |'),
+        isFalse,
+      );
+    });
+
+    test('两个**不同**类目 → 2 分，算 md', () {
+      expect(isMarkdown('- 第一项\n- 第二项\n> 引用一下'), isTrue);
+      expect(isMarkdown('| a | b |\n| --- | --- |\n> 引用'), isTrue);
     });
 
     test('有序列表 + 引用 → 2 分，算 md', () {
       expect(isMarkdown('1. 第一步\n> 引用一下'), isTrue);
     });
 
-    test('只有分隔线 → 不算 md', () {
+    test('只有分隔线 → 1 分，不算 md', () {
       expect(isMarkdown('正文\n\n---\n\n正文'), isFalse);
     });
 
-    test('表格行 >= 2 → 算 md', () {
-      expect(isMarkdown('| 参数 | 值 |\n| --- | --- |\n| 屏幕 | 6.7 |'), isTrue);
+    test('分隔线 + 引用 → 2 分，算 md', () {
+      expect(isMarkdown('正文\n\n---\n\n> 引用'), isTrue);
     });
   });
 
