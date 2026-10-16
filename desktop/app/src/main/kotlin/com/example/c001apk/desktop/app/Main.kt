@@ -89,14 +89,89 @@ import javax.swing.JOptionPane
  */
 fun main(args: Array<String>) {
     // 启动环境一行摘要，便于排查（渲染后端/Java 版本是关键信息）
+    val headless = System.getProperty("java.awt.headless")
     println(
         "[startup] renderApi=${System.getProperty("skiko.renderApi") ?: "(default)"}" +
             " hwAccel=${System.getProperty("skiko.awt.hardwareAcceleration") ?: "(default)"}" +
+            " headless=${headless ?: "(unset)"}" +
             " java=${System.getProperty("java.version")}" +
             " os=${System.getProperty("os.name")}"
     )
-    checkIntegrityOrExit(args)
 
+    // ★ 把未捕获异常写到日志文件 —— 窗口创建失败常常是静默的，
+    //   没有日志就无从定位（这个坑已踩过）。
+    installCrashLogger()
+
+    try {
+        checkIntegrityOrExit(args)
+        runUi()
+    } catch (t: Throwable) {
+        reportFatal("启动", t)
+        kotlin.system.exitProcess(3)
+    }
+}
+
+/** 日志文件位置：优先安装目录，其次用户目录（安装目录可能不可写） */
+private fun logFile(): java.io.File {
+    val candidates = listOfNotNull(
+        runCatching { resolveAppDir() }.getOrNull()?.resolve("c001apk-desktop.log")?.toFile(),
+        java.io.File(System.getProperty("user.home"), "c001apk-desktop.log"),
+        java.io.File(System.getProperty("java.io.tmpdir"), "c001apk-desktop.log"),
+    )
+    return candidates.firstOrNull { f ->
+        runCatching {
+            f.parentFile?.mkdirs()
+            if (!f.exists()) f.createNewFile()
+            f.canWrite()
+        }.getOrDefault(false)
+    } ?: candidates.last()
+}
+
+@Volatile
+private var crashLogged = false
+
+private fun reportFatal(stage: String, t: Throwable) {
+    val sw = java.io.StringWriter()
+    t.printStackTrace(java.io.PrintWriter(sw))
+    val text = buildString {
+        appendLine("=".repeat(70))
+        appendLine("[${java.time.LocalDateTime.now()}] 启动失败（阶段：$stage）")
+        appendLine(t::class.java.name + ": " + t.message)
+        appendLine(sw.toString())
+        appendLine("环境：java=${System.getProperty("java.version")}" +
+            " os=${System.getProperty("os.name")} ${System.getProperty("os.version")}" +
+            " headless=${System.getProperty("java.awt.headless")}" +
+            " renderApi=${System.getProperty("skiko.renderApi")}")
+        appendLine("=".repeat(70))
+    }
+    System.err.println(text)
+    runCatching {
+        logFile().appendText(text)
+        println("[startup] 失败详情已写入: ${logFile().absolutePath}")
+    }
+    if (!crashLogged) {
+        crashLogged = true
+        runCatching {
+            javax.swing.JOptionPane.showMessageDialog(
+                null,
+                "程序启动失败：\n${t::class.java.simpleName}: ${t.message}\n\n" +
+                    "详情见日志：\n${logFile().absolutePath}",
+                "c001apk desktop — 启动失败",
+                javax.swing.JOptionPane.ERROR_MESSAGE,
+            )
+        }
+    }
+}
+
+private fun installCrashLogger() {
+    val prev = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, t ->
+        reportFatal("未捕获异常@${thread.name}", t)
+        prev?.uncaughtException(thread, t)
+    }
+}
+
+private fun runUi() {
     application {
         val windowState = rememberWindowState(
             size = DpSize(1280.dp, 800.dp),
