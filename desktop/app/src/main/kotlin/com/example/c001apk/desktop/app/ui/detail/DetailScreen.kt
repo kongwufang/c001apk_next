@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui.detail
+﻿package com.example.c001apk.desktop.app.ui.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,13 +16,10 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -180,7 +177,13 @@ fun DetailScreen(
     }
 }
 
-/** 顶栏：返回 + 标题（对齐 fragment_feed 的 toolbar，底色用 surfaceContainer 与内容拉开一档） */
+/**
+ * 顶栏：返回 + 标题。
+ *
+ * Android 端这里用 `ic_back` 矢量图；桌面端先用「‹」文字按钮 ——
+ * `Icons.AutoMirrored.Filled.ArrowBack` 需要 material-icons-core 的 automirrored 包，
+ * 本工程未显式依赖它，为避免编译风险先不引入，后续移植 `ic_back` 的 path 数据再换。
+ */
 @Composable
 private fun DetailTopBar(title: String, onBack: () -> Unit) {
     Row(
@@ -191,8 +194,8 @@ private fun DetailTopBar(title: String, onBack: () -> Unit) {
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+        TextButton(onClick = onBack) {
+            Text("‹  返回", fontSize = 16.sp)
         }
         Spacer(Modifier.width(4.dp))
         Text(
