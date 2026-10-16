@@ -5,7 +5,10 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart' show DioMediaType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
+// ⚠️ get 经 get_connect 也导出了 `FormData` / `MultipartFile`（它自己那套），
+// 与 dio 的同名类冲突 —— 两个都 hide，用 dio 的。
+// （同一个坑在 collection_pick_sheet.dart 已经踩过一次，这次又犯，已加进自检脚本。）
+import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:image_picker/image_picker.dart';
 
 import '../../components/m3e_progress.dart';
