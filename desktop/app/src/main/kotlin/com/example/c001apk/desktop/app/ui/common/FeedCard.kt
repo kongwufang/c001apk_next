@@ -1,4 +1,4 @@
-﻿package com.example.c001apk.desktop.app.ui.common
+package com.example.c001apk.desktop.app.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -183,6 +183,8 @@ fun ReplyCard(f: Feed, modifier: Modifier = Modifier) {
     AppCard(modifier) {
         Column(Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // 用户名可能是空串（部分回复没有用户名）——统一兜底，避免显示成空白头像
+                val uname = f.username?.takeIf { it.isNotBlank() }
                 Box(
                     Modifier
                         .width(30.dp)
@@ -192,14 +194,14 @@ fun ReplyCard(f: Feed, modifier: Modifier = Modifier) {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        (f.username ?: "?").take(1),
+                        uname?.firstOrNull()?.toString() ?: "?",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    f.username ?: "—",
+                    uname ?: "匿名用户",
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
