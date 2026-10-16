@@ -158,37 +158,68 @@ private fun checkIntegrityOrExit(args: Array<String>) {
  *     早期版本回退到 `Paths.get("")`，导致明明有 `integrity.sig` 却报「未找到」（已实测踩坑）；
  *  3. 最后才退回工作目录。
  */
+/**
+ * 判断某个目录是不是「安装根目录」。
+ *
+ * 判据是**内容**而不是固定层数 —— 这是踩坑后的结论：
+ *   * 安装根目录下应有 `app/` 子目录，里面有 jar；
+ *   * `integrity.sig` 若存在则更确定。
+ */
+private fun looksLikeAppRoot(dir: Path?): Boolean {
+    if (dir == null) return false
+    val appSub = dir.resolve("app")
+    if (!java.nio.file.Files.isDirectory(appSub)) return false
+    val hasJar = runCatching {
+        java.nio.file.Files.list(appSub).use { st ->
+            st.anyMatch { it.fileName.toString().endsWith(".jar") }
+        }
+    }.getOrDefault(false)
+    return hasJar
+}
+
+/**
+ * 推断安装根目录（含 `app/` 与 `runtime/` 两层）。
+ *
+ * ⚠️ 不要用「固定上几级」——实测启动器 `<root>/c001apk-desktop.exe` 就在根目录，
+ * 而 jar 在 `<root>/app/` 下，早期实现按「exe 的上两级」算，多退了一层，
+ * 于是明明有 `integrity.sig` 却报「未找到」。
+ * 改为从候选起点**逐级向上找「看起来像安装根目录」的那一层**。
+ */
 private fun resolveAppDir(): Path? {
-    // ① jpackage launcher 提供的路径：<root>/app/<name>.exe
-    val jp = System.getProperty("jpackage.app-path")
-    println("[startup] jpackage.app-path=$jp")
-    if (!jp.isNullOrBlank()) {
-        runCatching { Paths.get(jp).toAbsolutePath().normalize() }.getOrNull()
-            ?.parent?.parent?.let {
-                println("[startup] appDir(来自 jpackage)=$it")
-                return it
-            }
+    val starts = mutableListOf<Path>()
+
+    // 自身 jar / classes 所在位置（最可靠的锚点）
+    runCatching {
+        object {}.javaClass.protectionDomain?.codeSource?.location?.let { src ->
+            val p = Paths.get(src.toURI()).toAbsolutePath().normalize()
+            starts += if (p.toString().endsWith(".jar")) p.parent else p
+        }
     }
 
-    // ② 从自身 jar 推断：…/app/<jar> → 上一层是 app/，再上一层是安装根目录
-    runCatching {
-        val src = object {}.javaClass.protectionDomain?.codeSource?.location
-        println("[startup] codeSource=$src")
-        if (src != null) {
-            val p = Paths.get(src.toURI()).toAbsolutePath().normalize()
-            val parent = if (p.toString().endsWith(".jar")) p.parent else p
-            println("[startup] codeSource 归一化=$p parent=$parent parentName=${parent?.fileName}")
-            if (parent?.fileName?.toString() == "app") {
-                println("[startup] appDir(来自 codeSource)=${parent.parent}")
-                return parent.parent
-            }
-        }
-    }.onFailure { println("[startup] codeSource 推断失败：${it::class.simpleName}: ${it.message}") }
+    // jpackage launcher 的可执行文件位置
+    System.getProperty("jpackage.app-path")?.takeIf { it.isNotBlank() }?.let {
+        runCatching { Paths.get(it).toAbsolutePath().normalize().parent }.getOrNull()
+            ?.let { d -> starts += d }
+    }
 
-    // ③ 兜底
-    val cwd = runCatching { Paths.get("").toAbsolutePath() }.getOrNull()
-    println("[startup] appDir(兜底 cwd)=$cwd")
-    return cwd
+    // 工作目录（兜底）
+    runCatching { Paths.get("").toAbsolutePath().normalize() }.getOrNull()?.let { starts += it }
+
+    for (start in starts) {
+        var d: Path? = start
+        var hops = 0
+        while (d != null && hops <= 4) {
+            if (looksLikeAppRoot(d)) {
+                println("[startup] appDir=$d (锚点=$start 上溯 $hops 级)")
+                return d
+            }
+            d = d.parent
+            hops++
+        }
+    }
+
+    println("[startup] 未能定位安装根目录，锚点=${starts.map { it.toString() }}")
+    return starts.firstOrNull()
 }
 
 /** 导航项（对应 Android 端 `res/menu/nav_menu.xml`） */
