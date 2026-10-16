@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.core.model
+﻿package com.example.c001apk.desktop.core.model
 
 import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
@@ -96,52 +96,6 @@ data class Feed(
     @SerializedName("isLiked") val isLiked: Int? = null,
 )
 
-/** 用户信息（列表内嵌 / 用户资料接口共用一部分字段） */
-data class UserInfo(
-    @SerializedName("uid") val uid: String? = null,
-    @SerializedName("username") val username: String? = null,
-    @SerializedName("userAvatar") val userAvatar: String? = null,
-    @SerializedName("level") val level: String? = null,
-    @SerializedName("verify_status") val verifyStatus: String? = null,
-    @SerializedName("isLogin") val isLogin: Int? = null,
-    @SerializedName("fans") val fans: Int? = null,
-    @SerializedName("follow") val follow: Int? = null,
-    @SerializedName("feed") val feed: Int? = null,
-)
-
-/**
- * 首页 `/v6/main/indexV8` 的条目。
- *
- * ⚠️ 实测：该接口的 `data` 是**卡片信封列表**，不是平铺动态：
- * ```
- * { "entityType": "card", "title": "", "entities": [ { …真实动态… }, … ] }
- * ```
- * 真实内容在 [entities] 里，可能是 feed / 商品 / 话题 / 图文 等不同结构。
- *
- * 为保留多态结构，这里用 [JsonElement] 承载 entities，由上层按需转换 ——
- * 不要在 core 里把它硬转成单一类型，否则会丢字段（踩过：早期版本直接当 List&lt;Feed&gt;
- * 解析，导致界面上出现结构错乱的条目）。
- */
-data class HomeCard(
-    @SerializedName("entityType") val entityType: String? = null,
-    @SerializedName("entityId") val entityId: String? = null,
-    @SerializedName("title") val title: String? = null,
-    @SerializedName("url") val url: String? = null,
-    @SerializedName("pic") val pic: String? = null,
-    @SerializedName("lastupdate") val lastupdate: Long? = null,
-    @SerializedName("entities") val entities: List<JsonElement>? = null,
-    @SerializedName("extraData") val extraData: JsonElement? = null,
-)
-
-/**
- * 兼容旧用法的通用条目（保留字段），用于卡片内的实际内容。
- *
- * `message` 字段实测**含行内 HTML**，例如：
- * ```
- * 我一直好奇…为什么还 1.5k？ <a class="feed-link-tag" href="/t/%E9%85%B7%E5%AE%89%E5%A4%9C%E8%AF%9D?type=0">#酷安夜话#</a>
- * ```
- * 渲染前必须经 `HtmlText.parse()` 处理，否则界面上会直接显示标签源码。
- */
 data class HomeEntity(
     @SerializedName("entityId") val entityId: String? = null,
     @SerializedName("entityType") val entityType: String? = null,

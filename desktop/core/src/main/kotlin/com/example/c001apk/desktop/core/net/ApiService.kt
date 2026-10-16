@@ -2,7 +2,7 @@
 
 import com.example.c001apk.desktop.core.model.CheckCount
 import com.example.c001apk.desktop.core.model.Feed
-import com.example.c001apk.desktop.core.model.HomeCard
+import com.google.gson.JsonElement
 import com.example.c001apk.desktop.core.model.HomeEntity
 import com.example.c001apk.desktop.core.model.LoginInfo
 import com.example.c001apk.desktop.core.model.Resp
@@ -42,12 +42,17 @@ interface ApiService {
 
     // ─────────────── 首页 / 列表 ───────────────
 
-    /** 首页头条 */
+    /**
+     * 首页头条。
+     *
+     * ⚠️ data 是**异质混合数组**（顶层既可能是 feed，也可能是 card 信封），
+     * 故直接返回 [JsonElement]，由 UI 层按 entityType 分发 —— 映射成固定 POJO 会丢字段。
+     */
     @GET("/v6/main/indexV8")
     fun indexV8(
         @Query("page") page: Int,
         @Query("firstLaunch") firstLaunch: Int = 0,
-    ): Call<Resp<List<HomeCard>>>
+    ): Call<Resp<List<JsonElement>>>
 
     /** 通用数据列表（话题、我的设备、动态页等都用它 + url 参数） */
     @GET("/v6/page/dataList")

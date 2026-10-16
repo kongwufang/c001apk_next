@@ -49,7 +49,6 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.example.c001apk.desktop.core.model.HomeCard
 import com.example.c001apk.desktop.core.model.HomeEntity
 import com.example.c001apk.desktop.core.net.ApiException
 import com.example.c001apk.desktop.core.net.Client
@@ -485,34 +484,53 @@ private fun jsonString(el: JsonElement?, key: String): String? {
     return if (v.isJsonPrimitive) v.asString else null
 }
 
-/** 把卡片数组拍平成可渲染行，保留顺序 */
-private fun flatten(cards: List<HomeCard>): List<Row> {
+/**
+ * 把首页数据拍平成可渲染行。
+ *
+ * `/v6/main/indexV8` 的 `data` 是**混合数组**，实测两种形态：
+ * ```
+ * ① { "entityType": "feed", "username": …, "message": …, … }   ← 动态直接在顶层
+ * ② { "entityType": "card", "entities": [ … ] }                ← 卡片信封
+ *     卡内元素可能是 image_1 / iconLink / product / topic / feed / …
+ * ```
+ * ⚠️ 不能先映射成固定 POJO（会丢字段）—— 早期实现只处理了形态②，
+ * 结果界面上只剩卡片标题（「今日酷安 / 值得看 / 热闻」），**顶层动态全被丢掉**。
+ * 这里直接在 JsonElement 上分发。
+ */
+private fun flatten(data: List<JsonElement>): List<Row> {
     val out = mutableListOf<Row>()
-    for (card in cards) {
-        val entities: List<JsonElement> = card.entities.orEmpty()
-        if (entities.isEmpty()) {
-            val t = card.title.orEmpty()
-            if (t.isNotBlank()) {
-                out.add(Row.Card(t, null, !card.pic.isNullOrBlank()))
-            }
-            continue
+
+    fun asFeed(el: JsonElement): HomeEntity? =
+        runCatching { gson.fromJson(el, HomeEntity::class.java) }.getOrNull()
+
+    fun emit(el: JsonElement, depth: Int) {
+        val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return
+        val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }
+
+        // 动态：entityType=feed 或带 message
+        if (type == "feed" || obj.has("message")) {
+            asFeed(el)?.let { out.add(Row.Feed(it)) }
+            return
         }
-        for (el in entities) {
-            val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: continue
-            val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }
-            if (type == "feed" || obj.has("message")) {
-                val e = runCatching { gson.fromJson(el, HomeEntity::class.java) }.getOrNull()
-                if (e != null) out.add(Row.Feed(e))
-            } else {
-                val title = jsonString(el, "title")
-                val sub = jsonString(el, "description") ?: jsonString(el, "subTitle")
-                val pic = jsonString(el, "pic")
-                if (!title.isNullOrBlank() || !sub.isNullOrBlank()) {
-                    out.add(Row.Card(title.orEmpty(), sub, !pic.isNullOrBlank()))
-                }
+
+        // 卡片信封：展开 entities（限层数，防异常嵌套）
+        if (depth < 3) {
+            val inner = obj.getAsJsonArray("entities")
+            if (inner != null && inner.size() > 0) {
+                inner.forEach { emit(it, depth + 1) }
+                return
             }
         }
+
+        // 其它类型（image_1 / iconLink / product / topic …）：显示标题（图标入口）
+        val title = jsonString(el, "title")
+        if (title.isNullOrBlank()) return
+        val sub = jsonString(el, "description") ?: jsonString(el, "subTitle")
+        val pic = jsonString(el, "pic")
+        out.add(Row.Card(title, sub, !pic.isNullOrBlank()))
     }
+
+    data.forEach { emit(it, 0) }
     return out
 }
 
@@ -557,7 +575,7 @@ private fun HomeScreen(client: Client) {
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "桌面端 · ${cardCount} 张卡片 / ${rows.size} 条内容",
+                    "桌面端 · 原始 ${cardCount} 项 → 渲染 ${rows.size} 行",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

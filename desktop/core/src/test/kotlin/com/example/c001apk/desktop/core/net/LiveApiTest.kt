@@ -1,7 +1,7 @@
 ﻿package com.example.c001apk.desktop.core.net
 
 import com.example.c001apk.desktop.core.model.Feed
-import com.example.c001apk.desktop.core.model.HomeCard
+import com.google.gson.JsonElement
 import com.example.c001apk.desktop.core.model.LoginInfo
 import com.example.c001apk.desktop.core.model.Resp
 import kotlin.test.Test
@@ -51,17 +51,25 @@ class LiveApiTest {
     @Test
     fun `公开接口 首页头条`() {
         if (!enabled) return
-        // indexV8 返回【卡片信封】列表，真实内容在 entities 里（实测）
-        val resp: Resp<List<HomeCard>> = client().api.indexV8(page = 1).executeSync()
+        // indexV8 的 data 是异质混合数组：顶层既可能是 feed，也可能是 card 信封
+        val resp: Resp<List<JsonElement>> = client().api.indexV8(page = 1).executeSync()
         checkStatus(resp, "首页头条")
-        val cards = resp.data
-        assertNotNull(cards, "首页 data 为空")
-        assertTrue(cards.isNotEmpty(), "首页返回空列表")
-        assertNotNull(cards.first().entityType, "卡片缺少 entityType")
+        val items = resp.data
+        assertNotNull(items, "首页 data 为空")
+        assertTrue(items.isNotEmpty(), "首页返回空列表")
 
-        val entityCount = cards.sumOf { it.entities?.size ?: 0 }
-        assertTrue(entityCount > 0, "所有卡片都没有 entities —— 结构可能变了")
-        println("首页：${cards.size} 张卡片，共 $entityCount 个 entity")
+        fun typeOf(el: JsonElement): String? =
+            el.takeIf { it.isJsonObject }?.asJsonObject
+                ?.get("entityType")?.takeIf { it.isJsonPrimitive }?.asString
+
+        val feeds = items.count { typeOf(it) == "feed" }
+        val cards = items.count { typeOf(it) == "card" }
+        val inner = items.sumOf { el ->
+            el.takeIf { it.isJsonObject }?.asJsonObject
+                ?.getAsJsonArray("entities")?.size() ?: 0
+        }
+        println("首页：顶层 ${items.size} 项（feed=$feeds card=$cards），卡内元素 $inner 个")
+        assertTrue(feeds + cards > 0, "顶层既没有 feed 也没有 card —— 结构可能变了")
     }
 
     @Test
