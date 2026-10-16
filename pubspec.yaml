@@ -60,6 +60,12 @@ dependencies:
   image_picker: ^1.1.2
   intl: ^0.20.2
   json_annotation: ^4.9.0
+  # 正文 Markdown 渲染：酷安服务端不支持 md，作者写的 md 语法是当纯文本存的，
+  # 所以客户端要自动识别并渲染（对齐 Android 的 Markwon 方案，
+  # 见 lib/utils/markdown_util.dart）。
+  # 用 Dart 官方维护的纯 Dart 解析器转成 HTML，再复用本工程已有的 HtmlWidget 管道。
+  # 版本下限取 7.2.2（要求 SDK ^3.2.0）；7.3.1 要求 ^3.9.0，交给 pub 按实际 SDK 挑。
+  markdown: ^7.2.2
   mime: ^2.0.0
   modal_bottom_sheet: ^3.0.0
   package_info_plus: ^8.0.1
