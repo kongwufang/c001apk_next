@@ -1,7 +1,7 @@
-package com.example.c001apk.desktop.core.net
+﻿package com.example.c001apk.desktop.core.net
 
 import com.example.c001apk.desktop.core.model.Feed
-import com.example.c001apk.desktop.core.model.HomeEntity
+import com.example.c001apk.desktop.core.model.HomeCard
 import com.example.c001apk.desktop.core.model.LoginInfo
 import com.example.c001apk.desktop.core.model.Resp
 import kotlin.test.Test
@@ -51,13 +51,17 @@ class LiveApiTest {
     @Test
     fun `公开接口 首页头条`() {
         if (!enabled) return
-        val resp: Resp<List<HomeEntity>> = client().api.indexV8(page = 1).executeSync()
+        // indexV8 返回【卡片信封】列表，真实内容在 entities 里（实测）
+        val resp: Resp<List<HomeCard>> = client().api.indexV8(page = 1).executeSync()
         checkStatus(resp, "首页头条")
-        val list = resp.data
-        assertNotNull(list, "首页 data 为空")
-        assertTrue(list.isNotEmpty(), "首页返回空列表")
-        assertNotNull(list.first().entityType, "条目缺少 entityType")
-        println("首页头条条数：${list.size}")
+        val cards = resp.data
+        assertNotNull(cards, "首页 data 为空")
+        assertTrue(cards.isNotEmpty(), "首页返回空列表")
+        assertNotNull(cards.first().entityType, "卡片缺少 entityType")
+
+        val entityCount = cards.sumOf { it.entities?.size ?: 0 }
+        assertTrue(entityCount > 0, "所有卡片都没有 entities —— 结构可能变了")
+        println("首页：${cards.size} 张卡片，共 $entityCount 个 entity")
     }
 
     @Test
