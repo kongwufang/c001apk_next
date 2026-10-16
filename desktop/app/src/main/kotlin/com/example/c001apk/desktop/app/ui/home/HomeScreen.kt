@@ -264,7 +264,8 @@ private fun BadgedIcon(count: Int, content: @Composable () -> Unit) {
                     text,
                     color = MaterialTheme.colorScheme.onError,
                     fontSize = d.badgeTextSizeSp.sp,
-                    lineHeight = d.badgeHeight,
+                    // 角标高 15dp、字 9sp：用等值行高把文字垂直居中，不额外给 lineHeight 传 dp
+                    lineHeight = d.badgeTextSizeSp.sp,
                     modifier = Modifier.padding(horizontal = d.badgePaddingH),
                 )
             }

@@ -67,7 +67,7 @@ fun MineScreen(client: Client, session: Session) {
             Text("我的", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         }
 
-        val d = info?.data
+        val d = info
         if (d != null) {
             Column(
                 Modifier

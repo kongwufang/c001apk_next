@@ -1,8 +1,6 @@
 package com.example.c001apk.desktop.app.theme
 
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -24,11 +22,12 @@ import androidx.compose.ui.graphics.Color
  *     }
  * }
  * ```
- * Compose 的 [dynamicLightColorScheme] / [dynamicDarkColorScheme] 吃的是**同一个 seed 色**，
- * 生成的令牌体系与 Android 端一致 —— 所以配色这块可以做到精确对齐。
+ * Compose 的 `dynamicLightColorScheme(seed)` 只在 **Android** 上有（依赖 material-color-utilities），
+ * Compose Multiplatform **没有**这个 API。桌面端由 [SeedColorScheme] 用 HSL 明度阶推导，
+ * 生成的角色体系与 Android 端一致，但中性色族会有细微差别（详见 [SeedColorScheme] 的说明）。
  *
- * 用户在 Android 端还能选「跟随系统取色」（`ThemeUtils.isSystemAccent`），
- * 那在桌面端没有等价物，故桌面端枚举里不提供 `SYSTEM` 项（见 [ThemeColor.entries] 说明）。
+ * 用户在 Android 端还能选「跟随系统取色」（`ThemeUtils.isSystemAccent`，默认开），
+ * 那在桌面端没有等价物，故桌面端不提供该项。
  */
 enum class ThemeColor(
     /** 与 Android 端 `Material<Name>` 对应 */
@@ -63,8 +62,7 @@ enum class ThemeColor(
     val seedColor: Color get() = Color(seed)
 
     /** 生成该 seed 下的完整 M3 配色 */
-    fun scheme(dark: Boolean): ColorScheme =
-        if (dark) dynamicDarkColorScheme(seedColor) else dynamicLightColorScheme(seedColor)
+    fun scheme(dark: Boolean): ColorScheme = SeedColorScheme.generate(seedColor, dark)
 }
 
 /** 主题偏好（对齐 Android 端 PrefManager 的相关项） */

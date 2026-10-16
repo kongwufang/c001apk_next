@@ -1,4 +1,4 @@
-﻿package com.example.c001apk.desktop.app.ui.home
+package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.c001apk.desktop.core.model.HomeEntity
 import com.example.c001apk.desktop.core.net.ApiException
 import com.example.c001apk.desktop.core.net.Client
