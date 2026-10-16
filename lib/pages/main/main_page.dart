@@ -8,8 +8,7 @@ import 'package:get/get.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../pages/home/home_page.dart';
 import '../../pages/main/main_controller.dart';
-import '../../pages/message/message_page.dart';
-import '../../pages/settings/settings_page.dart';
+import '../../pages/mine/mine_page.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
 
@@ -52,27 +51,26 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 只有两项，对齐 Android `res/menu/nav_menu.xml`：
+    //   navigation_home（首页） / navigation_mine（我的）
+    // 原先的「消息」「设置」两项已按 Android 横屏的信息架构挪走：
+    //   消息 → 首页顶栏右上角的消息图标（带未读角标）
+    //   设置 → 「我的」页顶栏的齿轮图标
     const pages = [
       HomePage(),
-      MessagePage(),
-      SettingsPage(),
+      MinePage(),
     ];
 
     const barDestinations = <NavigationDestination>[
       NavigationDestination(
         selectedIcon: Icon(Icons.home),
         icon: Icon(Icons.home_outlined),
-        label: '主页',
+        label: '首页',
       ),
       NavigationDestination(
-        selectedIcon: Icon(Icons.message),
-        icon: Icon(Icons.message_outlined),
-        label: '消息',
-      ),
-      NavigationDestination(
-        selectedIcon: Icon(Icons.settings),
-        icon: Icon(Icons.settings_outlined),
-        label: '设置',
+        selectedIcon: Icon(Icons.person),
+        icon: Icon(Icons.person_outline),
+        label: '我的',
       ),
     ];
 
@@ -80,17 +78,12 @@ class _MainPageState extends State<MainPage> {
       NavigationRailDestination(
         selectedIcon: Icon(Icons.home),
         icon: Icon(Icons.home_outlined),
-        label: Text('主页'),
+        label: Text('首页'),
       ),
       NavigationRailDestination(
-        selectedIcon: Icon(Icons.message),
-        icon: Icon(Icons.message_outlined),
-        label: Text('消息'),
-      ),
-      NavigationRailDestination(
-        selectedIcon: Icon(Icons.settings),
-        icon: Icon(Icons.settings_outlined),
-        label: Text('设置'),
+        selectedIcon: Icon(Icons.person),
+        icon: Icon(Icons.person_outline),
+        label: Text('我的'),
       ),
     ];
 
@@ -114,8 +107,14 @@ class _MainPageState extends State<MainPage> {
                             destinations: railDestinations,
                             selectedIndex: snapshot.data!,
                             onDestinationSelected: onDestinationSelected,
-                            labelType: NavigationRailLabelType.none,
-                            extended: true,
+                            // 对齐 Android 横屏的 NavigationRailView：
+                            //   labelVisibilityMode="selected" → 仅选中项显示文字
+                            //   （见 activity_main.xml / MainActivity 的横屏分支）
+                            // 实测导航栏宽 96dp（= 20 + 56 + 20）。
+                            // Flutter 的 NavigationRail 有内部最小宽度，压不到 96dp，
+                            // 用 extended:false 拿到最接近的形态。
+                            labelType: NavigationRailLabelType.selected,
+                            extended: false,
                           ),
                         )),
               if (!Utils.isPortrait(context)) const VerticalDivider(width: 1),
