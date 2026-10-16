@@ -1,4 +1,4 @@
-// ignore_for_file: constant_identifier_names
+﻿// ignore_for_file: constant_identifier_names
 
 import 'package:flutter/material.dart';
 
@@ -123,49 +123,92 @@ class Constants {
     };
   }
 
+  /// 20 套配色的种子色。
+  ///
+  /// ⚠️ **顺序与内容必须与 Android 端逐项一致**，因为 `staticColor` 是这张表的下标。
+  /// 真源是 Android `app/build.gradle.kts` 的 `materialThemeBuilder { themes { ... } }`
+  /// 配置（调色板由 `rikka.tools.materialthemebuilder` 在构建期生成），
+  /// UI 顺序则来自 `res/values/arrays.xml` 的 `color_values` / `color_texts`。
+  ///
+  /// 实测核对结论（这份表原来有 19 项）：
+  /// - **缺 `DeepPurple` `#673AB7`** —— 已补
+  /// - **`樱花` 原本在最后，Android 里排第 2** —— 已按 Android 调序
+  /// - 文案 `酸橙` → Android 是 **`黄绿`**；`蓝格` → Android 是 **`灰蓝`**
+  /// - 色值原本就是对的：`绿色 #4FAF50` / `浅绿 #8BC3A4` / `灰蓝 #607D8F`
+  ///   看起来像 Material 官方色（#4CAF50 / #8BC34A / #607D8B）的笔误，
+  ///   但**确实是 app 自己定的值**，不是笔误 —— 已逐项与 build.gradle.kts 核对
   static final List<MaterialColor> seedColors = [
-    MaterialColor(0xFF6650A4, getSwatch(102, 80, 164)),
-    // Colors.deepPurple,
-    MaterialColor(0xFFF44336, getSwatch(244, 67, 54)),
-    MaterialColor(0xFFE91E63, getSwatch(233, 30, 99)),
-    MaterialColor(0xFF9C27B0, getSwatch(156, 39, 176)),
-    MaterialColor(0xFF3F51B5, getSwatch(63, 81, 181)),
-    MaterialColor(0xFF2196F3, getSwatch(33, 150, 243)),
-    MaterialColor(0xFF03A9F4, getSwatch(3, 169, 244)),
-    MaterialColor(0xFF00BCD4, getSwatch(0, 188, 212)),
-    MaterialColor(0xFF009688, getSwatch(0, 150, 136)),
-    MaterialColor(0xFF4FAF50, getSwatch(79, 175, 80)),
-    MaterialColor(0xFF8BC3A4, getSwatch(139, 195, 164)),
-    MaterialColor(0xFFCDDC39, getSwatch(205, 220, 57)),
-    MaterialColor(0xFFFFEB3B, getSwatch(255, 235, 59)),
-    MaterialColor(0xFFFFC107, getSwatch(255, 193, 7)),
-    MaterialColor(0xFFFF9800, getSwatch(255, 152, 0)),
-    MaterialColor(0xFFFF5722, getSwatch(255, 87, 34)),
-    MaterialColor(0xFF795548, getSwatch(121, 85, 72)),
-    MaterialColor(0xFF607D8F, getSwatch(96, 125, 143)),
-    MaterialColor(0xFFFF9CA8, getSwatch(255, 156, 168)),
+    MaterialColor(0xFF6750A4, getSwatch(103, 80, 164)), // 默认
+    MaterialColor(0xFFFF9CA8, getSwatch(255, 156, 168)), // 樱花
+    MaterialColor(0xFFF44336, getSwatch(244, 67, 54)), // 红色
+    MaterialColor(0xFFE91E63, getSwatch(233, 30, 99)), // 粉色
+    MaterialColor(0xFF9C27B0, getSwatch(156, 39, 176)), // 紫色
+    MaterialColor(0xFF673AB7, getSwatch(103, 58, 183)), // 深紫
+    MaterialColor(0xFF3F51B5, getSwatch(63, 81, 181)), // 靛青
+    MaterialColor(0xFF2196F3, getSwatch(33, 150, 243)), // 蓝色
+    MaterialColor(0xFF03A9F4, getSwatch(3, 169, 244)), // 浅蓝
+    MaterialColor(0xFF00BCD4, getSwatch(0, 188, 212)), // 青色
+    MaterialColor(0xFF009688, getSwatch(0, 150, 136)), // 青绿
+    MaterialColor(0xFF4FAF50, getSwatch(79, 175, 80)), // 绿色
+    MaterialColor(0xFF8BC3A4, getSwatch(139, 195, 164)), // 浅绿
+    MaterialColor(0xFFCDDC39, getSwatch(205, 220, 57)), // 黄绿
+    MaterialColor(0xFFFFEB3B, getSwatch(255, 235, 59)), // 黄色
+    MaterialColor(0xFFFFC107, getSwatch(255, 193, 7)), // 琥珀
+    MaterialColor(0xFFFF9800, getSwatch(255, 152, 0)), // 橙色
+    MaterialColor(0xFFFF5722, getSwatch(255, 87, 34)), // 深橙
+    MaterialColor(0xFF795548, getSwatch(121, 85, 72)), // 棕色
+    MaterialColor(0xFF607D8F, getSwatch(96, 125, 143)), // 灰蓝
   ];
 
+  /// 配色显示名（顺序与 [seedColors] 一一对应，也与 Android `color_texts` 一致）
   static const List<String> themeType = [
     '默认',
+    '樱花',
     '红色',
     '粉色',
     '紫色',
+    '深紫',
     '靛青',
     '蓝色',
     '浅蓝',
     '青色',
-    '蓝绿',
+    '青绿',
     '绿色',
     '浅绿',
-    '酸橙',
+    '黄绿',
     '黄色',
     '琥珀',
     '橙色',
     '深橙',
     '棕色',
-    '蓝格',
-    '樱花',
-    // 'Custom',
+    '灰蓝',
+  ];
+
+  /// 旧配色顺序 → 新顺序的下标映射。
+  ///
+  /// 上游 Flutter 的表是 19 项（缺深紫、樱花在末位），而 `staticColor` 存的是**下标**。
+  /// 直接换表会让老用户已选的配色**变成另一个颜色**，所以按「颜色身份」重映射。
+  ///
+  /// 下标含义：`old[旧下标] = 新下标`
+  static const List<int> colorIndexRemap = [
+    0, // 默认   → 默认
+    2, // 红色   → 红色
+    3, // 粉色   → 粉色
+    4, // 紫色   → 紫色
+    6, // 靛青   → 靛青
+    7, // 蓝色   → 蓝色
+    8, // 浅蓝   → 浅蓝
+    9, // 青色   → 青色
+    10, // 青绿  → 蓝绿
+    11, // 绿色  → 绿色
+    12, // 浅绿  → 浅绿
+    13, // 酸橙  → 黄绿
+    14, // 黄色  → 黄色
+    15, // 琥珀  → 琥珀
+    16, // 橙色  → 橙色
+    17, // 深橙  → 深橙
+    18, // 棕色  → 棕色
+    19, // 蓝格  → 灰蓝
+    1, // 樱花   → 樱花
   ];
 }

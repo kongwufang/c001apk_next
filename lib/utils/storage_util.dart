@@ -166,7 +166,10 @@ class GStorage {
   /// v2 的期望值：版本号 `16.6.4 / 2609291 / API16`，
   /// 设备串用 [Constants.DEFAULT_DEVICE_CODE]（首字段 szlmId 是服务端**已注册**的值；
   /// 随机假值会拿到 `-419 检测到当前版本存在异常`）。
-  static const PARAMS_VERSION = 2;
+  ///
+  /// v3：**配色表从 19 项改成 20 项**（补「深紫」、把「樱花」挪到第 2），
+  /// 需要把存量 `staticColor` 按颜色身份重映射（见下面的 colorIndexRemap）。
+  static const PARAMS_VERSION = 3;
   static const _paramsVersionKey = 'paramsVersion';
 
   /// 把持久化的机型参数迁到当前期望值（幂等）。
@@ -202,6 +205,18 @@ class GStorage {
       }
     }
     setXAppDevice(device);
+
+    // ── 配色下标迁移（v3）──
+    //
+    // `staticColor` 存的是 [Constants.seedColors] 的**下标**。上游那张表是 19 项
+    // （缺「深紫」、「樱花」在末位），而 Android 是 20 项且「樱花」排第 2。
+    // 直接换表会让老用户已选的配色变成另一个颜色，所以按**颜色身份**重映射。
+    final storedColor =
+        settings.get(SettingsBoxKey.staticColor, defaultValue: 0) as int;
+    if (storedColor >= 0 && storedColor < Constants.colorIndexRemap.length) {
+      settings.put(
+          SettingsBoxKey.staticColor, Constants.colorIndexRemap[storedColor]);
+    }
 
     settings.put(_paramsVersionKey, PARAMS_VERSION);
   }
