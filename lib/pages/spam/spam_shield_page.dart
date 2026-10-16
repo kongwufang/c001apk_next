@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
@@ -69,13 +69,13 @@ class _SpamShieldPageState extends State<SpamShieldPage> {
   Future<void> _add() async {
     final value = _valueCtrl.text.trim();
     if (value.isEmpty) {
-      FlutterSmartDialog.toast('请先填写内容');
+      SmartDialog.showToast('请先填写内容');
       return;
     }
     final name = _nameCtrl.text.trim();
     if (_isNode && name.isEmpty) {
       // Android 同样要求节点必须同时给 ID 和名称
-      FlutterSmartDialog.toast('节点名称不能为空');
+      SmartDialog.showToast('节点名称不能为空');
       return;
     }
 
@@ -91,7 +91,7 @@ class _SpamShieldPageState extends State<SpamShieldPage> {
       _valueCtrl.clear();
       _nameCtrl.clear();
     } else {
-      FlutterSmartDialog.toast('添加失败');
+      SmartDialog.showToast('添加失败');
     }
   }
 
@@ -104,7 +104,7 @@ class _SpamShieldPageState extends State<SpamShieldPage> {
     };
     if (!mounted) return;
     setState(() => _loading = false);
-    if (!ok) FlutterSmartDialog.toast('移除失败');
+    if (!ok) SmartDialog.showToast('移除失败');
   }
 
   /// 当前列表项（统一成 `(主值, 显示主标题, 显示副标题)`）
