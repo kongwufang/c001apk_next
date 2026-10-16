@@ -88,10 +88,10 @@ import javax.swing.JOptionPane
  * ```
  */
 fun main(args: Array<String>) {
+    // 启动环境一行摘要，便于排查（渲染后端/Java 版本是关键信息）
     println(
         "[startup] renderApi=${System.getProperty("skiko.renderApi") ?: "(default)"}" +
             " hwAccel=${System.getProperty("skiko.awt.hardwareAcceleration") ?: "(default)"}" +
-            " env=${System.getenv("SKIKO_RENDER_API") ?: "-"}" +
             " java=${System.getProperty("java.version")}" +
             " os=${System.getProperty("os.name")}"
     )
@@ -210,10 +210,7 @@ private fun resolveAppDir(): Path? {
         var d: Path? = start
         var hops = 0
         while (d != null && hops <= 4) {
-            if (looksLikeAppRoot(d)) {
-                println("[startup] appDir=$d (锚点=$start 上溯 $hops 级)")
-                return d
-            }
+            if (looksLikeAppRoot(d)) return d
             d = d.parent
             hops++
         }
