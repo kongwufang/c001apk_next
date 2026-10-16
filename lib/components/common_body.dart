@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:get/get.dart';
 
 import '../components/footer.dart';
@@ -6,6 +7,7 @@ import '../components/item_card.dart';
 import '../logic/model/feed/datum.dart';
 import '../logic/state/loading_state.dart';
 import '../pages/common/common_controller.dart';
+import '../utils/utils.dart';
 
 Widget _bodyState(String text, Function() onTap) {
   return GestureDetector(
@@ -85,6 +87,72 @@ Widget buildBody(
           as List<Datum>;
 
       var bottomPadding = MediaQuery.of(Get.context!).padding.bottom;
+
+      /// 列表底部（加载更多 / 到底提示）。与原来一样的触发时机：
+      /// 一旦被构建就视作「翻到了底部」，去请求下一页。
+      Widget footer() {
+        if (!commonController.isEnd && !commonController.isLoading) {
+          commonController.setFooterState(LoadingState.loading());
+          commonController.onGetData(false);
+        }
+        return Obx(
+            () => footerWidget(commonController.footerState.value, () {
+                  commonController.isEnd = false;
+                  commonController.setFooterState(LoadingState.loading());
+                  commonController.onGetData(false);
+                }));
+      }
+
+      Widget cell(int index) => itemCard(
+            dataList[index],
+            isHomeCard: isHomeCard,
+            isReply2Reply: isReply2Reply,
+            isTopReply: isReply2Reply && index == 0,
+            uid: uid,
+            onBlock: commonController.onBlock,
+            onReply: onReply,
+            onDelete: commonController.postLikeDeleteFollow,
+            onLike: commonController.onLike,
+            onPM: commonController.onPM,
+          );
+
+      // ── 横屏：双列瀑布流 ──
+      //
+      // 对齐 Android 端 `BaseViewFragment.initView()`：
+      //   if (isPortrait) LinearLayoutManager
+      //   else            StaggeredGridLayoutManager(2, VERTICAL)
+      // 间距来自 `StaggerItemDecoration(10.dp)`：列间距 10dp、左右外边距 10dp、bottom 10dp。
+      // footer 走 SliverToBoxAdapter 跨两列，对应 Android `FooterAdapter` 的 isFullSpan = true。
+      //
+      // 回复楼中楼（isReply2Reply）保持单列 —— 那一层的 Android 实现用的是
+      // `ReplyStaggerItemDecoration`，是另一套排法，不在这里改。
+      if (!isReply2Reply && !Utils.isPortrait(Get.context!)) {
+        return CustomScrollView(
+          controller: commonController.scrollController,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+              sliver: SliverMasonryGrid.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childCount: dataList.length,
+                itemBuilder: (_, index) => cell(index),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(left: 10, right: 10, top: 10, bottom: 10 + bottomPadding),
+                child: footer(),
+              ),
+            ),
+          ],
+        );
+      }
+
       return ListView.separated(
         controller: commonController.scrollController,
         physics: AlwaysScrollableScrollPhysics(
@@ -99,29 +167,9 @@ Widget buildBody(
         itemCount: dataList.length + 1,
         itemBuilder: (_, index) {
           if (index == dataList.length) {
-            if (!commonController.isEnd && !commonController.isLoading) {
-              commonController.setFooterState(LoadingState.loading());
-              commonController.onGetData(false);
-            }
-            return Obx(
-                () => footerWidget(commonController.footerState.value, () {
-                      commonController.isEnd = false;
-                      commonController.setFooterState(LoadingState.loading());
-                      commonController.onGetData(false);
-                    }));
+            return footer();
           } else {
-            return itemCard(
-              dataList[index],
-              isHomeCard: isHomeCard,
-              isReply2Reply: isReply2Reply,
-              isTopReply: isReply2Reply && index == 0,
-              uid: uid,
-              onBlock: commonController.onBlock,
-              onReply: onReply,
-              onDelete: commonController.postLikeDeleteFollow,
-              onLike: commonController.onLike,
-              onPM: commonController.onPM,
-            );
+            return cell(index);
           }
         },
         separatorBuilder: (_, index) => isReply2Reply
