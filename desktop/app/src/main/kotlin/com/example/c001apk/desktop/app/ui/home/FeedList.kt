@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,6 +38,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.c001apk.desktop.app.homeDiagLog
+import com.example.c001apk.desktop.app.ui.common.AppCard
+import com.example.c001apk.desktop.app.ui.common.DARKER_GRAY
+import com.example.c001apk.desktop.app.ui.common.FeedCard
+import com.example.c001apk.desktop.app.ui.common.fmtTime
 import com.example.c001apk.desktop.app.ui.common.buildRichText
 import com.example.c001apk.desktop.app.ui.common.emojiInlineContents
 import com.example.c001apk.desktop.core.model.HomeEntity
@@ -50,9 +53,6 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 动态列表（首页各 tab 的内容）。
@@ -80,7 +80,7 @@ import java.util.Locale
  * 桌面窗口天然是横屏 → 固定双列瀑布流。
  */
 @Composable
-fun FeedList(client: Client, tab: String) {
+fun FeedList(client: Client, tab: String, onOpenFeed: (String) -> Unit = {}) {
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var rows by remember { mutableStateOf<List<FeedRow>>(emptyList()) }
@@ -162,7 +162,10 @@ fun FeedList(client: Client, tab: String) {
                     span = if (row.spanFull()) StaggeredGridSpanFull else null,
                 ) {
                     when (row) {
-                        is FeedRow.Feed -> FeedCard(row.e)
+                        is FeedRow.Feed -> FeedCard(
+                            row.e,
+                            onClick = (row.e.entityId ?: row.e.id)?.let { fid -> { onOpenFeed(fid) } },
+                        )
                         is FeedRow.EntryGroup -> EntryGroupCard(row)
                         // flatten 现在只产出 EntryGroup（同类入口已打包成横向一行），
                         // 单个 Entry 仍保留类型以便将来按类型细分渲染。
@@ -336,123 +339,6 @@ private fun jsonString(el: JsonElement?, key: String): String? {
     return if (v.isJsonPrimitive) v.asString else null
 }
 
-/**
- * 动态卡片 —— 对齐 `res/layout/item_home_feed.xml`。
- *
- * 实测关键数值：
- * ```
- * MaterialCardView: cardBackgroundColor=@color/home_card_background_color
- *                   (= colorSurfaceContainer)、elevation=0dp、strokeWidth=0dp
- *                   内容 padding=10dp
- * uname        15sp  singleLine  ellipsize=end
- * from/device  12sp  darker_gray
- * 私有角标      11sp  padding 5/1/5/1  bg_private_badge(#22808080, radius 4dp)
- * messageTitle 16sp bold  lineSpacingMultiplier=1.3
- * message      16sp  lineSpacingMultiplier=1.2  maxLines=5  ellipsize=end
- * messageMore  「查看更多」13sp bold colorPrimary（截断才显示，默认不占位）
- * 底部动作      只有 2 个：reply + like；左时间、右互动
- * ```
- */
-@Composable
-private fun FeedCard(e: HomeEntity) {
-    AppCard {
-        Column(Modifier.padding(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    e.username ?: "—",
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                e.dateline?.let {
-                    Spacer(Modifier.width(10.dp))
-                    Text(fmtTime(it), fontSize = 12.sp, color = DARKER_GRAY, maxLines = 1)
-                }
-            }
-
-            val dev = e.deviceTitle ?: e.deviceName
-            if (!dev.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(dev, fontSize = 12.sp, color = DARKER_GRAY, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-
-            e.messageTitle?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    HtmlText.toPlainText(it),
-                    fontSize = 16.sp,
-                    lineHeight = 21.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            // message 含行内 HTML（如 <a class="feed-link-tag" href="/t/…">#话题#</a>），
-            // 必须解析后渲染，否则会露出标签源码。
-            // 解析结果同时含表情码（[受虐滑稽]…），由 buildRichText 转成行内表情图。
-            val pieces = HtmlText.parse(e.message)
-            val inline = emojiInlineContents(pieces)
-            var truncated by remember(e.entityId, e.id) { mutableStateOf(false) }
-            if (pieces.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = buildRichText(pieces),
-                    fontSize = 16.sp,
-                    lineHeight = 19.sp,
-                    maxLines = 5,
-                    overflow = TextOverflow.Ellipsis,
-                    inlineContent = inline,
-                    onTextLayout = { r -> truncated = r.hasVisualOverflow },
-                )
-            }
-            if (truncated) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "查看更多",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            val pics = e.picArr?.size ?: if (!e.pic.isNullOrBlank()) 1 else 0
-            if (pics > 0) {
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(if (pics == 1) 120.dp else 96.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        if (pics == 1) "[图片]" else "[$pics 张图片]",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    e.dateline?.let { fmtTime(it) } ?: "",
-                    fontSize = 12.sp,
-                    color = DARKER_GRAY,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-                Text("评论 ${e.replynum ?: e.replynum2 ?: 0}", fontSize = 12.sp, color = DARKER_GRAY)
-                Spacer(Modifier.width(10.dp))
-                Text("赞 ${e.likenum ?: 0}", fontSize = 12.sp, color = DARKER_GRAY)
-            }
-        }
-    }
-}
 
 /**
  * 同类入口组 —— 渲染成**一行横向滚动卡**，对应 Android 端的
@@ -601,23 +487,3 @@ private fun ListEntryTile(e: FeedRow.Entry) {
     }
 }
 
-/** 统一的卡片外观：colorSurfaceContainer 底、12dp 圆角、零阴影（Android 端卡片 elevation 全是 0dp） */
-@Composable
-private fun AppCard(content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(12.dp),
-    ) { content() }
-}
-
-/**
- * 正文次要文字色。Android 端全仓库**不用** `textColorSecondary`，
- * 而是一律 `@android:color/darker_gray`（= `#444444`）。
- */
-private val DARKER_GRAY = Color(0xFF444444)
-
-private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-
-private fun fmtTime(epochSeconds: Long): String = timeFmt.format(Date(epochSeconds * 1000L))

@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui.home
+﻿package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -87,6 +87,7 @@ fun HomeScreen(
     client: Client,
     theme: ThemeState,
     onThemeChange: (ThemeState) -> Unit,
+    onOpenFeed: (String) -> Unit = {},
 ) {
     var tabs by remember { mutableStateOf<List<String>>(emptyList()) }
     var selected by remember { mutableStateOf(0) }
@@ -137,8 +138,7 @@ fun HomeScreen(
                 HomeTabContent(
                     client = client,
                     tab = tabs.getOrElse(i) { "头条" },
-                    theme = theme,
-                    onThemeChange = onThemeChange,
+                    onOpenFeed = onOpenFeed,
                 )
             }
         }
@@ -278,10 +278,9 @@ private fun BadgedIcon(count: Int, content: @Composable () -> Unit) {
 private fun HomeTabContent(
     client: Client,
     tab: String,
-    theme: ThemeState,
-    onThemeChange: (ThemeState) -> Unit,
+    onOpenFeed: (String) -> Unit,
 ) {
-    com.example.c001apk.desktop.app.ui.home.FeedList(client = client, tab = tab)
+    FeedList(client = client, tab = tab, onOpenFeed = onOpenFeed)
 }
 
 /**

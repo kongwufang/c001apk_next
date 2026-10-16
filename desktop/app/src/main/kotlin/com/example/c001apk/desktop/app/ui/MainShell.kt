@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui
+﻿package com.example.c001apk.desktop.app.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.c001apk.desktop.app.theme.ThemeState
+import com.example.c001apk.desktop.app.ui.detail.DetailScreen
 import com.example.c001apk.desktop.app.ui.home.HomeScreen
 import com.example.c001apk.desktop.app.ui.mine.MineScreen
 import com.example.c001apk.desktop.core.net.Client
@@ -83,6 +84,8 @@ fun MainShell(
     // 导航项顺序与 nav_menu.xml 一致：首页 → 我的
     var index by remember { mutableStateOf(0) }
     val items = remember { NavDestination.entries }
+    // 详情页：非空表示当前覆盖在 tab 之上（对应 Android 端另起 FeedActivity，整窗转场）
+    var openFeedId by remember { mutableStateOf<String?>(null) }
 
     Row(Modifier.fillMaxSize()) {
         // ── 左侧 NavigationRailView ──
@@ -113,22 +116,47 @@ fun MainShell(
         VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
         Box(Modifier.fillMaxSize()) {
-            // ViewPager2 等价：按方向滑入滑出
+            // 详情页覆盖在 tab 之上。
+            // Android 端详情是**另起一个 Activity**，转场是整窗的水平推挤；
+            // 这里用 AnimatedContent 做等价效果（300ms、方向感一致）。
             AnimatedContent(
-                targetState = index,
+                targetState = openFeedId,
                 transitionSpec = {
-                    val forward = targetState > initialState
+                    val forward = targetState != null
                     val dir = if (forward) 1 else -1
-                    (slideInHorizontally(tween(300)) { w -> dir * w / 6 } +
+                    (slideInHorizontally(tween(300)) { w -> dir * w } +
                         fadeIn(tween(220))) togetherWith
-                        (slideOutHorizontally(tween(300)) { w -> -dir * w / 6 } +
+                        (slideOutHorizontally(tween(300)) { w -> -dir * w / 4 } +
                             fadeOut(tween(180)))
                 },
-                label = "viewPager",
-            ) { i ->
-                when (items[i]) {
-                    NavDestination.Home -> HomeScreen(client = client, theme = theme, onThemeChange = onThemeChange)
-                    NavDestination.Mine -> MineScreen(client = client, session = session)
+                label = "detailPager",
+            ) { fid ->
+                if (fid != null) {
+                    DetailScreen(client = client, feedId = fid, onBack = { openFeedId = null })
+                } else {
+                    // ViewPager2 等价：按方向滑入滑出
+                    AnimatedContent(
+                        targetState = index,
+                        transitionSpec = {
+                            val forward = targetState > initialState
+                            val dir = if (forward) 1 else -1
+                            (slideInHorizontally(tween(300)) { w -> dir * w / 6 } +
+                                fadeIn(tween(220))) togetherWith
+                                (slideOutHorizontally(tween(300)) { w -> -dir * w / 6 } +
+                                    fadeOut(tween(180)))
+                        },
+                        label = "viewPager",
+                    ) { i ->
+                        when (items[i]) {
+                            NavDestination.Home -> HomeScreen(
+                                client = client,
+                                theme = theme,
+                                onThemeChange = onThemeChange,
+                                onOpenFeed = { openFeedId = it },
+                            )
+                            NavDestination.Mine -> MineScreen(client = client, session = session)
+                        }
+                    }
                 }
             }
         }
