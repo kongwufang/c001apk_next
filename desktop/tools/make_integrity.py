@@ -48,7 +48,7 @@ KT_TEMPLATE = '''package com.example.c001apk.desktop.core.security
  * ★ 本文件由 CI 在打包后自动生成（_rev/win_ref/make_integrity.py），**请勿手改**。
  *   本地开发构建下为空字符串 —— 此时 `Integrity.verify` 会自动跳过校验，不阻塞调试。
  */
-internal object IntegrityPublicKey {
+object IntegrityPublicKey {
     const val BASE64: String = "%s"
 }
 '''

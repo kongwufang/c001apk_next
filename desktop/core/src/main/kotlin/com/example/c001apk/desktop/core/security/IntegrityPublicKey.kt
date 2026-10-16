@@ -9,6 +9,6 @@ package com.example.c001apk.desktop.core.security
  *
  * 不要把真实公钥提交进仓库：它是每个发行密钥独有的，由 CI 在构建时注入。
  */
-internal object IntegrityPublicKey {
+object IntegrityPublicKey {
     const val BASE64: String = ""
 }
