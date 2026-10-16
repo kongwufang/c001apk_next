@@ -102,9 +102,16 @@ jobs:
         run: .\gradlew.bat :app:compileKotlin --stacktrace
 
       # ─────────────── 打包 app-image ───────────────
+      # 任务名核对：Compose Desktop 1.6 用 createDistributable 生成 app-image
+      # （packageAppImage 不存在；packageDistributionForCurrentOS 会构建所有配置格式）
       - name: Package app image
         working-directory: desktop
-        run: .\gradlew.bat :app:packageAppImage --stacktrace
+        run: .\gradlew.bat :app:createDistributable --stacktrace
+
+      - name: List packaging tasks (on failure)
+        if: failure()
+        working-directory: desktop
+        run: .\gradlew.bat :app:tasks --all | Select-String -Pattern "package|distributable|runtime"
 
       # jpackage 的真实错误只写在 log 文件里，失败时务必打出来
       - name: Dump jpackage logs (on failure)
