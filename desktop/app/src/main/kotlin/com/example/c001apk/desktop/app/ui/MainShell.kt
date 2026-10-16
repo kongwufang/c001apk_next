@@ -2,12 +2,6 @@
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.example.c001apk.desktop.app.theme.ThemeState
 import com.example.c001apk.desktop.app.ui.detail.DetailScreen
 import com.example.c001apk.desktop.app.ui.home.HomeScreen
+import com.example.c001apk.desktop.app.ui.motion.m3Slide
 import com.example.c001apk.desktop.app.ui.mine.MineScreen
 import com.example.c001apk.desktop.core.net.Client
 import com.example.c001apk.desktop.core.net.Session
@@ -117,34 +112,22 @@ fun MainShell(
 
         Box(Modifier.fillMaxSize()) {
             // 详情页覆盖在 tab 之上。
-            // Android 端详情是**另起一个 Activity**，转场是整窗的水平推挤；
-            // 这里用 AnimatedContent 做等价效果（300ms、方向感一致）。
+            // Android 端详情是**另起一个 Activity**，默认档转场是整窗水平推挤
+            // （exp_slide_emph_300_*：300ms + emphasized_decelerate，两层各 100% 视口宽）。
             AnimatedContent(
                 targetState = openFeedId,
-                transitionSpec = {
-                    val forward = targetState != null
-                    val dir = if (forward) 1 else -1
-                    (slideInHorizontally(tween(300)) { w -> dir * w } +
-                        fadeIn(tween(220))) togetherWith
-                        (slideOutHorizontally(tween(300)) { w -> -dir * w / 4 } +
-                            fadeOut(tween(180)))
-                },
+                transitionSpec = { m3Slide(forward = targetState != null) },
                 label = "detailPager",
             ) { fid ->
                 if (fid != null) {
                     DetailScreen(client = client, feedId = fid, onBack = { openFeedId = null })
                 } else {
-                    // ViewPager2 等价：按方向滑入滑出
+                    // ViewPager2 等价。
+                    // 注：Android 端 tab 切换是 ViewPager2 的 smooth scroll，
+                    // 并非 window 级 Animation；这里用同一套 M3E 规格做等价观感。
                     AnimatedContent(
                         targetState = index,
-                        transitionSpec = {
-                            val forward = targetState > initialState
-                            val dir = if (forward) 1 else -1
-                            (slideInHorizontally(tween(300)) { w -> dir * w / 6 } +
-                                fadeIn(tween(220))) togetherWith
-                                (slideOutHorizontally(tween(300)) { w -> -dir * w / 6 } +
-                                    fadeOut(tween(180)))
-                        },
+                        transitionSpec = { m3Slide(forward = targetState > initialState) },
                         label = "viewPager",
                     ) { i ->
                         when (items[i]) {
