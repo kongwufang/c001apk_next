@@ -41,9 +41,11 @@ compose.desktop {
         // 窗口初始尺寸取「横屏」比例（对齐 Android 端 layout-land：左侧导航栏 + 宽内容区）
         // 具体窗口尺寸在 Main.kt 里设置（WindowState）。
         nativeDistributions {
+            // 目标格式：安装程序 exe（单文件安装器）+ msi（冗余备份，便于排查）
+            // 注意：Compose 插件的 packageDistributionForCurrentOS 会构建【全部】配置的格式。
             targetFormats(
-                TargetFormat.Msi,
                 TargetFormat.Exe,
+                TargetFormat.Msi,
             )
 
             packageName = "c001apk-desktop"

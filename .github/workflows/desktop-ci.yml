@@ -10,11 +10,6 @@ name: Desktop CI
 # 触发：推 debug2 分支，或手动 workflow_dispatch。
 on:
   workflow_dispatch:
-    inputs:
-      package:
-        description: '是否打包可执行产物（便携 zip / MSI）'
-        type: boolean
-        default: true
   push:
     branches: [ debug2 ]
     paths-ignore:
@@ -70,11 +65,34 @@ jobs:
         working-directory: desktop
         run: .\gradlew.bat :app:compileKotlin --stacktrace
 
-      # 便携版：jpackage app-image（内嵌精简 JRE，解压即用）
+      # 打包：先出便携 app-image（最稳），再出 exe 安装器
       - name: Package portable image
-        if: github.event_name != 'push' || github.event.inputs.package != 'false'
+        id: pkg_image
         working-directory: desktop
-        run: .\gradlew.bat :app:packageDistributionForCurrentOS --stacktrace
+        run: .\gradlew.bat :app:packageAppImage --stacktrace
+
+      # jpackage 的真实错误只写在 log 文件里，失败时务必打出来
+      - name: Dump jpackage logs (on failure)
+        if: failure()
+        working-directory: desktop
+        run: |
+          $root = "app\build\compose\logs"
+          if (Test-Path $root) {
+            Get-ChildItem $root -Recurse -File | ForEach-Object {
+              Write-Host "===== $($_.FullName) ====="
+              Get-Content $_.FullName -Raw
+              Write-Host ""
+            }
+          } else {
+            Write-Host "no jpackage logs at $root"
+          }
+          $tmp = "app\build\compose\tmp"
+          if (Test-Path $tmp) {
+            Get-ChildItem $tmp -File | ForEach-Object {
+              Write-Host "===== args: $($_.Name) ====="
+              Get-Content $_.FullName -Raw
+            }
+          }
 
       - name: Upload portable image
         if: always()
@@ -84,16 +102,29 @@ jobs:
           path: desktop/app/build/compose/binaries/main/app/**
           if-no-files-found: ignore
 
-      # MSI 安装包（windows-latest 预装 WiX）。失败不阻断，便于先跑通便携版
-      - name: Package MSI
+      # 单文件 exe 安装器
+      - name: Package EXE installer
+        id: pkg_exe
         continue-on-error: true
         working-directory: desktop
-        run: .\gradlew.bat :app:packageMsi --stacktrace
+        run: .\gradlew.bat :app:packageExe --stacktrace
 
-      - name: Upload MSI
+      - name: Dump jpackage logs (exe, on failure)
+        if: steps.pkg_exe.outcome == 'failure'
+        working-directory: desktop
+        run: |
+          $root = "app\build\compose\logs"
+          if (Test-Path $root) {
+            Get-ChildItem $root -Recurse -File | ForEach-Object {
+              Write-Host "===== $($_.FullName) ====="
+              Get-Content $_.FullName -Raw
+            }
+          }
+
+      - name: Upload EXE installer
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: c001apk-desktop-msi
-          path: desktop/app/build/compose/binaries/main/msi/**
+          name: c001apk-desktop-exe-installer
+          path: desktop/app/build/compose/binaries/main/exe/**
           if-no-files-found: ignore
