@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui.home
+﻿package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -249,7 +249,7 @@ private fun kindOf(type: String): EntryKind = when (type) {
  * 等横向滚动卡实现后再放开这个限制。
  */
 private fun flatten(data: List<JsonElement>, keepEntries: Boolean): List<FeedRow> {
-    val items = mutableListOf<FeedRow>()
+    val flat = mutableListOf<FeedRow>()
 
     fun isFeedEl(el: JsonElement): Boolean {
         val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return false
@@ -263,7 +263,7 @@ private fun flatten(data: List<JsonElement>, keepEntries: Boolean): List<FeedRow
         // 动态：不受入口配额限制，永远保留
         if (isFeedEl(el)) {
             runCatching { gson.fromJson(el, HomeEntity::class.java) }.getOrNull()
-                ?.let { items.add(FeedRow.Feed(it)) }
+                ?.let { flat.add(FeedRow.Feed(it)) }
             return
         }
         val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }.orEmpty()
@@ -288,7 +288,7 @@ private fun flatten(data: List<JsonElement>, keepEntries: Boolean): List<FeedRow
         // 入口条目
         val title = jsonString(el, "title") ?: return
         if (title.isBlank()) return
-        items.add(
+        flat.add(
             FeedRow.Entry(
                 type = type,
                 title = title,
@@ -305,13 +305,13 @@ private fun flatten(data: List<JsonElement>, keepEntries: Boolean): List<FeedRow
     // 逐项铺进纵向瀑布流会把真实动态挤出首屏。
     val out = mutableListOf<FeedRow>()
     var i = 0
-    while (i < items.size) {
-        val it0 = items[i]
+    while (i < flat.size) {
+        val it0 = flat[i]
         if (it0 is FeedRow.Entry && it0.type.isNotEmpty()) {
             val group = mutableListOf(it0)
             var j = i + 1
-            while (j < items.size && group.size < MAX_ENTRIES_PER_GROUP) {
-                val nxt = items[j]
+            while (j < flat.size && group.size < MAX_ENTRIES_PER_GROUP) {
+                val nxt = flat[j]
                 if (nxt is FeedRow.Entry && nxt.type == it0.type) {
                     group.add(nxt)
                     j++
@@ -329,9 +329,6 @@ private fun flatten(data: List<JsonElement>, keepEntries: Boolean): List<FeedRow
 
 /** 每个「同类入口组」最多打包几项；超出的入口直接丢弃（详见 [flatten] 说明） */
 private const val MAX_ENTRIES_PER_GROUP = 6
-
-/** 每个卡片区块最多保留几个入口项（避免入口淹没动态，详见 [flatten] 说明） */
-private const val MAX_ENTRIES_PER_GROUP = 4
 
 private val gson = Gson()
 
