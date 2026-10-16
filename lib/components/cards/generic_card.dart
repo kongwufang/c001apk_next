@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -31,6 +31,11 @@ import '../network_image.dart';
 /// 不必往模型里加字段发版。
 Widget genericCard(Datum data) {
   final template = data.entityTemplate;
+
+  // ★ 置顶内容卡官方**不走卡片体系**：它是话题/机型页专门写的一行式「置顶内容」，
+  //   卡片自身没有标题/说明/配图，所以要单独画（放在查规则表之前）。
+  if (template == _topContentTemplate) return _topContentCard(data);
+
   final layout = CardUi.layout(template, data.entities?.length ?? 0);
 
   // 规则表说这条模板不渲染（占 0 高度）
@@ -506,6 +511,97 @@ Widget _linkTabsCard(Datum data) {
             ),
           );
         },
+      ),
+    ),
+  );
+}
+
+// ─────────── 置顶内容卡（模板 `topContent`）───────────
+//
+// 照 Android `item_home_generic_card_top_content_row.xml` +
+// `GenericCardRenderer.renderTopContent`。
+//
+// 官方没走卡片体系，是话题/机型页专门写的一行式「置顶内容」：
+// **每行 = 18dp 图标（染主题色）+ 标签 + 标题 + 右侧箭头**，
+// 行内水平 12dp / 垂直 8dp，整行可点。
+//
+// ★ 三个要点：
+// 1. **卡片自身没有标题 / 说明 / 配图，也不是整卡可点** —— 要跳的目标在
+//    每条实体**自己的** url 上（这卡的实体 url 是 `/t/xxx`，卡片自己的 url 是 null）。
+//    所以别给出「会亮但点了没反应」的按压反馈。
+// 2. **官方的留白全在行里**（水平 12dp / 垂直 8dp），骨架自己的 12dp 要清掉，
+//    否则叠成 24dp。`_cardShell` 本身不带 padding，正好。
+// 3. `entityTypeName` 是标签（如「来点评」），官方排在**标题左边**、用**强调色**；
+//    没有就整块不留。logo 是单色底图，用 `ColorFiltered` 染成主题强调色
+//    （对应 Android 的 `android:tint="?attr/colorPrimary"`）。
+
+const String _topContentTemplate = 'topContent';
+
+Widget _topContentCard(Datum data) {
+  final entities = data.entities ?? const <Entity>[];
+  // 一条实体都没有 → 整卡不占位（Android：`binding.root.isVisible = entities.isNotEmpty()`）
+  if (entities.isEmpty) return const SizedBox.shrink();
+
+  return _cardShell(
+    child: Column(
+      children: [
+        for (final e in entities) _topContentRow(e),
+      ],
+    ),
+  );
+}
+
+Widget _topContentRow(Entity e) {
+  final colorScheme = Theme.of(Get.context!).colorScheme;
+  final logo = readField(e.raw, const ['logo']) ?? e.logo;
+  final tag = readField(e.raw, const ['entityTypeName']);
+  final title =
+      readField(e.raw, CardUi.chain(null, CardUi.defaultItemTitle)) ??
+          e.title.orEmpty;
+  final url = e.url;
+
+  return InkWell(
+    // 点这一行进**实体自己的** url
+    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url, title),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          if (!logo.isNullOrEmpty)
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: ColorFiltered(
+                // 对应 Android 的 android:tint="?attr/colorPrimary"
+                colorFilter: ColorFilter.mode(
+                  colorScheme.primary,
+                  BlendMode.srcIn,
+                ),
+                child: networkImageOf(logo!),
+              ),
+            ),
+          if (!tag.isNullOrEmpty) ...[
+            const SizedBox(width: 6),
+            Text(
+              tag!,
+              style: TextStyle(fontSize: 14, color: colorScheme.primary),
+            ),
+          ],
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
+            ),
+          ),
+          Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ],
       ),
     ),
   );
