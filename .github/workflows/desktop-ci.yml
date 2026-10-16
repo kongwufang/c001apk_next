@@ -134,7 +134,13 @@ jobs:
             }
           }
 
-      # ─────────────── 生成并签名完整性清单（放进应用镜像） ───────────────
+      # ─────────────── 生成并签名完整性清单（必须在上传便携版之前） ───────────────
+      # ⚠️ 两点经验（都实测踩过）：
+      #   1. 清单生成后若再有打包动作（packageExe），jpackage 会改写
+      #      app/.jpackage.xml 等元数据 → 哈希不符 → 自校验误报「被篡改」；
+      #      所以 portable artifact 的校验基准就是**此刻**的镜像。
+      #   2. 必须在上传 portable 之前生成，否则 artifact 里没有清单。
+      #   3. e 类构建期易变文件（.jpackage.xml、*.log）排除在清单之外。
       - name: Generate integrity manifest
         shell: pwsh
         env:
@@ -150,7 +156,9 @@ jobs:
           python desktop/tools/make_integrity.py `
             --app-dir "${{ env.APP_IMAGE_DIR }}" `
             --key $keyPem `
-            --out-kt "${{ env.PUBKEY_KT }}"
+            --out-kt "${{ env.PUBKEY_KT }}" `
+            --exclude "app/.jpackage.xml" `
+            --exclude "*.log"
 
       - name: Verify manifest before upload
         shell: pwsh

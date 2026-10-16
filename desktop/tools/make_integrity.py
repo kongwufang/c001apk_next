@@ -54,7 +54,17 @@ object IntegrityPublicKey {
 '''
 
 
-def walk_files(root):
+def walk_files(root, exclude=()):
+    """列出待哈希文件。
+
+    [exclude] 支持两类写法：
+      * 精确相对路径（如 ``app/.jpackage.xml``）
+      * 通配（如 ``*.log``）—— 只比对文件名
+
+    ``integrity.sig`` 自身永远排除（否则哈希无法自洽）。
+    """
+    excl_names = {e for e in exclude if "/" not in e}
+    excl_paths = {e for e in exclude if "/" in e}
     out = []
     for dp, _, fns in os.walk(root):
         for fn in fns:
@@ -62,7 +72,10 @@ def walk_files(root):
             if not os.path.isfile(p):
                 continue
             rel = os.path.relpath(p, root).replace("\\", "/")
-            if os.path.basename(rel) == MANIFEST_NAME:
+            base = os.path.basename(rel)
+            if base == MANIFEST_NAME:
+                continue
+            if rel in excl_paths or base in excl_names:
                 continue
             out.append((rel, p))
     out.sort(key=lambda x: x[0])
@@ -118,6 +131,11 @@ def main():
     ap.add_argument("--key", required=True, help="Ed25519 私钥 PEM（PKCS#8）")
     ap.add_argument("--out-kt", required=True, help="输出的 IntegrityPublicKey.kt 路径")
     ap.add_argument("--verify-only", action="store_true", help="只校验已有清单，不重新生成")
+    ap.add_argument(
+        "--exclude", action="append", default=[],
+        help="排除的文件（可多次）。精确相对路径或文件名通配，例如 "
+             "--exclude app/.jpackage.xml",
+    )
     a = ap.parse_args()
 
     if not os.path.isdir(a.app_dir):
@@ -135,7 +153,8 @@ def main():
     )
     pub_b64 = base64.b64encode(pub_der).decode("ascii")
 
-    files = walk_files(a.app_dir)
+    files = walk_files(a.app_dir, exclude=a.exclude)
+    print("待哈希文件：%d 个（排除 %s）" % (len(files), a.exclude or "无"))
     print("应用目录：%s" % a.app_dir)
     print("待哈希文件：%d 个" % len(files))
 
