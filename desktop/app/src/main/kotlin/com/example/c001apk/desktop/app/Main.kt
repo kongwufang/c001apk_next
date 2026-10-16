@@ -192,18 +192,19 @@ private fun resolveAppDir(): Path? {
     runCatching {
         object {}.javaClass.protectionDomain?.codeSource?.location?.let { src ->
             val p = Paths.get(src.toURI()).toAbsolutePath().normalize()
-            starts += if (p.toString().endsWith(".jar")) p.parent else p
+            starts.add(if (p.toString().endsWith(".jar")) p.parent else p)
         }
     }
 
     // jpackage launcher 的可执行文件位置
     System.getProperty("jpackage.app-path")?.takeIf { it.isNotBlank() }?.let {
         runCatching { Paths.get(it).toAbsolutePath().normalize().parent }.getOrNull()
-            ?.let { d -> starts += d }
+            ?.let { d -> starts.add(d) }
     }
 
     // 工作目录（兜底）
-    runCatching { Paths.get("").toAbsolutePath().normalize() }.getOrNull()?.let { starts += it }
+    runCatching { Paths.get("").toAbsolutePath().normalize() }.getOrNull()
+        ?.let { starts.add(it) }
 
     for (start in starts) {
         var d: Path? = start
