@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui.home
+﻿package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -368,14 +369,14 @@ private fun jsonString(el: JsonElement?, key: String): String? {
 @Composable
 private fun EntryGroupCard(row: FeedRow.EntryGroup) {
     when (kindOf(row.type)) {
-        // 「今日酷安」这类：整体是一张 369×123dp 的轮播图（含页码指示器）
+        // 对应 `item_home_icon_link_grid_card.xml`：
+        //   MaterialCardView（12dp 圆角）> ViewPager2（**每页 5 个**）+ CircleIndicator3
+        //   页码指示器：高 10dp、marginBottom 3dp、圆点 10×4dp
         EntryKind.Image -> AppCard {
             Box(Modifier.fillMaxWidth().height(123.dp)) {
-                // 轮播：多张时横向滚动
                 LazyRow(Modifier.fillMaxSize()) {
                     items(row.entries.size) { i -> ImageEntryTile(row.entries[i]) }
                 }
-                // 页码指示器：真机上「1/3」在右下角
                 if (row.entries.size > 1) {
                     Box(
                         Modifier
@@ -395,27 +396,80 @@ private fun EntryGroupCard(row: FeedRow.EntryGroup) {
             }
         }
 
-        // 「值得看 / 热闻 / 活动 …」：一行图标 + 文字，高 65dp，图标 36dp
+        // 对应 `item_home_icon_mini_scroll_card.xml` / `item_home_image_text_scroll_card.xml`：
+        //   MaterialCardView（12dp 圆角）> 横向 RecyclerView
+        //   item（`..._item.xml`）：
+        //     · iconMiniScrollCard 图标用 `circleImageStyle`（**50% 圆形**）
+        //     · title 13sp、`marginStart 5dp`
+        //     · 整个 item 是 wrap_content（图标 + 文字紧挨着，成为一枚「胶囊」）
+        //   横向间隔由 `LinearItemDecoration1(10.dp)` 提供
+        //
+        // ★ 之前我把每个入口渲染成「大图标 + 下方文字」的竖排瓦片，
+        //   与真机的「圆形小图标 + 右侧文字」横向胶囊完全不同 —— 这是用户
+        //   圈出来指正的地方（看起来像被拆开了）。
         EntryKind.IconGrid -> AppCard {
             LazyRow(
-                Modifier.fillMaxWidth().height(65.dp).padding(horizontal = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                items(row.entries.size) { i -> IconEntryTile(row.entries[i]) }
+                items(row.entries.size) { i -> CapsuleEntry(row.entries[i]) }
             }
         }
 
-        // 「一加13 / 数码 …」：商品/话题横向卡
         EntryKind.ListRow -> AppCard {
             LazyRow(
-                Modifier.fillMaxWidth().height(65.dp).padding(horizontal = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                items(row.entries.size) { i -> ListEntryTile(row.entries[i]) }
+                items(row.entries.size) { i -> CapsuleEntry(row.entries[i]) }
             }
         }
+    }
+}
+
+/**
+ * 横向胶囊入口 —— 复刻 `item_home_icon_mini_scroll_card_item.xml`：
+ * 圆形图标（`circleImageStyle` = 50%）+ 紧邻的 13sp 标题。
+ *
+ * 真实结构是 `wrap_content` 的一整块（图标与文字属于同一个 item），
+ * 所以这里也必须用一个 Row 把它们绑在一起 —— 不能各占一块。
+ */
+@Composable
+private fun CapsuleEntry(e: FeedRow.Entry) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(28.dp)
+                // iconMiniScrollCard 用 circleImageStyle：**50% 圆角 = 圆形**
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!e.pic.isNullOrBlank()) {
+                NetImage(
+                    url = e.pic,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape),
+                )
+            } else {
+                Text(
+                    e.title.take(1),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // title 的 marginStart = 5dp，textSize = 13sp
+        Spacer(Modifier.width(5.dp))
+        Text(
+            e.title,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -441,92 +495,4 @@ private fun ImageEntryTile(e: FeedRow.Entry) {
     }
 }
 
-/** 图标宫格入口瓦片（iconLink）—— 实测：图标 36dp、卡片高 65dp */
-@Composable
-private fun IconEntryTile(e: FeedRow.Entry) {
-    Column(
-        Modifier.width(64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            Modifier
-                // 实测 iconLinkGridCard 里的 ImageView 是 36×36dp
-                .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (!e.pic.isNullOrBlank()) {
-                NetImage(url = e.pic, modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
-            } else {
-                Text(
-                    e.title.take(1),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            e.title,
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/**
- * 列表型入口瓦片（product / topic …）。
- *
- * 实测：这类卡（`capsuleListCard` / `imageTextScrollCard`）也是 65dp 高的横向卡，
- * 单个瓦片宽度约 100dp（图标 + 标题 + 副标题），这里取 110dp 以容纳两行文字。
- */
-@Composable
-private fun ListEntryTile(e: FeedRow.Entry) {
-    Row(
-        Modifier.width(150.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (!e.pic.isNullOrBlank()) {
-                NetImage(url = e.pic, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)))
-            } else {
-                Text(
-                    e.title.take(1),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Spacer(Modifier.width(8.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                e.title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            e.subtitle?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    HtmlText.toPlainText(it),
-                    fontSize = 11.sp,
-                    color = DARKER_GRAY,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
 

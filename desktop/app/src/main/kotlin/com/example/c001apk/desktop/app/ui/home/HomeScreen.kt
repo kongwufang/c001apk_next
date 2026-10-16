@@ -1,4 +1,4 @@
-﻿package com.example.c001apk.desktop.app.ui.home
+package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -93,7 +93,14 @@ fun HomeScreen(
     onOpenFeed: (String) -> Unit = {},
 ) {
     var tabs by remember { mutableStateOf<List<String>>(emptyList()) }
-    var selected by remember { mutableStateOf(0) }
+    // ★ 默认选中「头条」，不是第 0 项。
+    // Android 端 `HomeFragment.initView()`：
+    //     if (enableList.contains("头条"))
+    //         binding.viewPager.setCurrentItem(enableList.indexOf("头条"), false)
+    // 之前我写成 0（= 关注），进应用落在「关注」上，与真机不符 —— 已修。
+    var selected by remember {
+        mutableStateOf(DEFAULT_TABS.indexOf(DEFAULT_TAB).coerceAtLeast(0))
+    }
     var unread by remember { mutableStateOf<Int?>(null) }
     var badgeCount by remember { mutableStateOf(0) }
 
