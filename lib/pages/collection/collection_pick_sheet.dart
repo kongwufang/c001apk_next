@@ -5,13 +5,15 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart' show DioMediaType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
+// ⚠️ get 经 get_connect 也导出了 `FormData` / `MultipartFile`（它自己那套），
+// 与 dio 的同名类冲突 —— 这里两个都 hide，用 dio 的。
+import 'package:get/get.dart' hide FormData, MultipartFile;
 import 'package:image_picker/image_picker.dart';
 
+import '../../components/network_image.dart';
 import '../../logic/model/collection/collection.dart';
 import '../../logic/network/network_repo.dart';
 import '../../utils/extensions.dart';
-import '../network_image.dart';
 
 /// 打开「收藏到」面板。
 ///
@@ -94,8 +96,11 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
   /// ★ 只发这一枪，**不再跟一次列表刷新** —— 响应里就把最新收藏数和本夹状态给全了，
   /// 面板按结果**就地改这一项的勾**。
   Future<void> _toggle(CollectionData item) async {
-    final id = item.id;
-    if (id.isNullOrEmpty) return;
+    // ⚠️ `id` 取成非空局部变量：`isNullOrEmpty` 是扩展 getter，
+    // Dart **不会**据此把 `String?` 提升成 `String`，直接用会报
+    // argument_type_not_assignable。
+    final id = item.id ?? '';
+    if (id.isEmpty) return;
     final collected = item.collected;
 
     setState(() => _loading = true);
