@@ -73,8 +73,8 @@ Widget htmlText(
   //
   // 命中则先做 HTML→md 预处理再转成 HTML，然后**复用下面这整条 HtmlWidget 管道** ——
   // 表情替换、图片点击、链接跳转、@ 提及等既有能力全部保留。
-  final isMd = MarkdownUtil.isMarkdown(html);
-  final source = isMd ? MarkdownUtil.toHtml(html) : html;
+  final isMd = isMarkdown(html);
+  final source = isMd ? toHtml(html) : html;
 
   String? htmlConvert;
   if (GStorage.showEmoji) {

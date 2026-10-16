@@ -1,5 +1,3 @@
-import 'package:markdown/markdown.dart' as md;
-
 /// Markdown 自动识别与预处理。
 ///
 /// 对应 Android `util/MarkdownUtils.kt`（245 行）。
@@ -23,7 +21,17 @@ import 'package:markdown/markdown.dart' as md;
 /// 这样表情替换、图片点击、链接跳转等既有能力全部保留，
 /// 不必再引一个富文本渲染库。表格与删除线是该包 `ExtensionSet.gitHubFlavored`
 /// 的内置扩展。
+///
+/// ## ⚠️ 顶层函数，不是类
+/// 这里全部是**顶层函数**（对应 Android 的 `object MarkdownUtils` 里的方法），
+/// 调用时直接用 `isMarkdown(x)` / `toHtml(x)`，**没有** `MarkdownUtil.` 前缀。
+///
+// ⚠️ `library;` 必须在**所有 import 之前** —— 放 import 之后会报
+//    `library_directive_not_first`（Windows 与 Android 会同时挂）。
+//    这个坑我在台账里记过一次，这次又踩了，特此加注。
 library;
+
+import 'package:markdown/markdown.dart' as md;
 
 // ---------------- 自动检测 ----------------
 
