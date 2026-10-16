@@ -1,4 +1,4 @@
-*.iml
+﻿*.iml
 .gradle
 /local.properties
 /.idea/caches
@@ -37,3 +37,16 @@ local.properties
 *.jks
 *.keystore
 /key.jks
+
+# ===== 交接文档：含明文凭据与内网信息，绝不入库 =====
+/CREDENTIALS.md
+/HANDOVER.md
+# ── 本地开发计划 / 交接文档（属于个人隐私，不进仓库）──
+DESKTOP_HANDOVER.md
+_rev/DESKTOP_HANDOVER.md
+# 开发资料（中文命名）：任何本地写下的进度/规格/计划都别进仓库
+设计规格_M3E.md
+开发进度与交接.md
+开发进度*.md
+设计规格*.md
+交接*.md
