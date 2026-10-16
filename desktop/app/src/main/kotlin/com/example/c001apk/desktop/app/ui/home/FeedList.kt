@@ -1,4 +1,4 @@
-﻿package com.example.c001apk.desktop.app.ui.home
+package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
@@ -98,18 +100,27 @@ fun FeedList(client: Client, tab: String) {
             }
         }.onSuccess {
             total = it.size
-            rows = flatten(it)
+            val keepEntries = tab == DEFAULT_TAB_VALUE
+            rows = flatten(it, keepEntries)
             val feeds = rows.count { r -> r is FeedRow.Feed }
-            println("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口 ${rows.size - feeds}）")
+            val groups = rows.count { r -> r is FeedRow.EntryGroup }
+            println("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口组 $groups）")
             runCatching {
                 val diag = StringBuilder()
-                diag.appendLine("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口 ${rows.size - feeds}）")
+                diag.appendLine(
+                    "[home] indexV8 原始 $total 项 → ${rows.size} 行" +
+                        "（动态 $feeds / 入口组 $groups，keepEntries=$keepEntries）"
+                )
                 rows.forEachIndexed { idx, r ->
                     when (r) {
                         is FeedRow.Feed -> diag.appendLine(
                             "  #$idx FEED  ${r.e.username} | msgLen=${r.e.message?.length ?: 0}"
                         )
                         is FeedRow.Entry -> diag.appendLine("  #$idx entry [${r.type}] ${r.title}")
+                        is FeedRow.EntryGroup -> diag.appendLine(
+                            "  #$idx GROUP [${r.type}] ×${r.entries.size} :: " +
+                                r.entries.joinToString(" / ") { e -> e.title }
+                        )
                     }
                 }
                 homeDiagLog().appendText(diag.toString())
@@ -154,13 +165,19 @@ fun FeedList(client: Client, tab: String) {
                 ) {
                     when (row) {
                         is FeedRow.Feed -> FeedCard(row.e)
-                        is FeedRow.Entry -> EntryCard(row)
+                        is FeedRow.EntryGroup -> EntryGroupCard(row)
+                        // flatten 现在只产出 EntryGroup（同类入口已打包成横向一行），
+                        // 单个 Entry 仍保留类型以便将来按类型细分渲染。
+                        is FeedRow.Entry -> EntryGroupCard(FeedRow.EntryGroup(row.type, listOf(row)))
                     }
                 }
             }
         }
     }
 }
+
+/** 默认选中的 tab（与 [com.example.c001apk.desktop.app.ui.home.DEFAULT_TAB] 一致） */
+private const val DEFAULT_TAB_VALUE = "头条"
 
 private val StaggeredGridSpanFull = StaggeredGridItemSpan.FullLine
 
@@ -178,7 +195,7 @@ sealed interface FeedRow {
     /** 真实动态 */
     data class Feed(val e: HomeEntity) : FeedRow
 
-    /** 入口 / 聚合条目。[type] 为服务端 entityType（image_1 / iconLink / product / topic …） */
+    /** 单个入口（一般会被打包进 [EntryGroup]） */
     data class Entry(
         val type: String,
         val title: String,
@@ -186,13 +203,22 @@ sealed interface FeedRow {
         val pic: String? = null,
     ) : FeedRow
 
+    /**
+     * 一组**同类**入口，渲染成一行横向滚动卡。
+     *
+     * 对应 Android 端的横向滚动卡（`iconMiniScrollCard` / `imageTextScrollCard` 等）：
+     * 多个入口共用**一个纵向位置**，横向滚动查看。这样入口不会把动态挤出首屏。
+     */
+    data class EntryGroup(val type: String, val entries: List<Entry>) : FeedRow
+
     fun keyPart(): String = when (this) {
         is Feed -> e.entityId ?: e.id ?: e.message?.take(16).orEmpty()
         is Entry -> "$type:$title"
+        is EntryGroup -> "group:$type:${entries.firstOrNull()?.title.orEmpty()}"
     }
 
-    /** 入口类整行跨列；动态按瀑布流走 */
-    fun spanFull(): Boolean = this is Entry
+    /** 入口组整行跨列；动态按双列瀑布流走 */
+    fun spanFull(): Boolean = this is EntryGroup
 }
 
 /**
@@ -210,38 +236,102 @@ private fun kindOf(type: String): EntryKind = when (type) {
     else -> EntryKind.ListRow
 }
 
-/** 把混合数组拍平成可渲染行（递归展开卡片信封，限 3 层） */
-private fun flatten(data: List<JsonElement>): List<FeedRow> {
-    val out = mutableListOf<FeedRow>()
+/**
+ * 把混合数组拍平成可渲染行（递归展开卡片信封，限 3 层）。
+ *
+ * ## 为什么给入口设配额（重要）
+ * Android 端这些入口是**横向滚动卡**（`iconMiniScrollCard` / `imageTextScrollCard` /
+ * `capsuleListCard` 等），一屏只占一行高度、内容横向滚动，所以不挤占纵向空间。
+ * 桌面端目前还没有横向滚动卡，若照样把 33 个入口铺进纵向瀑布流，
+ * 首屏会被入口标题占满、真实动态全被推到屏幕外
+ * （实测诊断：59 行里 #0–#32 全是入口，动态从 #33 才开始，而首屏只放得下约 34 个位置）。
+ * 故每个卡片区块最多收 [MAX_ENTRIES_PER_GROUP] 个入口，先把动态露出来；
+ * 等横向滚动卡实现后再放开这个限制。
+ */
+private fun flatten(data: List<JsonElement>, keepEntries: Boolean): List<FeedRow> {
+    val items = mutableListOf<FeedRow>()
+
+    fun isFeedEl(el: JsonElement): Boolean {
+        val o = el.takeIf { it.isJsonObject }?.asJsonObject ?: return false
+        val t = o.get("entityType")?.takeIf { it.isJsonPrimitive }?.asString
+        return t == "feed" || o.has("message")
+    }
 
     fun emit(el: JsonElement, depth: Int) {
         val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return
-        val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }.orEmpty()
 
-        // 动态
-        if (type == "feed" || obj.has("message")) {
+        // 动态：不受入口配额限制，永远保留
+        if (isFeedEl(el)) {
             runCatching { gson.fromJson(el, HomeEntity::class.java) }.getOrNull()
-                ?.let { out.add(FeedRow.Feed(it)) }
+                ?.let { items.add(FeedRow.Feed(it)) }
             return
         }
-        // 卡片信封：展开
+        val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }.orEmpty()
+
+        // 卡片信封：展开，并限制该卡的入口数
         if (depth < 3) {
             val inner = obj.getAsJsonArray("entities")
             if (inner != null && inner.size() > 0) {
-                inner.forEach { emit(it, depth + 1) }
+                var taken = 0
+                for (i in 0 until inner.size()) {
+                    val child = inner.get(i)
+                    if (isFeedEl(child)) {
+                        emit(child, depth + 1)
+                    } else if (taken < MAX_ENTRIES_PER_GROUP) {
+                        emit(child, depth + 1)
+                        taken++
+                    }
+                }
                 return
             }
         }
-        // 其它：入口条目。[type] 保留服务端原始 entityType，用于诊断与后续按类型细分
+        // 入口条目
         val title = jsonString(el, "title") ?: return
         if (title.isBlank()) return
-        val sub = jsonString(el, "description") ?: jsonString(el, "subTitle")
-        out.add(FeedRow.Entry(type = type, title = title, subtitle = sub, pic = jsonString(el, "pic")))
+        items.add(
+            FeedRow.Entry(
+                type = type,
+                title = title,
+                subtitle = jsonString(el, "description") ?: jsonString(el, "subTitle"),
+                pic = jsonString(el, "pic"),
+            )
+        )
     }
 
     data.forEach { emit(it, 0) }
+
+    // ── 后处理：把连续的同类入口打包成【一行横向滚动】 ──
+    // Android 端这些正是横向滚动卡（一次只占一个纵向位置），
+    // 逐项铺进纵向瀑布流会把真实动态挤出首屏。
+    val out = mutableListOf<FeedRow>()
+    var i = 0
+    while (i < items.size) {
+        val it0 = items[i]
+        if (it0 is FeedRow.Entry && it0.type.isNotEmpty()) {
+            val group = mutableListOf(it0)
+            var j = i + 1
+            while (j < items.size && group.size < MAX_ENTRIES_PER_GROUP) {
+                val nxt = items[j]
+                if (nxt is FeedRow.Entry && nxt.type == it0.type) {
+                    group.add(nxt)
+                    j++
+                } else break
+            }
+            out.add(FeedRow.EntryGroup(it0.type, group))
+            i = j
+        } else {
+            out.add(it0)
+            i++
+        }
+    }
     return out
 }
+
+/** 每个「同类入口组」最多打包几项；超出的入口直接丢弃（详见 [flatten] 说明） */
+private const val MAX_ENTRIES_PER_GROUP = 6
+
+/** 每个卡片区块最多保留几个入口项（避免入口淹没动态，详见 [flatten] 说明） */
+private const val MAX_ENTRIES_PER_GROUP = 4
 
 private val gson = Gson()
 
@@ -366,115 +456,149 @@ private fun FeedCard(e: HomeEntity) {
     }
 }
 
-/** 入口卡片：按类型给不同形态 */
-@Composable
-private fun EntryCard(row: FeedRow.Entry) {
-    when (kindOf(row.type)) {
-        EntryKind.Image -> ImageEntryCard(row)
-        EntryKind.IconGrid -> IconGridEntryCard(row)
-        EntryKind.ListRow -> ListEntryCard(row)
-    }
-}
-
-/** 大图入口（image_1 / imageScaleCard）：偏高的横幅，用于「今日酷安」「首页轮播」 */
-@Composable
-private fun ImageEntryCard(row: FeedRow.Entry) {
-    AppCard {
-        Column {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(92.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    row.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
-            row.subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(
-                    HtmlText.toPlainText(it),
-                    fontSize = 13.sp,
-                    color = DARKER_GRAY,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(10.dp),
-                )
-            }
-        }
-    }
-}
-
 /**
- * 图标宫格入口（iconLink）：Android 端是横向滚动的图标 + 标题。
- * 桌面端整行跨列，横向排列，超出宽度由外层滚动承载。
+ * 同类入口组 —— 渲染成**一行横向滚动卡**，对应 Android 端的
+ * `iconMiniScrollCard` / `imageTextScrollCard` / `capsuleListCard` 等：
+ * 多个入口共用同一个纵向位置，超出宽度横向滚动。
+ *
+ * 这是「入口不挤占动态」的关键：入口组只吃掉一个纵向位置，
+ * 而不是每个入口各占一行。
  */
 @Composable
-private fun IconGridEntryCard(row: FeedRow.Entry) {
-    AppCard {
-        Column(Modifier.padding(12.dp)) {
-            Text(row.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            row.subtitle?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    HtmlText.toPlainText(it),
-                    fontSize = 13.sp,
-                    color = DARKER_GRAY,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+private fun EntryGroupCard(row: FeedRow.EntryGroup) {
+    when (kindOf(row.type)) {
+        EntryKind.Image -> AppCard {
+            LazyRow(
+                Modifier.fillMaxWidth().padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(row.entries.size) { i -> ImageEntryTile(row.entries[i]) }
+            }
+        }
+
+        EntryKind.IconGrid -> AppCard {
+            LazyRow(
+                Modifier.fillMaxWidth().padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(row.entries.size) { i -> IconEntryTile(row.entries[i]) }
+            }
+        }
+
+        EntryKind.ListRow -> AppCard {
+            LazyRow(
+                Modifier.fillMaxWidth().padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(row.entries.size) { i -> ListEntryTile(row.entries[i]) }
             }
         }
     }
 }
 
-/** 普通列表入口（product / topic …） */
+/** 大图入口瓦片（image_1 / imageScaleCard） */
 @Composable
-private fun ListEntryCard(row: FeedRow.Entry) {
-    AppCard {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .width(44.dp)
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    row.title.take(1),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    row.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                row.subtitle?.takeIf { it.isNotBlank() }?.let {
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        HtmlText.toPlainText(it),
-                        fontSize = 13.sp,
-                        color = DARKER_GRAY,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+private fun ImageEntryTile(e: FeedRow.Entry) {
+    Column(Modifier.width(220.dp)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(88.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                e.title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 12.dp),
+            )
+        }
+        e.subtitle?.takeIf { it.isNotBlank() }?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                HtmlText.toPlainText(it),
+                fontSize = 12.sp,
+                color = DARKER_GRAY,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** 图标宫格入口瓦片（iconLink） */
+@Composable
+private fun IconEntryTile(e: FeedRow.Entry) {
+    Column(
+        Modifier.width(84.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .width(42.dp)
+                .height(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                e.title.take(1),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            e.title,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** 列表型入口瓦片（product / topic …） */
+@Composable
+private fun ListEntryTile(e: FeedRow.Entry) {
+    Column(Modifier.width(150.dp)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                e.title.take(1),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            e.title,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        e.subtitle?.takeIf { it.isNotBlank() }?.let {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                HtmlText.toPlainText(it),
+                fontSize = 12.sp,
+                color = DARKER_GRAY,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
