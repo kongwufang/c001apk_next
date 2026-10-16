@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -400,11 +400,17 @@ class OfflineCacheRepo {
 Future<String?> downloadToFile(String url, File target) async {
   try {
     if (target.existsSync()) return target.path;
-    final res = await Request().get<List<int>>(
+    // ⚠️ `Request.get` **没有泛型参数**（签名是 `Future<Response<dynamic>>`），
+    // 不能写 `Request().get<List<int>>` —— 报「Expected 0 type arguments」。
+    // 用 `ResponseType.bytes` 让它回字节流，再自己转。
+    final res = await Request().get(
       url,
       options: Options(responseType: ResponseType.bytes),
     );
-    final bytes = res.data;
+    final raw = res.data;
+    final bytes = raw is List<int>
+        ? raw
+        : (raw is List ? raw.cast<int>() : null);
     if (bytes == null || bytes.isEmpty) return null;
     await target.create(recursive: true);
     await target.writeAsBytes(bytes, flush: true);

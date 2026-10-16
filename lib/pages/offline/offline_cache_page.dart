@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
@@ -148,7 +148,7 @@ class _OfflineCachePageState extends State<OfflineCachePage> {
     // （Android `OfflineCacheAdapter` 的 buildString）
     final info = StringBuffer();
     if (item.dateline > 0) {
-      info.write(DateUtils.fromToday(item.dateline));
+      info.write(DateUtil.fromToday(item.dateline));
     }
     if (item.savedReplyCount > 0) {
       if (info.isNotEmpty) info.write(' · ');
@@ -156,7 +156,7 @@ class _OfflineCachePageState extends State<OfflineCachePage> {
     }
     if (info.isNotEmpty) info.write(' · ');
     // savedAt 是本机毫秒，喂给 fromToday 前要换算成秒
-    info.write('离线于${DateUtils.fromToday(item.savedAt ~/ 1000)}');
+    info.write('离线于${DateUtil.fromToday(item.savedAt ~/ 1000)}');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),

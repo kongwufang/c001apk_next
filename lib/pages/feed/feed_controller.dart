@@ -62,10 +62,10 @@ class FeedController extends CommonController {
   Future<LoadingState> customGetData() async {
     if (offline) {
       final entity = OfflineCacheRepo.get(id);
-      if (entity == null) return const LoadingState.error('这条动态没有离线存档');
+      if (entity == null) return LoadingState.error('这条动态没有离线存档');
       // ★ 存档就这么多：第二页直接给 Empty，让 `onGetData` 收敛到 `isEnd = true`
       //   （Success 会被当成还有下一页，于是无限翻页）
-      if (page > 1) return const LoadingState.empty();
+      if (page > 1) return LoadingState.empty();
       return Success(OfflineCacheRepo.replyListOf(entity));
     }
     return NetworkRepo.getFeedReply(
@@ -136,9 +136,9 @@ class FeedController extends CommonController {
   /// 详情页走的渲染路径与在线完全一致（图片已经是本地 `file://` 地址）。
   LoadingState<dynamic> _offlineFeedState() {
     final entity = OfflineCacheRepo.get(id);
-    if (entity == null) return const LoadingState.error('这条动态没有离线存档');
+    if (entity == null) return LoadingState.error('这条动态没有离线存档');
     final data = OfflineCacheRepo.feedDataOf(entity);
-    if (data == null) return const LoadingState.error('离线存档已损坏');
+    if (data == null) return LoadingState.error('离线存档已损坏');
     return Success(data);
   }
 
