@@ -20,6 +20,10 @@ class GStorage {
   static late final Box<dynamic> blackList;
   static late final Box<dynamic> settings;
 
+  /// 离线缓存存档。对应 Android 的 Room `OfflineCacheDatabase`，
+  /// 一条存档 = 一个 Map，按帖子 id（`fid`）作 key。
+  static late final Box<dynamic> offlineCache;
+
   static ThemeMode getThemeMode() {
     switch (settings.get(SettingsBoxKey.selectedTheme, defaultValue: 0)) {
       case 0:
@@ -128,6 +132,9 @@ class GStorage {
     favFeed = await Hive.openBox('favFeed');
     blackList = await Hive.openBox('blackList');
     settings = await Hive.openBox('settings');
+    // 离线缓存（对应 Android 的 Room `OfflineCacheDatabase`）：
+    // 一条存档存成一个 Map，按帖子 id 作 key。
+    offlineCache = await Hive.openBox('offlineCache');
 
     if (installTime.isEmpty) {
       setInstallTime(DateTime.now().millisecondsSinceEpoch.toString());
