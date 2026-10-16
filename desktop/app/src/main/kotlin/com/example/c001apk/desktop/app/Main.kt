@@ -88,6 +88,13 @@ import javax.swing.JOptionPane
  * ```
  */
 fun main(args: Array<String>) {
+    println(
+        "[startup] renderApi=${System.getProperty("skiko.renderApi") ?: "(default)"}" +
+            " hwAccel=${System.getProperty("skiko.awt.hardwareAcceleration") ?: "(default)"}" +
+            " env=${System.getenv("SKIKO_RENDER_API") ?: "-"}" +
+            " java=${System.getProperty("java.version")}" +
+            " os=${System.getProperty("os.name")}"
+    )
     checkIntegrityOrExit(args)
 
     application {
