@@ -1,4 +1,4 @@
-// ignore_for_file: constant_identifier_names
+﻿// ignore_for_file: constant_identifier_names
 
 import 'dart:async';
 
@@ -13,21 +13,44 @@ import '../../utils/extensions.dart';
 
 enum SearchContentType { FEED, APP, GAME, TOPIC, PRODUCT, USER }
 
-enum SearchMenuType { Type, Sort }
+enum SearchMenuType {
+  Type('类型'),
+  Sort('排序');
 
-enum SearchType {
-  ALL,
-  FEED,
-  ARTICLE,
-  COOLPIC,
-  COMMENT,
-  RATING,
-  ANSWER,
-  QUESTION,
-  VOTE,
+  const SearchMenuType(this.label);
+  final String label;
 }
 
-enum SearchSortType { DATELINE, DEFAULT, HOT, REPLY, STRICT }
+/// 搜索内容类型。
+///
+/// ⚠️ 这些 label 会**直接显示在搜索类型菜单里**（原来用 `.name`，界面上是英文）。
+/// 中文出处：Android `res/values/strings.xml` 的 `search_type_*` 一族。
+enum SearchType {
+  ALL('综合'),
+  FEED('动态'),
+  ARTICLE('文章'),
+  COOLPIC('酷图'),
+  COMMENT('评论'),
+  RATING('点评'),
+  ANSWER('回答'),
+  QUESTION('提问'),
+  VOTE('投票');
+
+  const SearchType(this.label);
+  final String label;
+}
+
+/// 搜索排序方式
+enum SearchSortType {
+  DATELINE('最新'),
+  DEFAULT('默认'),
+  HOT('热门'),
+  REPLY('回复'),
+  STRICT('严格');
+
+  const SearchSortType(this.label);
+  final String label;
+}
 
 class SearchResultPage extends StatefulWidget {
   const SearchResultPage({super.key});
@@ -130,7 +153,7 @@ class _SearchResultPageState extends State<SearchResultPage>
                                 children: [
                                   Expanded(
                                     flex: 1,
-                                    child: Text(item.name),
+                                    child: Text(item.label),
                                   ),
                                   const Icon(Icons.arrow_right)
                                 ],
@@ -204,10 +227,10 @@ class _SearchResultPageState extends State<SearchResultPage>
           RelativeRect.fromLTRB(screenSize.width, 0, 0, screenSize.height),
       items: isSearchType
           ? SearchType.values
-              .map((type) => PopupMenuItem(value: type, child: Text(type.name)))
+              .map((type) => PopupMenuItem(value: type, child: Text(type.label)))
               .toList()
           : SearchSortType.values
-              .map((type) => PopupMenuItem(value: type, child: Text(type.name)))
+              .map((type) => PopupMenuItem(value: type, child: Text(type.label)))
               .toList(),
       elevation: 8.0,
     ).then((value) {

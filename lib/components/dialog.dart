@@ -28,7 +28,7 @@ class _SliderDialogState extends State<SliderDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Center(child: Text('Font Scale')),
+      title: const Center(child: Text('字体调节')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -51,14 +51,14 @@ class _SliderDialogState extends State<SliderDialog> {
             widget.setData(1.00);
             Get.back();
           },
-          child: const Text('Reset'),
+          child: const Text('重置'),
         ),
         TextButton(
           onPressed: () {
             widget.setData(_fontScale);
             Get.back();
           },
-          child: const Text('OK'),
+          child: const Text('确定'),
         ),
       ],
     );
@@ -108,14 +108,14 @@ class EditTextDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Get.back(),
-          child: const Text('Cancel'),
+          child: const Text('取消'),
         ),
         TextButton(
           onPressed: () {
             setData(controller.text);
             Get.back();
           },
-          child: const Text('OK'),
+          child: const Text('确定'),
         ),
       ],
     );
@@ -158,7 +158,7 @@ class MAboutDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          child: const Text('View license'),
+          child: const Text('查看许可'),
           onPressed: () {
             showLicensePage(
               context: context,
@@ -169,7 +169,7 @@ class MAboutDialog extends StatelessWidget {
           },
         ),
         TextButton(
-          child: const Text('Close'),
+          child: const Text('关闭'),
           onPressed: () => Get.back(),
         ),
       ],

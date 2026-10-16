@@ -32,8 +32,18 @@ import '../../utils/utils.dart';
 
 enum PanelType { none, keyboard, emoji }
 
-// ignore: constant_identifier_names
-enum ChatMenuType { Check, Block, Report }
+/// 聊天/私信菜单。
+///
+/// label 直接显示在菜单里（原来用 `.name`，界面上是英文 Copy/Block/Report 那种）。
+/// 中文出处：Android `res/values/strings.xml` 的 `block` / `report`。
+enum ChatMenuType {
+  Check('查看'),
+  Block('加入黑名单'), // block
+  Report('举报'); // report
+
+  const ChatMenuType(this.label);
+  final String label;
+}
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -113,7 +123,7 @@ class _ChatPageState extends State<ChatPage> {
               },
               itemBuilder: (context) => ChatMenuType.values
                   .map((item) =>
-                      PopupMenuItem(value: item, child: Text(item.name)))
+                      PopupMenuItem(value: item, child: Text(item.label)))
                   .toList())
         ],
       ),

@@ -226,7 +226,7 @@ class _BlackListPageState extends State<BlackListPage> {
                 ),
               )
             : const Center(
-                child: Text('EMPTY'),
+                child: Text('暂无内容'),
               ),
       ),
     );

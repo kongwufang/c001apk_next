@@ -10,7 +10,7 @@ Widget footerWidget(LoadingState footerState, Function() onReload) {
         height: 80,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(10.0),
-        child: const Text('END'),
+        child: const Text('没有更多了'),
       );
     case Error():
       return GestureDetector(

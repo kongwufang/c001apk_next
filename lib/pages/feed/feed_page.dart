@@ -26,7 +26,16 @@ import '../../utils/utils.dart';
 import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
-enum FeedMenuItem { Copy, Share, Fav, Block, Report }
+enum FeedMenuItem {
+  Copy('复制'),       // copyText
+  Share('分享'),      // share
+  Fav('收藏'),        // favorite
+  Block('加入黑名单'), // block
+  Report('举报');     // report
+
+  const FeedMenuItem(this.label);
+  final String label;
+}
 
 enum ReplySortType { def, dateline, hot, author }
 
@@ -528,15 +537,15 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                                 value: item,
                                 child: item == FeedMenuItem.Fav
                                     ? Text(
-                                        _feedController.isFav ? 'UnFav' : 'Fav',
+                                        _feedController.isFav ? '取消收藏' : '收藏',
                                       )
                                     : item == FeedMenuItem.Block
                                         ? Text(
                                             _feedController.isBlocked
-                                                ? 'Unblock'
-                                                : 'Block',
+                                                ? '取消屏蔽'
+                                                : '加入黑名单',
                                           )
-                                        : Text(item.name),
+                                        : Text(item.label),
                               ))
                           .toList(),
                     )

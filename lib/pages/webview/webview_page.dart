@@ -13,7 +13,16 @@ import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
 
 // ignore: constant_identifier_names
-enum WebviewMenuItem { Refresh, Copy, Open_In_Browser, Clear_Cache, Go_Back }
+enum WebviewMenuItem {
+  Refresh('刷新'),              // refresh
+  Copy('复制'),                 // copyText
+  Open_In_Browser('在浏览器打开'),
+  Clear_Cache('清除缓存'),
+  Go_Back('返回');
+
+  const WebviewMenuItem(this.label);
+  final String label;
+}
 
 class WebviewPage extends StatefulWidget {
   const WebviewPage({super.key});
@@ -140,7 +149,7 @@ class _WebviewPageState extends State<WebviewPage> {
             },
             itemBuilder: (context) => <PopupMenuEntry<WebviewMenuItem>>[
               ...WebviewMenuItem.values.sublist(0, 4).map(
-                  (item) => PopupMenuItem(value: item, child: Text(item.name))),
+                  (item) => PopupMenuItem(value: item, child: Text(item.label))),
               const PopupMenuDivider(),
               PopupMenuItem(
                   value: WebviewMenuItem.Go_Back,

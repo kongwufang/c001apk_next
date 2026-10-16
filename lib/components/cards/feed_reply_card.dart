@@ -481,13 +481,13 @@ class _MorePanel extends StatelessWidget {
               minLeadingWidth: 0,
               leading: const Icon(Icons.copy, size: 19),
               title:
-                  Text('Copy', style: Theme.of(context).textTheme.titleSmall),
+                  Text('复制', style: Theme.of(context).textTheme.titleSmall),
             ),
           ListTile(
             onTap: () async => await menuActionHandler(PanelAction.block),
             minLeadingWidth: 0,
             leading: const Icon(Icons.block, size: 19),
-            title: Text('Block', style: Theme.of(context).textTheme.titleSmall),
+            title: Text('加入黑名单', style: Theme.of(context).textTheme.titleSmall),
           ),
           if (uid.toString() == GlobalData().uid)
             ListTile(
@@ -495,7 +495,7 @@ class _MorePanel extends StatelessWidget {
               minLeadingWidth: 0,
               leading: const Icon(Icons.delete_outline, size: 19),
               title:
-                  Text('Delete', style: Theme.of(context).textTheme.titleSmall),
+                  Text('删除', style: Theme.of(context).textTheme.titleSmall),
             ),
           if (Utils.isSupportWebview())
             ListTile(
@@ -503,14 +503,14 @@ class _MorePanel extends StatelessWidget {
               minLeadingWidth: 0,
               leading: const Icon(Icons.error_outline, size: 19),
               title:
-                  Text('Report', style: Theme.of(context).textTheme.titleSmall),
+                  Text('举报', style: Theme.of(context).textTheme.titleSmall),
             ),
           ListTile(
             onTap: () async => await menuActionHandler(PanelAction.showReply,
                 context: context, rid: id, frid: fid),
             minLeadingWidth: 0,
             leading: const Icon(Icons.message_outlined, size: 19),
-            title: Text('Show Reply',
+            title: Text('查看评论',
                 style: Theme.of(context).textTheme.titleSmall),
           ),
         ],

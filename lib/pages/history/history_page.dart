@@ -5,7 +5,13 @@ import '../../components/cards/feed_card.dart';
 import '../../pages/history/history_controller.dart';
 
 // ignore: constant_identifier_names
-enum HistoryType { Favorite, History }
+enum HistoryType {
+  Favorite('收藏'),   // favorite
+  History('浏览历史'); // history
+
+  const HistoryType(this.label);
+  final String label;
+}
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -19,13 +25,13 @@ class _HistoryPageState extends State<HistoryPage> {
 
   late final _controller = Get.put(
     HistoryController(type: _type),
-    tag: _type.name,
+    tag: _type.label,
   );
 
   @override
   void dispose() {
     Get.delete<HistoryController>(
-      tag: _type.name,
+      tag: _type.label,
     );
     super.dispose();
   }
@@ -35,7 +41,7 @@ class _HistoryPageState extends State<HistoryPage> {
     return Obx(
       () => Scaffold(
         appBar: AppBar(
-          title: Text(_type.name),
+          title: Text(_type.label),
           actions: _controller.dataList.isNotEmpty
               ? [
                   IconButton(

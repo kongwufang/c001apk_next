@@ -24,13 +24,35 @@ class SettingsPage extends StatefulWidget {
 }
 
 // ignore: constant_identifier_names
-enum SettingsMenuItem { Feedback, About }
+enum SettingsMenuItem {
+  Feedback('反馈'), // feedback
+  About('关于');    // about
+
+  const SettingsMenuItem(this.label);
+  final String label;
+}
 
 // ignore: constant_identifier_names
-enum FollowType { ALL, USER, TOPIC, PRODUCT, APP }
+enum FollowType {
+  ALL('全部'), // type_all
+  USER('用户'),
+  TOPIC('话题'),
+  PRODUCT('商品'),
+  APP('应用');
+
+  const FollowType(this.label);
+  final String label;
+}
 
 // ignore: constant_identifier_names
-enum ImageQuality { AUTO, ORIGIN, THUMBNAIL }
+enum ImageQuality {
+  AUTO('自动'),
+  ORIGIN('原图'),
+  THUMBNAIL('缩略图');
+
+  const ImageQuality(this.label);
+  final String label;
+}
 
 class _SettingsPageState extends State<SettingsPage>
     with AutomaticKeepAliveClientMixin {
@@ -83,7 +105,7 @@ class _SettingsPageState extends State<SettingsPage>
             itemBuilder: (context) => SettingsMenuItem.values
                 .map((item) => PopupMenuItem<SettingsMenuItem>(
                       value: item,
-                      child: Text(item.name),
+                      child: Text(item.label),
                     ))
                 .toList(),
           )
@@ -236,7 +258,7 @@ class _SettingsPageState extends State<SettingsPage>
             items: FollowType.values
                 .map((type) => DropdownMenuItem<int>(
                       value: FollowType.values.indexOf(type),
-                      child: Text(type.name),
+                      child: Text(type.label),
                     ))
                 .toList(),
           ),
@@ -248,7 +270,7 @@ class _SettingsPageState extends State<SettingsPage>
             items: ImageQuality.values
                 .map((type) => DropdownMenuItem<int>(
                       value: ImageQuality.values.indexOf(type),
-                      child: Text(type.name),
+                      child: Text(type.label),
                     ))
                 .toList(),
           ),

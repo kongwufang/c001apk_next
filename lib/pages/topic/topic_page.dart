@@ -17,7 +17,16 @@ import '../../utils/utils.dart';
 import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
-enum TopicMenuItem { Copy, Share, Sort, Follow, Block }
+enum TopicMenuItem {
+  Copy('复制'),       // copyText
+  Share('分享'),      // share
+  Sort('排序'),
+  Follow('关注'),     // follow
+  Block('加入黑名单'); // block
+
+  const TopicMenuItem(this.label);
+  final String label;
+}
 
 // ignore: constant_identifier_names
 enum TopicSortType { DEFAULT, DATELINE, HOT }
@@ -266,11 +275,11 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         value: TopicMenuItem.Copy,
-                        child: Text(TopicMenuItem.Copy.name),
+                        child: Text(TopicMenuItem.Copy.label),
                       ),
                       PopupMenuItem(
                         value: TopicMenuItem.Share,
-                        child: Text(TopicMenuItem.Share.name),
+                        child: Text(TopicMenuItem.Share.label),
                       ),
                       if (_shouldShowActions)
                         PopupMenuItem(
@@ -279,7 +288,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                             children: [
                               Expanded(
                                 flex: 1,
-                                child: Text(TopicMenuItem.Sort.name),
+                                child: Text(TopicMenuItem.Sort.label),
                               ),
                               const Icon(Icons.arrow_right)
                             ],
@@ -334,7 +343,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
       position:
           RelativeRect.fromLTRB(screenSize.width, 0, 0, screenSize.height),
       items: TopicSortType.values
-          .map((type) => PopupMenuItem(value: type, child: Text(type.name)))
+          .map((type) => PopupMenuItem(value: type, child: Text(type.label)))
           .toList(),
       elevation: 8.0,
     ).then((value) {

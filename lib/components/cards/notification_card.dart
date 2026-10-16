@@ -220,13 +220,13 @@ class _MorePanel extends StatelessWidget {
             minLeadingWidth: 0,
             leading: const Icon(Icons.delete_outline, size: 19),
             title:
-                Text('Delete', style: Theme.of(context).textTheme.titleSmall),
+                Text('删除', style: Theme.of(context).textTheme.titleSmall),
           ),
           ListTile(
             onTap: () async => await menuActionHandler(PanelAction.block),
             minLeadingWidth: 0,
             leading: const Icon(Icons.block, size: 19),
-            title: Text('Block', style: Theme.of(context).textTheme.titleSmall),
+            title: Text('加入黑名单', style: Theme.of(context).textTheme.titleSmall),
           ),
           if (Utils.isSupportWebview())
             ListTile(
@@ -234,7 +234,7 @@ class _MorePanel extends StatelessWidget {
               minLeadingWidth: 0,
               leading: const Icon(Icons.error_outline, size: 19),
               title:
-                  Text('Report', style: Theme.of(context).textTheme.titleSmall),
+                  Text('举报', style: Theme.of(context).textTheme.titleSmall),
             ),
         ],
       ),

@@ -21,7 +21,15 @@ import '../feed/reply/reply_page.dart';
 import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
-enum AppMenuItem { Copy, Share, Follow, Block }
+enum AppMenuItem {
+  Copy('复制'),      // copyText
+  Share('分享'),     // share
+  Follow('关注'),    // follow
+  Block('加入黑名单'); // block
+
+  const AppMenuItem(this.label);
+  final String label;
+}
 
 enum AppType { reply, dateline, hot }
 
@@ -70,7 +78,7 @@ class _AppPageState extends State<AppPage> with TickerProviderStateMixin {
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.all(10.0),
-            child: const Text('EMPTY'),
+            child: const Text('暂无内容'),
           ),
         );
       case Error():
@@ -235,13 +243,13 @@ class _AppPageState extends State<AppPage> with TickerProviderStateMixin {
                                       child: Text(
                                         item == AppMenuItem.Block
                                             ? (controller.isBlocked
-                                                ? 'UnBlock'
-                                                : 'Block')
+                                                ? '取消屏蔽'
+                                                : AppMenuItem.Block.label)
                                             : item == AppMenuItem.Follow
                                                 ? (controller.isFollow
-                                                    ? 'UnFollow'
-                                                    : 'Follow')
-                                                : item.name,
+                                                    ? '取消关注'
+                                                    : AppMenuItem.Follow.label)
+                                                : item.label,
                                       ),
                                     ))
                                 .toList(),

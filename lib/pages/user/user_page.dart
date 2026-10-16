@@ -20,7 +20,16 @@ import '../../utils/utils.dart';
 import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
-enum UserMenuItem { Copy, Share, Block, Report, UserInfo }
+enum UserMenuItem {
+  Copy('复制'),       // copyText
+  Share('分享'),      // share
+  Block('加入黑名单'), // block
+  Report('举报'),     // report
+  UserInfo('用户信息');
+
+  const UserMenuItem(this.label);
+  final String label;
+}
 
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
@@ -301,7 +310,7 @@ class _UserPageState extends State<UserPage> {
                                           ? 'UnBlock'
                                           : 'Block',
                                     )
-                                  : Text(item.name),
+                                  : Text(item.label),
                             ))
                         .toList(),
                   ),
