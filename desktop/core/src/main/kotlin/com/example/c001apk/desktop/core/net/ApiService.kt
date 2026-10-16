@@ -1,8 +1,8 @@
-package com.example.c001apk.desktop.core.net
+﻿package com.example.c001apk.desktop.core.net
 
 import com.example.c001apk.desktop.core.model.CheckCount
 import com.example.c001apk.desktop.core.model.Feed
-import com.example.c001apk.desktop.core.model.HomeEntity
+import com.example.c001apk.desktop.core.model.HomeCard
 import com.example.c001apk.desktop.core.model.LoginInfo
 import com.example.c001apk.desktop.core.model.Resp
 import retrofit2.Call
@@ -46,7 +46,7 @@ interface ApiService {
     fun indexV8(
         @Query("page") page: Int,
         @Query("firstLaunch") firstLaunch: Int = 0,
-    ): Call<Resp<List<HomeEntity>>>
+    ): Call<Resp<List<HomeCard>>>
 
     /** 通用数据列表（话题、我的设备、动态页等都用它 + url 参数） */
     @GET("/v6/page/dataList")

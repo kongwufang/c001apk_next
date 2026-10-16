@@ -1,5 +1,6 @@
 package com.example.c001apk.desktop.core.model
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
 /**
@@ -109,9 +110,37 @@ data class UserInfo(
 )
 
 /**
- * 首页头条 `/v6/main/indexV8`。
- * 该接口 `data` 是**条目数组**，条目内容按 `entityType` 区分（feed / 商品 / 话题等），
- * 未声明的字段由 Gson 忽略，取值时用 [entityType] 判断。
+ * 首页 `/v6/main/indexV8` 的条目。
+ *
+ * ⚠️ 实测：该接口的 `data` 是**卡片信封列表**，不是平铺动态：
+ * ```
+ * { "entityType": "card", "title": "", "entities": [ { …真实动态… }, … ] }
+ * ```
+ * 真实内容在 [entities] 里，可能是 feed / 商品 / 话题 / 图文 等不同结构。
+ *
+ * 为保留多态结构，这里用 [JsonElement] 承载 entities，由上层按需转换 ——
+ * 不要在 core 里把它硬转成单一类型，否则会丢字段（踩过：早期版本直接当 List&lt;Feed&gt;
+ * 解析，导致界面上出现结构错乱的条目）。
+ */
+data class HomeCard(
+    @SerializedName("entityType") val entityType: String? = null,
+    @SerializedName("entityId") val entityId: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("pic") val pic: String? = null,
+    @SerializedName("lastupdate") val lastupdate: Long? = null,
+    @SerializedName("entities") val entities: List<JsonElement>? = null,
+    @SerializedName("extraData") val extraData: JsonElement? = null,
+)
+
+/**
+ * 兼容旧用法的通用条目（保留字段），用于卡片内的实际内容。
+ *
+ * `message` 字段实测**含行内 HTML**，例如：
+ * ```
+ * 我一直好奇…为什么还 1.5k？ <a class="feed-link-tag" href="/t/%E9%85%B7%E5%AE%89%E5%A4%9C%E8%AF%9D?type=0">#酷安夜话#</a>
+ * ```
+ * 渲染前必须经 `HtmlText.parse()` 处理，否则界面上会直接显示标签源码。
  */
 data class HomeEntity(
     @SerializedName("entityId") val entityId: String? = null,
@@ -123,10 +152,15 @@ data class HomeEntity(
     @SerializedName("userAvatar") val userAvatar: String? = null,
     @SerializedName("message") val message: String? = null,
     @SerializedName("messageHtml") val messageHtml: String? = null,
+    @SerializedName("messageTitle") val messageTitle: String? = null,
     @SerializedName("dateline") val dateline: Long? = null,
     @SerializedName("likenum") val likenum: Int? = null,
     @SerializedName("replynum") val replynum: Int? = null,
+    @SerializedName("commentnum") val replynum2: Int? = null,
     @SerializedName("pic") val pic: String? = null,
     @SerializedName("picArr") val picArr: List<String>? = null,
     @SerializedName("deviceTitle") val deviceTitle: String? = null,
+    @SerializedName("device_name") val deviceName: String? = null,
+    @SerializedName("entities") val entities: List<JsonElement>? = null,
+    @SerializedName("extraData") val extraData: JsonElement? = null,
 )
