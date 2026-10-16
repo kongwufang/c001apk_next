@@ -1,5 +1,6 @@
 package com.example.c001apk.desktop.app.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -37,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.c001apk.desktop.app.homeDiagLog
 import com.example.c001apk.desktop.core.model.HomeEntity
 import com.example.c001apk.desktop.core.net.ApiException
 import com.example.c001apk.desktop.core.net.Client
@@ -53,13 +58,27 @@ import java.util.Locale
 /**
  * 动态列表（首页各 tab 的内容）。
  *
- * 数据来源实测：`/v6/main/indexV8` 的 `data` 是**异质混合数组**：
+ * ## 数据来源实测（`/v6/main/indexV8`）
+ * `data` 是**异质混合数组**：
  * ```
- * ① { entityType:"feed", username, message, … }   ← 动态直接在顶层
- * ② { entityType:"card", entities:[ … ] }         ← 卡片信封
- *      卡内元素可能是 image_1 / iconLink / product / topic / feed …
+ * 顶层 11 项 = card(4) + feed(7)
+ *   card[0].entities = image_1  × 3     「今日酷安」「首页轮播」…
+ *   card[1].entities = iconLink × 10    「值得看」「热闻」「活动」…（图标宫格）
+ *   card[2].entities = product/topic ×20 「一加13」「数码」…（横向滚动卡）
+ *   card[3..9]       = feed             ← 真实动态直接在顶层
+ *   card[10].entities = feed × 20       「优质图文」（动态聚合卡）
+ * 全层级：feed 27 个，**全部带正文**
  * ```
- * 故在 JsonElement 上按 `entityType` 分发，**不能**先映射成固定 POJO（会丢字段）。
+ * ⚠️ 关键教训：实测把全部 59 项拍平成**同质网格**时，入口类（33 项）排在前面，
+ * 真实动态从第 33 项才开始 —— 首屏几乎全是入口标题，看不到动态。
+ * 所以入口类必须与动态**视觉上区分**，并且入口卡整行跨列（Android 端也是卡片整块）。
+ *
+ * ## 横屏核心差异
+ * Android 端 `BaseViewFragment.initView()`：
+ * ```
+ * if (isPortrait) LinearLayoutManager() else StaggeredGridLayoutManager(2, VERTICAL)
+ * ```
+ * 桌面窗口天然是横屏 → 固定双列瀑布流。
  */
 @Composable
 fun FeedList(client: Client, tab: String) {
@@ -82,34 +101,19 @@ fun FeedList(client: Client, tab: String) {
             total = it.size
             rows = flatten(it)
             val feeds = rows.count { r -> r is FeedRow.Feed }
-            val entries = rows.size - feeds
-            println("[home] indexV8 原始 ${total} 项 → 渲染 ${rows.size} 行（动态 $feeds / 入口 $entries）")
-            rows.filterIsInstance<FeedRow.Feed>().take(3).forEach { r ->
-                println(
-                    "[home]   feed username=${r.e.username} " +
-                        "dateline=${r.e.dateline} msgLen=${r.e.message?.length ?: 0} " +
-                        "首 40 字=${r.e.message?.take(40)?.replace("\n", " ")}"
-                )
-            }
-            rows.filterIsInstance<FeedRow.Entry>().take(3).forEach { r ->
-                println("[home]   entry title=${r.title}")
-            }
-            // 诊断：把「渲染顺序 + 每行类型」写进 UTF-8 日志文件。
-            // 走文件而不是控制台 —— Windows 控制台默认 GBK，Java 输出的 UTF-8 中文会乱码，
-            // 而且重定向还会截断长输出，靠日志文件才看得准。
+            println("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口 ${rows.size - feeds}）")
             runCatching {
                 val diag = StringBuilder()
-                diag.appendLine("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口 $entries）")
+                diag.appendLine("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口 ${rows.size - feeds}）")
                 rows.forEachIndexed { idx, r ->
                     when (r) {
                         is FeedRow.Feed -> diag.appendLine(
-                            "  #$idx FEED  ${r.e.username} | msgLen=${r.e.message?.length ?: 0} | " +
-                                (r.e.message ?: "").replace("\n", " ").take(40)
+                            "  #$idx FEED  ${r.e.username} | msgLen=${r.e.message?.length ?: 0}"
                         )
-                        is FeedRow.Entry -> diag.appendLine("  #$idx entry ${r.title}")
+                        is FeedRow.Entry -> diag.appendLine("  #$idx entry [${r.type}] ${r.title}")
                     }
                 }
-                com.example.c001apk.desktop.app.homeDiagLog().appendText(diag.toString())
+                homeDiagLog().appendText(diag.toString())
             }
             loading = false
         }.onFailure {
@@ -119,23 +123,15 @@ fun FeedList(client: Client, tab: String) {
     }
 
     when {
-        error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                Text("加载失败", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    error!!,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
+        error != null -> Centered {
+            Text("加载失败", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(error!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
-        loading && rows.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        loading && rows.isEmpty() -> Centered { CircularProgressIndicator() }
 
-        rows.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        rows.isEmpty() -> Centered {
             Text(
                 "「$tab」暂无内容（原始 $total 项）",
                 style = MaterialTheme.typography.bodyMedium,
@@ -144,34 +140,108 @@ fun FeedList(client: Client, tab: String) {
         }
 
         else -> LazyVerticalStaggeredGrid(
-            // ★ 横屏核心差异：双列瀑布流
-            // Android 端 BaseViewFragment.initView()：
-            //   if (isPortrait) LinearLayoutManager() else StaggeredGridLayoutManager(2, VERTICAL)
-            // 桌面端窗口天然是横屏 → 固定双列。
             columns = StaggeredGridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
             state = rememberLazyStaggeredGridState(),
-            // Android 端 StaggerItemDecoration(10.dp)：左/右/bottom 各 10dp，top 恒为 0
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalItemSpacing = 10.dp,
-            contentPadding = PaddingValues(
-                start = 10.dp, end = 10.dp, top = 0.dp, bottom = 24.dp,
-            ),
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 24.dp),
         ) {
-            items(rows.size) { i ->
-                when (val row = rows[i]) {
-                    is FeedRow.Feed -> FeedCard(row.e)
-                    is FeedRow.Entry -> EntryCard(row.title, row.subtitle)
+            rows.forEachIndexed { idx, row ->
+                item(
+                    key = "$idx-${row.keyPart()}",
+                    // 入口类整行跨列：它们是「区块」，不是瀑布流条目
+                    span = if (row.spanFull()) StaggeredGridSpanFull else null,
+                ) {
+                    when (row) {
+                        is FeedRow.Feed -> FeedCard(row.e)
+                        is FeedRow.Entry -> EntryCard(row)
+                    }
                 }
             }
         }
     }
 }
 
-/** 列表行：动态 / 卡片入口 */
+private val StaggeredGridSpanFull = StaggeredGridItemSpan.FullLine
+
+@Composable
+private fun Centered(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+            content()
+        }
+    }
+}
+
+/** 列表行 */
 sealed interface FeedRow {
+    /** 真实动态 */
     data class Feed(val e: HomeEntity) : FeedRow
-    data class Entry(val title: String, val subtitle: String?) : FeedRow
+
+    /** 入口 / 聚合条目。[type] 为服务端 entityType（image_1 / iconLink / product / topic …） */
+    data class Entry(
+        val type: String,
+        val title: String,
+        val subtitle: String?,
+        val pic: String? = null,
+    ) : FeedRow
+
+    fun keyPart(): String = when (this) {
+        is Feed -> e.entityId ?: e.id ?: e.message?.take(16).orEmpty()
+        is Entry -> "$type:$title"
+    }
+
+    /** 入口类整行跨列；动态按瀑布流走 */
+    fun spanFull(): Boolean = this is Entry
+}
+
+/**
+ * 入口卡的展示形态 —— 对着 Android 端的实体类型做区分。
+ *
+ * Android 端每种 `entityType` 都有自己的 item 布局（`imageScaleCard` / `iconLargeScrollCard` /
+ * `capsuleListCard` / `imageTextScrollCard` …，见 `_rev/CARD_UI_MAP.md`），
+ * 桌面端先按「大图 / 图标宫格 / 图文列表」三类归并。
+ */
+private enum class EntryKind { Image, IconGrid, ListRow }
+
+private fun kindOf(type: String): EntryKind = when (type) {
+    "image_1", "image", "imageCarouselCard_1", "imageScaleCard" -> EntryKind.Image
+    "iconLink", "iconLinkGridCard", "iconMiniScrollCard" -> EntryKind.IconGrid
+    else -> EntryKind.ListRow
+}
+
+/** 把混合数组拍平成可渲染行（递归展开卡片信封，限 3 层） */
+private fun flatten(data: List<JsonElement>): List<FeedRow> {
+    val out = mutableListOf<FeedRow>()
+
+    fun emit(el: JsonElement, depth: Int) {
+        val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return
+        val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }.orEmpty()
+
+        // 动态
+        if (type == "feed" || obj.has("message")) {
+            runCatching { gson.fromJson(el, HomeEntity::class.java) }.getOrNull()
+                ?.let { out.add(FeedRow.Feed(it)) }
+            return
+        }
+        // 卡片信封：展开
+        if (depth < 3) {
+            val inner = obj.getAsJsonArray("entities")
+            if (inner != null && inner.size() > 0) {
+                inner.forEach { emit(it, depth + 1) }
+                return
+            }
+        }
+        // 其它：入口条目。[type] 保留服务端原始 entityType，用于诊断与后续按类型细分
+        val title = jsonString(el, "title") ?: return
+        if (title.isBlank()) return
+        val sub = jsonString(el, "description") ?: jsonString(el, "subTitle")
+        out.add(FeedRow.Entry(type = type, title = title, subtitle = sub, pic = jsonString(el, "pic")))
+    }
+
+    data.forEach { emit(it, 0) }
+    return out
 }
 
 private val gson = Gson()
@@ -182,103 +252,48 @@ private fun jsonString(el: JsonElement?, key: String): String? {
     return if (v.isJsonPrimitive) v.asString else null
 }
 
-/** 把混合数组拍平成可渲染行（递归展开卡片信封，限 3 层） */
-private fun flatten(data: List<JsonElement>): List<FeedRow> {
-    val out = mutableListOf<FeedRow>()
-
-    fun emit(el: JsonElement, depth: Int) {
-        val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: return
-        val type = obj.get("entityType")?.let { if (it.isJsonPrimitive) it.asString else null }
-
-        if (type == "feed" || obj.has("message")) {
-            runCatching { gson.fromJson(el, HomeEntity::class.java) }.getOrNull()
-                ?.let { out.add(FeedRow.Feed(it)) }
-            return
-        }
-        if (depth < 3) {
-            val inner = obj.getAsJsonArray("entities")
-            if (inner != null && inner.size() > 0) {
-                inner.forEach { emit(it, depth + 1) }
-                return
-            }
-        }
-        val title = jsonString(el, "title") ?: return
-        if (title.isBlank()) return
-        val sub = jsonString(el, "description") ?: jsonString(el, "subTitle")
-        out.add(FeedRow.Entry(title, sub))
-    }
-
-    data.forEach { emit(it, 0) }
-    return out
-}
-
 /**
- * 动态卡片 —— 对齐 Android 端 `res/layout/item_home_feed.xml`。
+ * 动态卡片 —— 对齐 `res/layout/item_home_feed.xml`。
  *
- * 实测关键数值（来自该 XML 与 `AppAdapter.FeedViewHolder`）：
+ * 实测关键数值：
  * ```
- * 外层 MaterialCardView: cardBackgroundColor=@color/home_card_background_color
- *                        (= <selector> ?attr/colorSurfaceContainer). cardElevation=0dp, strokeWidth=0dp
- *                        内容 ConstraintLayout padding=10dp
- * uname      textSize=15sp singleLine ellipsize=end      marginStart/End=10dp
- * from/device textSize=12sp  textColor=@android:color/darker_gray   marginStart=10dp / 5dp
- * 私有角标    textSize=11sp  padding 5/1/5/1  bg_private_badge(solid #22808080, radius 4dp)
- * messageTitle textSize=16sp bold lineSpacingMultiplier=1.3
- * message    textSize=16sp lineSpacingMultiplier=1.2 maxLines=5 ellipsize=end  marginTop=10dp
- * messageMore「查看更多」13sp bold colorPrimary  marginTop=6dp  默认 gone（不占位）
- * hotReply   9宫格等，见下阶段
- * pubDate    textColor=darker_gray（未写 textSize → 主题默认）
- * 底部动作    只有 2 个：reply(commentnum) + like(likenum)
- *            like end=parent；reply end_toStartOf=like；两者 baseline 对齐 pubDate
+ * MaterialCardView: cardBackgroundColor=@color/home_card_background_color
+ *                   (= colorSurfaceContainer)、elevation=0dp、strokeWidth=0dp
+ *                   内容 padding=10dp
+ * uname        15sp  singleLine  ellipsize=end
+ * from/device  12sp  darker_gray
+ * 私有角标      11sp  padding 5/1/5/1  bg_private_badge(#22808080, radius 4dp)
+ * messageTitle 16sp bold  lineSpacingMultiplier=1.3
+ * message      16sp  lineSpacingMultiplier=1.2  maxLines=5  ellipsize=end
+ * messageMore  「查看更多」13sp bold colorPrimary（截断才显示，默认不占位）
+ * 底部动作      只有 2 个：reply + like；左时间、右互动
  * ```
- * 折叠判定（`AppAdapter.FeedViewHolder`）：`layout.lineCount > 5` 或末行有省略号 → 显示「查看更多」。
  */
 @Composable
 private fun FeedCard(e: HomeEntity) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        // 卡片底 = colorSurfaceContainer（与页面底 surface 刻意拉开一档）
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(12.dp),
-    ) {
+    AppCard {
         Column(Modifier.padding(10.dp)) {
-            // ── 用户名 + 时间 + 机型 ──
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     e.username ?: "—",
                     fontSize = 15.sp,
                     lineHeight = 20.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 e.dateline?.let {
                     Spacer(Modifier.width(10.dp))
-                    Text(
-                        fmtTime(it),
-                        fontSize = 12.sp,
-                        color = DARKER_GRAY,
-                        maxLines = 1,
-                    )
-                }
-                val dev = e.deviceTitle ?: e.deviceName
-                if (!dev.isNullOrBlank()) {
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        dev,
-                        fontSize = 12.sp,
-                        color = DARKER_GRAY,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Text(fmtTime(it), fontSize = 12.sp, color = DARKER_GRAY, maxLines = 1)
                 }
             }
 
-            // ── 标题（messageTitle）：16sp bold，行距 1.3 ──
+            val dev = e.deviceTitle ?: e.deviceName
+            if (!dev.isNullOrBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(dev, fontSize = 12.sp, color = DARKER_GRAY, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+
             e.messageTitle?.takeIf { it.isNotBlank() }?.let {
                 Spacer(Modifier.height(10.dp))
                 Text(
@@ -291,24 +306,21 @@ private fun FeedCard(e: HomeEntity) {
                 )
             }
 
-            // ── 正文（message）：16sp，行距 1.2，最多 5 行 ──
             // message 含行内 HTML（如 <a class="feed-link-tag" href="/t/…">#话题#</a>），
             // 必须解析后渲染，否则会露出标签源码。
             val runs = HtmlText.parse(e.message)
-            var truncated by remember { mutableStateOf(false) }
+            var truncated by remember(e.entityId, e.id) { mutableStateOf(false) }
             if (runs.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = runs.toAnnotated(),
                     fontSize = 16.sp,
-                    lineHeight = 19.sp,   // 16sp × 1.2
+                    lineHeight = 19.sp,
                     maxLines = 5,
                     overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { r -> truncated = r.hasVisualOverflow || r.lineCount > 5 },
+                    onTextLayout = { r -> truncated = r.hasVisualOverflow },
                 )
             }
-
-            // ── 「查看更多」：13sp bold colorPrimary，仅被截断时显示（默认不占位）──
             if (truncated) {
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -319,16 +331,25 @@ private fun FeedCard(e: HomeEntity) {
                 )
             }
 
-            if (!e.pic.isNullOrBlank()) {
+            val pics = e.picArr?.size ?: if (!e.pic.isNullOrBlank()) 1 else 0
+            if (pics > 0) {
                 Spacer(Modifier.height(10.dp))
-                Text(
-                    "[含图片]",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.outline,
-                )
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(if (pics == 1) 120.dp else 96.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (pics == 1) "[图片]" else "[$pics 张图片]",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
-            // ── 底部：时间（左） + 评论 / 点赞（右）──
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -338,49 +359,54 @@ private fun FeedCard(e: HomeEntity) {
                     maxLines = 1,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    "评论 ${e.replynum ?: e.replynum2 ?: 0}",
-                    fontSize = 12.sp,
-                    color = DARKER_GRAY,
-                )
+                Text("评论 ${e.replynum ?: e.replynum2 ?: 0}", fontSize = 12.sp, color = DARKER_GRAY)
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    "赞 ${e.likenum ?: 0}",
-                    fontSize = 12.sp,
-                    color = DARKER_GRAY,
-                )
+                Text("赞 ${e.likenum ?: 0}", fontSize = 12.sp, color = DARKER_GRAY)
             }
         }
     }
 }
 
-/** 卡片入口（image_1 / iconLink / product / topic 等） */
+/** 入口卡片：按类型给不同形态 */
 @Composable
-private fun EntryCard(title: String, subtitle: String?) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Column(Modifier.padding(10.dp)) {
-            Text(
-                title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            subtitle?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(5.dp))
+private fun EntryCard(row: FeedRow.Entry) {
+    when (kindOf(row.type)) {
+        EntryKind.Image -> ImageEntryCard(row)
+        EntryKind.IconGrid -> IconGridEntryCard(row)
+        EntryKind.ListRow -> ListEntryCard(row)
+    }
+}
+
+/** 大图入口（image_1 / imageScaleCard）：偏高的横幅，用于「今日酷安」「首页轮播」 */
+@Composable
+private fun ImageEntryCard(row: FeedRow.Entry) {
+    AppCard {
+        Column {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(92.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    row.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+            row.subtitle?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     HtmlText.toPlainText(it),
                     fontSize = 13.sp,
                     color = DARKER_GRAY,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(10.dp),
                 )
             }
         }
@@ -388,10 +414,82 @@ private fun EntryCard(title: String, subtitle: String?) {
 }
 
 /**
- * 正文次要文字色。Android 端全仓库**不用** `textColorSecondary`，
- * 而是一律用 `@android:color/darker_gray`（= `#444444`）—— 见各 item xml。
+ * 图标宫格入口（iconLink）：Android 端是横向滚动的图标 + 标题。
+ * 桌面端整行跨列，横向排列，超出宽度由外层滚动承载。
  */
-private val DARKER_GRAY = androidx.compose.ui.graphics.Color(0xFF444444)
+@Composable
+private fun IconGridEntryCard(row: FeedRow.Entry) {
+    AppCard {
+        Column(Modifier.padding(12.dp)) {
+            Text(row.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            row.subtitle?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    HtmlText.toPlainText(it),
+                    fontSize = 13.sp,
+                    color = DARKER_GRAY,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** 普通列表入口（product / topic …） */
+@Composable
+private fun ListEntryCard(row: FeedRow.Entry) {
+    AppCard {
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .width(44.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    row.title.take(1),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    row.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                row.subtitle?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        HtmlText.toPlainText(it),
+                        fontSize = 13.sp,
+                        color = DARKER_GRAY,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 统一的卡片外观：colorSurfaceContainer 底、12dp 圆角、零阴影（Android 端卡片 elevation 全是 0dp） */
+@Composable
+private fun AppCard(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(12.dp),
+    ) { content() }
+}
 
 /** 文本片段 → 带样式 AnnotatedString：链接用主色 */
 @Composable
@@ -400,15 +498,19 @@ private fun List<HtmlText.TextRun>.toAnnotated(): AnnotatedString {
     return buildAnnotatedString {
         this@toAnnotated.forEach { run ->
             if (run.href != null) {
-                withStyle(SpanStyle(color = linkColor, fontWeight = FontWeight.Medium)) {
-                    append(run.text)
-                }
+                withStyle(SpanStyle(color = linkColor, fontWeight = FontWeight.Medium)) { append(run.text) }
             } else {
                 append(run.text)
             }
         }
     }
 }
+
+/**
+ * 正文次要文字色。Android 端全仓库**不用** `textColorSecondary`，
+ * 而是一律 `@android:color/darker_gray`（= `#444444`）。
+ */
+private val DARKER_GRAY = Color(0xFF444444)
 
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 
