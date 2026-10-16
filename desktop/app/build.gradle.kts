@@ -50,7 +50,10 @@ compose.desktop {
 
             packageName = "c001apk-desktop"
             packageVersion = "0.1.0"
-            description = "c001apk 桌面端（实验性）"
+            // ⚠️ 下面这些元数据必须保持 ASCII：
+            //    jpackage 在 Windows 上会用【平台默认字符集】(GBK) 读取参数文件，
+            //    中文会被解码失败并报 "Input length = 1"（已实测踩坑）。
+            description = "c001apk desktop client (experimental)"
             vendor = "c001apk_next"
 
             // jlink 裁剪后的模块集：Compose Desktop 需要的基础模块 + 加密相关（md5/bcrypt 走 JVM 内置）
