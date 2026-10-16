@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -47,9 +49,37 @@ fun C001apkTheme(state: ThemeState = ThemeState(), content: @Composable () -> Un
     CompositionLocalProvider(
         LocalAppDimens provides AppDimens(),
     ) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        // ── ★ 密度修正：让桌面端的视觉尺寸对齐真机 ──
+        //
+        // 问题：真机是 1280×960px **@240dpi = 853×640dp**；而桌面端窗口是
+        // 1280×800dp 且用系统密度（96dpi → density=1.0）。
+        // 于是同样写 `16.sp`，桌面端的物理尺寸只有真机的 1/1.5，
+        // 看起来"字小、图小、卡片小气" —— 这是实测真机截图后发现的
+        // **最主要的不对齐原因**（不是 dp 数值写错，而是渲染密度不同）。
+        //
+        // 修法：把密度固定成真机的 240dpi（density = 240/160 = 1.5）。
+        // 这样代码里所有按实测填的 dp/sp 都会按真机比例渲染。
+        //
+        // 注意：这会同时放大 1280×800dp 窗口里的内容，等于"内容按真机比例，
+        // 只是可视区域更宽" —— 桌面端本来就该显示更多内容，符合预期。
+        val base = LocalDensity.current
+        val scaled = Density(
+            density = base.density * DEVICE_DENSITY_RATIO,
+            fontScale = base.fontScale,
+        )
+        CompositionLocalProvider(LocalDensity provides scaled) {
+            MaterialTheme(colorScheme = scheme, content = content)
+        }
     }
 }
+
+/**
+ * 真机密度与桌面端基准密度的比值。
+ *
+ * 真机 `wm density = 240` → Android 的 `density = 240/160 = 1.5`；
+ * 桌面端系统密度通常是 `1.0`（96dpi）→ 需要 ×1.5。
+ */
+private const val DEVICE_DENSITY_RATIO = 1.5f
 
 /**
  * 尺寸令牌。数值来自 Android 端资源（`dimens.xml` / layouts / `themes.xml`）。

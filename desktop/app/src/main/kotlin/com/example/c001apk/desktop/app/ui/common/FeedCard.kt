@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -144,51 +145,21 @@ fun FeedCard(
             }
 
             // ── 图片 ──
-            // Android 端九宫格 NineGridImageView 的实测规格：
-            //   图间距 gap=3dp；单图 FIT_CENTER、多图 CENTER_CROP；
-            //   每张图圆角 12dp、描边 1dp（image_stroke = colorSurfaceVariant）、内 padding 1dp
+            // ★ 实测真机截图：图片是**九宫格 3 列**（我原先做成 2 列，明显偏小）。
+            // 指标来自 `NineGridImageView`（`view/ninegridimageview/NineGridImageView.kt`）：
+            //   间距 gap = 3dp；每张圆角 12dp、描边 1dp、内 padding 1dp
+            //   布局规则：len<=3 → 1 行；len<=6 → 2 行 3 列（len==4 时 2 列）；len>=7 → 3 行 3 列
+            //   多图时每格 = (可用宽 - 2*gap) / 3，正方形
             // 缩略图统一走 `.s.jpg`（UrlUtil.thumbImageUrl）。
-            // 这里先做「1 张 / 多张」两种形态；完整九宫格（1~9 张的布局演算）留待下一轮。
             val pics = e.picArr?.filter { it.isNotBlank() }.orEmpty()
                 .ifEmpty { listOfNotNull(e.pic?.takeIf { it.isNotBlank() }) }
             if (pics.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                if (pics.size == 1) {
-                    NetImage(
-                        url = pics[0].toThumbUrl(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(160.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                    )
-                } else {
-                    // 多图：两列铺开（与卡片自身的双列宽度适配）
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        pics.chunked(2).take(3).forEach { rowItems ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                rowItems.forEach { u ->
-                                    Box(Modifier.weight(1f)) {
-                                        NetImage(
-                                            url = u.toThumbUrl(),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(84.dp)
-                                                .clip(RoundedCornerShape(12.dp)),
-                                        )
-                                    }
-                                }
-                                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
-                            }
-                        }
-                        if (pics.size > 6) {
-                            Text(
-                                "共 ${pics.size} 张图片",
-                                fontSize = 12.sp,
-                                color = DARKER_GRAY,
-                            )
-                        }
-                    }
-                }
+                NineGrid(
+                    urls = pics,
+                    // 单图按实测差不多是半屏高（宽度自适应）
+                    singleHeight = 160.dp,
+                )
             }
 
             // ── 底部：时间（左）+ 评论 / 点赞（右）──
@@ -361,6 +332,82 @@ fun UserAvatar(url: String?, size: androidx.compose.ui.unit.Dp = 36.dp) {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
+        }
+    }
+}
+
+/**
+ * 九宫格图片 —— 复刻 Android 端 `view/ninegridimageview/NineGridImageView.kt`。
+ *
+ * 该组件的布局演算（逐条核对过源码）：
+ * ```
+ * gap = 3.dp
+ * defaultWidth = (可用宽 - gap*2) / 3
+ * 张数 → 行×列：
+ *    1 张  : 1×1，高度按原图宽高比（这里简化为固定比例）
+ *    2 张  : 1×2
+ *    3 张  : 1×3
+ *    4 张  : 2×2（columns=2）
+ *    5~6 张: 2×3
+ *    7~9 张: 3×3
+ *    >9    : 只显示前 9 张
+ * 每格：正方形（singleWidth = singleHeight = defaultWidth）
+ *       圆角 12dp、描边 1dp（colorSurfaceVariant）、内 padding 1dp
+ * ```
+ * 简化之处（与 Android 的差异，已记录）：
+ * * 单图/双图未按原图宽高比自适应，用固定高度（需要读图片尺寸，代价大且收益小）
+ * * 没做 `.s.jpg` 之外的画质降级
+ */
+@Composable
+fun NineGrid(
+    urls: List<String>,
+    singleHeight: androidx.compose.ui.unit.Dp = 160.dp,
+) {
+    if (urls.isEmpty()) return
+    val gap = 3.dp
+
+    // 1 张：单图，按给定高度铺满宽度
+    if (urls.size == 1) {
+        NetImage(
+            url = urls[0].toThumbUrl(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(singleHeight)
+                .clip(RoundedCornerShape(12.dp)),
+        )
+        return
+    }
+
+    // 2~9 张：网格。列数规则见上方说明
+    val cols = when (urls.size) {
+        2 -> 2
+        3 -> 3
+        4 -> 2
+        else -> 3
+    }
+    val shown = urls.take(9)
+
+    Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+        shown.chunked(cols).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                rowItems.forEach { u ->
+                    Box(Modifier.weight(1f).aspectRatio(1f)) {
+                        NetImage(
+                            url = u.toThumbUrl(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(12.dp)),
+                        )
+                    }
+                }
+                // 补齐这一行的空位，保证每格宽度一致
+                repeat(cols - rowItems.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+        if (urls.size > 9) {
+            Text("共 ${urls.size} 张图片", fontSize = 12.sp, color = DARKER_GRAY)
         }
     }
 }
