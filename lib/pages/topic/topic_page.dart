@@ -14,6 +14,7 @@ import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
 enum TopicMenuItem { Copy, Share, Sort, Follow, Block }
@@ -108,7 +109,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
           ),
         );
     }
-    return const CircularProgressIndicator();
+    return const M3EWavyProgressIndicator();
   }
 
   @override

@@ -8,6 +8,7 @@ import '../logic/model/feed/datum.dart';
 import '../logic/state/loading_state.dart';
 import '../pages/common/common_controller.dart';
 import '../utils/utils.dart';
+import 'm3e_progress.dart';
 
 Widget _bodyState(String text, Function() onTap) {
   return GestureDetector(
@@ -181,6 +182,6 @@ Widget buildBody(
     height: 80,
     alignment: Alignment.center,
     padding: const EdgeInsets.all(10.0),
-    child: const CircularProgressIndicator(),
+    child: const M3EWavyProgressIndicator(),
   );
 }

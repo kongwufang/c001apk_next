@@ -14,6 +14,7 @@ import '../../pages/noitfication/notification_page.dart';
 import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
+import '../../components/m3e_progress.dart';
 
 class MessagePage extends StatefulWidget {
   const MessagePage({super.key});
@@ -138,7 +139,7 @@ class _MessagePageState extends State<MessagePage>
         height: 80,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(10.0),
-        child: const CircularProgressIndicator(),
+        child: const M3EWavyProgressIndicator(),
       ),
     );
   }

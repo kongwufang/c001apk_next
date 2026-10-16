@@ -13,6 +13,7 @@ import '../../../../logic/state/loading_state.dart';
 import '../../../../pages/home/app/app_list_controller.dart';
 import '../../../../utils/extensions.dart';
 import '../../../../utils/token_util.dart';
+import '../../../../components/m3e_progress.dart';
 
 class AppUpdatePage extends StatefulWidget {
   const AppUpdatePage({super.key});
@@ -132,7 +133,7 @@ class _AppUpdatePageState extends State<AppUpdatePage> {
           separatorBuilder: (_, index) => const SizedBox(height: 10),
         );
     }
-    return const CircularProgressIndicator();
+    return const M3EWavyProgressIndicator();
   }
 
   @override

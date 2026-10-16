@@ -17,6 +17,7 @@ import '../../utils/device_util.dart';
 import '../../utils/extensions.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
 enum UserMenuItem { Copy, Share, Block, Report, UserInfo }
@@ -78,7 +79,7 @@ class _UserPageState extends State<UserPage> {
           onFollow: _userController.onFollow,
         );
     }
-    return const CircularProgressIndicator();
+    return const M3EWavyProgressIndicator();
   }
 
   Widget _buildUserFeed(LoadingState loadingState) {
@@ -157,7 +158,7 @@ class _UserPageState extends State<UserPage> {
         height: 80,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(10.0),
-        child: const CircularProgressIndicator(),
+        child: const M3EWavyProgressIndicator(),
       ),
     );
   }

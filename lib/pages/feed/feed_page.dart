@@ -23,6 +23,7 @@ import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../../components/m3e_progress.dart';
 
 // ignore: constant_identifier_names
 enum FeedMenuItem { Copy, Share, Fav, Block, Report }
@@ -189,7 +190,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                 separatorBuilder: (_, index) => const SizedBox(height: 12),
               );
     }
-    return const CircularProgressIndicator();
+    return const M3EWavyProgressIndicator();
   }
 
   Widget _buildPinWidget() {
@@ -412,7 +413,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
         height: 80,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(10.0),
-        child: const CircularProgressIndicator(),
+        child: const M3EWavyProgressIndicator(),
       ),
     );
   }
