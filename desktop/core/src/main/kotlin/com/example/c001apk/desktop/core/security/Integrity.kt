@@ -141,7 +141,7 @@ object Integrity {
                 "\"size\"\\s*:\\s*(\\d+)\\s*\\}"
         )
         for (m in entryRe.findAll(raw)) {
-            entries.add(Entry(m.groupValues[1], m.groupValues[2].lowercase(), m.groupValues[3].toLong())
+            entries.add(Entry(m.groupValues[1], m.groupValues[2].lowercase(), m.groupValues[3].toLong()))
         }
         return Manifest(version, algorithm, entries)
     }
