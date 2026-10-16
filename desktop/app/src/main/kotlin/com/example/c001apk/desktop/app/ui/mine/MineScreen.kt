@@ -36,9 +36,11 @@ import androidx.compose.ui.unit.sp
 import com.example.c001apk.desktop.app.ui.common.AppCard
 import com.example.c001apk.desktop.app.ui.common.UserAvatar
 import com.example.c001apk.desktop.core.model.LoginInfo
+// UserProfile 是 ApiService 的**嵌套类**（定义在 interface 内部），
+// 所以要按 ApiService.UserProfile 导入 —— 直接 import ...net.UserProfile 会 Unresolved。
+import com.example.c001apk.desktop.core.net.ApiService.UserProfile
 import com.example.c001apk.desktop.core.net.Client
 import com.example.c001apk.desktop.core.net.Session
-import com.example.c001apk.desktop.core.net.UserProfile
 import com.example.c001apk.desktop.core.net.executeSync
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
