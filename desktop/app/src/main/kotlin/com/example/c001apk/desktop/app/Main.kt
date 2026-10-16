@@ -102,6 +102,12 @@ fun main(args: Array<String>) {
     //   没有日志就无从定位（这个坑已踩过）。
     installCrashLogger()
 
+    // 诊断模式：只探测「本环境能否创建窗口」，便于远程排查
+    if (args.contains("--diag-window")) {
+        diagnoseWindow()
+        return
+    }
+
     try {
         checkIntegrityOrExit(args)
         runUi()
@@ -109,6 +115,58 @@ fun main(args: Array<String>) {
         reportFatal("启动", t)
         kotlin.system.exitProcess(3)
     }
+}
+
+/**
+ * 窗口能力自检（`--diag-window`）。
+ *
+ * 用于排查「进程活着但窗口不显示」：把 AWT/Compose 相关环境与
+ * 「能否真的建出一个 Swing 窗口」写进日志，避免靠猜。
+ */
+private fun diagnoseWindow() {
+    val sb = StringBuilder()
+    sb.appendLine("=== 窗口能力自检 ===")
+    sb.appendLine("os=${System.getProperty("os.name")} ${System.getProperty("os.version")}")
+    sb.appendLine("java=${System.getProperty("java.version")} vendor=${System.getProperty("java.vendor")}")
+    sb.appendLine("java.awt.headless=${System.getProperty("java.awt.headless") ?: "(unset)"}")
+    sb.appendLine("user.name=${System.getProperty("user.name")} user.dir=${System.getProperty("user.dir")}")
+    sb.appendLine("skiko.renderApi=${System.getProperty("skiko.renderApi") ?: "(unset)"}")
+
+    val headless = runCatching { java.awt.GraphicsEnvironment.isHeadless() }
+        .getOrElse { "异常: $it" }
+    sb.appendLine("GraphicsEnvironment.isHeadless()=$headless")
+
+    val env = runCatching { java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment() }.getOrNull()
+    sb.appendLine("screenDevices=${runCatching { env?.screenDevices?.joinToString { it.idString } }.getOrNull()}")
+
+    // 真的建一个窗口试试
+    val ok = runCatching {
+        var made = false
+        javax.swing.SwingUtilities.invokeAndWait {
+            val f = javax.swing.JFrame("c001apk diag")
+            f.setSize(320, 160)
+            f.setLocationRelativeTo(null)
+            f.isVisible = true
+            sb.appendLine("JFrame: displayable=${f.isDisplayable} showing=${f.isShowing} " +
+                "peer=${f.peer != null} size=${f.size}")
+            made = f.isShowing
+            Thread.sleep(1500)
+            f.dispose()
+        }
+        made
+    }.getOrElse { t ->
+        sb.appendLine("JFrame 创建异常：${t::class.java.name}: ${t.message}")
+        val sw = java.io.StringWriter()
+        t.printStackTrace(java.io.PrintWriter(sw))
+        sb.appendLine(sw.toString())
+        false
+    }
+    sb.appendLine("RESULT=${if (ok) "可以创建窗口" else "无法创建窗口"}")
+
+    val text = sb.toString()
+    println(text)
+    runCatching { logFile().appendText(text + "\n") }
+    println("[diag] 日志: ${logFile().absolutePath}")
 }
 
 /** 日志文件位置：优先安装目录，其次用户目录（安装目录可能不可写） */
