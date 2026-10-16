@@ -29,7 +29,19 @@ enum TopicMenuItem {
 }
 
 // ignore: constant_identifier_names
-enum TopicSortType { DEFAULT, DATELINE, HOT }
+/// 话题内排序。
+///
+/// label 会显示在排序菜单里（原来用 `.name`，界面上是英文）。
+/// 与 `feed_page.dart` 的 `ReplySortType` 标签保持一致：默认 / 最新 / 热门。
+// ignore: constant_identifier_names
+enum TopicSortType {
+  DEFAULT('默认'),
+  DATELINE('最新'),
+  HOT('热门');
+
+  const TopicSortType(this.label);
+  final String label;
+}
 
 class TopicPage extends StatefulWidget {
   const TopicPage({super.key});
