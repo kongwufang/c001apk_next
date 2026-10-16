@@ -11,6 +11,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.IntOffset
 
 /**
  * Material 3 Expressive 运动规格 —— 数值取自 Android 端**真正生效**的资源。
@@ -82,7 +83,7 @@ object MotionM3E {
  * @param forward true = push（深入一层），false = pop（返回）
  */
 fun m3Slide(forward: Boolean): ContentTransform {
-    val spec = tween<Int>(MotionM3E.DURATION_MS, easing = MotionM3E.EmphasizedDecelerate)
+    val spec = tween<IntOffset>(MotionM3E.DURATION_MS, easing = MotionM3E.EmphasizedDecelerate)
     return if (forward) {
         slideInHorizontally(spec, initialOffsetX = { w -> w }) togetherWith
             slideOutHorizontally(spec, targetOffsetX = { w -> -w })
@@ -98,14 +99,14 @@ fun m3Slide(forward: Boolean): ContentTransform {
  * `anim_bottom_sheet_slide_up`：`fromYDelta=100%p` → 0，300ms，系统 accelerate。
  */
 fun m3SheetUp(): ContentTransform {
-    val spec = tween<Int>(MotionM3E.SHEET_DURATION_MS, easing = MotionM3E.SystemAccelerate)
-    return slideInVertically(spec, initialOffsetY = { h -> h }) togetherWith
-        EnterTransition.None
+    val spec = tween<IntOffset>(MotionM3E.SHEET_DURATION_MS, easing = MotionM3E.SystemAccelerate)
+    // 注意 togetherWith 左侧要 EnterTransition、右侧要 ExitTransition，
+    // 所以右侧用 ExitTransition.None（写成 EnterTransition.None 会编译不过）。
+    return slideInVertically(spec, initialOffsetY = { h -> h }) togetherWith ExitTransition.None
 }
 
 /** 底部落下（关闭上面的面板） */
 fun m3SheetDown(): ContentTransform {
-    val spec = tween<Int>(MotionM3E.SHEET_DURATION_MS, easing = MotionM3E.SystemAccelerate)
-    return EnterTransition.None togetherWith
-        slideOutVertically(spec, targetOffsetY = { h -> h })
+    val spec = tween<IntOffset>(MotionM3E.SHEET_DURATION_MS, easing = MotionM3E.SystemAccelerate)
+    return EnterTransition.None togetherWith slideOutVertically(spec, targetOffsetY = { h -> h })
 }
