@@ -160,24 +160,35 @@ private fun checkIntegrityOrExit(args: Array<String>) {
  */
 private fun resolveAppDir(): Path? {
     // ① jpackage launcher 提供的路径：<root>/app/<name>.exe
-    System.getProperty("jpackage.app-path")?.takeIf { it.isNotBlank() }?.let { appPath ->
-        runCatching { Paths.get(appPath).toAbsolutePath().normalize() }.getOrNull()
-            ?.parent?.parent?.let { return it }
+    val jp = System.getProperty("jpackage.app-path")
+    println("[startup] jpackage.app-path=$jp")
+    if (!jp.isNullOrBlank()) {
+        runCatching { Paths.get(jp).toAbsolutePath().normalize() }.getOrNull()
+            ?.parent?.parent?.let {
+                println("[startup] appDir(来自 jpackage)=$it")
+                return it
+            }
     }
 
     // ② 从自身 jar 推断：…/app/<jar> → 上一层是 app/，再上一层是安装根目录
     runCatching {
         val src = object {}.javaClass.protectionDomain?.codeSource?.location
+        println("[startup] codeSource=$src")
         if (src != null) {
             val p = Paths.get(src.toURI()).toAbsolutePath().normalize()
-            // p 可能是 jar 文件，也可能是 classes 目录（开发期）
             val parent = if (p.toString().endsWith(".jar")) p.parent else p
-            if (parent?.fileName?.toString() == "app") return parent.parent
+            println("[startup] codeSource 归一化=$p parent=$parent parentName=${parent?.fileName}")
+            if (parent?.fileName?.toString() == "app") {
+                println("[startup] appDir(来自 codeSource)=${parent.parent}")
+                return parent.parent
+            }
         }
-    }
+    }.onFailure { println("[startup] codeSource 推断失败：${it::class.simpleName}: ${it.message}") }
 
     // ③ 兜底
-    return runCatching { Paths.get("").toAbsolutePath() }.getOrNull()
+    val cwd = runCatching { Paths.get("").toAbsolutePath() }.getOrNull()
+    println("[startup] appDir(兜底 cwd)=$cwd")
+    return cwd
 }
 
 /** 导航项（对应 Android 端 `res/menu/nav_menu.xml`） */
