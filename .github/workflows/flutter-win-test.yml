@@ -11,7 +11,15 @@ on:
 jobs:
   build-windows-x64:
     name: Build Windows x64
-    runs-on: windows-latest
+    # ★ 用 windows-2022 而不是 windows-latest。
+    #
+    # 原因：windows-latest 现在是 VS 18（MSVC 14.51），它**移除了 /await 编译选项**，
+    # 而 `flutter_inappwebview_windows` 用的是旧式 C++/WinRT 协程
+    # （`<experimental/coroutine>`），于是报：
+    #   error C2338: static assertion failed: 'error STL1011: The /await compiler option...'
+    # VS 2022（MSVC 14.4x）仍然支持 /await，所以换回去能编过。
+    # 这属于「插件比工具链旧」，不是我们代码的问题。
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
