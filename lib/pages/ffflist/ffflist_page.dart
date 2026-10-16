@@ -9,6 +9,7 @@ import '../../pages/ffflist/ffflist_content.dart';
 import '../../logic/model/collection/collection.dart';
 import '../../logic/network/network_repo.dart';
 import '../../pages/collection/collection_pick_sheet.dart';
+import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 
 enum FFFListType {
@@ -162,8 +163,8 @@ class _FFFListPageState extends State<FFFListPage>
   /// 编辑收藏夹信息：先拉一次**最新**的详情（Android 也是 `loadDetail` 后再弹），
   /// 再复用「收藏到」面板那个对话框。
   Future<void> _editCollectionInfo() async {
-    final id = _id;
-    if (id.isNullOrEmpty) return;
+    final id = _id ?? '';
+    if (id.isEmpty) return;
 
     SmartDialog.showLoading();
     CollectionData? item;
@@ -208,8 +209,8 @@ class _FFFListPageState extends State<FFFListPage>
 
   /// 清除无效内容（服务端异步执行，约 5 分钟后生效）
   Future<void> _confirmClearUnUse() async {
-    final id = _id;
-    if (id.isNullOrEmpty) return;
+    final id = _id ?? '';
+    if (id.isEmpty) return;
     final ok = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('清除无效内容'),
@@ -238,8 +239,8 @@ class _FFFListPageState extends State<FFFListPage>
   }
 
   Future<void> _confirmDelete() async {
-    final id = _id;
-    if (id.isNullOrEmpty) return;
+    final id = _id ?? '';
+    if (id.isEmpty) return;
     final ok = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('删除收藏夹'),
