@@ -39,6 +39,25 @@ class _WebviewPageState extends State<WebviewPage> {
 
   InAppWebViewController? _webViewController;
 
+  /// 登录成功只处理一次
+  bool _loginHandled = false;
+  Timer? _cookieTimer;
+
+  /// 已轮询的秒数（最多等 [_loginTimeoutSeconds]）
+  int _elapsed = 0;
+
+  static const int _loginTimeoutSeconds = 600;
+  static const Duration _cookieCheckInterval = Duration(seconds: 1);
+
+  /// 查 cookie 的域名 —— 照抄 Android `WebLoginActivity.COOKIE_URLS`。
+  /// 登录成功后服务端可能只把登录态写在其中某一个域上。
+  static const List<String> _cookieUrls = [
+    'https://www.coolapk.com',
+    'https://coolapk.com',
+    'https://account.coolapk.com',
+    'https://m.coolapk.com',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -75,10 +94,98 @@ class _WebviewPageState extends State<WebviewPage> {
         value: GlobalData().token,
       );
     }
+
+    // ★ 登录页要**主动轮询 cookie**，不能只靠 URL 跳转事件。
+    //
+    // 上游原来只在 `shouldOverrideUrlLoading` 且 url **精确等于**
+    // `https://www.coolapk.com/` 时才查 —— 登录成功后酷安通常跳到
+    // `https://www.coolapk.com`（无尾斜杠）、带 `#/` 的路径、
+    // 或干脆停在 account.coolapk.com，于是**永远查不到登录态**。
+    //
+    // Android `WebLoginActivity` 是「每秒轮询 + onPageFinished 也查一遍，
+    // 最多等 10 分钟」，这里照做。
+    if (_isLogin) {
+      _cookieTimer = Timer.periodic(_cookieCheckInterval, (_) async {
+        if (_loginHandled) return;
+        if (await _checkLoginCookie()) return;
+        if (++_elapsed > _loginTimeoutSeconds) {
+          _cookieTimer?.cancel();
+        }
+      });
+    }
+  }
+
+  /// 从 WebView 的 cookie 里取登录态；拿到就完成登录并返回 true。
+  ///
+  /// 对应 Android `WebLoginActivity.checkLoginCookie`：
+  /// - 遍历 [_cookieUrls] 四个域（登录态可能只写在其中一个上）
+  /// - **只要求 `uid` + `token`**（`username` 可能没有，不该因为它缺失就判失败）
+  /// - `username` 是 **URL 编码**的：规范化成「编码一次」的形式，
+  ///   与 `checkLoginInfo` 的写法保持一致，避免二次编码
+  Future<bool> _checkLoginCookie() async {
+    if (_loginHandled) return true;
+    String? uid;
+    String? token;
+    String? username;
+
+    for (final url in _cookieUrls) {
+      for (final name in const ['uid', 'token', 'username']) {
+        if (name == 'uid' && uid != null) continue;
+        if (name == 'token' && token != null) continue;
+        if (name == 'username' && username != null) continue;
+        try {
+          final c = await CookieManager()
+              .getCookie(url: WebUri.uri(Uri.parse(url)), name: name);
+          final v = c?.value;
+          if (v == null || v.isEmpty) continue;
+          switch (name) {
+            case 'uid':
+              uid = v;
+              break;
+            case 'token':
+              token = v;
+              break;
+            case 'username':
+              username = v;
+              break;
+          }
+        } catch (_) {
+          // 某个域取不到就跳过，别让一个异常打断整轮检查
+        }
+      }
+    }
+
+    // ★ 只要 uid + token（Android 同此）
+    if (uid.isNullOrEmpty || token.isNullOrEmpty) return false;
+
+    _loginHandled = true;
+    _cookieTimer?.cancel();
+
+    GStorage.setUid(uid!);
+    GStorage.setToken(token!);
+    if (!username.isNullOrEmpty) {
+      GStorage.setUsername(_normalizeUsername(username!));
+    }
+    GStorage.setIsLogin(true);
+
+    SmartDialog.showToast('登录成功');
+    Get.back(result: true);
+    return true;
+  }
+
+  /// cookie 里的用户名是 URL 编码的；统一成「编码一次」的形式
+  /// （对应 Android `saveLogin` 里的 `URLEncoder.encode(URLDecoder.decode(...))`）。
+  String _normalizeUsername(String raw) {
+    try {
+      return Uri.encodeComponent(Uri.decodeComponent(raw));
+    } catch (_) {
+      return raw;
+    }
   }
 
   @override
   void dispose() {
+    _cookieTimer?.cancel();
     _titleStream.close();
     _progressStream.close();
     _webViewController = null;
@@ -169,7 +276,11 @@ class _WebviewPageState extends State<WebviewPage> {
           useShouldOverrideUrlLoading: true,
           useOnDownloadStart: true,
           clearCache: true,
-          userAgent: GStorage.userAgent,
+          // ★ 登录页**故意不覆盖 UA**（Android `WebLoginActivity` 的明确注释）：
+          //   「保留系统 WebView 的移动 UA，让酷安网页按移动浏览器渲染，
+          //     才能拿到完整的登录表单」。
+          //   套上酷安 App 自己的 UA 反而可能拿不到登录表单。
+          userAgent: _isLogin ? null : GStorage.userAgent,
           forceDark: ForceDark.AUTO,
           algorithmicDarkeningAllowed: true,
         ),
@@ -182,6 +293,12 @@ class _WebviewPageState extends State<WebviewPage> {
         },
         onProgressChanged: (controller, progress) {
           _progressStream.add(progress / 100);
+        },
+        // 页面加载完也查一次 cookie —— 对应 Android `WebLoginActivity` 的
+        // `onPageFinished { checkLoginCookie() }`。
+        // （轮询是兜底，这个更及时。）
+        onLoadStop: (controller, url) async {
+          if (_isLogin) await _checkLoginCookie();
         },
         onTitleChanged: (controller, title) {
           _titleStream.add(title);
@@ -204,32 +321,9 @@ class _WebviewPageState extends State<WebviewPage> {
           }
 
           if (_isLogin && url == Constants.URL_COOLAPK) {
-            String uid = (await CookieManager().getCookie(
-              url: WebUri.uri(Uri.parse(Constants.URL_COOLAPK)),
-              name: 'uid',
-            ))
-                ?.value;
-            String username = (await CookieManager().getCookie(
-              url: WebUri.uri(Uri.parse(Constants.URL_COOLAPK)),
-              name: 'username',
-            ))
-                ?.value;
-            String token = (await CookieManager().getCookie(
-              url: WebUri.uri(Uri.parse(Constants.URL_COOLAPK)),
-              name: 'token',
-            ))
-                ?.value;
-            if (!uid.isNullOrEmpty &&
-                !username.isNullOrEmpty &&
-                !token.isNullOrEmpty) {
-              GStorage.setUid(uid);
-              GStorage.setUsername(username);
-              GStorage.setToken(token);
-              GStorage.setIsLogin(true);
-              Get.back(result: true);
-            } else {
-              Get.back(result: false);
-            }
+            // 保留这个精确匹配作为**额外**触发点；
+            // 真正的检测靠 _checkLoginCookie（轮询 + onLoadStop + 4 个域）
+            await _checkLoginCookie();
             return NavigationActionPolicy.CANCEL;
           }
 
