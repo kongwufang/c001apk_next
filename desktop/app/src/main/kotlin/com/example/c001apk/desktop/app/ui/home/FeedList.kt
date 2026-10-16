@@ -94,6 +94,18 @@ fun FeedList(client: Client, tab: String) {
             rows.filterIsInstance<FeedRow.Entry>().take(3).forEach { r ->
                 println("[home]   entry title=${r.title}")
             }
+            // 诊断：把 feed 的「渲染顺序索引 + 用户名 + 前 30 字」全列出来，
+            // 用来对照截图里到底哪几个位置该是动态。
+            println("[home] --- 全部行的顺序（诊断）---")
+            rows.forEachIndexed { idx, r ->
+                when (r) {
+                    is FeedRow.Feed -> println(
+                        "[home]   #$idx FEED  ${r.e.username} :: " +
+                            (r.e.message ?: "").replace("\n", " ").take(30)
+                    )
+                    is FeedRow.Entry -> println("[home]   #$idx entry ${r.title}")
+                }
+            }
             loading = false
         }.onFailure {
             error = "${it::class.simpleName}: ${it.message}"
