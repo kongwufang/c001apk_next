@@ -285,7 +285,9 @@ private fun installCrashLogger() {
 }
 
 private fun runUi() {
+    println("[startup] 进入 runUi，准备创建 Compose 窗口")
     application {
+        println("[startup] application{} 已进入")
         val windowState = rememberWindowState(
             size = DpSize(1280.dp, 800.dp),
             position = WindowPosition(Alignment.Center),
@@ -295,10 +297,12 @@ private fun runUi() {
             state = windowState,
             title = "c001apk desktop",
         ) {
+            println("[startup] Window 内容开始组合")
             MaterialTheme(colorScheme = lightColorScheme()) {
                 App()
             }
         }
+        println("[startup] 窗口已提交")
     }
 }
 
