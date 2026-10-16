@@ -41,7 +41,7 @@ class Client(
         .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
         .build()
 
-    private val gson = GsonBuilder().setLenient().create()
+    private val gson = GsonBuilder().create()
 
     private fun retrofit(baseUrl: String): Retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
@@ -54,24 +54,27 @@ class Client(
 
     /** 详情 / 评论 */
     val api2: ApiService = retrofit(Protocol.BASE_URL_API2).create(ApiService::class.java)
-
-    /** 同步执行 Retrofit Call（桌面端先用阻塞式，UI 层放到 IO 协程里） */
-    fun <T> Call<T>.executeSync(): T = execute().let { r ->
-        if (!r.isSuccessful) {
-            throw ApiException(r.code(), "HTTP ${r.code()} ${r.message()}")
-        }
-        r.body() ?: throw ApiException(r.code(), "响应体为空")
-    }
-
-    /**
-     * 统一错误：把服务端的 `status/message` 暴露出来，便于上层识别限流（5902）与设备异常（-419）。
-     */
-    class ApiException(val status: Int, message: String) : RuntimeException(message)
 }
 
-/** 结果封装：`Resp<T>` 的 status 非 0 时抛出 [Client.ApiException] */
+/** 统一错误：把服务端的 `status/message` 暴露出来，便于上层识别限流（5902）与设备异常（-419）。 */
+class ApiException(val status: Int, override val message: String) : RuntimeException(message)
+
+/**
+ * 同步执行 Retrofit Call（桌面端先用阻塞式；UI 层放到 IO 协程里调用）。
+ *
+ * 定义为**顶层扩展函数**（而非 Client 的成员），这样任何拿到 `Call` 的地方都能直接用。
+ */
+fun <T> Call<T>.executeSync(): T {
+    val r = execute()
+    if (!r.isSuccessful) {
+        throw ApiException(r.code(), "HTTP ${r.code()} ${r.message()}")
+    }
+    return r.body() ?: throw ApiException(r.code(), "响应体为空")
+}
+
+/** `Resp<T>` 取数据：status 非 0 时抛出 [ApiException] */
 fun <T> com.example.c001apk.desktop.core.model.Resp<T>.orThrow(): T {
     val st = status ?: 0
-    if (st != 0) throw Client.ApiException(st, message ?: error ?: "status=$st")
-    return data ?: throw Client.ApiException(st, "data 为空（message=${message ?: "-"})")
+    if (st != 0) throw ApiException(st, message ?: error ?: "status=$st")
+    return data ?: throw ApiException(st, "data 为空（message=${message ?: "-"}）")
 }
