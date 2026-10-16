@@ -1,6 +1,5 @@
 package com.example.c001apk.desktop.app
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,17 +49,25 @@ import com.example.c001apk.desktop.core.net.ApiException
 import com.example.c001apk.desktop.core.net.Client
 import com.example.c001apk.desktop.core.net.Session
 import com.example.c001apk.desktop.core.net.executeSync
+import com.example.c001apk.desktop.core.security.Integrity
+import com.example.c001apk.desktop.core.security.IntegrityPublicKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.swing.JOptionPane
 
 /**
  * 桌面端入口。
  *
- * UI 结构对齐 Android 端「横屏布局」（`app/src/main/res/layout-land/activity_main.xml`）：
+ * 启动顺序：
+ *   1. **完整性自校验**（[Integrity]）—— 校验安装目录文件是否被篡改，失败则弹窗并退出；
+ *   2. 打开主窗口。
  *
+ * UI 结构对齐 Android 端「横屏布局」（`app/src/main/res/layout-land/activity_main.xml`）：
  * ```
  *   横屏（本实现）                 竖屏（Android 端 layout/）
  *   ┌────┬──────────────────┐      ┌──────────────────┐
@@ -70,32 +77,96 @@ import java.util.Locale
  *   └────┴──────────────────┘      │  BottomNavigation│
  *                                  └──────────────────┘
  * ```
+ * 桌面窗口天然是宽的 → 直接用横屏那套结构（左侧竖向导航 + 内容区），不需要做双栏。
  *
- * 即：导航栏固定在**左侧竖向**（`NavigationRail`），内容区占满剩余宽度。
- * 这是因为桌面窗口天然是宽的 —— 直接把 Android 横屏那套结构搬过来即可，不需要做双栏。
- *
- * 当前进度：骨架 + 「首页头条」已接真实接口（走 core 的协议层）。
- * 其余板块为占位，后续逐个补齐。
+ * 当前进度：骨架 + 「首页头条」已接真实接口（走 core 协议层）。其余板块为占位。
  */
-fun main() = application {
-    val windowState = rememberWindowState(
-        // 横屏比例；1280x800 在 1080p 屏上居中且不顶满
-        size = DpSize(1280.dp, 800.dp),
-        position = WindowPosition(Alignment.Center),
-    )
+fun main(args: Array<String>) {
+    checkIntegrityOrExit(args)
 
-    Window(
-        onCloseRequest = ::exitApplication,
-        state = windowState,
-        title = "c001apk desktop",
-    ) {
-        MaterialTheme(colorScheme = lightColorScheme()) {
-            App()
+    application {
+        val windowState = rememberWindowState(
+            // 横屏比例；1280x800 在 1080p 屏上居中且不顶满
+            size = DpSize(1280.dp, 800.dp),
+            position = WindowPosition(Alignment.Center),
+        )
+
+        Window(
+            onCloseRequest = ::exitApplication,
+            state = windowState,
+            title = "c001apk desktop",
+        ) {
+            MaterialTheme(colorScheme = lightColorScheme()) {
+                App()
+            }
         }
     }
 }
 
-/** 底部/左侧导航项（对应 Android 端 `res/menu/nav_menu.xml`） */
+/**
+ * 启动时的完整性自校验。
+ *
+ * * 开发构建（仓库里的公钥是空串）→ 自动跳过，不阻塞调试；
+ * * 发行构建 → 校验全部文件；不一致则提示并退出进程；
+ * * 应急 → 命令行 `--skip-integrity-check` 可强制跳过。
+ */
+private fun checkIntegrityOrExit(args: Array<String>) {
+    val appDir = resolveAppDir() ?: return
+    val result = runCatching {
+        Integrity.verify(appDir, IntegrityPublicKey.BASE64, args.toList())
+    }.getOrElse {
+        Integrity.Result(ok = false, reason = "校验过程异常：${it::class.simpleName}: ${it.message}")
+    }
+
+    when {
+        result.skipped -> {
+            println("[integrity] 已跳过：${result.reason}")
+        }
+
+        result.ok -> {
+            println("[integrity] 通过，已校验 ${result.checked} 个文件（目录：$appDir）")
+        }
+
+        else -> {
+            val detail = buildString {
+                appendLine("程序文件完整性校验未通过，为保护账号安全已停止启动。")
+                appendLine()
+                appendLine("原因：${result.reason}")
+                result.mismatch.take(10).forEach { appendLine("  已篡改：$it") }
+                result.missing.take(10).forEach { appendLine("  缺失：$it") }
+                if (result.mismatch.size + result.missing.size > 20) appendLine("  …")
+                appendLine()
+                appendLine("请从官方渠道重新下载安装。")
+            }
+            System.err.println("[integrity] 校验失败：$detail")
+            runCatching {
+                JOptionPane.showMessageDialog(
+                    null, detail, "c001apk desktop — 完整性校验失败",
+                    JOptionPane.ERROR_MESSAGE,
+                )
+            }
+            kotlin.system.exitProcess(2)
+        }
+    }
+}
+
+/**
+ * 推断安装根目录（含 `app/` 与 `runtime/` 两层）。
+ *
+ * 优先用 `jpackage.app-path`（launcher 会设置这个系统属性）；取不到时退回工作目录。
+ */
+private fun resolveAppDir(): Path? {
+    val appPath = System.getProperty("jpackage.app-path")
+    if (!appPath.isNullOrBlank()) {
+        // jpackage.app-path 指向 app/<name>.exe，安装根目录是它的上两级
+        val p = runCatching { Paths.get(appPath).toAbsolutePath().normalize() }.getOrNull()
+        val root = p?.parent?.parent
+        if (root != null) return root
+    }
+    return runCatching { Paths.get("").toAbsolutePath() }.getOrNull()
+}
+
+/** 导航项（对应 Android 端 `res/menu/nav_menu.xml`） */
 private enum class NavItem(val label: String, val icon: ImageVector) {
     Home("头条", Icons.Filled.Home),
     Discover("发现", Icons.Filled.Search),
@@ -127,7 +198,6 @@ private fun App() {
 
         VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        // 内容区
         Box(Modifier.fillMaxSize()) {
             when (selected) {
                 NavItem.Home -> HomeScreen(client)
@@ -162,7 +232,6 @@ private fun HomeScreen(client: Client) {
     LaunchedEffect(Unit) {
         loading = true
         error = null
-        // 网络请求放到 IO 线程；桌面端先用阻塞式 Call
         withContext(Dispatchers.IO) {
             runCatching {
                 val resp = client.api.indexV8(page = 1).executeSync()
@@ -180,7 +249,6 @@ private fun HomeScreen(client: Client) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // 顶部标题栏
         Surface(tonalElevation = 2.dp) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
@@ -221,18 +289,17 @@ private fun HomeScreen(client: Client) {
             }
 
             else -> LazyColumn(Modifier.fillMaxSize()) {
-                items(items) { it2 -> FeedRow(it2) }
+                items(items) { item -> FeedRow(item) }
             }
         }
     }
 }
 
-/** 单条动态（对齐 Android 端条目：头像 + 昵称 + 时间 + 正文 + 点赞/回复数） */
+/** 单条动态（对齐 Android 端条目：昵称 + 时间 + 机型 + 正文 + 互动数） */
 @Composable
 private fun FeedRow(e: HomeEntity) {
     Column(
-        Modifier.fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -241,8 +308,8 @@ private fun FeedRow(e: HomeEntity) {
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Spacer(Modifier.width(8.dp))
             e.dateline?.let {
+                Spacer(Modifier.width(8.dp))
                 Text(
                     fmtTime(it),
                     style = MaterialTheme.typography.labelSmall,
