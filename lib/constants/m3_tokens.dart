@@ -1,5 +1,3 @@
-import 'package:flutter/animation.dart';
-
 /// Material 3 / M3E 设计令牌 —— **数值全部从 material AAR 取到，不靠记忆猜**。
 ///
 /// 来源：`themes_m3e.xml` 注释写明基于 material **1.14.0**，取法为
@@ -13,7 +11,12 @@ import 'package:flutter/animation.dart';
 /// 记录 material **1.12.0** 里 `standard_decelerate` 与 `emphasized_decelerate`
 /// **都是** `<decelerateInterpolator/>`（= `1-(1-t)²`）；而 **1.14.0 已改成真贝塞尔**。
 /// 引用这些曲线时必须注明版本。
+///
+/// 注：`library;` 必须位于所有 import **之前**（否则报
+/// `library_directive_not_first`）。
 library;
+
+import 'package:flutter/animation.dart';
 
 /// M3 动效曲线（material 1.14.0 实测值）。
 ///

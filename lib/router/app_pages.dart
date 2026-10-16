@@ -46,7 +46,7 @@ class AppPages {
       transition: Transition.rightToLeft,
       transitionDuration: M3Transition.enterDuration,
       curve: M3Easing.standard,
-      customTransition: const M3SlideTransition(),
+      customTransition: M3SlideTransition(),
     );
   }
 

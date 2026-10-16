@@ -33,7 +33,10 @@ import '../constants/m3_tokens.dart';
 /// 比规格的 350ms 多 50ms。要精确到 350ms 得绕开 GetX 用自己的 `PageRouteBuilder`
 /// （它的 `reverseTransitionDuration` 支持两段不同时长）—— 待用户反馈是否在意。
 class M3SlideTransition extends CustomTransition {
-  const M3SlideTransition();
+  /// 注意**不能是 const**：[CustomTransition] 的构造函数不是 const，
+  /// 子类用 `const` 会报
+  /// `A constant constructor can't call a non-constant super constructor`。
+  M3SlideTransition();
 
   @override
   Widget buildTransition(
