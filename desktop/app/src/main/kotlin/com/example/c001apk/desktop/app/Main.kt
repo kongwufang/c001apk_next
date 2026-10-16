@@ -107,6 +107,11 @@ fun main(args: Array<String>) {
         diagnoseWindow()
         return
     }
+    // 诊断模式：探测 Compose 窗口（AWT 能建但 Compose 不能建时用这个）
+    if (args.contains("--diag-compose")) {
+        diagnoseCompose()
+        return
+    }
 
     try {
         checkIntegrityOrExit(args)
@@ -114,6 +119,57 @@ fun main(args: Array<String>) {
     } catch (t: Throwable) {
         reportFatal("启动", t)
         kotlin.system.exitProcess(3)
+    }
+}
+
+/**
+ * Compose 窗口自检（`--diag-compose`）。
+ *
+ * 用于区分「AWT 建不出窗口」与「只有 Compose 建不出窗口」——
+ * 实测本机能建 JFrame 但主界面没窗口，故需要单独测 Compose 这一层。
+ */
+private fun diagnoseCompose() {
+    val log = StringBuilder()
+    log.appendLine("=== Compose 窗口自检 ===")
+    log.appendLine("skiko.renderApi=${System.getProperty("skiko.renderApi") ?: "(unset)"}")
+
+    val t = Thread {
+        try {
+            application {
+                val state = rememberWindowState(size = DpSize(420.dp, 240.dp))
+                Window(onCloseRequest = ::exitApplication, state = state, title = "c001apk diag") {
+                    MaterialTheme(colorScheme = lightColorScheme()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Compose 窗口已创建")
+                        }
+                    }
+                }
+                // 到这里说明窗口已成功建立
+                log.appendLine("Compose application{} 已进入，窗口应已创建")
+                println(log.toString())
+                runCatching { logFile().appendText(log.toString() + "\n") }
+                Thread.sleep(3000)
+                exitApplication()
+            }
+            log.appendLine("RESULT=Compose 窗口可以创建")
+        } catch (th: Throwable) {
+            val sw = java.io.StringWriter()
+            th.printStackTrace(java.io.PrintWriter(sw))
+            log.appendLine("Compose 失败：${th::class.java.name}: ${th.message}")
+            log.appendLine(sw.toString())
+            log.appendLine("RESULT=Compose 窗口创建失败")
+        } finally {
+            println(log.toString())
+            runCatching { logFile().appendText(log.toString() + "\n") }
+        }
+    }
+    t.isDaemon = false
+    t.start()
+    t.join(20000)
+    if (t.isAlive) {
+        log.appendLine("RESULT=超时：20 秒内未能建立 Compose 窗口")
+        println(log.toString())
+        runCatching { logFile().appendText(log.toString() + "\n") }
     }
 }
 
