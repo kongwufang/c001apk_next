@@ -1,10 +1,10 @@
-import 'dart:async';
-import 'dart:io';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../components/m3e_navigation_rail.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../pages/home/home_page.dart';
 import '../../pages/main/main_controller.dart';
@@ -75,16 +75,17 @@ class _MainPageState extends State<MainPage> {
       ),
     ];
 
-    const railDestinations = <NavigationRailDestination>[
-      NavigationRailDestination(
+    // M3E 导航栏目的地。尺寸规格见 M3ENavigationRail（取自 material 1.14.0 AAR）。
+    const railDestinations = <M3ENavDestination>[
+      M3ENavDestination(
         selectedIcon: Icon(Icons.home),
         icon: Icon(Icons.home_outlined),
-        label: Text('首页'),
+        label: '首页',
       ),
-      NavigationRailDestination(
+      M3ENavDestination(
         selectedIcon: Icon(Icons.person),
         icon: Icon(Icons.person_outline),
-        label: Text('我的'),
+        label: '我的',
       ),
     ];
 
@@ -101,22 +102,13 @@ class _MainPageState extends State<MainPage> {
                 StreamBuilder(
                     initialData: _selectedIndex,
                     stream: _indexSctream.stream,
-                    builder: (_, snapshot) => Padding(
-                          padding: EdgeInsets.only(
-                              top: Platform.isMacOS ? 25.0 : 10.0),
-                          child: NavigationRail(
-                            destinations: railDestinations,
-                            selectedIndex: snapshot.data!,
-                            onDestinationSelected: onDestinationSelected,
-                            // 对齐 Android 横屏的 NavigationRailView：
-                            //   labelVisibilityMode="selected" → 仅选中项显示文字
-                            //   （见 activity_main.xml / MainActivity 的横屏分支）
-                            // 实测导航栏宽 96dp（= 20 + 56 + 20）。
-                            // Flutter 的 NavigationRail 有内部最小宽度，压不到 96dp，
-                            // 用 extended:false 拿到最接近的形态。
-                            labelType: NavigationRailLabelType.selected,
-                            extended: false,
-                          ),
+                    builder: (_, snapshot) => M3ENavigationRail(
+                          destinations: railDestinations,
+                          selectedIndex: snapshot.data!,
+                          onDestinationSelected: onDestinationSelected,
+                          // labelVisibilityMode="selected"：仅选中项显示文字
+                          // （对齐 Android 横屏 NavigationRailView）
+                          showLabelOnlyWhenSelected: true,
                         )),
               if (!Utils.isPortrait(context)) const VerticalDivider(width: 1),
               // ★ 去掉宽屏时两侧的 Spacer（原来 flex 8 + 两个 flex 1 的 Spacer
