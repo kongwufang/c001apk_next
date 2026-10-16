@@ -137,7 +137,7 @@ private fun diagnoseWindow() {
     sb.appendLine("GraphicsEnvironment.isHeadless()=$headless")
 
     val env = runCatching { java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment() }.getOrNull()
-    sb.appendLine("screenDevices=${runCatching { env?.screenDevices?.joinToString { it.idString } }.getOrNull()}")
+    sb.appendLine("screenDevices=${runCatching { env?.screenDevices?.size }.getOrElse { "?" }}")
 
     // 真的建一个窗口试试
     val ok = runCatching {
@@ -147,8 +147,7 @@ private fun diagnoseWindow() {
             f.setSize(320, 160)
             f.setLocationRelativeTo(null)
             f.isVisible = true
-            sb.appendLine("JFrame: displayable=${f.isDisplayable} showing=${f.isShowing} " +
-                "peer=${f.peer != null} size=${f.size}")
+            sb.appendLine("JFrame: displayable=${f.isDisplayable} showing=${f.isShowing} size=${f.size} bounds=${f.bounds}")
             made = f.isShowing
             Thread.sleep(1500)
             f.dispose()
