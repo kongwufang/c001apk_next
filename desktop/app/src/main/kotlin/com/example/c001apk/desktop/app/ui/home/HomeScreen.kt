@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui.home
+﻿package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Mail
+import com.example.c001apk.desktop.app.ui.common.AppIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -261,7 +261,7 @@ private fun HomeTopBar(
             ) {
                 BadgedIcon(count = badge ?: 0) {
                     Icon(
-                        Icons.Outlined.Mail,
+                        AppIcons.MailOutlined,
                         contentDescription = "消息中心",
                         modifier = Modifier.size(d.appBarIconSize),
                     )

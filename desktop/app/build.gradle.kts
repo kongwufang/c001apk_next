@@ -1,4 +1,4 @@
-// app：Compose Desktop 界面层（横屏版 UI）
+﻿// app：Compose Desktop 界面层（横屏版 UI）
 //
 // 打包目标：
 //   * 便携版 zip  —— `packageDistributionForCurrentOS` + `packageZip`（CI 默认产出）
@@ -23,7 +23,6 @@ dependencies {
 
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
-    implementation(compose.materialIconsExtended)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:$coroutinesVersion")
 

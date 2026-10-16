@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.app.ui
+﻿package com.example.c001apk.desktop.app.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -18,8 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
+import com.example.c001apk.desktop.app.ui.common.AppIcons
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -161,8 +161,8 @@ private enum class NavDestination(
     val iconFilled: ImageVector,
     val iconOutlined: ImageVector,
 ) {
-    Home("首页", Icons.Filled.Home, Icons.Outlined.Home),
-    Mine("我的", Icons.Filled.Person, Icons.Outlined.Person),
+    Home("首页", Icons.Filled.Home, AppIcons.HomeOutlined),
+    Mine("我的", Icons.Filled.Person, AppIcons.PersonOutlined),
 }
 
 // ── 导航栏尺寸（全部来自真机 UI 树实测，单位 dp）──
