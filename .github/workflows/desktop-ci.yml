@@ -110,6 +110,27 @@ jobs:
         working-directory: desktop
         run: .\gradlew.bat :app:createDistributable --stacktrace
 
+      # ─────────────── 轻量产物：只传 jar ───────────────
+      # 为什么要单独做一个：
+      #   完整 app-image 是 92 MB，而 GitHub Actions 产物下载实测只有
+      #   0.03~0.04 MB/s（直连与代理都一样慢）→ 下载一次要 40 分钟，
+      #   本地迭代验证根本跑不动。
+      #   而真正每次会变的只有几个 jar（内嵌 JRE 是不变的）。
+      #   所以这里把 jar 单独打一个小包，本地只需拉它再覆盖进已解压的
+      #   安装目录即可验证，下载量从 92 MB 降到几 MB。
+      - name: Upload jars only (fast local iteration)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-desktop-jars
+          # 覆盖全部可能产出 jar 的位置（compose 的 libs 目录 + 标准 build/libs）
+          path: |
+            desktop/app/build/compose/binaries/main/app/c001apk-desktop/app/*.jar
+            desktop/app/build/libs/*.jar
+            desktop/core/build/libs/*.jar
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: List packaging tasks (on failure)
         if: failure()
         working-directory: desktop
