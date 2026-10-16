@@ -17,7 +17,7 @@ class HtmlTextTest {
             "%E8%AF%9D?type=0\">#酷安夜话#</a>"
 
         val runs = HtmlText.parse(html)
-        val plain = runs.joinToString("") { it.text }
+        val plain = runs.joinToString("") { it.plain }
 
         assertTrue("<a" !in plain, "不应残留标签：$plain")
         assertTrue("</a>" !in plain, "不应残留闭合标签")
@@ -28,7 +28,7 @@ class HtmlTextTest {
         // 链接片段应带上 href
         val link = runs.firstOrNull { it.href != null }
         assertTrue(link != null, "应识别出链接片段")
-        assertEquals("#酷安夜话#", link.text)
+        assertEquals("#酷安夜话#", link.plain)
         assertTrue(link.href!!.startsWith("/t/"), "href 应被提取：${link.href}")
     }
 
@@ -40,10 +40,10 @@ class HtmlTextTest {
 
         val runs = HtmlText.parse(html)
         val links = runs.filter { it.href != null }
-        assertEquals(3, links.size, "应识别 3 个链接，实际 ${links.map { it.text }}")
-        assertEquals(listOf("#一加12#", "#一加15#", "#小米18ProMax#"), links.map { it.text })
+        assertEquals(3, links.size, "应识别 3 个链接，实际 ${links.map { it.plain }}")
+        assertEquals(listOf("#一加12#", "#一加15#", "#小米18ProMax#"), links.map { it.plain })
         assertEquals(listOf("/t/A?type=0", "/t/B?type=0", "/t/C?type=0"), links.map { it.href })
-        assertEquals("到了兄弟们 ", runs.first().text.stripTrailing().let { runs.first().text })
+        assertEquals("到了兄弟们 ", runs.first().plain.stripTrailing().let { runs.first().plain })
     }
 
     @Test
@@ -84,7 +84,7 @@ class HtmlTextTest {
         val runs = HtmlText.parse("<a href='/t/X?type=0'>#话题#</a>")
         assertEquals(1, runs.size)
         assertEquals("/t/X?type=0", runs[0].href)
-        assertEquals("#话题#", runs[0].text)
+        assertEquals("#话题#", runs[0].plain)
     }
 
     @Test
@@ -99,5 +99,27 @@ class HtmlTextTest {
         val s = "这是一条没有任何标签的动态，包含标点，和 English words。"
         assertEquals(s, HtmlText.toPlainText(s))
         assertEquals(1, HtmlText.parse(s).size)
+    }
+
+    @Test
+    fun `表情码被识别为 Emoji 片段`() {
+        // 在表里的表情码 → Emoji 片段
+        val runs = HtmlText.parse("好耶[受虐滑稽]真的")
+        assertEquals(3, runs.size, "应为 文字/表情/文字 三段，实际 $runs")
+        assertTrue(runs[0] is HtmlText.Piece.Text, "首段应是文字")
+        assertTrue(runs[1] is HtmlText.Piece.Emoji, "中段应是表情")
+        assertEquals("[受虐滑稽]", (runs[1] as HtmlText.Piece.Emoji).code)
+        assertTrue(runs[2] is HtmlText.Piece.Text, "末段应是文字")
+
+        // 纯文本形态保留表情码，方便摘要/日志
+        assertEquals("好耶[受虐滑稽]真的", HtmlText.toPlainText("好耶[受虐滑稽]真的"))
+    }
+
+    @Test
+    fun `不在表情表里的方括号保持原文`() {
+        // [1] / [图片] 这类不该被当成表情（表里没有就按普通文字）
+        val runs = HtmlText.parse("见[1]与[图片]")
+        assertTrue(runs.all { it is HtmlText.Piece.Text }, "不应产生 Emoji 片段：$runs")
+        assertEquals("见[1]与[图片]", HtmlText.toPlainText("见[1]与[图片]"))
     }
 }

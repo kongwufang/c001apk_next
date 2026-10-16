@@ -34,15 +34,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.c001apk.desktop.app.homeDiagLog
+import com.example.c001apk.desktop.app.ui.common.buildRichText
+import com.example.c001apk.desktop.app.ui.common.emojiInlineContents
 import com.example.c001apk.desktop.core.model.HomeEntity
 import com.example.c001apk.desktop.core.net.ApiException
 import com.example.c001apk.desktop.core.net.Client
@@ -394,16 +392,19 @@ private fun FeedCard(e: HomeEntity) {
 
             // message 含行内 HTML（如 <a class="feed-link-tag" href="/t/…">#话题#</a>），
             // 必须解析后渲染，否则会露出标签源码。
-            val runs = HtmlText.parse(e.message)
+            // 解析结果同时含表情码（[受虐滑稽]…），由 buildRichText 转成行内表情图。
+            val pieces = HtmlText.parse(e.message)
+            val inline = emojiInlineContents(pieces)
             var truncated by remember(e.entityId, e.id) { mutableStateOf(false) }
-            if (runs.isNotEmpty()) {
+            if (pieces.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = runs.toAnnotated(),
+                    text = buildRichText(pieces),
                     fontSize = 16.sp,
                     lineHeight = 19.sp,
                     maxLines = 5,
                     overflow = TextOverflow.Ellipsis,
+                    inlineContent = inline,
                     onTextLayout = { r -> truncated = r.hasVisualOverflow },
                 )
             }
@@ -609,21 +610,6 @@ private fun AppCard(content: @Composable () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = RoundedCornerShape(12.dp),
     ) { content() }
-}
-
-/** 文本片段 → 带样式 AnnotatedString：链接用主色 */
-@Composable
-private fun List<HtmlText.TextRun>.toAnnotated(): AnnotatedString {
-    val linkColor = MaterialTheme.colorScheme.primary
-    return buildAnnotatedString {
-        this@toAnnotated.forEach { run ->
-            if (run.href != null) {
-                withStyle(SpanStyle(color = linkColor, fontWeight = FontWeight.Medium)) { append(run.text) }
-            } else {
-                append(run.text)
-            }
-        }
-    }
 }
 
 /**

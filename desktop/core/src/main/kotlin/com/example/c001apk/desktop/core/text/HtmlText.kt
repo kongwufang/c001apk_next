@@ -26,8 +26,38 @@ package com.example.c001apk.desktop.core.text
  */
 object HtmlText {
 
-    /** 一段文本；[href] 非空表示它是链接 */
-    data class TextRun(val text: String, val href: String? = null)
+    /**
+     * 解析结果的一段。
+     *
+     * 三种形态一起产出，渲染层只需按类型装配 `AnnotatedString`：
+     * * [Text] —— 普通文字（可能带 [Text.href]，表示它在 `<a>` 里）
+     * * [Emoji] —— 表情码，如 `[受虐滑稽]`；由渲染层换成表情图
+     */
+    sealed interface Piece {
+        val href: String?
+
+        /** 普通文字 */
+        data class Text(val text: String, override val href: String? = null) : Piece
+
+        /** 表情码 */
+        data class Emoji(val code: String, override val href: String? = null) : Piece
+    }
+
+    /** 兼容旧名（早期只有纯文本片段） */
+    typealias TextRun = Piece.Text
+
+    /**
+     * 片段的「文本形态」：
+     * * [Piece.Text] → 文字本身
+     * * [Piece.Emoji] → 原始表情码（如 `[受虐滑稽]`）
+     *
+     * 用于摘要 / 日志 / 拼接纯文本等不需要图片的场景。
+     */
+    val Piece.plain: String
+        get() = when (this) {
+            is Piece.Text -> text
+            is Piece.Emoji -> code
+        }
 
     private val TAG = Regex("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[^<>]*?)?)(/?)>", RegexOption.DOT_MATCHES_ALL)
     private val ATTR = Regex("([a-zA-Z_:][-a-zA-Z0-9_:.]*)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))")
@@ -47,10 +77,10 @@ object HtmlText {
      * @param html 原始字段值（可能为 null）
      * @param keepNewlines 是否保留原有的 `\n`（动态正文通常保留）
      */
-    fun parse(html: String?, keepNewlines: Boolean = true): List<TextRun> {
+    fun parse(html: String?, keepNewlines: Boolean = true): List<Piece> {
         if (html.isNullOrEmpty()) return emptyList()
 
-        val runs = mutableListOf<TextRun>()
+        val runs = mutableListOf<Piece>()
         val buf = StringBuilder()
         var linkHref: String? = null
 
@@ -58,12 +88,20 @@ object HtmlText {
             if (buf.isEmpty()) return
             val t = buf.toString()
             buf.setLength(0)
-            // 合并相邻同型片段
-            val last = runs.lastOrNull()
-            if (last != null && last.href == linkHref) {
-                runs[runs.size - 1] = last.copy(text = last.text + t)
-            } else {
-                runs.add(TextRun(t, linkHref))
+            // 顺手把表情码切出来：酷安正文里 [受虐滑稽] 这类写法要渲染成图片
+            Emoji.parse(t).forEach { p ->
+                when (p) {
+                    is Emoji.Piece.Text -> {
+                        val last = runs.lastOrNull()
+                        // 合并相邻同型片段，减少片段数
+                        if (last is Piece.Text && last.href == linkHref) {
+                            runs[runs.size - 1] = last.copy(text = last.text + p.text)
+                        } else {
+                            runs.add(Piece.Text(p.text, linkHref))
+                        }
+                    }
+                    is Emoji.Piece.Code -> runs.add(Piece.Emoji(p.code, linkHref))
+                }
             }
         }
 
@@ -71,7 +109,11 @@ object HtmlText {
         fun atLineStart(): Boolean {
             if (buf.isNotEmpty()) return buf[buf.length - 1] == '\n'
             val last = runs.lastOrNull() ?: return true
-            return last.text.isEmpty() || last.text.last() == '\n'
+            val t = when (last) {
+                is Piece.Text -> last.text
+                is Piece.Emoji -> last.code
+            }
+            return t.isEmpty() || t.last() == '\n'
         }
 
         var i = 0
@@ -130,12 +172,26 @@ object HtmlText {
         }
         flush()
 
-        return runs.filter { it.text.isNotEmpty() }
+        return runs.filter {
+            when (it) {
+                is Piece.Text -> it.text.isNotEmpty()
+                // 表情永远保留（哪怕是空码也不会有）
+                is Piece.Emoji -> true
+            }
+        }
     }
 
-    /** 只要纯文本（用于摘要、日志、搜索） */
+    /**
+     * 只要纯文本（用于摘要、日志、搜索）。
+     * 表情以原始表情码形式保留 —— 纯文本场景下它比一张图更有信息量。
+     */
     fun toPlainText(html: String?, keepNewlines: Boolean = true): String =
-        parse(html, keepNewlines).joinToString("") { it.text }.trim()
+        parse(html, keepNewlines).joinToString("") {
+            when (it) {
+                is Piece.Text -> it.text
+                is Piece.Emoji -> it.code
+            }
+        }.trim()
 
     private fun attr(raw: String, key: String): String? {
         for (m in ATTR.findAll(raw)) {
