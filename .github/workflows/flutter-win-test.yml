@@ -1,0 +1,55 @@
+name: Flutter Windows Build Test
+
+# 目的：验证 flutter-backup 那套 Dart 代码现在还能不能编出 Windows 桌面版。
+# 只保留 Windows x64（最快出结论）；Android/ARM64 先去掉，避免无关失败干扰判断。
+on:
+  push:
+    branches:
+      - flutter-win-test
+  workflow_dispatch:
+
+jobs:
+  build-windows-x64:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze (informational)
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: List build output
+        if: always()
+        run: |
+          if (Test-Path build/windows) {
+            Get-ChildItem -Recurse build/windows -File |
+              Select-Object FullName, Length | Format-Table -AutoSize
+          } else {
+            Write-Host "build/windows 不存在"
+          }
+
+      - name: Upload Windows build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-windows-x64
+          path: build/windows/x64/runner/Release/
+          compression-level: 9
