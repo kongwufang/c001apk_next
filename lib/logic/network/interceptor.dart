@@ -124,11 +124,17 @@ class ApiInterceptor extends Interceptor {
       options.headers['X-App-Channel'] = Constants.CHANNEL;
       options.headers['X-App-Mode'] = Constants.MODE;
       options.headers['X-App-Supported'] = versionCode;
-      // 上游缺这两个头（Android `AddCookiesInterceptor` 里有）：
-      //   Referer 带 ref=CoolMarket/<版本>-<code>-<mode>，服务端会看
+      // 上游缺 Referer（Android `AddCookiesInterceptor` 里有）：
+      //   ref=CoolMarket/<版本>-<code>-<mode>，服务端会看
       options.headers['Referer'] =
           'https://api.coolapk.com/?ref=CoolMarket/$versionName-$versionCode-${Constants.MODE}';
-      options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      // ⚠️ **不要**在这里全局加 `Content-Type: application/x-www-form-urlencoded`。
+      // 踩过的坑：Android 的 OkHttp 拦截器是全局加的，照抄过来之后首页直接变成
+      // 服务端返回的「请求方式错误(1)」—— GET 请求带上表单 Content-Type 会被拒。
+      // 对照 `_rev/win_ref/coolapk_protocol.py`：它的 `build_headers()` **不含**
+      // Content-Type，只在 `post_form()` 里加。本工程同理，按请求由
+      // `Options(contentType: Headers.formUrlEncodedContentType)` 指定
+      // （见 `network_repo.dart`，上传走 multipartFormDataContentType）。
       options.headers['Cookie'] = GlobalData().isLogin
           ? 'uid=${GlobalData().uid}; username=${GlobalData().username}; token=${GlobalData().token}'
           : GlobalData().SESSID;
