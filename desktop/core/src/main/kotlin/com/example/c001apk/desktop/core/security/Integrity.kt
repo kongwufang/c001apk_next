@@ -98,9 +98,9 @@ object Integrity {
         for ((path, e) in expected) {
             val a = actual[path]
             if (a == null) {
-                missing += path
+                missing.add(path)
             } else if (a != e.sha256) {
-                mismatch += path
+                mismatch.add(path)
             }
         }
         val extra = actual.keys.filter { it !in expected }
@@ -141,7 +141,7 @@ object Integrity {
                 "\"size\"\\s*:\\s*(\\d+)\\s*\\}"
         )
         for (m in entryRe.findAll(raw)) {
-            entries += Entry(m.groupValues[1], m.groupValues[2].lowercase(), m.groupValues[3].toLong())
+            entries.add(Entry(m.groupValues[1], m.groupValues[2].lowercase(), m.groupValues[3].toLong())
         }
         return Manifest(version, algorithm, entries)
     }
@@ -171,7 +171,7 @@ object Integrity {
         Files.walk(root).use { st ->
             st.filter { it.isRegularFile() }.forEach { p ->
                 val rel = p.relativeTo(root).toString().replace('\\', '/')
-                if (rel.substringAfterLast('/') !in excludeNames) files += p
+                if (rel.substringAfterLast('/') !in excludeNames) files.add(p)
             }
         }
 
