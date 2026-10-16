@@ -118,16 +118,17 @@ class _MainPageState extends State<MainPage> {
                           ),
                         )),
               if (!Utils.isPortrait(context)) const VerticalDivider(width: 1),
-              if (Utils.isWideLandscape(context)) const Spacer(),
+              // ★ 去掉宽屏时两侧的 Spacer（原来 flex 8 + 两个 flex 1 的 Spacer
+              //   会把内容压到 80% 宽并居中）。Android 横屏是
+              //   `ViewPager#viewPager` 紧贴导航栏铺满 x=96..853（实测），
+              //   内容区不做居中收窄，所以这里让 PageView 直接占满剩余宽度。
               Expanded(
-                flex: 8,
                 child: PageView(
                   physics: const NeverScrollableScrollPhysics(),
                   controller: _contrller,
                   children: pages,
                 ),
               ),
-              if (Utils.isWideLandscape(context)) const Spacer(),
             ]),
             bottomNavigationBar: Utils.isPortrait(context)
                 ? StreamBuilder(

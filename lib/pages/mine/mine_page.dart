@@ -339,15 +339,21 @@ class _MinePageState extends State<MinePage> {
     return _card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: GridView.count(
-          crossAxisCount: 4,
+        child: GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          childAspectRatio: 0.95,
-          children: [
-            for (final item in items) _menuCell(item),
-          ],
+          // ★ 用**固定格高**而不是 childAspectRatio。
+          // item_mine_menu.xml 里每格是 wrap_content：图标 24dp + 文字
+          // (marginTop 8dp、12sp) ≈ 48dp。用 aspectRatio 的话格高会随窗口宽度
+          // 变化（实测在宽屏下每格被拉到约 100dp，两行之间空一大片），与真机不符。
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            mainAxisExtent: 56,
+          ),
+          itemCount: items.length,
+          itemBuilder: (_, i) => _menuCell(items[i]),
         ),
       ),
     );
