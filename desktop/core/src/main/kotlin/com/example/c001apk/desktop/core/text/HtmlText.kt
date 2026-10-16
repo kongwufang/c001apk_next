@@ -1,4 +1,4 @@
-package com.example.c001apk.desktop.core.text
+﻿package com.example.c001apk.desktop.core.text
 
 /**
  * 酷安动态正文里的**行内 HTML** 解析器。
@@ -42,19 +42,6 @@ object HtmlText {
         /** 表情码 */
         data class Emoji(val code: String, override val href: String? = null) : Piece
     }
-
-    /**
-     * 片段的「文本形态」：
-     * * [Piece.Text] → 文字本身
-     * * [Piece.Emoji] → 原始表情码（如 `[受虐滑稽]`）
-     *
-     * 用于摘要 / 日志 / 拼接纯文本等不需要图片的场景。
-     */
-    val Piece.plain: String
-        get() = when (this) {
-            is Piece.Text -> text
-            is Piece.Emoji -> code
-        }
 
     private val TAG = Regex("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[^<>]*?)?)(/?)>", RegexOption.DOT_MATCHES_ALL)
     private val ATTR = Regex("([a-zA-Z_:][-a-zA-Z0-9_:.]*)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))")
@@ -219,3 +206,17 @@ object HtmlText {
     private fun cp(code: Int): String =
         runCatching { String(Character.toChars(code)) }.getOrDefault("")
 }
+
+/**
+ * 片段的「文本形态」：普通文字取文字本身，表情取原始表情码（如 `[受虐滑稽]`）。
+ *
+ * 用于摘要 / 日志 / 拼接纯文本等不需要图片的场景。
+ *
+ * 注意必须定义在**顶层** —— 放在 `HtmlText` object 内部属于「成员扩展」，
+ * object 外部（含测试）无法解析到，会报 `Unresolved reference`。
+ */
+val HtmlText.Piece.plain: String
+    get() = when (this) {
+        is HtmlText.Piece.Text -> text
+        is HtmlText.Piece.Emoji -> code
+    }
