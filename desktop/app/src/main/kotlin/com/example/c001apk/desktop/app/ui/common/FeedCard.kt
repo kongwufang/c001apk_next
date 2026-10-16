@@ -224,19 +224,25 @@ fun ReplyCard(f: Feed, modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 用户名可能是空串（部分回复没有用户名）——统一兜底，避免显示成空白头像
                 val uname = f.username?.takeIf { it.isNotBlank() }
-                Box(
-                    Modifier
-                        .width(30.dp)
-                        .height(30.dp)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        uname?.firstOrNull()?.toString() ?: "?",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                val avatar = f.userAvatar?.takeIf { it.isNotBlank() }
+                if (avatar != null) {
+                    // 对齐 item_feed_content_reply_item.xml：avatar 固定 30dp 圆形
+                    UserAvatar(avatar, size = 30.dp)
+                } else {
+                    Box(
+                        Modifier
+                            .width(30.dp)
+                            .height(30.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            uname?.firstOrNull()?.toString() ?: "?",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
