@@ -1,14 +1,17 @@
 package com.example.c001apk.desktop.app.ui.common
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -24,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,8 +70,15 @@ fun FeedCard(
         if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
     )) {
         Column(Modifier.padding(10.dp)) {
-            // ── 用户名 + 时间 ──
+            // ── 头像 + 用户名 + 时间 ──
+            // Android 端 item_home_feed 里 avatar 是 0dp×0dp + ratio=1 且
+            // `bottom_toBottomOf=@id/device`（跟机型行底部对齐）；这里用固定 36dp 圆头像，
+            // 视觉等价且实现更稳（双列窄卡片里 ratio 约束容易挤扁用户名）。
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                if (!e.userAvatar.isNullOrBlank()) {
+                    UserAvatar(e.userAvatar, size = 36.dp)
+                    Spacer(Modifier.width(10.dp))
+                }
                 Text(
                     e.username ?: "—",
                     fontSize = 15.sp,
@@ -131,23 +142,51 @@ fun FeedCard(
                 )
             }
 
-            // ── 图片位（Coil 接入前的占位）──
-            val pics = e.picArr?.size ?: if (!e.pic.isNullOrBlank()) 1 else 0
-            if (pics > 0) {
+            // ── 图片 ──
+            // Android 端九宫格 NineGridImageView 的实测规格：
+            //   图间距 gap=3dp；单图 FIT_CENTER、多图 CENTER_CROP；
+            //   每张图圆角 12dp、描边 1dp（image_stroke = colorSurfaceVariant）、内 padding 1dp
+            // 缩略图统一走 `.s.jpg`（UrlUtil.thumbImageUrl）。
+            // 这里先做「1 张 / 多张」两种形态；完整九宫格（1~9 张的布局演算）留待下一轮。
+            val pics = e.picArr?.filter { it.isNotBlank() }.orEmpty()
+                .ifEmpty { listOfNotNull(e.pic?.takeIf { it.isNotBlank() }) }
+            if (pics.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(if (pics == 1) 120.dp else 96.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        if (pics == 1) "[图片]" else "[$pics 张图片]",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                if (pics.size == 1) {
+                    NetImage(
+                        url = pics[0].toThumbUrl(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(12.dp)),
                     )
+                } else {
+                    // 多图：两列铺开（与卡片自身的双列宽度适配）
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        pics.chunked(2).take(3).forEach { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                rowItems.forEach { u ->
+                                    Box(Modifier.weight(1f)) {
+                                        NetImage(
+                                            url = u.toThumbUrl(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(84.dp)
+                                                .clip(RoundedCornerShape(12.dp)),
+                                        )
+                                    }
+                                }
+                                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                        if (pics.size > 6) {
+                            Text(
+                                "共 ${pics.size} 张图片",
+                                fontSize = 12.sp,
+                                color = DARKER_GRAY,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -224,22 +263,30 @@ fun ReplyCard(f: Feed, modifier: Modifier = Modifier) {
                 )
             }
 
-            val pics = f.picArr?.size ?: 0
-            if (pics > 0) {
+            val rpics = f.picArr?.filter { it.isNotBlank() }.orEmpty()
+                .ifEmpty { listOfNotNull(f.pic?.takeIf { it.isNotBlank() }) }
+            if (rpics.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "[$pics 张图片]",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    rpics.chunked(2).take(3).forEach { rowItems ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            rowItems.forEach { u ->
+                                Box(Modifier.weight(1f)) {
+                                    NetImage(
+                                        url = u.toThumbUrl(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(76.dp)
+                                            .clip(RoundedCornerShape(12.dp)),
+                                    )
+                                }
+                            }
+                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    if (rpics.size > 6) {
+                        Text("共 ${rpics.size} 张图片", fontSize = 12.sp, color = DARKER_GRAY)
+                    }
                 }
             }
 
@@ -256,6 +303,57 @@ fun ReplyCard(f: Feed, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(10.dp))
                 Text("赞 ${f.likenum ?: 0}", fontSize = 12.sp, color = DARKER_GRAY)
             }
+        }
+    }
+}
+
+/**
+ * 网络图片：加载中/失败时显示 `surfaceVariant` 占位块，成功后绘制真图。
+ *
+ * 之所以自己写而不引 Coil：`image.coolapk.com` **强制要求酷安 UA**（否则 567），
+ * 而第三方库默认不带；见 [ImageLoader] 的说明。
+ */
+@Composable
+fun NetImage(url: String?, modifier: Modifier = Modifier) {
+    AsyncImage(url, modifier) { bmp ->
+        if (bmp != null) {
+            Image(
+                bitmap = bmp,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                // 九宫格图片是 CENTER_CROP（多图）/ FIT_CENTER（单图），这里统一 Crop 更稳
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("图", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** 圆形头像（对齐 Android 端 `circleImageStyle` = cornerSize 50%） */
+@Composable
+fun UserAvatar(url: String?, size: androidx.compose.ui.unit.Dp = 36.dp) {
+    AsyncImage(
+        url,
+        Modifier
+            .size(size)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) { bmp ->
+        if (bmp != null) {
+            Image(
+                bitmap = bmp,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
         }
     }
 }
