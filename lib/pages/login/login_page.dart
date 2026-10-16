@@ -208,6 +208,48 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // ★ 把「网页登录」放到**表单上方**并做成主按钮。
+              //
+              // 原因：服务端**已经移除表单登录接口**（Android `ApiService` 里
+              // 已无 `loginByCoolapk`，注释是「登录表单相关的接口已随表单登录一起移除」），
+              // 所以下面那套账号 / 密码 / 验证码**点了也不会通**。
+              // 上游只把「网页登录」塞在 AppBar 的 actions 里，很不显眼，
+              // 用户会先去填表单然后一直失败。
+              if (Utils.isSupportWebview()) ...[
+                SizedBox(
+                  width: 500.0,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      dynamic result =
+                          await Get.toNamed('/webview', parameters: {
+                        'url': Constants.URL_LOGIN,
+                        'isLogin': '1',
+                      });
+                      if (result == true) {
+                        SmartDialog.showToast('登录成功');
+                        Get.back(result: true);
+                      } else if (result == false) {
+                        SmartDialog.showToast('网页登录失败');
+                      }
+                    },
+                    icon: const Icon(Icons.public),
+                    label: const Text('网页登录（推荐）'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 500.0,
+                  child: Text(
+                    '表单登录接口服务端已移除，请用「网页登录」',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
               SizedBox(
                 width: 500.0,
                 child: TextField(

@@ -79,8 +79,24 @@ class Utils {
     );
   }
 
+  /// 本平台是否支持内置 WebView。
+  ///
+  /// ⚠️ **原来漏了 Windows**，后果很严重：
+  /// 「网页登录」按钮包在 `if (Utils.isSupportWebview())` 里
+  /// （见 `pages/login/login_page.dart`），所以**桌面端根本不显示这个按钮**；
+  /// 而表单登录的接口服务端**早已移除**（Android `ApiService` 里已无
+  /// `loginByCoolapk`，注释是「登录表单相关的接口已随表单登录一起移除」）
+  /// ⇒ **桌面端完全无法登录**，连带收藏夹 / 浏览历史 / 编辑资料全都用不了。
+  ///
+  /// 实际上 `flutter_inappwebview_windows` 一直在编译并注册
+  /// （见 `windows/flutter/generated_plugin_registrant.cc`），Windows 是支持的。
+  ///
+  /// 注：Linux 没有对应的 federated 实现，所以不加。
   static bool isSupportWebview() {
-    return Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+    return Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isMacOS ||
+        Platform.isWindows;
   }
 
   static Future<void> onShareImg(String url) async {
