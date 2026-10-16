@@ -13,9 +13,40 @@ class Constants {
   static const MODE = 'universal';
   static const APP_LABEL =
       'token://com.coolapk.market/dcf01e569c1e3db93a3d0fcf191a622c';
-  static const VERSION_NAME = '13.4.1';
-  static const API_VERSION = '13';
-  static const VERSION_CODE = '2312121';
+
+  // ── 客户端版本（服务端会下发官方最新版，这里只是兜底默认值）──
+  //
+  // ★ 上游 Flutter 工程写的是 13.4.1 / 2312121 / API 13（2024 年），
+  //   已严重落后 —— v3 token 与 X-App-Code 必须自洽，版本太旧服务端会拒。
+  //   这里改成 `_rev/win_ref/coolapk_protocol.py`（**实测跑通 11/11 登录态接口**）
+  //   所用的这一组；运行时按 Android 端 `MainViewModel.fetchAppInfo()` 的做法，
+  //   用 `/v6/apk/detail?id=com.coolapk.market` 取官方最新版本号覆盖。
+  static const VERSION_NAME = '16.6.4';
+  static const VERSION_CODE = '2609291';
+  static const API_VERSION = '16';
+
+  // ── 默认设备指纹（与 DEFAULT_DEVICE_CODE 配套，缺一不可）──
+  // 对应 Android `Constants.DEFAULT_*`，UA 由这几项拼出。
+  static const DEFAULT_MANUFACTURER = 'OnePlus';
+  static const DEFAULT_BRAND = 'OnePlus';
+  static const DEFAULT_MODEL = 'PJZ110';
+  static const DEFAULT_BUILDNUMBER = 'PJZ110_16.0.5.703(CN01)';
+  static const DEFAULT_ANDROID_VERSION = '16';
+  static const SDK_INT = '36';
+
+  /// 默认 `X-App-Device` 设备串。
+  ///
+  /// 结构与 `_rev/win_ref/README.md` §2.2 一致（分号分隔 9 段）：
+  /// `szlmId; ; ; ; 厂商; 品牌; 型号; 版本号; 尾部hex`
+  ///
+  /// ⚠️ 首字段 szlmId 必须是**服务端已注册**的值（随机假值会拿到
+  /// `-419 检测到当前版本存在异常…请使用官方APP访问`）。
+  /// Android 端从 `PrefManager.SZLMID` 注入，桌面端沿用这份已验证可用的设备串。
+  static const DEFAULT_DEVICE_CODE =
+      'lVDMjRWN2IzYjVTN3MmN2EDOiNWZjdjNhJTNkNTO3EWR4UzQzIkQ1EzN1YTMERTQFdjQ0cTMCF0QxYjNEJzM4Ay'
+      'OpEDMONEKzAzNuUjLw4iNx8FMxEjWKBFI7ATMxolSQByOzVHbQVmbPByOzVHbQVmbPByOgsDI7AyOidGRoJ0ZiZk'
+      'YrFWbmlkWLF2dJZ3QZhlQidXT6Fjd0NFOsVFR';
+
 
   static const PREFIX_COOLMARKET = 'coolmarket://';
   static const PREFIX_HTTP = 'http';

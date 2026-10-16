@@ -42,6 +42,12 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
+      # ★ 单元测试：其中 test/token_v3_test.dart 用 golden 向量逐字节校验
+      #   X-App-Token v3 的实现。服务端对该字段严格校验（伪造/版本不一致
+      #   会直接 403），错一个字节整个登录态就废，所以必须由 CI 钉住。
+      - name: Test
+        run: flutter test
+
       - name: Build Windows release
         run: flutter build windows --release
 

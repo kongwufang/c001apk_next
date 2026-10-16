@@ -8,7 +8,6 @@ import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 
 class ApiInterceptor extends Interceptor {
-  String? _token;
   String? _xAppDevice;
   String? _userAgent;
   String? _sdkInt;
@@ -40,8 +39,16 @@ class ApiInterceptor extends Interceptor {
     return _userAgent ??= GStorage.userAgent;
   }
 
+  /// `X-App-Token`。
+  ///
+  /// ★ 上游是 v2（[TokenUtils.getTokenV2]），用户 Android 端已升级到 **v3**，
+  /// 这里对齐（`_rev/win_ref/README.md` §2.3 实测：服务端对 token **严格校验**，
+  /// 伪造/缺失都会被拒；token 与 `X-App-Code` 不一致直接 HTTP 403）。
+  ///
+  /// ⚠️ **不能缓存**：v3 把时间戳算进去了（`off = 4*((t+vc)%100)+128`），
+  /// 缓存会让窗口和盐都过期。Android 端也是每个请求现算。
   String get token {
-    return _token ??= TokenUtils.getTokenV2(xAppDevice);
+    return TokenUtils.getTokenV3(xAppDevice, versionCode: versionCode);
   }
 
   @override
@@ -117,6 +124,11 @@ class ApiInterceptor extends Interceptor {
       options.headers['X-App-Channel'] = Constants.CHANNEL;
       options.headers['X-App-Mode'] = Constants.MODE;
       options.headers['X-App-Supported'] = versionCode;
+      // 上游缺这两个头（Android `AddCookiesInterceptor` 里有）：
+      //   Referer 带 ref=CoolMarket/<版本>-<code>-<mode>，服务端会看
+      options.headers['Referer'] =
+          'https://api.coolapk.com/?ref=CoolMarket/$versionName-$versionCode-${Constants.MODE}';
+      options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
       options.headers['Cookie'] = GlobalData().isLogin
           ? 'uid=${GlobalData().uid}; username=${GlobalData().username}; token=${GlobalData().token}'
           : GlobalData().SESSID;
