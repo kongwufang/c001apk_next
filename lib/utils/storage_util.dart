@@ -134,10 +134,76 @@ class GStorage {
       await regenerateParams();
     }
 
+    // ★ 存量参数迁移（详见 migrateParams 的注释）——必须在 Request() 之前跑完，
+    //   否则首个请求会带着旧参数发出去。
+    await migrateParams();
+
     GlobalData().isLogin = isLogin;
     GlobalData().uid = uid;
     GlobalData().username = username;
     GlobalData().token = token;
+  }
+
+  /// 机型参数版本号。
+  ///
+  /// 改动「默认参数」时 **+1**，老安装会在下次启动自动重建 ——
+  /// 对应 Android `TokenDeviceUtils.FINGERPRINT_VERSION` 的做法。
+  ///
+  /// ## 为什么必须有这个
+  /// [init] 只在**首次运行**生成参数并持久化，以后一直用存下来的那份。
+  /// 于是升级客户端时，存量的旧参数会**永久覆盖新常量**，
+  /// 表现为「代码改了但请求还是被服务端拒」。
+  ///
+  /// 实测踩到（读 `%APPDATA%\Integral\c001apk-flutter\hive\settings.hive` 得到）：
+  /// ```
+  /// versionNamev = 13.4.1        ← 旧版本号
+  /// versionCode  = 2312121       ← 旧版本号
+  /// apiVersion   = (空)          ← 空头
+  /// xAppDevice   = sxWduByOBVkR2... ← 随机 MAC 拼出来的畸形设备串
+  /// ```
+  /// 结果：首页返回 **「请求方式错误(1)」**。
+  ///
+  /// v2 的期望值：版本号 `16.6.4 / 2609291 / API16`，
+  /// 设备串用 [Constants.DEFAULT_DEVICE_CODE]（首字段 szlmId 是服务端**已注册**的值；
+  /// 随机假值会拿到 `-419 检测到当前版本存在异常`）。
+  static const PARAMS_VERSION = 2;
+  static const _paramsVersionKey = 'paramsVersion';
+
+  /// 把持久化的机型参数迁到当前期望值（幂等）。
+  static Future<void> migrateParams() async {
+    final stored = settings.get(_paramsVersionKey, defaultValue: 0) as int;
+    if (stored >= PARAMS_VERSION) return;
+
+    setVersionName(Constants.VERSION_NAME);
+    setVersionCode(Constants.VERSION_CODE);
+    setApiVersion(Constants.API_VERSION);
+    setManufacturer(Constants.DEFAULT_MANUFACTURER);
+    setBrand(Constants.DEFAULT_BRAND);
+    setModel(Constants.DEFAULT_MODEL);
+    setBuildNumber(Constants.DEFAULT_BUILDNUMBER);
+    setSdkInt(Constants.SDK_INT);
+    setAndroidVersion(Constants.DEFAULT_ANDROID_VERSION);
+    fullSetUserAgent();
+
+    // 设备串换回**已验证可用**的那份（原来的随机串会被服务端拒）。
+    // 若用户已经取到真的 szlmId，只把它注入首字段、其余保留
+    // —— 对齐 Android `TokenDeviceUtils.migrateSzlmId`。
+    var device = Constants.DEFAULT_DEVICE_CODE;
+    final id = szlmId;
+    if (id.isNotEmpty) {
+      try {
+        final parts = TokenUtils.decodeDevice(device).split(';');
+        if (parts.length >= 8) {
+          parts[0] = id;
+          device = await TokenUtils.encodeDevice(parts.join(';'));
+        }
+      } catch (_) {
+        // 解不出结构就用默认设备串
+      }
+    }
+    setXAppDevice(device);
+
+    settings.put(_paramsVersionKey, PARAMS_VERSION);
   }
 
   static void regAdapter() {
@@ -162,9 +228,33 @@ class GStorage {
         'Dalvik/2.1.0 (Linux; U; Android $androidVersion; $model $buildNumber) (#Build; $brand; $model; $buildNumber; $androidVersion) +CoolMarket/$versionName-$versionCode-${Constants.MODE}');
   }
 
+  /// 重建设备串。
+  ///
+  /// ★ 对齐 Android `TokenDeviceUtils.buildDeviceCode`：以**已验证可用**的
+  /// [Constants.DEFAULT_DEVICE_CODE] 为骨架，**只替换** 5 个字段：
+  /// `[0]=szlmId`、`[4]=厂商`、`[5]=品牌`、`[6]=型号`、`[7]=版本号`；
+  /// **MAC（[3]）与尾部 hex（[8]）一律沿用骨架里的值**。
+  ///
+  /// 为什么不能整串新造（上游原实现是那样）：
+  /// Android `Constants.DEFAULT_DEVICE_CODE` 的注释与 `_rev/win_ref/README.md`
+  /// 都记录了实测结论 —— 连这些结构性字段一起新造的整串会被风控要求人机验证
+  /// （`err_request_captcha_v2`），详情页等接口直接加载失败；
+  /// 只换 szlmId + 机型则 `main/indexV8`、`user/profile`、`search`、
+  /// `feed/replyList` 均正常。
   static Future<void> fullSetXAppDevice() async {
-    setXAppDevice(await TokenUtils.encodeDevice(
-        '${szlmId.isEmpty ? DeviceUtil.randHexString(32) : szlmId}; ; ; ${DeviceUtil.randomMacAddress()}; $manufacturer; $brand; $model; $buildNumber; null'));
+    final parts =
+        TokenUtils.decodeDevice(Constants.DEFAULT_DEVICE_CODE).split(';');
+    if (parts.length < 9) {
+      // 骨架异常就退回原值，不要造出更糟的串
+      setXAppDevice(Constants.DEFAULT_DEVICE_CODE);
+      return;
+    }
+    parts[0] = szlmId.isEmpty ? DeviceUtil.randHexString(32) : szlmId;
+    parts[4] = ' $manufacturer';
+    parts[5] = ' $brand';
+    parts[6] = ' $model';
+    parts[7] = ' $buildNumber';
+    setXAppDevice(await TokenUtils.encodeDevice(parts.join(';')));
   }
 
   static Future<void> regenerateParams() async {
