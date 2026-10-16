@@ -219,7 +219,22 @@ jobs:
 
           & $signtool.FullName sign /f $pfx /p $env:CODESIGN_PFX_PWD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe.FullName
           if ($LASTEXITCODE -ne 0) { Write-Host "::warning::signtool 退出码 $LASTEXITCODE（时间戳服务不可达时属正常）" }
+
+          # 校验只做信息性报告：自签证书没有受信任根，verify /pa 必然失败
+          # （这正是「不解决 SmartScreen、只需自己的签名」的预期行为），不能让它阻断构建。
+          Write-Host "--- 签名校验（信息性）---"
           & $signtool.FullName verify /pa /v $exe.FullName
+          $verifyCode = $LASTEXITCODE
+          if ($verifyCode -ne 0) {
+            Write-Host "::notice::signtool verify 退出码 $verifyCode —— 自签证书无受信任根，属预期结果"
+          }
+
+          # 用 Authenticode 信息确认文件确实带上了签名（不依赖信任链）
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          Write-Host ("签名状态: {0}" -f $sig.Status)
+          if ($null -eq $sig.SignerCertificate) { throw "文件未带上签名！" }
+          Write-Host ("签名主体: {0}" -f $sig.SignerCertificate.Subject)
+          exit 0
 
       - name: Upload EXE installer
         if: always()
