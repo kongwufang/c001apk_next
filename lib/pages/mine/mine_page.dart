@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,6 +8,7 @@ import '../../logic/model/user_profile/user_profile.dart';
 import '../../logic/network/network_repo.dart';
 import '../../pages/ffflist/ffflist_page.dart';
 import '../../pages/settings/settings_page.dart';
+import '../../pages/user/edit_profile_page.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 
@@ -101,6 +102,17 @@ class _MinePageState extends State<MinePage> {
       appBar: AppBar(
         title: const Text('我的'),
         actions: [
+          // 编辑资料（对应 Android 个人主页的 EditProfileActivity；需登录）
+          if (_isLogin)
+            IconButton(
+              onPressed: () async {
+                final changed = await Get.to(() => const EditProfilePage());
+                // 改过就重拉资料
+                if (changed == true) _fetchProfile();
+              },
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: '编辑资料',
+            ),
           // 退出登录在设置左边（对齐 Android message_menu：logout 在 settings 左侧）
           if (_isLogin)
             IconButton(

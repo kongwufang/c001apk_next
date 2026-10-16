@@ -207,6 +207,59 @@ class NetworkRepo {
     );
   }
 
+  // ===== 编辑资料 =====
+  // 对应 Android `NetworkRepo` 的 changeProfile / resetProfile /
+  // changeAvatar / changeAvatarCover。
+
+  /// 改资料（`key` + `value` 表单）。
+  ///
+  /// ⚠️ **生日和地区的 `key` 是空字符串**，值才是 JSON：
+  /// - 生日 `value = {"birthyear":y,"birthmonth":m,"birthday":d}`
+  /// - 地区 `value = {"province":..,"city":..}`
+  ///
+  /// 其余：性别 `gender`（1 男 / 0 女 / -1 保密）、签名 `bio`。
+  static Future<Response> postChangeProfile({
+    required String key,
+    required String value,
+  }) async {
+    return Request().post(
+      Api.postChangeProfile,
+      data: {'key': key, 'value': value},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
+  /// 生日 / 地区回到「保密」（`key=birth` 或 `key=location`）
+  static Future<Response> postResetProfile({required String key}) async {
+    return Request().post(
+      Api.postResetProfile,
+      data: {'key': key},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
+  /// 换头像（multipart）。
+  ///
+  /// ⚠️ 与收藏夹封面上传的规则**不一样**（两边都是抓包实测的）：
+  /// - 这里：part 名 **`imgFile`**、filename 用 **md5（无扩展名）**、Content-Type `image/jpeg`
+  /// - 收藏封面：part 名 `picFile`、filename `$md5.$ext`、Content-Type 具体 `image/xxx`
+  static Future<Response> postChangeAvatar({required FormData data}) async {
+    return Request().post(
+      Api.postChangeAvatar,
+      data: data,
+      options: Options(contentType: Headers.multipartFormDataContentType),
+    );
+  }
+
+  /// 换主页背景图：`url` 传 **完整 CDN 地址**（`$prefix/$fileName`）
+  static Future<Response> postChangeAvatarCover({required String url}) async {
+    return Request().post(
+      Api.postChangeAvatarCover,
+      data: {'url': url},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
   static Future<Response> postOSSUploadPrepare({
     required FormData data,
   }) async {

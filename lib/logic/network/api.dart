@@ -108,4 +108,24 @@ class Api {
   //   自动写入，客户端**没有**上报接口（Android 已实测验证）。
   static String getHitHistoryList =
       '${Constants.URL_API_SERVICE}/v6/user/hitHistoryList';
+
+  // ===== 编辑资料 =====
+  //
+  // 对应 Android `ApiService` 的 changeProfile / resetProfile /
+  // changeAvatar / changeAvatarCover。改动都是「**点一下存一下**」——
+  // 和官方一样，每项单独走一次接口（见 EditProfileViewModel 的注释）。
+  static String postChangeProfile =
+      '${Constants.URL_API_SERVICE}/v6/account/changeProfile';
+
+  /// 生日 / 地区回到「保密」：`key=birth` 或 `key=location`（Android 抓包核对）
+  static String postResetProfile =
+      '${Constants.URL_API_SERVICE}/v6/account/resetProfile';
+
+  /// 换头像：multipart，part 名固定 **`imgFile`**、filename 用图片 **md5（无扩展名）**
+  static String postChangeAvatar =
+      '${Constants.URL_API_SERVICE}/v6/account/changeAvatar';
+
+  /// 换主页背景图：先 OSS 上传再把**完整 CDN 地址**回传
+  static String postChangeAvatarCover =
+      '${Constants.URL_API_SERVICE}/v6/account/changeAvatarCover';
 }

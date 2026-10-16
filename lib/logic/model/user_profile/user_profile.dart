@@ -61,6 +61,15 @@ class UserProfileData {
   String? province;
   String? city;
 
+  /// 性别：**1 男 / 0 女 / -1 保密**（编辑资料页用，对应 Android
+  /// `UserProfileResponse.Data.gender`）
+  int? gender;
+
+  /// 生日三段。服务端不下发时是 null（页面上显示「保密」）
+  int? birthyear;
+  int? birthmonth;
+  int? birthday;
+
   UserProfileData({
     required this.uid,
     required this.username,
@@ -79,6 +88,10 @@ class UserProfileData {
     this.bio,
     this.province,
     this.city,
+    this.gender,
+    this.birthyear,
+    this.birthmonth,
+    this.birthday,
   });
 
   factory UserProfileData.fromJson(Map<String, dynamic> json) {
@@ -107,6 +120,10 @@ class UserProfileData {
       bio: json['bio'] as String?,
       province: json['province'] as String?,
       city: json['city'] as String?,
+      gender: (json['gender'] as num?)?.toInt(),
+      birthyear: (json['birthyear'] as num?)?.toInt(),
+      birthmonth: (json['birthmonth'] as num?)?.toInt(),
+      birthday: (json['birthday'] as num?)?.toInt(),
     );
   }
 }
