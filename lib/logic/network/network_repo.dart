@@ -38,6 +38,153 @@ class NetworkRepo {
     );
   }
 
+  // ===== 收藏夹（多收藏夹）=====
+  // 对应 Android `NetworkRepo` 的同名方法。
+
+  /// 收藏夹列表。
+  ///
+  /// 传了 [id]（动态 id）+ `type=feed` + `showDefault=1` 时，
+  /// 每个夹会带 `isBeCollected`（1=该动态已在此夹），弹窗靠它画勾。
+  static Future<Response> getCollectionList({
+    String uid = '',
+    String id = '',
+    String type = 'feed',
+    int showDefault = 1,
+    int page = 1,
+  }) async {
+    return Request().get(
+      Api.getCollectionList,
+      queryParameters: {
+        'uid': uid,
+        'id': id,
+        'type': type,
+        'showDefault': showDefault,
+        'page': page,
+      },
+    );
+  }
+
+  /// 收藏 / 取消收藏。
+  ///
+  /// 收藏：`id=夹id`、`cancelId` 传空串；
+  /// 取消：`id` 传空串、`cancelId=夹id`。
+  static Future<Response> postCollectionAddItem({
+    required String id,
+    required String cancelId,
+    required String targetId,
+    String type = 'feed',
+  }) async {
+    return Request().post(
+      Api.postCollectionAddItem,
+      data: {
+        'id': id,
+        'cancelId': cancelId,
+        'targetId': targetId,
+        'type': type,
+      },
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
+  /// 新建收藏夹（multipart）。
+  ///
+  /// [pic] 是**已上传的 OSS URL**（没传封面就传空串）。
+  static Future<Response> postCollectionCreate({
+    required String isOpen,
+    required String pic,
+    required String description,
+    required String title,
+    String sourceId = '',
+  }) async {
+    final data = FormData.fromMap({
+      'isOpen': isOpen,
+      'pic': pic,
+      'description': description,
+      'title': title,
+      'sourceId': sourceId,
+    });
+    return Request().post(
+      Api.postCollectionCreate,
+      data: data,
+      options: Options(contentType: Headers.multipartFormDataContentType),
+    );
+  }
+
+  /// 修改收藏夹（表单）：标题 / 简介 / 封面 / 公开或私密
+  static Future<Response> postCollectionUpdate({
+    required String id,
+    required String title,
+    required String description,
+    required String pic,
+    required int isOpen,
+  }) async {
+    return Request().post(
+      Api.postCollectionUpdate,
+      data: {
+        'id': id,
+        'title': title,
+        'description': description,
+        'pic': pic,
+        'isOpen': isOpen,
+      },
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
+  /// 封面图上传（multipart）。
+  ///
+  /// `fieldName` / `uploadDir` 的取值抄自 Android
+  /// `NetworkRepo.uploadCollectionImage`：**`picFile` / `feed_image`**。
+  ///
+  /// ⚠️ [data] 里的文件名**必须带扩展名**、part 的 Content-Type **必须具体**
+  /// （`image/jpeg` 而非 `image/*`），否则服务端返回 103「请选择正确的文件类型」
+  /// —— 这是 Android 端 curl 实测出来的，见 `CollectionPickViewModel.upload` 的注释。
+  static Future<Response> postCollectionUploadImage({
+    required String fileMd5,
+    required FormData data,
+  }) async {
+    return Request().post(
+      Api.postCollectionUploadImage,
+      queryParameters: {
+        'fieldName': 'picFile',
+        'uploadDir': 'feed_image',
+        'fileMd5': fileMd5,
+      },
+      data: data,
+      options: Options(contentType: Headers.multipartFormDataContentType),
+    );
+  }
+
+  static Future<Response> getCollectionCheckCount() async {
+    return Request().get(Api.getCollectionCheckCount);
+  }
+
+  static Future<Response> getCollectionDetail({required String id}) async {
+    return Request().get(
+      Api.getCollectionDetail,
+      queryParameters: {'id': id},
+    );
+  }
+
+  /// 清除收藏夹内无效内容（服务端异步执行，约 5 分钟后生效）
+  static Future<Response> postCollectionRemoveUnUseItem({
+    required String colId,
+  }) async {
+    return Request().post(
+      Api.postCollectionRemoveUnUseItem,
+      data: {'colId': colId},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
+  static Future<Response> postCollectionDelete({required String id}) async {
+    return Request().post(
+      Api.postCollectionDelete,
+      data: {'id': id},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
   static Future<Response> postOSSUploadPrepare({
     required FormData data,
   }) async {

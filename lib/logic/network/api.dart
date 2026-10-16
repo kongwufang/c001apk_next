@@ -63,4 +63,41 @@ class Api {
 
   static String postUpdateConfig =
       '${Constants.URL_API_SERVICE}/v6/account/updateConfig';
+
+  // ===== 收藏夹（多收藏夹）=====
+  // 对应 Android `ApiService` 的「===== 收藏夹（多收藏夹）=====」一段。
+  //
+  // 列表：带 `id=<动态id>&type=feed&showDefault=1` 时会下发 `isBeCollected`
+  //       （1=该动态已在此夹），弹窗靠它画勾。
+  static String getCollectionList =
+      '${Constants.URL_API_SERVICE}/v6/collection/list';
+
+  /// 收藏：`id=夹id`、`cancelId` 空；取消：`id` 空、`cancelId=夹id`
+  static String postCollectionAddItem =
+      '${Constants.URL_API_SERVICE}/v6/collection/addItem';
+
+  /// 新建（**multipart**）
+  static String postCollectionCreate =
+      '${Constants.URL_API_SERVICE}/v6/collection/create';
+
+  /// 修改（表单）：标题 / 简介 / 封面 / 公开或私密
+  static String postCollectionUpdate =
+      '${Constants.URL_API_SERVICE}/v6/collection/update';
+
+  /// 封面图上传（multipart）
+  static String postCollectionUploadImage =
+      '${Constants.URL_API_SERVICE}/v6/collection/uploadImage';
+
+  static String getCollectionDetail =
+      '${Constants.URL_API_SERVICE}/v6/collection/detail';
+
+  static String getCollectionCheckCount =
+      '${Constants.URL_API_SERVICE}/v6/collection/checkCount';
+
+  /// 清除收藏夹内无效内容（服务端异步执行）
+  static String postCollectionRemoveUnUseItem =
+      '${Constants.URL_API_SERVICE}/v6/collection/removeUnUseItem';
+
+  static String postCollectionDelete =
+      '${Constants.URL_API_SERVICE}/v6/collection/delete';
 }

@@ -1,8 +1,9 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:get/get.dart';
 
 import '../../logic/model/fav_history/fav_history.dart';
+import '../../logic/model/collection/collection.dart';
 import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/user_action.dart';
 import '../../logic/model/feed_article/feed_article.dart';
@@ -108,6 +109,28 @@ class FeedController extends CommonController {
   void onFav() {
     Datum data = (feedState.value as Success).response;
     GStorage.favFeed.put(id, getFeed(data));
+  }
+
+  /// 收藏夹面板（「收藏到」）回传的净结果。
+  ///
+  /// ★ **只认接口返回值**，不做本地加减 —— 多收藏夹下同一个夹重复点、
+  /// 别人同时收藏都会让本地算法偏；详情那份 `favnum` 还有服务端缓存滞后，
+  /// 重拉反而更不准。所以面板把 `addItem` 的响应直接带过来，这里照单收下。
+  ///
+  /// 顺带仍往本地 `favFeed` 留/删一份：本工程的「浏览历史 / 本地收藏」页
+  /// 读的还是这个 Hive 盒子，先保持它们能用。
+  void onCollectionAction(CollectionAction action) {
+    isFav = action.collect == 1;
+    if (isFav) {
+      try {
+        final data = (feedState.value as Success).response;
+        GStorage.favFeed.put(id, getFeed(data));
+      } catch (_) {
+        // 详情还没加载好就收藏：跳过本地缓存，不影响云端状态
+      }
+    } else {
+      GStorage.onDeleteFeed(id, isHistory: false);
+    }
   }
 
   FavHistoryItem getFeed(Datum data) {

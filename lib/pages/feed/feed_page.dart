@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -496,7 +496,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
             actions: _feedController.feedState.value is Success
                 ? [
                     PopupMenuButton(
-                      onSelected: (FeedMenuItem item) {
+                      onSelected: (FeedMenuItem item) async {
                         switch (item) {
                           case FeedMenuItem.Copy:
                             Utils.copyText(
@@ -508,12 +508,20 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                                 uri: Utils.getShareUri(_id, ShareType.feed)));
                             break;
                           case FeedMenuItem.Fav:
-                            if (_feedController.isFav) {
-                              GStorage.onDeleteFeed(_id, isHistory: false);
-                            } else {
-                              _feedController.onFav();
-                            }
-                            _feedController.isFav = !_feedController.isFav;
+                            // ★ 云端收藏夹（多收藏夹）。
+                            //
+                            // 对应 Android 详情页的「收藏到」面板
+                            // （`CollectionPickBottomSheet`）。上游这里只往本地
+                            // Hive `favFeed` 塞一份，没有多收藏夹的概念。
+                            //
+                            // 收藏数与星标**只认接口返回值**（面板通过 onAction
+                            // 带回来），不做本地加减 —— 多收藏夹下同一个夹重复点、
+                            // 别人同时收藏都会让本地算法偏。
+                            await showCollectionPickSheet(
+                              feedId: _id,
+                              onAction: (action) =>
+                                  _feedController.onCollectionAction(action),
+                            );
                             break;
                           case FeedMenuItem.Block:
                             GStorage.onBlock(
@@ -538,8 +546,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                                 child: item == FeedMenuItem.Fav
                                     ? Text(
                                         _feedController.isFav ? '取消收藏' : '收藏',
-                                      )
-                                    : item == FeedMenuItem.Block
+                                      )                                    : item == FeedMenuItem.Block
                                         ? Text(
                                             _feedController.isBlocked
                                                 ? '取消屏蔽'
