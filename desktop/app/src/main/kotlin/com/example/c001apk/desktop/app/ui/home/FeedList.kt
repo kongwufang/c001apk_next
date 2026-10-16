@@ -81,6 +81,19 @@ fun FeedList(client: Client, tab: String) {
         }.onSuccess {
             total = it.size
             rows = flatten(it)
+            val feeds = rows.count { r -> r is FeedRow.Feed }
+            val entries = rows.size - feeds
+            println("[home] indexV8 原始 ${total} 项 → 渲染 ${rows.size} 行（动态 $feeds / 入口 $entries）")
+            rows.filterIsInstance<FeedRow.Feed>().take(3).forEach { r ->
+                println(
+                    "[home]   feed username=${r.e.username} " +
+                        "dateline=${r.e.dateline} msgLen=${r.e.message?.length ?: 0} " +
+                        "首 40 字=${r.e.message?.take(40)?.replace("\n", " ")}"
+                )
+            }
+            rows.filterIsInstance<FeedRow.Entry>().take(3).forEach { r ->
+                println("[home]   entry title=${r.title}")
+            }
             loading = false
         }.onFailure {
             error = "${it::class.simpleName}: ${it.message}"
