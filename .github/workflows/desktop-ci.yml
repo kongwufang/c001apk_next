@@ -12,7 +12,7 @@ name: Desktop CI
 #   DESKTOP_CODESIGN_PFX_B64   base64(codesign.pfx)          签安装包 exe
 #   DESKTOP_CODESIGN_PFX_PWD   codesign.pfx 的密码
 #
-#   生成方式：python _rev/win_ref/make_desktop_keys.py
+#   生成方式：python desktop/tools/make_desktop_keys.py
 #   未配置时构建仍成功，但程序会跳过完整性校验、安装包不签名。
 #
 # ⚠️ 注意：step 的 `if:` 里**不能**引用 secrets 上下文（GitHub 限制），
@@ -70,7 +70,7 @@ jobs:
             exit 0
           }
           $env:PYTHONIOENCODING = 'utf-8'
-          python _rev/win_ref/embed_public_key.py --key-b64 $env:SIGN_KEY_B64 --out-kt "${{ env.PUBKEY_KT }}"
+          python desktop/tools/embed_public_key.py --key-b64 $env:SIGN_KEY_B64 --out-kt "${{ env.PUBKEY_KT }}"
 
       # ─────────────── 编译与单测 ───────────────
       - name: Compile core
@@ -133,7 +133,7 @@ jobs:
           $env:PYTHONIOENCODING = 'utf-8'
           $keyPem = Join-Path $env:RUNNER_TEMP "ed25519_private.pem"
           [IO.File]::WriteAllBytes($keyPem, [Convert]::FromBase64String(($env:SIGN_KEY_B64 -replace '\s','')))
-          python _rev/win_ref/make_integrity.py `
+          python desktop/tools/make_integrity.py `
             --app-dir "${{ env.APP_IMAGE_DIR }}" `
             --key $keyPem `
             --out-kt "${{ env.PUBKEY_KT }}"
