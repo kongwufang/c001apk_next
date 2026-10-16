@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -237,7 +237,10 @@ Widget _entityTile(Entity e, ItemRule rule, String shape) {
   // 注意这张表配的是**实体**模板，不是卡片模板 —— 实测 `albumExpandCard`
   // 是这样出现的：外层卡片是 `listCard`，里面的 album 实体自带
   // `entityTemplate=albumExpandCard`。
-  if (CardUi.entityLayout(e.entityTemplate) == CardUi.albumExpand) {
+  // ⚠️ `Entity` 模型里**没有** `entityTemplate`（只声明了 `entityType`），
+  // 服务端这个字段只在 `raw` 里 —— 又一次靠 raw 取到。
+  final entityTpl = readField(e.raw, const ['entityTemplate']);
+  if (CardUi.entityLayout(entityTpl) == CardUi.albumExpand) {
     return _albumExpandEntity(e);
   }
 
@@ -562,7 +565,9 @@ Widget _topContentRow(Entity e) {
 
   return InkWell(
     // 点这一行进**实体自己的** url
-    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url, title),
+    // ⚠️ `url` 是 `String?`，而 `isNullOrEmpty` 是**扩展 getter**，
+    // Dart 不会据此提升类型，所以这里必须写 `url!`（同一个坑已犯多次）。
+    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url!, title),
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -658,7 +663,7 @@ Widget _iconButtonCell(Entity e, ItemRule rule) {
   final url = e.url;
 
   return InkWell(
-    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url, title),
+    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url!, title),
     borderRadius: BorderRadius.circular(8),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(8),
@@ -739,7 +744,7 @@ Widget _albumExpandEntity(Entity e) {
   final url = e.url;
 
   return InkWell(
-    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url, title),
+    onTap: url.isNullOrEmpty ? null : () => Utils.onOpenLink(url!, title),
     child: SizedBox(
       height: 148,
       child: Stack(
