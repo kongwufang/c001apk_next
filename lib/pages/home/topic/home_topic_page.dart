@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../pages/carousel/carousel_page.dart';
@@ -67,7 +67,7 @@ class _HomeTopicPageState extends State<HomeTopicPage>
                       },
                       child: Ink(
                         color: index == _homeTopicController.currentIndex.value
-                            ? Theme.of(context).colorScheme.onInverseSurface
+                            ? Theme.of(context).colorScheme.surfaceContainer
                             : Colors.transparent,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -119,7 +119,7 @@ class _HomeTopicPageState extends State<HomeTopicPage>
             Expanded(
               flex: 78,
               child: Container(
-                color: Theme.of(context).colorScheme.onInverseSurface,
+                color: Theme.of(context).colorScheme.surfaceContainer,
                 child: PageView.builder(
                   controller: _controller,
                   scrollDirection: Axis.vertical,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class TextCard extends StatelessWidget {
   const TextCard({
@@ -24,7 +24,7 @@ class TextCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isMessage
             ? Theme.of(context).colorScheme.secondaryContainer
-            : Theme.of(context).colorScheme.onInverseSurface,
+            : Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

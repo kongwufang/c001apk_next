@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../components/cards/message_first_card.dart'
@@ -10,7 +10,7 @@ Widget messageSeconfCard(bool isLogin, BuildContext context) {
   return Material(
     clipBehavior: Clip.hardEdge,
     borderRadius: const BorderRadius.all(Radius.circular(12)),
-    color: Theme.of(context).colorScheme.onInverseSurface,
+    color: Theme.of(context).colorScheme.surfaceContainer,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [

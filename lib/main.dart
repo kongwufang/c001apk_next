@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
@@ -122,7 +122,7 @@ class C001APKAPP extends StatelessWidget {
             surfaceTintColor: lightColorScheme.surfaceTint,
           ),
           inputDecorationTheme: InputDecorationTheme(
-            fillColor: lightColorScheme.onInverseSurface,
+            fillColor: lightColorScheme.surfaceContainer,
           ),
           progressIndicatorTheme: ProgressIndicatorThemeData(
             refreshBackgroundColor: lightColorScheme.onSecondary,
@@ -153,7 +153,7 @@ class C001APKAPP extends StatelessWidget {
             surfaceTintColor: darkColorScheme.surfaceTint,
           ),
           inputDecorationTheme: InputDecorationTheme(
-            fillColor: darkColorScheme.onInverseSurface,
+            fillColor: darkColorScheme.surfaceContainer,
           ),
           progressIndicatorTheme: ProgressIndicatorThemeData(
             refreshBackgroundColor: darkColorScheme.onSecondary,

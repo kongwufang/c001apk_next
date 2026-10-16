@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -419,7 +419,7 @@ class _MinePageState extends State<MinePage> {
     return Material(
       clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.all(Radius.circular(12)),
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       child: child,
     );
   }

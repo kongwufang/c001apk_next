@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../components/cards/icon_mini_scroll_card.dart' show miniCardItem;
 import '../../components/cards/title_card.dart';
@@ -15,7 +15,7 @@ class IconMiniGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       clipBehavior: Clip.hardEdge,
-      color: Theme.of(context).colorScheme.onInverseSurface,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),

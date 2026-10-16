@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -60,7 +60,7 @@ class ChatCard extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: isLeft
-                          ? Theme.of(context).colorScheme.onInverseSurface
+                          ? Theme.of(context).colorScheme.surfaceContainer
                           : Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.only(
                         topLeft: isLeft
@@ -131,7 +131,7 @@ class ChatCard extends StatelessWidget {
         height: width * imageLp[1] / imageLp[0],
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          color: Theme.of(context).colorScheme.onInverseSurface,
+          color: Theme.of(context).colorScheme.surfaceContainer,
           border: Border.all(
               color:
                   Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),

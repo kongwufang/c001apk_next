@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../components/cards/title_card.dart';
@@ -20,7 +20,7 @@ class IconScrollCard extends StatelessWidget {
       return Ink(
         padding: const EdgeInsets.only(top: 10, bottom: 5),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.onInverseSurface,
+          color: Theme.of(context).colorScheme.surfaceContainer,
           borderRadius: const BorderRadius.all(Radius.circular(12)),
         ),
         child: Column(

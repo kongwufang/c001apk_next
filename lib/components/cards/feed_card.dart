@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -41,7 +41,7 @@ class FeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color:
-          isFeedContent ? null : Theme.of(context).colorScheme.onInverseSurface,
+          isFeedContent ? null : Theme.of(context).colorScheme.surfaceContainer,
       borderRadius:
           isFeedContent ? null : const BorderRadius.all(Radius.circular(12)),
       child: InkWell(
@@ -118,7 +118,7 @@ class FeedCard extends StatelessWidget {
       ),
       child: Material(
         color: isFeedContent
-            ? Theme.of(context).colorScheme.onInverseSurface
+            ? Theme.of(context).colorScheme.surfaceContainer
             : Theme.of(context).colorScheme.surface,
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: InkWell(
@@ -180,7 +180,7 @@ class FeedCard extends StatelessWidget {
       ),
       child: Material(
         color: isFeedContent
-            ? Theme.of(context).colorScheme.onInverseSurface
+            ? Theme.of(context).colorScheme.surfaceContainer
             : Theme.of(context).colorScheme.surface,
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: InkWell(

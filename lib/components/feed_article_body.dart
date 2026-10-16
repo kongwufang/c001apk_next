@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
@@ -73,7 +73,7 @@ Widget feedArticleBody(
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: const BorderRadius.all(Radius.circular(12)),
-              color: Theme.of(Get.context!).colorScheme.onInverseSurface,
+              color: Theme.of(Get.context!).colorScheme.surfaceContainer,
             ),
             padding: const EdgeInsets.all(10),
             child: Text(data.title.orEmpty),

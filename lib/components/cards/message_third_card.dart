@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 Widget messageThirdCard(
   BuildContext context,
@@ -11,7 +11,7 @@ Widget messageThirdCard(
   return Material(
     clipBehavior: Clip.hardEdge,
     borderRadius: const BorderRadius.all(Radius.circular(12)),
-    color: Theme.of(context).colorScheme.onInverseSurface,
+    color: Theme.of(context).colorScheme.surfaceContainer,
     child: InkWell(
       onTap: onTap,
       child: Padding(

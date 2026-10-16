@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../pages/ffflist/ffflist_page.dart' show FFFListType;
@@ -12,7 +12,7 @@ Widget messageFirstCard(
   return Material(
     clipBehavior: Clip.hardEdge,
     borderRadius: const BorderRadius.all(Radius.circular(12)),
-    color: Theme.of(context).colorScheme.onInverseSurface,
+    color: Theme.of(context).colorScheme.surfaceContainer,
     child: messageFirstCardRow(
       context,
       values,

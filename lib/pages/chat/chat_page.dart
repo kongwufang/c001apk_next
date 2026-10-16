@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -260,7 +260,7 @@ class _ChatPageState extends State<ChatPage> {
             break;
         }
       },
-      panelBgColor: Theme.of(context).colorScheme.onInverseSurface,
+      panelBgColor: Theme.of(context).colorScheme.surfaceContainer,
     );
   }
 
@@ -290,7 +290,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildInputView() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      color: Theme.of(context).colorScheme.onInverseSurface,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [

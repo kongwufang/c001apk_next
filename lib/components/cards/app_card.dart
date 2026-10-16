@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -28,7 +28,7 @@ class AppCard extends StatelessWidget {
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       color: isHomeCard
           ? Theme.of(context).colorScheme.surface
-          : Theme.of(context).colorScheme.onInverseSurface,
+          : Theme.of(context).colorScheme.surfaceContainer,
       child: InkWell(
         onTap: () {
           if (appCardType == AppCardType.CONTACTS) {

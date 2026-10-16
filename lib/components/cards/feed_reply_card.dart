@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -41,7 +41,7 @@ class FeedReplyCard extends StatelessWidget {
     final isFeedReply = data.fetchType == 'feed_reply';
     return Material(
       color: !isFeedReply || (isReply2Reply && !isTopReply)
-          ? Theme.of(context).colorScheme.onInverseSurface
+          ? Theme.of(context).colorScheme.surfaceContainer
           : Colors.transparent,
       borderRadius:
           !isFeedReply ? const BorderRadius.all(Radius.circular(12)) : null,
@@ -242,7 +242,7 @@ class FeedReplyCard extends StatelessWidget {
   Widget _replyRows(BuildContext context) {
     return Material(
       clipBehavior: Clip.hardEdge,
-      color: Theme.of(context).colorScheme.onInverseSurface,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: Column(
         mainAxisSize: MainAxisSize.min,

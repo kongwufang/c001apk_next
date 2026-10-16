@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:html/dom.dart' as dom;
@@ -28,7 +28,7 @@ class NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFollow = data.type == 'contacts_follow';
     return Material(
-      color: Theme.of(context).colorScheme.onInverseSurface,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: InkWell(
         onTap: () {

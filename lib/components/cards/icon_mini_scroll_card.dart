@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../components/self_sized_horizontal_list.dart';
@@ -46,7 +46,7 @@ Widget miniCardItem(
         ? Theme.of(context).colorScheme.surface
         : isGrid
             ? Colors.transparent
-            : Theme.of(context).colorScheme.onInverseSurface,
+            : Theme.of(context).colorScheme.surfaceContainer,
     borderRadius: BorderRadius.circular(radius),
     child: InkWell(
       onTap: () => Utils.onOpenLink(url, title),

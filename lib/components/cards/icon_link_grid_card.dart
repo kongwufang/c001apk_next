@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:expandable_page_view/expandable_page_view.dart';
 import 'package:flutter/material.dart';
 
@@ -36,7 +36,7 @@ class _IconLinkGridCardState extends State<IconLinkGridCard> {
   Widget build(BuildContext context) {
     return Material(
       clipBehavior: Clip.hardEdge,
-      color: Theme.of(context).colorScheme.onInverseSurface,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
