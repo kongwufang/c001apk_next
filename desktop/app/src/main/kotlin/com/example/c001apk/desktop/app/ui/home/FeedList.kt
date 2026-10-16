@@ -94,17 +94,22 @@ fun FeedList(client: Client, tab: String) {
             rows.filterIsInstance<FeedRow.Entry>().take(3).forEach { r ->
                 println("[home]   entry title=${r.title}")
             }
-            // 诊断：把 feed 的「渲染顺序索引 + 用户名 + 前 30 字」全列出来，
-            // 用来对照截图里到底哪几个位置该是动态。
-            println("[home] --- 全部行的顺序（诊断）---")
-            rows.forEachIndexed { idx, r ->
-                when (r) {
-                    is FeedRow.Feed -> println(
-                        "[home]   #$idx FEED  ${r.e.username} :: " +
-                            (r.e.message ?: "").replace("\n", " ").take(30)
-                    )
-                    is FeedRow.Entry -> println("[home]   #$idx entry ${r.title}")
+            // 诊断：把「渲染顺序 + 每行类型」写进 UTF-8 日志文件。
+            // 走文件而不是控制台 —— Windows 控制台默认 GBK，Java 输出的 UTF-8 中文会乱码，
+            // 而且重定向还会截断长输出，靠日志文件才看得准。
+            runCatching {
+                val diag = StringBuilder()
+                diag.appendLine("[home] indexV8 原始 $total 项 → ${rows.size} 行（动态 $feeds / 入口 $entries）")
+                rows.forEachIndexed { idx, r ->
+                    when (r) {
+                        is FeedRow.Feed -> diag.appendLine(
+                            "  #$idx FEED  ${r.e.username} | msgLen=${r.e.message?.length ?: 0} | " +
+                                (r.e.message ?: "").replace("\n", " ").take(40)
+                        )
+                        is FeedRow.Entry -> diag.appendLine("  #$idx entry ${r.title}")
+                    }
                 }
+                com.example.c001apk.desktop.app.homeDiagLog().appendText(diag.toString())
             }
             loading = false
         }.onFailure {

@@ -95,6 +95,15 @@ private fun runUi() {
 
 // ─────────────────────────── 诊断 / 日志 ───────────────────────────
 
+/**
+ * 首页诊断日志（`c001apk-home-diag.log`，UTF-8）。
+ *
+ * 为什么不用控制台：Windows 控制台默认 GBK，Java 输出 UTF-8 中文会乱码，
+ * 重定向还会截断长输出 —— 排查渲染问题时靠这个文件才看得准。
+ */
+fun homeDiagLog(): java.io.File =
+    java.io.File(logFile().parentFile, "c001apk-home-diag.log")
+
 /** 日志文件位置：优先安装目录，其次用户目录/临时目录（安装目录可能不可写） */
 private fun logFile(): java.io.File {
     val candidates = listOfNotNull(
