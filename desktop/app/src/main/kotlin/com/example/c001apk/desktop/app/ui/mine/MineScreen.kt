@@ -84,10 +84,12 @@ fun MineScreen(client: Client, session: Session) {
         error = null
         val r = withContext(Dispatchers.IO) {
             runCatching {
-                val info = client.api.checkLoginInfo().executeSync()
-                if ((info.status ?: 0) != 0) throw IllegalStateException(info.message ?: "登录信息有误")
-                val li = info.data
-                // 已登录才有必要拉资料
+                // ⚠️ 未登录是**正常状态**，不是错误。
+                // 服务端对未登录/失效凭据返回 status!=0 且 message="登录信息有误"，
+                // 此时 data 为 null —— 应显示未登录态的「我的」页，而不是报错。
+                val info = runCatching { client.api.checkLoginInfo().executeSync() }.getOrNull()
+                val li = info?.data?.takeIf { it.token != null }
+                // 只有确实登录了才去拉资料
                 val pf = li?.uid?.takeIf { it.isNotBlank() }?.let { uid ->
                     runCatching {
                         val r2 = client.api.getUserProfile(uid).executeSync()
@@ -102,6 +104,7 @@ fun MineScreen(client: Client, session: Session) {
             profile = pair.second
             loading = false
         }.onFailure {
+            // 真·异常（网络断了等）才显示错误
             error = "${it::class.simpleName}: ${it.message}"
             loading = false
         }
