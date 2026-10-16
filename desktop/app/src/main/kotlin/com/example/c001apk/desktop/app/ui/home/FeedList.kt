@@ -1,4 +1,4 @@
-﻿package com.example.c001apk.desktop.app.ui.home
+package com.example.c001apk.desktop.app.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import com.example.c001apk.desktop.app.ui.common.NetImage
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -218,8 +220,20 @@ sealed interface FeedRow {
         is EntryGroup -> "group:$type:${entries.firstOrNull()?.title.orEmpty()}"
     }
 
-    /** 入口组整行跨列；动态按双列瀑布流走 */
-    fun spanFull(): Boolean = this is EntryGroup
+    /**
+     * 是否整行跨列。
+     *
+     * ★ 实测修正（真机 UI 树量出来的坐标）：**入口卡不跨列**。
+     * Android 端首屏坐标：
+     * ```
+     * imageCarouselCard  x=106dp  宽 369dp   ← 双列瀑布流的**左列**
+     * iconLinkGridCard   x=485dp  宽 359dp   ← **右列**
+     * 动态 CardView       x=106 / 485，宽 369 / 359
+     * ```
+     * 即「今日酷安」轮播与「值得看」图标卡是**左右并排**，各占一列 —— 不是通栏。
+     * 上一版我把入口做成 `FullLine` 通栏，正是用户指出的「严重没对齐」的主因。
+     */
+    fun spanFull(): Boolean = false
 }
 
 /**
@@ -341,38 +355,63 @@ private fun jsonString(el: JsonElement?, key: String): String? {
 
 
 /**
- * 同类入口组 —— 渲染成**一行横向滚动卡**，对应 Android 端的
- * `iconMiniScrollCard` / `imageTextScrollCard` / `capsuleListCard` 等：
- * 多个入口共用同一个纵向位置，超出宽度横向滚动。
+ * 入口卡 —— 对应 Android 端各类「顶部聚合卡」。
  *
- * 这是「入口不挤占动态」的关键：入口组只吃掉一个纵向位置，
- * 而不是每个入口各占一行。
+ * ## 尺寸全部来自真机 UI 树实测（853×640dp 横屏平板）
+ * ```
+ * imageCarouselCard  369×123dp  ← 「今日酷安」，占双列瀑布流的一列
+ * iconLinkGridCard   359×65dp   ← 「值得看…」图标行；图标 36dp，y 方向 87..122
+ * 每列内容左右各有 10dp padding（卡片内元素 x=116 / 495 相对卡片 x=106 / 485）
+ * ```
+ * ★ 关键结构：这些卡**各占一列**（不是通栏），与动态卡同处一个双列瀑布流。
  */
 @Composable
 private fun EntryGroupCard(row: FeedRow.EntryGroup) {
     when (kindOf(row.type)) {
+        // 「今日酷安」这类：整体是一张 369×123dp 的轮播图（含页码指示器）
         EntryKind.Image -> AppCard {
-            LazyRow(
-                Modifier.fillMaxWidth().padding(10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(row.entries.size) { i -> ImageEntryTile(row.entries[i]) }
+            Box(Modifier.fillMaxWidth().height(123.dp)) {
+                // 轮播：多张时横向滚动
+                LazyRow(Modifier.fillMaxSize()) {
+                    items(row.entries.size) { i -> ImageEntryTile(row.entries[i]) }
+                }
+                // 页码指示器：真机上「1/3」在右下角
+                if (row.entries.size > 1) {
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(androidx.compose.ui.graphics.Color(0x66000000))
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            "1/${row.entries.size}",
+                            fontSize = 11.sp,
+                            color = androidx.compose.ui.graphics.Color.White,
+                        )
+                    }
+                }
             }
         }
 
+        // 「值得看 / 热闻 / 活动 …」：一行图标 + 文字，高 65dp，图标 36dp
         EntryKind.IconGrid -> AppCard {
             LazyRow(
-                Modifier.fillMaxWidth().padding(10.dp),
+                Modifier.fillMaxWidth().height(65.dp).padding(horizontal = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 items(row.entries.size) { i -> IconEntryTile(row.entries[i]) }
             }
         }
 
+        // 「一加13 / 数码 …」：商品/话题横向卡
         EntryKind.ListRow -> AppCard {
             LazyRow(
-                Modifier.fillMaxWidth().padding(10.dp),
+                Modifier.fillMaxWidth().height(65.dp).padding(horizontal = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 items(row.entries.size) { i -> ListEntryTile(row.entries[i]) }
             }
@@ -380,109 +419,113 @@ private fun EntryGroupCard(row: FeedRow.EntryGroup) {
     }
 }
 
-/** 大图入口瓦片（image_1 / imageScaleCard） */
+/** 轮播瓦片：占满整张卡（369×123dp），文字居中 */
 @Composable
 private fun ImageEntryTile(e: FeedRow.Entry) {
-    Column(Modifier.width(220.dp)) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(88.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                e.title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
-        e.subtitle?.takeIf { it.isNotBlank() }?.let {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                HtmlText.toPlainText(it),
-                fontSize = 12.sp,
-                color = DARKER_GRAY,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+    Box(
+        Modifier
+            .width(369.dp)
+            .height(123.dp)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            e.title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
     }
 }
 
-/** 图标宫格入口瓦片（iconLink） */
+/** 图标宫格入口瓦片（iconLink）—— 实测：图标 36dp、卡片高 65dp */
 @Composable
 private fun IconEntryTile(e: FeedRow.Entry) {
     Column(
-        Modifier.width(84.dp),
+        Modifier.width(64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             Modifier
-                .width(42.dp)
-                .height(42.dp)
-                .clip(RoundedCornerShape(12.dp))
+                // 实测 iconLinkGridCard 里的 ImageView 是 36×36dp
+                .size(36.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                e.title.take(1),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!e.pic.isNullOrBlank()) {
+                NetImage(url = e.pic, modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
+            } else {
+                Text(
+                    e.title.take(1),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
         Text(
             e.title,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
-/** 列表型入口瓦片（product / topic …） */
+/**
+ * 列表型入口瓦片（product / topic …）。
+ *
+ * 实测：这类卡（`capsuleListCard` / `imageTextScrollCard`）也是 65dp 高的横向卡，
+ * 单个瓦片宽度约 100dp（图标 + 标题 + 副标题），这里取 110dp 以容纳两行文字。
+ */
 @Composable
 private fun ListEntryTile(e: FeedRow.Entry) {
-    Column(Modifier.width(150.dp)) {
+    Row(
+        Modifier.width(150.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(
             Modifier
-                .fillMaxWidth()
-                .height(72.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                e.title.take(1),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!e.pic.isNullOrBlank()) {
+                NetImage(url = e.pic, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)))
+            } else {
+                Text(
+                    e.title.take(1),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            e.title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        e.subtitle?.takeIf { it.isNotBlank() }?.let {
-            Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
             Text(
-                HtmlText.toPlainText(it),
-                fontSize = 12.sp,
-                color = DARKER_GRAY,
-                maxLines = 2,
+                e.title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            e.subtitle?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    HtmlText.toPlainText(it),
+                    fontSize = 11.sp,
+                    color = DARKER_GRAY,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

@@ -1,13 +1,20 @@
-﻿package com.example.c001apk.desktop.app.ui
+package com.example.c001apk.desktop.app.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -15,8 +22,6 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -24,9 +29,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.c001apk.desktop.app.theme.ThemeState
 import com.example.c001apk.desktop.app.ui.detail.DetailScreen
 import com.example.c001apk.desktop.app.ui.home.HomeScreen
@@ -83,27 +91,18 @@ fun MainShell(
     var openFeedId by remember { mutableStateOf<String?>(null) }
 
     Row(Modifier.fillMaxSize()) {
-        // ── 左侧 NavigationRailView ──
-        NavigationRail(
-            // menuGravity="top"：靠上排列
-            header = { Spacer(Modifier.height(12.dp)) },
-        ) {
-            items.forEachIndexed { i, dest ->
-                NavigationRailItem(
-                    selected = index == i,
-                    onClick = { index = i },
-                    // labelVisibilityMode="selected"：仅选中项显示文字
-                    alwaysShowLabel = false,
-                    icon = {
-                        Icon(
-                            imageVector = if (index == i) dest.iconFilled else dest.iconOutlined,
-                            contentDescription = dest.label,
-                        )
-                    },
-                    label = { Text(dest.label) },
-                )
-            }
-        }
+        // ── 左侧导航栏 ──
+        // ⚠️ 这里**不用** Material3 的 `NavigationRail`：
+        // 它有内部最小宽度约束，压不到 Android 实测的尺寸。
+        // 用 adb 从真机 UI 树量到的精确值（853×640dp 的横屏平板）：
+        //   导航栏总宽 96dp，其中：左边距 20dp + 项宽 56dp + 右边距 20dp
+        //   项高 64dp（首页 y=102..166、我的 y=204..268，间距 38dp）
+        //   图标块 56×32dp（FrameLayout#navigation_bar_item）
+        AppNavigationRail(
+            items = items,
+            selected = index,
+            onSelect = { index = it },
+        )
 
         // 横屏布局里没有分隔线（靠 NavigationRail 自带表面色区分），
         // 但 M3E 的 rail 与内容同色时边界不明显，这里用 outlineVariant 细线，
@@ -164,4 +163,105 @@ private enum class NavDestination(
 ) {
     Home("首页", Icons.Filled.Home, Icons.Outlined.Home),
     Mine("我的", Icons.Filled.Person, Icons.Outlined.Person),
+}
+
+// ── 导航栏尺寸（全部来自真机 UI 树实测，单位 dp）──
+//
+// 测量环境：MEmu / OPPO R11 Plus / Android 9 / 1280×960px @240dpi = 853×640dp（横屏平板）
+// 量到的原始值：
+//   bottomNav        x=0..144px    → 96dp 宽
+//   navigation_home  x=30..114px, y=153..249px → x=20dp 宽 56dp 高 64dp
+//   navigation_mine  y=306..402px  → 与首页项间隔 38dp
+//   navigation_bar_item（图标块）56×32dp
+private val RAIL_WIDTH = 96.dp
+private val RAIL_SIDE_PADDING = 20.dp
+private val RAIL_ITEM_WIDTH = 56.dp
+private val RAIL_ITEM_HEIGHT = 64.dp
+private val RAIL_ITEM_GAP = 38.dp
+private val RAIL_TOP_PADDING = 64.dp
+
+/**
+ * 左侧导航栏 —— 自己搭而不是用 Material3 的 `NavigationRail`。
+ *
+ * 原因：`NavigationRail` 有内部最小宽度，压不到 Android 实测的 96dp；
+ * 而且我们要对齐的是**导航项 56dp 宽 + 两侧 20dp 留白**这个具体结构。
+ *
+ * `labelVisibilityMode="selected"` 的行为：**只有选中项显示文字**（未选中只显示图标）。
+ * 参考基准：真机上「首页」未选中时是纯图标，「我的」选中时图标下有 12sp 文字。
+ */
+@Composable
+private fun AppNavigationRail(
+    items: List<NavDestination>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column(
+        Modifier
+            .width(RAIL_WIDTH)
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surface),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(RAIL_TOP_PADDING))
+        items.forEachIndexed { i, dest ->
+            if (i > 0) Spacer(Modifier.height(RAIL_ITEM_GAP))
+            AppNavigationRailItem(
+                dest = dest,
+                selected = selected == i,
+                onClick = { onSelect(i) },
+            )
+        }
+    }
+}
+
+/**
+ * 单个导航项：56dp 宽 × 64dp 高。
+ * 选中时：图标块套一层 secondaryContainer 圆角底（M3 的 indicator），下方 12sp 文字。
+ */
+@Composable
+private fun AppNavigationRailItem(
+    dest: NavDestination,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        Modifier
+            .width(RAIL_ITEM_WIDTH)
+            .height(RAIL_ITEM_HEIGHT)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        // 图标块 56×32dp，选中时填 secondaryContainer
+        Box(
+            Modifier
+                .width(RAIL_ITEM_WIDTH)
+                .height(32.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    if (selected) MaterialTheme.colorScheme.secondaryContainer
+                    else androidx.compose.ui.graphics.Color.Transparent
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = if (selected) dest.iconFilled else dest.iconOutlined,
+                contentDescription = dest.label,
+                modifier = Modifier.size(24.dp),
+                tint = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        // labelVisibilityMode="selected"：只有选中项显示文字
+        if (selected) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                dest.label,
+                fontSize = 12.sp,
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
 }

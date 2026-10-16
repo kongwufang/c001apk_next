@@ -8,6 +8,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -27,8 +32,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -146,8 +149,56 @@ fun HomeScreen(
 }
 
 /**
+ * 单个 tab。
+ *
+ * 尺寸全部来自真机 UI 树实测（853×640dp 横屏平板，MEmu / Android 9）：
+ * ```
+ * 每个 tab            56dp 宽 × 48dp 高（量到 84×72px @240dpi）
+ * tab 文字            16sp（= @style/TabText，themes.xml 里定义）
+ * 下划线指示器         约 3dp 高（Android TabLayout 默认）
+ * tab 容器左侧留白     让第一个 tab 的 x 落在 159px≈106dp（= rail 96dp + 10dp）
+ * ```
+ * 注意**不是**平分宽度 —— Android 用 `tabMode=auto` 放在横向滚动容器里。
+ */
+@Composable
+private fun AppTab(title: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .width(56.dp)
+            .height(48.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            title,
+            fontSize = 16.sp,
+            maxLines = 1,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(4.dp))
+        // 选中下划线
+        Box(
+            Modifier
+                .width(20.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(
+                    if (selected) MaterialTheme.colorScheme.primary
+                    else androidx.compose.ui.graphics.Color.Transparent
+                ),
+        )
+    }
+}
+
+/** 顶栏高度 —— 实测真机 appBar 为 73dp */
+private val APP_BAR_HEIGHT = 73.dp
+
+/**
  * 顶栏。结构与 `fragment_home.xml` 的 `AppBarLayout` 等价：
- * 左 TabLayout（占满剩余宽度）+ 右 search + 右 message（带角标），底部 1px 分隔线。
+ * 左 TabLayout（横向滚动）+ 右 search + 右 message（带角标），底部 1px 分隔线。
  */
 @Composable
 private fun HomeTopBar(
@@ -161,28 +212,26 @@ private fun HomeTopBar(
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .height(56.dp),
+                // 实测：真机 appBar 高 73dp（1280×960@240dpi 下量到 y=0..110px）
+                .height(APP_BAR_HEIGHT)
+                .background(MaterialTheme.colorScheme.surfaceContainer),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // TabLayout：weight(1f) 等价于 layout_width=0dp + 约束撑满
-            TabRow(
-                selectedTabIndex = selected,
+            // ── TabLayout：**横向可滚动** ──
+            // 实测（真机 UI 树，853×640dp 横屏）：
+            //   HorizontalScrollView#tabLayout  x=96dp 宽 669dp 高 48dp
+            //   每个 tab 56dp 宽 × 48dp 高
+            //   7 个 tab 共 392dp < 669dp，但 Android 用的是 tabMode=auto + 横向滚动容器，
+            //   所以**不能被 weight 平均摊开** —— 那样每个 tab 会变成 ~95dp，与真机不符。
+            LazyRow(
                 modifier = Modifier.weight(1f),
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                divider = {},
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                tabs.forEachIndexed { i, title ->
-                    Tab(
+                items(tabs.size) { i ->
+                    AppTab(
+                        title = tabs[i],
                         selected = i == selected,
                         onClick = { onSelect(i) },
-                        text = {
-                            Text(
-                                title,
-                                fontSize = d.tabTextSizeSp.sp,
-                                fontWeight = if (i == selected) FontWeight.SemiBold else FontWeight.Normal,
-                            )
-                        },
                     )
                 }
             }
