@@ -2,7 +2,6 @@
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -281,14 +278,3 @@ val DARKER_GRAY = Color(0xFF444444)
 private val timeFmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 
 internal fun fmtTime(epochSeconds: Long): String = timeFmt.format(Date(epochSeconds * 1000L))
-
-/** 横向滚动的一行瓦片（入口组用） */
-@Composable
-fun TileRow(content: @Composable () -> Unit) {
-    AppCard {
-        LazyRow(
-            Modifier.fillMaxWidth().padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) { content() }
-    }
-}
