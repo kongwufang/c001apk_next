@@ -157,7 +157,16 @@ Widget buildBody(
       // `ReplyStaggerItemDecoration`，是另一套排法，不在这里改。
       if (!isReply2Reply && !Utils.isPortrait(Get.context!)) {
         return CustomScrollView(
-          controller: commonController.scrollController,
+          // ★ 在 `NestedScrollView` 里**不能**传自定义 controller ——
+      //   `NestedScrollView` 靠它自己提供的 controller 与 body 联动，
+      //   内层换成别的 controller 后联动就断 ⇒ 外层 `headerSliverBuilder`
+      //   的 sliver **永远收不起来**（产品/话题页头部不随滚动上移就是这个原因 ✗）
+      //
+      //   没有 `NestedScrollView` 祖先的页面（首页/搜索/大部分列表）
+      //   照旧用自己的 controller —— `animateToTop` / `scrollRatio` 依赖它。
+      controller: context.findAncestorWidgetOfExactType<NestedScrollView>() != null
+          ? null
+          : commonController.scrollController,
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
@@ -184,7 +193,16 @@ Widget buildBody(
       }
 
       return ListView.separated(
-        controller: commonController.scrollController,
+        // ★ 在 `NestedScrollView` 里**不能**传自定义 controller ——
+      //   `NestedScrollView` 靠它自己提供的 controller 与 body 联动，
+      //   内层换成别的 controller 后联动就断 ⇒ 外层 `headerSliverBuilder`
+      //   的 sliver **永远收不起来**（产品/话题页头部不随滚动上移就是这个原因 ✗）
+      //
+      //   没有 `NestedScrollView` 祖先的页面（首页/搜索/大部分列表）
+      //   照旧用自己的 controller —— `animateToTop` / `scrollRatio` 依赖它。
+      controller: context.findAncestorWidgetOfExactType<NestedScrollView>() != null
+          ? null
+          : commonController.scrollController,
         physics: AlwaysScrollableScrollPhysics(
           parent: isReply2Reply
               ? const ClampingScrollPhysics()
