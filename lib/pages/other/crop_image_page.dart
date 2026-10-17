@@ -120,6 +120,26 @@ class _CropImagePageState extends State<CropImagePage> {
       _cachedLum = lum;
       _borderLight = lum > _lightThreshold;
     });
+
+    // ★ 把图片缩放到**刚好覆盖裁剪框**。
+    //
+    //   之前什么都不做 ⇒ 图片按原始尺寸居中显示 ✗
+    //   ⇒ 裁剪框比图还大 ⇒ `srcRect` 越界 ⇒ `drawImageRect` 画出**空白** ✗
+    //   ⇒ 导出 1080×1080 只有 4.6 KB ⇒ 服务端回「图片分辨率异常」(-2011) ✗
+    //   （2026-10-18 实测日志抓到）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _cropRect;
+      final s = (box.width / img.width) > (box.height / img.height)
+          ? box.width / img.width
+          : box.height / img.height;
+      final dx = box.center.dx - img.width * s / 2;
+      final dy = box.center.dy - img.height * s / 2;
+      _tc.value = Matrix4.identity()
+        ..translate(dx, dy)
+        ..scale(s);
+      _log('fit: box=$box img=${img.width}x${img.height} scale=$s');
+    });
   }
 
   /// 变换变了就重算「画面明暗」，决定描边颜色
@@ -181,12 +201,26 @@ class _CropImagePageState extends State<CropImagePage> {
       final tx = m.getTranslation().x;
       final ty = m.getTranslation().y;
       // 视口坐标 → 源图像素坐标
-      final srcRect = Rect.fromLTWH(
+      var srcRect = Rect.fromLTWH(
         (box.left - tx) / scale,
         (box.top - ty) / scale,
         box.width / scale,
         box.height / scale,
       );
+      // ★ 兜底：越界就用「图片中心的最大正方形」。
+      //   否则 `drawImageRect` 只画出越界内那点内容（甚至全空）✗
+      if (srcRect.left < -1 ||
+          srcRect.top < -1 ||
+          srcRect.right > img.width + 1 ||
+          srcRect.bottom > img.height + 1) {
+        final side = (img.width < img.height ? img.width : img.height).toDouble();
+        srcRect = Rect.fromCenter(
+          center: Offset(img.width / 2, img.height / 2),
+          width: side,
+          height: side,
+        );
+        _log('srcRect 越界 → 兜底为图片中心正方形 ($side)');
+      }
 
       // 用 dart:ui 把源图的这段画到 outW×outH 的画布
       final recorder = ui.PictureRecorder();
@@ -274,9 +308,9 @@ class _CropImagePageState extends State<CropImagePage> {
                       minScale: 0.5,
                       maxScale: _maxScale,
                       boundaryMargin: const EdgeInsets.all(double.infinity),
-                      child: Center(
-                        child: RawImage(image: img),
-                      ),
+                      // ★ 不要 `Center`：`InteractiveViewer` 的变换以子节点
+                      //   左上角为原点，居中会把上面的 dx/dy 计算全算错 ✗
+                      child: RawImage(image: img),
                     ),
                   ),
                   // 遮罩 + 描边
