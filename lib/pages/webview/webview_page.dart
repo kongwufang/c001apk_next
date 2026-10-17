@@ -49,6 +49,11 @@ class _WebviewPageState extends State<WebviewPage> {
   static const int _loginTimeoutSeconds = 600;
   static const Duration _cookieCheckInterval = Duration(seconds: 1);
 
+  /// 登录页用的**移动浏览器** UA（见 `userAgent` 处的说明）。
+  static const String _mobileBrowserUA =
+      'Mozilla/5.0 (Linux; Android 13; PJZ110) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+
   /// 查 cookie 的域名 —— 照抄 Android `WebLoginActivity.COOKIE_URLS`。
   /// 登录成功后服务端可能只把登录态写在其中某一个域上。
   static const List<String> _cookieUrls = [
@@ -276,11 +281,19 @@ class _WebviewPageState extends State<WebviewPage> {
           useShouldOverrideUrlLoading: true,
           useOnDownloadStart: true,
           clearCache: true,
-          // ★ 登录页**故意不覆盖 UA**（Android `WebLoginActivity` 的明确注释）：
-          //   「保留系统 WebView 的移动 UA，让酷安网页按移动浏览器渲染，
-          //     才能拿到完整的登录表单」。
-          //   套上酷安 App 自己的 UA 反而可能拿不到登录表单。
-          userAgent: _isLogin ? null : GStorage.userAgent,
+          // ★ 登录页要用**移动浏览器的 UA**。
+          //
+          // Android `WebLoginActivity` 的原注释是「保留系统 WebView 的移动 UA，
+          // 让酷安网页按移动浏览器渲染，才能拿到完整的登录表单」——
+          // 在 Android 上系统 WebView 的默认 UA **本来就是移动的**，所以它不用设。
+          //
+          // 但桌面端默认 UA 是**桌面**的：实测（2026-10-17）酷安会返回
+          // 「微信扫码登录」那一版，只能扫码；换了移动 UA 才会给
+          // 账号 / 密码 / 短信验证码那套表单，选择更多。
+          //
+          // 也不能用 `GStorage.userAgent`（酷安 App 自己的 UA）——
+          // 那样可能被引导去「打开 App」而不是登录表单。
+          userAgent: _isLogin ? _mobileBrowserUA : GStorage.userAgent,
           forceDark: ForceDark.AUTO,
           algorithmicDarkeningAllowed: true,
         ),
