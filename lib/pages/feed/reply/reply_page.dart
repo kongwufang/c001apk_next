@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -431,10 +431,13 @@ class _ReplyPageState extends State<ReplyPage>
                   },
                 ),
                 const Spacer(),
-                StreamBuilder(
-                  initialData: false,
-                  stream: _checkBoxStream.stream,
-                  builder: (_, snapshot) => TextButton(
+                // ★ 点评模式隐藏「回复并转发」
+                //   （Android：`binding.checkBox.isVisible = false` 在 rating 分支里）
+                if (!_isRating)
+                  StreamBuilder(
+                    initialData: false,
+                    stream: _checkBoxStream.stream,
+                    builder: (_, snapshot) => TextButton(
                     onPressed: () {
                       _checkBoxValue = !_checkBoxValue;
                       _checkBoxStream.add(_checkBoxValue);
