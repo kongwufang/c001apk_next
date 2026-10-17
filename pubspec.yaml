@@ -39,6 +39,12 @@ dependencies:
   chat_bottom_container: ^0.3.1
   connectivity_plus: ^6.0.4
   crypto: ^3.0.3
+  # ★ 扫码登录（阶段 ③，2026-10-18）
+  #   qr_flutter   —— 把「requestId + appTicket + 公钥」那个 URL 画成二维码
+  #   pointycastle —— RSA 密钥对生成 / 私钥解 AES 密钥（纯 Dart，无原生代码）
+  #   ⚠️ 私钥只存在内存里，绝不落盘、绝不上传（用户定的硬约束）
+  qr_flutter: ^4.1.0
+  pointycastle: ^3.9.1
   device_info_plus: ^11.5.0
   dio: ^5.5.0+1
   dynamic_color: ^1.7.0
