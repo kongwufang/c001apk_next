@@ -9,8 +9,10 @@ import '../../components/imageview.dart';
 import '../../components/like_button.dart';
 import '../../components/no_splash_factory.dart';
 import '../../logic/model/feed/datum.dart';
+import '../../logic/model/feed/feed_extra.dart';
 import '../../logic/model/feed/feed_video.dart';
 import '../../utils/date_util.dart';
+import 'extra_slot.dart';
 import 'video_slot.dart';
 import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
@@ -44,6 +46,12 @@ class FeedCard extends StatelessWidget {
         feedType: data.feedType,
         feedTypeName: data.feedTypeName,
       );
+
+  /// 本条的**附加信息**（点评评分 / 二手）；都没有则为 null（整块隐藏）。
+  ///
+  /// 商品清单（`extraTitle` / `extraUrl` / `extraPic`）走的是
+  /// `Datum` 的现成字段，由 `_extraUrl()` 渲染，不在这里。
+  FeedExtra? get _extra => FeedExtra.from(data.raw);
 
   void _onViewFeed() {
     Get.toNamed('/feed/${data.id}');
@@ -93,6 +101,12 @@ class FeedCard extends StatelessWidget {
               if (!data.picArr.isNullOrEmpty) _image(),
               if (!data.forwardSourceType.isNullOrEmpty)
                 _forwardSourceFeed(context),
+              // ★ 附加信息槽（点评评分 / 二手）：放在媒体区之下、热评之上
+              //   （Android `item_home_feed.xml` 里 `extraPart` 的位置）。
+              //   三块「点评 / 二手 / 商品清单」在数据上基本互斥，
+              //   商品清单由下面的 `_extraUrl()` 负责，这里管另外两块。
+              if (_extra != null)
+                ExtraSlot(extra: _extra!, isFeedContent: isFeedContent),
               if (!data.extraUrl.isNullOrEmpty) _extraUrl(context),
               if (!data.replyRows.isNullOrEmpty) _hotReply(context),
               bottomInfo(context, data, isFeedContent, _onViewFeed, () {

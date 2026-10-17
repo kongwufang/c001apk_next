@@ -1,0 +1,126 @@
+[
+ {
+  "id": 74276786,
+  "entityType": "feed",
+  "entityTemplate": "feed",
+  "message": "【点评】鸿蒙系统广告少，系统UI与第三方软件UI都比安卓好太多，鸿蒙成了！\n【续航】还可以，早八晚五，一天摸鱼下来还有50%电量\n【屏幕】真亮！\n【外观质感】不带壳是真好看，但磕到了真会难受\n【影像】比iPhone16PM强多了\n【性价比】与iPhone差不多\n【优点】均衡\n【缺点】略贵\n【总评】还可以哦！",
+  "title": "小鼻血医生你好的点评",
+  "star": 5,
+  "rating_score": 10,
+  "rating_item_info": [
+   {
+    "id": "v4_score_item_1",
+    "name": "续航",
+    "star_desc": [
+     "很差",
+     "较差",
+     "一般",
+     "较好",
+     "非常好"
+    ],
+    "show_tag": [],
+    "v4_score": 8
+   },
+   {
+    "id": "v4_score_item_2",
+    "name": "影像",
+    "star_desc": [
+     "很差",
+     "较差",
+     "一般",
+     "较好",
+     "非常好"
+    ],
+    "show_tag": [],
+    "v4_score": 10
+   },
+   {
+    "id": "v4_score_item_3",
+    "name": "性能",
+    "star_desc": [
+     "很弱",
+     "较弱",
+     "一般",
+     "较强",
+     "非常强"
+    ],
+    "show_tag": [],
+    "v4_score": 6
+   },
+   {
+    "id": "v4_score_item_4",
+    "name": "屏幕",
+    "star_desc": [
+     "很差",
+     "较差",
+     "一般",
+     "较好",
+     "非常好"
+    ],
+    "show_tag": [],
+    "v4_score": 10
+   },
+   {
+    "id": "v4_score_item_5",
+    "name": "外观质感",
+    "star_desc": [
+     "很差",
+     "较差",
+     "一般",
+     "较好",
+     "非常好"
+    ],
+    "show_tag": [],
+    "v4_score": 6
+   },
+   {
+    "id": "v4_score_item_6",
+    "name": "性价比",
+    "star_desc": [
+     "很低",
+     "较低",
+     "一般",
+     "较高",
+     "非常高"
+    ],
+    "show_tag": [],
+    "v4_score": 6
+   }
+  ]
+ },
+ {
+  "id": "74276825",
+  "entityType": "feed",
+  "entityTemplate": "feed",
+  "message": "去年买的，盒子上有使用痕迹，耳机本体强光下也能轻微看到正常使用痕迹，固件版本在123呢，可随意降级，盒子也还在",
+  "title": "free4",
+  "ershou_info": {
+   "feed_id": 74276825,
+   "product_title": "手机",
+   "deal_type": 0,
+   "is_face_deal": 0,
+   "exchange_price_type": 0,
+   "product_price": 190,
+   "product_config_data": "{\"configTitle\":\"\\u6807\\u51c6\\u7248\"}",
+   "product_config_source": "{\"configId\":\"6636\",\"configTitle\":{\"value\":\"标准版\",\"other\":0},\"ram\":{\"value\":\"\",\"other\":0},\"rom\":{\"value\":\"\",\"other\":0}}",
+   "city": "临江",
+   "province": "吉林",
+   "city_code": "",
+   "ershou_type_id": 100,
+   "ershou_product_id": 0,
+   "store_type": 2,
+   "is_link": 1,
+   "link_url": "https://h5.m.goofish.com/item?forceFlush=1&id=1091869552966&ut_sk=1.acH1VS3crcsDAE1FcemAo1z0_21407387_1791637536137.copy.detail.1091869552966.3974011114",
+   "link_source": "闲鱼",
+   "ershou_status": 1,
+   "dateline": 1791637917,
+   "ershou_lastupdate": 1791637917,
+   "product_logo": "http://image.coolapk.com/ershou_logo/2026/0827/11/E585B6E4BB96E6898BE69CBA-ershou-uid-897371@168x168.png",
+   "store_type_txt": "个人",
+   "link_app_url": "",
+   "isAgreement": 1,
+   "extraData": "{\"showRefreshToTopButton\":1,\"reward_id\":\"sponsor-ershouDetail-ershouRefreshToTop\",\"reward_type\":\"TT_REWARD | 5014732 | 102677193\",\"reward_sign\":\"32864090|1791637969|d1048d371b0f24fd608ee762218595ce\"}",
+   "country": "中国"
+  }
+ }
+]
