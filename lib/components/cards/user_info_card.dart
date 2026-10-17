@@ -10,6 +10,7 @@ import '../../utils/date_util.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../expandable_bio.dart';
 
 class UserInfoCard extends StatelessWidget {
   const UserInfoCard({
@@ -203,9 +204,12 @@ class UserInfoCard extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(left: 20, top: 4),
-          child: Text((data.bio?.isEmpty ?? true) ? '这个人很懒，什么都没写' : data.bio!),
+        // 签名：折叠 2 行 + 「展开 / 收起」，**只有真被截断才露「展开」**。
+        // 对齐 Android UserPagerFragment.bindBio / 
+efreshBioExpand
+        // （BIO_COLLAPSED_LINES = 2）。
+        ExpandableBio(
+          text: (data.bio?.isEmpty ?? true) ? '这个人很懒，什么都没写' : data.bio!,
         ),
         Padding(
           padding: const EdgeInsets.only(left: 20, top: 4),
