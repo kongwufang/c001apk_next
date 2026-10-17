@@ -369,6 +369,43 @@ class NetworkRepo {
     );
   }
 
+  /// 个人主页**置顶 / 取消置顶**一条动态。
+  ///
+  /// 对齐 Android `ApiService`：
+  /// ```kotlin
+  /// // 三个都是表单字段，成功返回 data="个人主页置顶成功"。
+  /// @POST("/v6/feed/addTopToNode")
+  /// @FormUrlEncoded
+  /// fun addTopToNode(@Field("nodeType") nodeType: String,
+  ///                  @Field("nodeId") nodeId: String,
+  ///                  @Field("feedId") feedId: String): Call<LikeReplyResponse>
+  ///
+  /// // 取消个人主页置顶，参数同 addTopToNode，成功返回 data="个人主页取消置顶成功"
+  /// @POST("/v6/feed/cancelTopFromNode")
+  /// ```
+  ///
+  /// 调用方（`BaseAppViewModel.onPostStickTop`）传的是
+  /// `nodeType = "member"`、`nodeId = PrefManager.uid`（**自己的 uid**）、`feedId = id`。
+  ///
+  /// [isStickTop] 是**当前**状态：已置顶就调取消接口，未置顶就调置顶接口
+  /// （与 Android 的分支完全一致）。
+  static Future<Response> postStickTop({
+    required String feedId,
+    required bool isStickTop,
+    required String myUid,
+  }) async {
+    return Request().post(
+      isStickTop
+          ? '${Constants.URL_API_SERVICE}/v6/feed/cancelTopFromNode'
+          : '${Constants.URL_API_SERVICE}/v6/feed/addTopToNode',
+      data: FormData.fromMap({
+        'nodeType': 'member',
+        'nodeId': myUid,
+        'feedId': feedId,
+      }),
+    );
+  }
+
   static Future<Response> getValidateCaptcha() async {
     return Request().get(
       '${Constants.URL_API_SERVICE}/v6/account/captchaImage?${DateTime.now().microsecondsSinceEpoch ~/ 1000}&w=270=&h=113',

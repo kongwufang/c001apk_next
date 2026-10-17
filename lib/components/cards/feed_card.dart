@@ -1,6 +1,7 @@
 import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../components/cards/icon_mini_scroll_card.dart' show miniCardItem;
 import '../../components/html_text.dart';
@@ -11,6 +12,7 @@ import '../../components/no_splash_factory.dart';
 import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/feed_extra.dart';
 import '../../logic/model/feed/feed_video.dart';
+import '../../logic/network/network_repo.dart';
 import '../../utils/date_util.dart';
 import '../clamped_html.dart';
 import 'extra_slot.dart';
@@ -542,6 +544,8 @@ Widget header(
                 isHistory: isHistory,
                 onDelete: onDelete,
                 onBlock: onBlock,
+                isStickTop: data.isStickTop == 1,
+                entityType: data.entityType,
               );
             },
           ),
@@ -610,7 +614,8 @@ Widget bottomInfo(
   );
 }
 
-enum PanelAction { copy, block, report, delete }
+// `stickTop` = 个人主页置顶 / 取消置顶（Android 菜单项 `R.id.stickTop`）
+enum PanelAction { copy, block, report, delete, stickTop }
 
 class _MorePanel extends StatelessWidget {
   const _MorePanel({
@@ -619,6 +624,8 @@ class _MorePanel extends StatelessWidget {
     required this.isHistory,
     required this.onDelete,
     required this.onBlock,
+    required this.isStickTop,
+    required this.entityType,
   });
 
   final dynamic id;
@@ -626,6 +633,12 @@ class _MorePanel extends StatelessWidget {
   final bool isHistory;
   final Function(dynamic id)? onDelete;
   final Function()? onBlock;
+
+  /// 这条动态**当前**是否已在自己主页置顶（`data.isStickTop == 1`）
+  final bool isStickTop;
+
+  /// 实体类型 —— 只有 `feed` 才允许置顶（Android 同）
+  final String? entityType;
 
   Future<dynamic> menuActionHandler(PanelAction type) async {
     switch (type) {
@@ -648,6 +661,31 @@ class _MorePanel extends StatelessWidget {
         Get.back();
         if (onDelete != null) {
           onDelete!(id);
+        }
+        break;
+      case PanelAction.stickTop:
+        Get.back();
+        // 对齐 Android `BaseAppViewModel.onPostStickTop`：
+        // 已置顶 → 调**取消**接口；未置顶 → 调置顶接口。
+        final myUid = GlobalData().uid;  // 非空 String，默认 ''
+        if (myUid.isEmpty) return;
+        try {
+          final response = await NetworkRepo.postStickTop(
+            feedId: id.toString(),
+            isStickTop: isStickTop,
+            myUid: myUid,
+          );
+          final data = response.data;
+          // 服务端成功时 `data` 是一句话（「个人主页置顶成功」），
+          // 失败时 `message` 有内容 → 照 Android 那样优先弹 message
+          final msg = (data is Map ? data['message'] : null)?.toString() ?? '';
+          if (msg.isNotEmpty) {
+            SmartDialog.showToast(msg);
+          } else {
+            SmartDialog.showToast(isStickTop ? '已取消置顶' : '已置顶');
+          }
+        } catch (e) {
+          SmartDialog.showToast('操作失败');
         }
         break;
     }
@@ -701,9 +739,22 @@ class _MorePanel extends StatelessWidget {
               title:
                   Text('举报', style: Theme.of(context).textTheme.titleSmall),
             ),
-          if (isHistory || uid.toString() == GlobalData().uid)
+          // 置顶 / 取消置顶：**只有自己的动态**才出现（Android 同）
+          if (GlobalData().uid.isNotEmpty &&
+              GlobalData().uid == uid.toString() &&
+              entityType == 'feed')
             ListTile(
-              onTap: () async => await menuActionHandler(PanelAction.delete),
+              onTap: () async =>
+                  await menuActionHandler(PanelAction.stickTop),
+              minLeadingWidth: 0,
+              leading: const Icon(Icons.push_pin_outlined, size: 19),
+              title: Text(
+                isStickTop ? '取消置顶' : '置顶',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ListTile(
+            onTap: () async => await menuActionHandler(PanelAction.delete),
               minLeadingWidth: 0,
               leading: const Icon(Icons.delete_outline, size: 19),
               title:
