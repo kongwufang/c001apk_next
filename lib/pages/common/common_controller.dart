@@ -11,6 +11,7 @@ import '../../logic/state/loading_state.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
+import '../../utils/stick_top.dart';
 
 abstract class CommonController extends GetxController {
   int page = 1;
@@ -225,30 +226,13 @@ abstract class CommonController extends GetxController {
       }
       final state = loadingState.value;
       if (state is! Success) return;
-      var dataList = state.response as List<Datum>;
-      // 小标记翻面
-      dataList = dataList.map((d) {
-        if (d.id == id) {
-          d.isStickTop = isStickTop ? 0 : 1;
-        }
-        return d;
-      }).toList();
-      // 刚置顶 → 排到最前
-      if (!isStickTop) {
-        Datum? target;
-        for (final d in dataList) {
-          if (d.id == id) {
-            target = d;
-            break;
-          }
-        }
-        if (target != null) {
-          dataList = [
-            target,
-            ...dataList.where((d) => d.id != id),
-          ];
-        }
-      }
+      // 列表变换抽在 `utils/stick_top.dart` 里（纯函数，有单元测试）——
+      // 翻面 + 刚置顶时前移 + 不丢项，都在那儿验证过。
+      final dataList = applyStickTop(
+        state.response as List<Datum>,
+        id,
+        isStickTop,
+      );
       loadingState.value = LoadingState.success(dataList);
       final ok = data.data;
       if (ok != null) SmartDialog.showToast(ok);
