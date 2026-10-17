@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../components/cards/app_card.dart';
 import '../components/cards/carousel_card.dart';
@@ -108,6 +108,18 @@ Widget itemCard(
           return TextCard(text: data.description.orEmpty, isMessage: true);
         case 'refreshCard':
           return TextCard(text: data.title.orEmpty, isRefreshCard: true);
+        // ★ 产品页「参数」tab 的版本配置卡（Android viewType 15）。
+        //
+        //   ⚠️ 注意分派层级：这类条目的 **`entityType` 是 `'card'`**，
+        //   `productConfigList` 是 **`entityTemplate`** ——
+        //   所以 case 要放在这个**内层按 entityTemplate 的 switch** 里，
+        //   放到外层 `switch (entityType)` 永远匹配不到（会掉进通用卡片，
+        //   表现就是「只有『版本配置』标题、没有下面那些行」）。
+        //
+        //   另外服务端下发的这张卡 entities **恒为空**，
+        //   内容靠 `TopicContentController` 从 `product/detail` 的 configRows 注入。
+        case 'productConfigList':
+          return ProductConfigListCard(data: data);
         default:
           // ★ 未单独适配的卡片模板 → 走**通用卡片**（规则表驱动），
           //   而不是什么都不渲染。对应 Android `AppAdapter` 的
@@ -187,11 +199,6 @@ Widget itemCard(
     // 个人主页「点评」tab 的实体（Android `AppAdapter` 的 viewType 21）
     case 'nodeRating':
       return RatingCard(data: data);
-    // 产品页「参数」tab 的版本配置卡（Android viewType 15）。
-    // ⚠️ 服务端下发的这张卡 entities **恒为空**，
-    //    内容靠 `TopicContentController` 从 `product/detail` 的 configRows 注入。
-    case 'productConfigList':
-      return ProductConfigListCard(data: data);
   }
   // ★ 顶层 `entityType` 也没匹配到 → 同样交给通用卡片。
   //
