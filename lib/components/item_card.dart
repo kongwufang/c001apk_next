@@ -65,18 +65,23 @@ Widget itemCard(
         },
       );
 
+  // ★★ 先按 **`entityTemplate`** 分派 `feedCover` —— 这是 Android 的做法。
+  //
+  // 实测（`_rev/win_ref/probe_feedcover3.py` 打首页 indexV8）：
+  //   feedCover 实体的结构是 `entityType='feed'` + **`entityTemplate='feedCover'`**
+  //   —— **`entityType` 是 `feed`，不是 `feedCover`**！
+  // 所以按 `entityType` 分派永远不会命中（我第一版就是这么写错的）。
+  //
+  // Android `AppAdapter.getItemViewType` 也正是按它分派的：
+  //   `!feedCoverAsFeed && currentList[position].entityTemplate == "feedCover" -> 27`
+  if (!feedCoverAsFeed && data.entityTemplate == 'feedCover') {
+    return FeedCoverCard(
+      data: data,
+      onLike: onLike != null ? () => onLike(data.id, true, isFeed: true) : null,
+    );
+  }
+
   switch (data.entityType) {
-    // ★ feedCover（紧凑封面卡）—— 没有头像/用户名区，是另一套排法。
-    //   见 `cards/feed_cover_card.dart` 的规格说明。
-    case 'feedCover':
-      if (!feedCoverAsFeed) {
-        return FeedCoverCard(
-          data: data,
-          onLike:
-              onLike != null ? () => onLike(data.id, true, isFeed: true) : null,
-        );
-      }
-      return buildFeedCard();
     case 'card':
       switch (data.entityTemplate) {
         case 'imageCarouselCard_1':
