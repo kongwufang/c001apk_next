@@ -1,4 +1,4 @@
-import 'package:c001apk_flutter/components/network_image.dart';
+﻿import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -12,6 +12,7 @@ import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/feed_extra.dart';
 import '../../logic/model/feed/feed_video.dart';
 import '../../utils/date_util.dart';
+import '../clamped_html.dart';
 import 'extra_slot.dart';
 import 'video_slot.dart';
 import '../../utils/extensions.dart';
@@ -382,15 +383,40 @@ class FeedCard extends StatelessWidget {
           top: 5,
           right: isFeedContent ? 16 : 10,
         ),
-        child: htmlText(
-          data.message.orEmpty,
-          fontSize: 16,
-          onClick: _onViewFeed,
-        ),
+        child: _buildMessageBody(),
       )
     ];
   }
 }
+
+  /// 正文：列表里**最多 5 行 + 「查看更多」**，详情页给全文。
+  ///
+  /// 对齐 Android `item_home_feed.xml`：
+  /// ```xml
+  /// <TextView android:id="@+id/message" android:maxLines="5"
+  ///           android:textSize="16sp" android:lineSpacingMultiplier="1.2" />
+  /// <TextView android:id="@+id/messageMore" android:text="查看更多"
+  ///           android:layout_marginTop="6dp" android:textSize="13sp"
+  ///           android:textStyle="bold" android:textColor="?attr/colorPrimary" />
+  /// ```
+  /// Android 那边 `messageMore` 只在**真的被截断**时才显示
+  /// （`FeedViewHolder.bindMessageMore` 按排版结果判断），这里也只在超行时才加。
+  ///
+  /// 折叠的具体做法见 [ClampedHtml]（`HtmlWidget` 没有 `maxLines`，得自己量 + 裁）。
+  Widget _buildMessageBody() {
+    final content = htmlText(
+      data.message.orEmpty,
+      fontSize: 16,
+      onClick: _onViewFeed,
+    );
+    // 详情页不折叠（Android 详情页也没有「查看更多」）
+    if (isFeedContent) return content;
+    return ClampedHtml(
+      plainText: ClampedHtml.stripHtml(data.message.orEmpty),
+      onMore: _onViewFeed,
+      child: content,
+    );
+  }
 
 Widget header(
   BuildContext context,
