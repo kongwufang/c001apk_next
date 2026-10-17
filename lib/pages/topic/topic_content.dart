@@ -217,14 +217,12 @@ class _TopicContentState extends State<TopicContent>
                 // 只重建这一个 Opacity，child 复用不重建
                 builder: (_, fade, child) => Opacity(
                   opacity: 1 - fade,
-                  // ★ 视差：把头部**往下**偏移「折叠进度 × 半程」，
-                  //   于是它上移的速度只有列表的一半 —— 对齐 Android
-                  //   CollapsingToolbarLayout 的 COLLAPSE_MODE_PARALLAX。
-                  //   只偏移、不改 sliver 高度：列表照常收上去，头部像「拖在后面」。
-                  child: Transform.translate(
-                    offset: Offset(0, fade * _headerFadeDistance * 0.5),
-                    child: child,
-                  ),
+                  // ★ 只做**淡出**，不做**视差**：Transform.translate 不改布局、只改绘制，
+                  //   而头部是 SliverToBoxAdapter（**不裁剪**）—— 下移后会半透明地
+                  //   压在下面第一条卡片上 ✗。要正确做视差，得让 sliver 比内容高出一截
+                  //   （留永久空白）或自写 SliverPersistentHeader 手工 paint，
+                  //   代价远大于收益 ⇒ **记为待办**（见台账）。
+                  child: child,
                 ),
                 child: widget.headerTop,
               ),
