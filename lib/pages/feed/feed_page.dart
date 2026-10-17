@@ -21,6 +21,7 @@ import '../../utils/device_util.dart';
 import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
+import '../../utils/shortcuts.dart';
 import '../../utils/utils.dart';
 import '../../components/m3e_progress.dart';
 import '../../pages/collection/collection_pick_sheet.dart';
@@ -153,7 +154,31 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
         );
       case Success():
         return _feedController.articleList.isNullOrEmpty
-            ? FeedCard(
+            // ★ 详情页的快捷键（**页面级**，不依赖鼠标停在正文上）：
+            //   l 点赞 / c 收藏 / s 复制链接 / a 作者主页
+            //   —— 见 `utils/shortcuts.dart`
+            ? ShortcutPage(
+                actions: {
+                  ShortcutBus.like: () {
+                    if (GlobalData().isLogin) {
+                      _feedController.onLike(
+                        feedState.response!.id,
+                        feedState.response!.userAction?.like,
+                        isFeed: true,
+                      );
+                    }
+                  },
+                  ShortcutBus.collect: () => showCollectionPickSheet(
+                    feedId: _id,
+                    onAction: (action) =>
+                        _feedController.onCollectionAction(action),
+                  ),
+                  ShortcutBus.share: () => Utils.copyText(
+                      Utils.getShareUri(_id, ShareType.feed).toString()),
+                  ShortcutBus.author: () => Get.toNamed(
+                      '/u/${feedState.response!.uid}'),
+                },
+                child: FeedCard(
                 data: feedState.response!,
                 isFeedContent: true,
                 onLike: (id, like) {
@@ -178,6 +203,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                 onForward: () => Utils.copyText(
                   Utils.getShareUri(_id, ShareType.feed).toString(),
                 ),
+              ),
               )
             : SliverList.separated(
                 itemCount: _feedController.articleList!.length + 2,
