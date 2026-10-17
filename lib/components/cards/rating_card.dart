@@ -87,8 +87,12 @@ class RatingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final avatar = data.userInfo?.userAvatar.orEmpty;
-    final username = data.userInfo?.username.orEmpty;
+    // ★ 注意这个坑：`a?.b.c` 里的 `?.` 会把**整条链**的静态类型变成可空 ——
+    //   所以 `data.userInfo?.userAvatar.orEmpty` 的类型是 `String?`（不是 `String`），
+    //   因为 `userInfo` 为 null 时整条链就是 null，`orEmpty` 根本不会被调用。
+    //   要么 `?? ''`，要么写成 `(data.userInfo?.userAvatar).orEmpty`。
+    final avatar = data.userInfo?.userAvatar.orEmpty ?? '';
+    final username = data.userInfo?.username.orEmpty ?? '';
     final target = _target;
     final good = _commentText('优点', _comment('comment_good'));
     final bad = _commentText('缺点', _comment('comment_bad'));
