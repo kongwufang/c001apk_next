@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import 'constants/constants.dart';
 import 'logic/network/request.dart';
 import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
+import 'utils/global_data.dart';
 import 'utils/storage_util.dart';
 import 'utils/utils.dart';
 import 'utils/webview_env.dart';
@@ -42,6 +43,12 @@ void main() async {
 
   await GStorage.init();
   HttpOverrides.global = CustomHttpOverrides();
+
+  // 诊断：确认从 Hive 加载出来的登录态（stderr/stdout 用
+  // `_rev/win_ref/launch_with_log.ps1` 抓）
+  debugPrint('main: 启动 | isLogin=${GlobalData().isLogin} '
+      'uid=${GlobalData().uid} '
+      'token=${GlobalData().token.isEmpty ? "(空)" : "有"}');
 
   // Windows 上必须先建 `WebViewEnvironment` 才能正确读 cookie ——
   // 否则 `CookieManager` 返回空列表，**网页登录永远检测不到登录态**。

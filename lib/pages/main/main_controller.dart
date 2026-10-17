@@ -21,8 +21,11 @@ class MainController extends GetxController {
   /// `getCheckLoginInfo()`。因为 versionCode 参与 v3 token 运算，且必须与
   /// `X-App-Code` 自洽，所以要先把它校准好，登录态检查才带得上正确的头。
   Future<void> initAndCheckLogin() async {
+    debugPrint('initAndCheckLogin: 开始');
     await followOfficialVersion();
+    debugPrint('initAndCheckLogin: 版本号已跟随，接着校验登录态');
     await checkLoginInfo();
+    debugPrint('initAndCheckLogin: 结束');
   }
 
   /// 把客户端版本号对齐到**官方酷安 App 的最新版本**。
@@ -60,12 +63,31 @@ class MainController extends GetxController {
   }
 
   Future<void> checkLoginInfo() async {
-    Response response = await NetworkRepo.checkLoginInfo();
+    // ★ 诊断日志（启动自检出问题时全靠它）：
+    //   把「请求前带的是什么凭证」和「服务端回了什么」都打出来。
+    //   stderr/stdout 用 `_rev/win_ref/launch_with_log.ps1` 抓
+    //   （实测 `debugPrint` 会走 stdout）。
+    debugPrint('checkLoginInfo: start | isLogin=${GlobalData().isLogin} '
+        'uid=${GlobalData().uid} token=${GlobalData().token.isEmpty ? "(空)" : "有"} '
+        'SESSID=${GlobalData().SESSID.isEmpty ? "(空)" : "有"}');
+
+    Response response;
     try {
+      response = await NetworkRepo.checkLoginInfo();
+    } catch (e) {
+      // ⚠️ 原来这一句在 try **外面** —— 请求一抛错就静默逃逸出整个函数，
+      //    连一行日志都没有，排查时完全瞎。现在明确记下来。
+      debugPrint('checkLoginInfo: 请求异常 -> $e');
+      return;
+    }
+
+    try {
+      debugPrint('checkLoginInfo: statusCode=${response.statusCode} '
+          'body=${response.data}');
       if (response.statusCode == HttpStatus.ok) {
         CheckInfo responseData = CheckInfo.fromJson(response.data);
         if (!responseData.message.isNullOrEmpty) {
-          debugPrint(response.data['message']);
+          debugPrint('checkLoginInfo: message=${response.data['message']}');
           if (response.data['message'] == '登录信息有误') {
             GStorage.setUid('');
             GStorage.setUsername('');
@@ -79,15 +101,16 @@ class MainController extends GetxController {
                 Uri.encodeComponent(responseData.data!.username.orEmpty));
             GStorage.setToken(responseData.data!.token.orEmpty);
             GStorage.setIsLogin(true);
+            debugPrint('checkLoginInfo: 已恢复登录态 uid=${responseData.data!.uid}');
           } else {
-            debugPrint('null');
+            debugPrint('checkLoginInfo: data 为 null');
           }
         }
       } else {
-        debugPrint('statusCode: ${response.statusCode}');
+        debugPrint('checkLoginInfo: statusCode 非 200');
       }
     } catch (e) {
-      debugPrint('failed to get token: ${e.toString()}');
+      debugPrint('checkLoginInfo: 解析失败 -> ${e.toString()}');
     }
 
     try {

@@ -171,7 +171,15 @@ class _WebviewPageState extends State<WebviewPage> {
             break;
         }
       }
+      // ★ 诊断：cookie 到底取到没有（Windows 上插件有取不到 cookie 的已知缺陷，
+      //   修好后这里应该能看到 cookie 数量 > 0）
+      debugPrint('webLogin: $url 取到 ${list.length} 个 cookie '
+          '${list.map((e) => e.name).toList()}');
     }
+
+    // 兜底：document.cookie
+    debugPrint('webLogin: getCookies 得到 uid=${uid ?? "(无)"} '
+        'token=${(token ?? "").isEmpty ? "(无)" : "有"}');
 
     // ★ 兜底：直接读 `document.cookie`。
     //
