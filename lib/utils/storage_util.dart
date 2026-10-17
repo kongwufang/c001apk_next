@@ -301,6 +301,24 @@ class GStorage {
     settings.put(SettingsBoxKey.useMaterial, value);
   }
 
+  /// 纯黑主题（对齐 Android `blackDarkTheme`）：深色模式下用纯黑底
+  static bool get blackDarkTheme {
+    return settings.get(SettingsBoxKey.blackDarkTheme, defaultValue: false);
+  }
+
+  static void setBlackDarkTheme(bool value) {
+    settings.put(SettingsBoxKey.blackDarkTheme, value);
+  }
+
+  /// 深色模式压暗图片（对齐 Android `isColorFilter`）
+  static bool get isColorFilter {
+    return settings.get(SettingsBoxKey.isColorFilter, defaultValue: true);
+  }
+
+  static void setIsColorFilter(bool value) {
+    settings.put(SettingsBoxKey.isColorFilter, value);
+  }
+
   static int get staticColor {
     return settings.get(SettingsBoxKey.staticColor, defaultValue: 0);
   }
@@ -623,6 +641,10 @@ class SettingsBoxKey {
   static const String useMaterial = 'useMaterial',
       staticColor = 'staticColor',
       selectedTheme = 'selectedTheme',
+      // 纯黑主题（对齐 Android `blackDarkTheme`）：深色模式下用纯黑底
+      blackDarkTheme = 'blackDarkTheme',
+      // 深色模式压暗图片（对齐 Android `isColorFilter`）
+      isColorFilter = 'isColorFilter',
       szlmId = 'szlmId',
       // 取号用的 SSAID（对应 Android 的 Settings.Secure.ANDROID_ID），首次生成后持久化
       ssaid = 'ssaid',

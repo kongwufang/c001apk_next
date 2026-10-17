@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gif_view/gif_view.dart';
@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/constants.dart';
 import '../logic/repo/offline_cache_repo.dart';
+import '../utils/storage_util.dart';
 
 /// 统一的取图入口。
 ///
@@ -39,42 +40,63 @@ Widget networkImage(
     );
   }
 
-  return imageUrl.endsWith(Constants.SUFFIX_GIF)
-      ? GifView.network(
-          imageUrl,
-          fit: fit,
-          width: width,
-          height: height,
-          errorBuilder: (context, url, error) => _placeHolder(
-            context,
-            isAvatar: isAvatar,
+  return _maybeDim(
+    context,
+    imageUrl.endsWith(Constants.SUFFIX_GIF)
+        ? GifView.network(
+            imageUrl,
+            fit: fit,
             width: width,
-            borderRadius: borderRadius,
-          ),
-          fadeDuration: const Duration(milliseconds: 200),
-          loop: false,
-        )
-      : CachedNetworkImage(
-          fit: fit,
-          width: width,
-          height: height,
-          imageUrl: imageUrl,
-          imageBuilder: imageBuilder,
-          placeholder: (context, url) => _placeHolder(
-            context,
-            isAvatar: isAvatar,
+            height: height,
+            errorBuilder: (context, url, error) => _placeHolder(
+              context,
+              isAvatar: isAvatar,
+              width: width,
+              borderRadius: borderRadius,
+            ),
+            fadeDuration: const Duration(milliseconds: 200),
+            loop: false,
+          )
+        : CachedNetworkImage(
+            fit: fit,
             width: width,
-            borderRadius: borderRadius,
+            height: height,
+            imageUrl: imageUrl,
+            imageBuilder: imageBuilder,
+            placeholder: (context, url) => _placeHolder(
+              context,
+              isAvatar: isAvatar,
+              width: width,
+              borderRadius: borderRadius,
+            ),
+            errorWidget: (context, url, error) => _placeHolder(
+              context,
+              isAvatar: isAvatar,
+              width: width,
+              borderRadius: borderRadius,
+            ),
+            fadeOutDuration: const Duration(milliseconds: 200),
+            fadeInDuration: const Duration(milliseconds: 200),
           ),
-          errorWidget: (context, url, error) => _placeHolder(
-            context,
-            isAvatar: isAvatar,
-            width: width,
-            borderRadius: borderRadius,
-          ),
-          fadeOutDuration: const Duration(milliseconds: 200),
-          fadeInDuration: const Duration(milliseconds: 200),
-        );
+  );
+}
+
+/// 「深色模式压暗图片」（对齐 Android `isColorFilter` / 设置里叫「深色模式压暗图片」）。
+///
+/// 深色模式下列表里的图片往往比文字亮得多，压暗一点观感更统一。
+/// 只压到 80%，避免糊成一片。
+Widget _maybeDim(BuildContext context, Widget child) {
+  if (Theme.of(context).brightness != Brightness.dark) return child;
+  if (!GStorage.isColorFilter) return child;
+  return ColorFiltered(
+    colorFilter: const ColorFilter.matrix(<double>[
+      0.8, 0, 0, 0, 0, //
+      0, 0.8, 0, 0, 0, //
+      0, 0, 0.8, 0, 0, //
+      0, 0, 0, 1, 0, //
+    ]),
+    child: child,
+  );
 }
 
 /// 占位图（离线 / 网络失败 / 加载中都用它）

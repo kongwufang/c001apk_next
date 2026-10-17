@@ -100,6 +100,21 @@ class C001APKAPP extends StatelessWidget {
         );
       }
 
+      // ★「纯黑主题」（对齐 Android `blackDarkTheme`）：
+      //   深色模式下把各层容器底色压成纯黑，OLED 屏更省电、对比更强。
+      //   Android 那边是个 MaterialSwitchPreference，摘要写的是
+      //   「当深色主题启用时使用纯黑主题」。
+      if (GStorage.blackDarkTheme) {
+        darkColorScheme = darkColorScheme.copyWith(
+          surface: Colors.black,
+          surfaceContainerLowest: Colors.black,
+          surfaceContainerLow: Colors.black,
+          surfaceContainer: Colors.black,
+          surfaceContainerHigh: Colors.black,
+          surfaceContainerHighest: Colors.black,
+        );
+      }
+
       return GetMaterialApp(
         title: 'c001apk',
         theme: ThemeData(

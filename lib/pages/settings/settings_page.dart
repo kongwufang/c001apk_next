@@ -1,21 +1,33 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../components/dialog.dart';
-import '../../components/settings/drop_down_menu_item.dart';
-import '../../components/settings/edittext_item.dart';
-import '../../components/settings/item_title.dart';
-import '../../components/settings/switch_item.dart';
-import '../../constants/constants.dart';
-import '../../pages/blacklist/black_list_page.dart' show BlackListType;
-import '../../utils/cache_util.dart';
-import '../../utils/storage_util.dart';
-import '../../utils/utils.dart';
+import 'settings_advanced_page.dart';
+import 'settings_appearance_page.dart';
+import 'settings_other_page.dart';
+import 'settings_privacy_page.dart';
+import 'settings_recommend_page.dart';
 
+/// 设置（一级菜单）。
+///
+/// ## ★ 结构**完全照抄** Android `res/xml/settings.xml`
+///
+/// 顺序：**外观 / 推荐流相关 / 隐私 / 高级 / 其他 / 关于**
+///
+/// Android 那边一级菜单**只保留「入口」**，点进去才是具体开关
+/// （原注释 2026-10-05）：
+/// > 一级菜单只保留「入口」，点进去才是具体开关。
+/// > 顺序：外观 / 推荐流相关 / 隐私 / 高级 / 其他 / 关于
+/// > 「关于」已提到一级：点击直接打开 AboutActivity
+///
+/// 所以这里也做成同样的两级结构，不再是一大坨平铺。
+///
+/// ## 与上游（Flutter 原版）的差异
+/// 上游是一张平铺的长列表，而且有两项**用户的 App 里没有**：
+/// - **关注类型**（`followType`）
+/// - **检查更新**（`checkUpdate`）—— Android 已把它挪进「关于」页里
+///
+/// 已按用户要求删除。
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -23,49 +35,8 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-// ignore: constant_identifier_names
-enum SettingsMenuItem {
-  Feedback('反馈'), // feedback
-  About('关于');    // about
-
-  const SettingsMenuItem(this.label);
-  final String label;
-}
-
-// ignore: constant_identifier_names
-enum FollowType {
-  ALL('全部'), // type_all
-  USER('用户'),
-  TOPIC('话题'),
-  PRODUCT('商品'),
-  APP('应用');
-
-  const FollowType(this.label);
-  final String label;
-}
-
-// ignore: constant_identifier_names
-enum ImageQuality {
-  AUTO('自动'),
-  ORIGIN('原图'),
-  THUMBNAIL('缩略图');
-
-  const ImageQuality(this.label);
-  final String label;
-}
-
-class _SettingsPageState extends State<SettingsPage>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  late final _settingsController = Get.put(SettingsController());
+class _SettingsPageState extends State<SettingsPage> {
   String _version = '1.0.0(1)';
-
-  void _getVersionInfo() async {
-    PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    _version = '${packageInfo.version}(${packageInfo.buildNumber})';
-  }
 
   @override
   void initState() {
@@ -73,305 +44,72 @@ class _SettingsPageState extends State<SettingsPage>
     _getVersionInfo();
   }
 
-  @override
-  void dispose() {
-    Get.delete<SettingsController>();
-    super.dispose();
+  Future<void> _getVersionInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _version = '${info.version}(${info.buildNumber})');
+    } catch (_) {
+      // 拿不到就保持默认值
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-        actions: [
-          PopupMenuButton(
-            onSelected: (SettingsMenuItem item) {
-              switch (item) {
-                case SettingsMenuItem.Feedback:
-                  Utils.launchURL(Constants.URL_SOURCE_CODE);
-                  break;
-                case SettingsMenuItem.About:
-                  showDialog<void>(
-                    context: context,
-                    builder: (context) {
-                      return MAboutDialog(version: _version);
-                    },
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (context) => SettingsMenuItem.values
-                .map((item) => PopupMenuItem<SettingsMenuItem>(
-                      value: item,
-                      child: Text(item.label),
-                    ))
-                .toList(),
-          )
-        ],
-      ),
+      appBar: AppBar(title: const Text('设置')),
       body: ListView(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
         children: [
-          const ItemTitle(title: Constants.APP_NAME),
-          const EdittextItem(
-            icon: Icons.smartphone,
-            title: '数字联盟ID',
-            boxKey: SettingsBoxKey.szlmId,
-            needUpdateXAppDevice: true,
-          ),
-          // 取号入口（对齐 Android 设置里的「获取数字联盟 ID」）：
-          // 内置网页经 JsBridge 拿参数、过 Cloudflare Turnstile 后签发 DUID。
-          ListTile(
-            leading: const Icon(Icons.cloud_download_outlined),
-            title: const Text('获取数字联盟ID'),
-            subtitle: const Text('内置网页取号（人机验证 + 签名校验）'),
-            onTap: () => Get.toNamed('/szlmId'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.developer_mode),
-            title: const Text('参数'),
-            onTap: () => Get.toNamed('/params'),
-          ),
-          // ── 其他屏蔽项（关键字 / 用户 / 节点）──
-          //
-          // 对应 Android `SettingsPreferenceFragment` 里的三个 preference：
-          // `spamWord` / `spamUser` / `spamNode`，各自起一个 SpamShieldActivity。
-          // 读 `/v6/user/spamWordList`、写 `/v6/account/updateConfig`，
-          // 配置缓存在本地，冷启动没网也能先过滤。
-          ListTile(
-            leading: const Icon(Icons.block_outlined),
-            title: const Text('关键字屏蔽'),
-            subtitle: const Text('正文/标题命中即不显示'),
-            onTap: () => Get.toNamed('/spamShield/word'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.person_off_outlined),
-            title: const Text('用户屏蔽'),
-            subtitle: const Text('按 uid 屏蔽'),
-            onTap: () => Get.toNamed('/spamShield/user'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.tag_outlined),
-            title: const Text('节点屏蔽'),
-            subtitle: const Text('按节点 ID / 名称屏蔽'),
-            onTap: () => Get.toNamed('/spamShield/node'),
-          ),
-          // Theme
-          ListTile(
-            title: Text(
-              '主题',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-          const SwitchItem(
+          _entry(
             icon: Icons.palette_outlined,
-            title: '动态主题',
-            boxKey: SettingsBoxKey.useMaterial,
-            defaultValue: true,
-            forceAppUpdate: true,
+            title: '外观',
+            onTap: () => Get.to(() => const SettingsAppearancePage()),
           ),
-          Visibility(
-            visible: !GStorage.useMaterial,
-            child: DropDownMenuItem(
-              icon: Icons.format_color_fill,
-              title: '主题颜色',
-              boxKey: SettingsBoxKey.staticColor,
-              items: Constants.themeType
-                  .map((type) => DropdownMenuItem<int>(
-                        value: Constants.themeType.indexOf(type),
-                        child: Text(type),
-                      ))
-                  .toList(),
-              forceAppUpdate: true,
-            ),
+          _entry(
+            icon: Icons.dynamic_feed_outlined,
+            title: '推荐流相关',
+            onTap: () => Get.to(() => const SettingsRecommendPage()),
           ),
-          const DropDownMenuItem(
-            icon: Icons.dark_mode_outlined,
-            title: '夜间模式',
-            boxKey: SettingsBoxKey.selectedTheme,
-            items: [
-              DropdownMenuItem<int>(
-                value: 1,
-                child: Text('关闭'),
-              ),
-              DropdownMenuItem<int>(
-                value: 2,
-                child: Text('开启'),
-              ),
-              DropdownMenuItem<int>(
-                value: 0,
-                child: Text('跟随系统'),
-              ),
-            ],
-            forceAppUpdate: true,
+          _entry(
+            icon: Icons.block_outlined,
+            title: '隐私',
+            onTap: () => Get.to(() => const SettingsPrivacyPage()),
           ),
-          // Display
-          ListTile(
-            title: Text(
-              '显示',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
+          _entry(
+            icon: Icons.developer_mode_outlined,
+            title: '高级',
+            onTap: () => Get.to(() => const SettingsAdvancedPage()),
           ),
-          ListTile(
-            title: const Text('用户黑名单'),
-            leading: const Icon(Icons.block),
-            onTap: () => Get.toNamed(
-              '/blacklist/',
-              arguments: {'type': BlackListType.user},
-            ),
+          _entry(
+            icon: Icons.more_horiz_outlined,
+            title: '其他',
+            onTap: () => Get.to(() => const SettingsOtherPage()),
           ),
-          ListTile(
-            title: const Text('话题黑名单'),
-            leading: const Icon(Icons.block),
-            onTap: () => Get.toNamed(
-              '/blacklist/',
-              arguments: {'type': BlackListType.topic},
-            ),
-          ),
-          ListTile(
-            title: const Text('字体比例'),
-            subtitle: Text('${GStorage.fontScale.toStringAsFixed(2)}x'),
-            leading: const Icon(Icons.text_fields),
-            onTap: () => showDialog<void>(
-              context: context,
-              builder: (context) => SliderDialog(
-                fontScale: GStorage.fontScale,
-                setData: (newValue) {
-                  GStorage.setFontScale(newValue);
-                  Get.forceAppUpdate();
-                },
-              ),
-            ),
-          ),
-          DropDownMenuItem(
-            icon: Icons.add_circle_outline_outlined,
-            title: '关注类型',
-            boxKey: SettingsBoxKey.followType,
-            items: FollowType.values
-                .map((type) => DropdownMenuItem<int>(
-                      value: FollowType.values.indexOf(type),
-                      child: Text(type.label),
-                    ))
-                .toList(),
-          ),
-          /*
-          DropDownMenuItem(
-            icon: Icons.image_outlined,
-            title: 'Image Quality',
-            boxKey: SettingsBoxKey.imageQuality,
-            items: ImageQuality.values
-                .map((type) => DropdownMenuItem<int>(
-                      value: ImageQuality.values.indexOf(type),
-                      child: Text(type.label),
-                    ))
-                .toList(),
-          ),
-          const SwitchItem(
-            icon: Icons.image_outlined,
-            title: 'Image Dim',
-            boxKey: SettingsBoxKey.imageDim,
-            defaultValue: true,
-          ),
-          */
-          const SwitchItem(
-            icon: Icons.travel_explore,
-            title: '外部浏览器打开',
-            boxKey: SettingsBoxKey.openInBrowser,
-            defaultValue: false,
-          ),
-          /*
-          const SwitchItem(
-            icon: Icons.feed_outlined,
-            title: 'Show Square',
-            boxKey: SettingsBoxKey.showSquare,
-            defaultValue: true,
-          ),
-          */
-          const SwitchItem(
-            icon: Icons.history,
-            title: '历史记录',
-            boxKey: SettingsBoxKey.recordHistory,
-            defaultValue: true,
-          ),
-          const SwitchItem(
-            icon: Icons.emoji_emotions_outlined,
-            title: '显示表情',
-            boxKey: SettingsBoxKey.showEmoji,
-            defaultValue: true,
-          ),
-          if (Platform.isAndroid)
-            const SwitchItem(
-              icon: Icons.system_update,
-              title: '检查更新',
-              boxKey: SettingsBoxKey.checkUpdate,
-              defaultValue: true,
-            ),
-          // Others
-          ListTile(
-            title: Text(
-              '其它',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-          ListTile(
-            title: const Text('关于'),
-            subtitle: Text(_version),
-            leading: const Icon(Icons.all_inclusive),
-            onTap: () =>
-                Get.toNamed('/about', parameters: {'version': _version}),
-          ),
-          Obx(
-            () => ListTile(
-              title: const Text('清除缓存'),
-              subtitle: _settingsController.cacheSize.value.isNotEmpty
-                  ? Text(_settingsController.cacheSize.value)
-                  : null,
-              leading: const Icon(Icons.cleaning_services_outlined),
-              onTap: () async {
-                await _settingsController.getCacheSize();
-                if (context.mounted) {
-                  showDialog<void>(
-                    context: context,
-                    builder: (context) => ClearDialog(
-                      cacheSize: _settingsController.cacheSize.value,
-                      onClearCache: () async {
-                        if (await CacheManage().clearCacheAll()) {
-                          _settingsController.getCacheSize();
-                        }
-                      },
-                    ),
-                  );
-                }
-              },
-            ),
+          // 「关于」在一级，点击**直接**打开关于页
+          //（Android 注释：去掉了「其他 → 关于 → 关于本应用」中间那两层无用目录）
+          _entry(
+            icon: Icons.info_outline,
+            title: '关于',
+            onTap: () => Get.toNamed('/about', parameters: {'version': _version}),
           ),
         ],
       ),
     );
   }
-}
 
-class SettingsController extends GetxController {
-  RxString cacheSize = ''.obs;
-
-  Future<void> getCacheSize() async {
-    final res = await CacheManage().loadApplicationCache();
-    cacheSize.value = res;
-  }
-
-  @override
-  void onInit() {
-    super.onInit();
-    getCacheSize();
+  Widget _entry({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
   }
 }
