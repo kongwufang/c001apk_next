@@ -49,6 +49,7 @@ Widget commonBody(
             },
             child: buildBody(
               commonController,
+              inNestedScroll: inNestedScroll,
               isHomeCard: isHomeCard,
               isReply2Reply: isReply2Reply,
               feedCoverAsFeed: feedCoverAsFeed,
@@ -59,6 +60,7 @@ Widget commonBody(
         : Center(
             child: buildBody(
               commonController,
+              inNestedScroll: inNestedScroll,
               isHomeCard: isHomeCard,
               isReply2Reply: isReply2Reply,
               feedCoverAsFeed: feedCoverAsFeed,
@@ -71,6 +73,8 @@ Widget commonBody(
 
 Widget buildBody(
   CommonController commonController, {
+  /// 是否位于 `NestedScrollView` 里（见 `commonBody` 的同名参数）
+  bool inNestedScroll = false,
   bool isHomeCard = false,
   bool isReply2Reply = false,
   /// `feedCover` 是否按完整动态卡排（见 `item_card.dart` 的同名参数）

@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+
 class GlobalData {
   // 私有构造函数
   GlobalData._();
