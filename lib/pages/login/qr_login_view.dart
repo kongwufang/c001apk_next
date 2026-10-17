@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -59,6 +60,8 @@ class _QrLoginViewState extends State<QrLoginView> {
   _Phase _phase = _Phase.preparing;
   String? _qrUrl;
   String? _errorText;
+  /// 公钥哈希（前 32 位十六进制）—— 显示在二维码下方，便于肉眼核对 ✓
+  String? _keyHash;
 
   // 一次会话的凭据 —— 全在内存
   String? _requestId;
@@ -131,10 +134,27 @@ class _QrLoginViewState extends State<QrLoginView> {
         'signature': QrCrypto.signSha256(priv as dynamic, payload),
       });
       _appTicket = '${reg['appTicket'] ?? ''}';
-      _qrUrl = '${reg['qrUrl'] ?? ''}';
-      if (_qrUrl!.isEmpty) {
-        throw StateError('register 返回缺 qrUrl');
+      if (_appTicket!.isEmpty) {
+        throw StateError('register 返回缺 appTicket');
       }
+
+      // ★★ URL 由**本机**拼 —— 服务端不参与二维码内容的构造 ★★
+      //
+      //   为什么不能让服务端拼（可审计的硬要求）：
+      //     `scan` 会从服务端拿回公钥 ✗ 如果 URL 也由服务端拼，
+      //     那它可以把「自己的公钥 + 自己的哈希」一起塞进来 ⇒ 手机一比对就对得上 ✗
+      //     密钥绑定就完全失效了 ✗
+      //   ⇒ 哈希必须由**这台可信机器**算 ✓ 服务端只给两个不透明票据 ✓
+      //
+      //   手机端校验：sha256(utf8(scan 返回的 publicKey))[0..32] == h ✓
+      //   不匹配 ⇒ 拒绝继续（服务端换了钥）✗
+      final pubJson = jsonEncode({
+        'm': QrCrypto.modulusB64(pub),
+        'e': QrCrypto.exponentB64(pub),
+      });
+      final keyHash = sha256.convert(utf8.encode(pubJson)).toString().substring(0, 32);
+      _keyHash = keyHash;
+      _qrUrl = '$_qrBase?r=$_requestId&t=$_appTicket&h=$keyHash';
 
       setState(() => _phase = _Phase.waiting);
       _startedAt = DateTime.now();
