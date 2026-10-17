@@ -68,12 +68,6 @@ class _TopicContentState extends State<TopicContent>
   /// 头部大约这么高；滚过它就完全淡出（含上下 padding 的粗估）
   static const double _headerFadeDistance = 120;
 
-  @override
-  void dispose() {
-    _headerFade.dispose();
-    super.dispose();
-  }
-
   late final _topicController = Get.put(
     TopicContentController(
       url: widget.url,
@@ -87,6 +81,7 @@ class _TopicContentState extends State<TopicContent>
 
   @override
   void dispose() {
+    _headerFade.dispose();
     _topicController.scrollController?.dispose();
     Get.delete<TopicContentController>(
       tag: widget.url + widget.title + widget.random,
