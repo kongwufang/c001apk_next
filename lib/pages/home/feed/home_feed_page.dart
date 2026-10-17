@@ -11,6 +11,7 @@ import '../../../utils/global_data.dart';
 import '../../../utils/storage_util.dart';
 import '../../../utils/utils.dart';
 import '../../feed/reply/reply_page.dart';
+import '../../article/article_publish_page.dart';
 
 class HomeFeedPage extends StatefulWidget {
   const HomeFeedPage({
@@ -55,6 +56,62 @@ class _HomeFeedPageState extends State<HomeFeedPage>
     ),
     tag: widget.tabType.name,
   );
+
+  /// 发布入口：**二选一菜单**（发布动态 / 发布图文）。
+  ///
+  /// 照抄 Android `HomeFeedFragment.initPublish()`：
+  /// ```kotlin
+  /// MaterialAlertDialogBuilder(...)
+  ///   .setTitle(R.string.publish)                       // 发布
+  ///   .setItems(arrayOf(publishFeed, publishArticle))   // 发布动态 / 发布图文
+  ///   { _, which -> startReply(if (which == 0) "createFeed" else "createArticle") }
+  /// ```
+  /// 「图文」走独立的混排发布页（`ArticlePublishPage`），其余走 `ReplyPage`。
+  Future<void> _showPublishMenu() async {
+    final which = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('发布'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Get.back(result: 0),
+            child: const Text('发布动态'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Get.back(result: 1),
+            child: const Text('发布图文'),
+          ),
+        ],
+      ),
+    );
+    if (which == null || !mounted) return;
+
+    if (which == 1) {
+      Get.to(() => const ArticlePublishPage());
+      return;
+    }
+    Navigator.of(context).push(
+      GetDialogRoute(
+        pageBuilder: (buildContext, animation, secondaryAnimation) {
+          return const ReplyPage();
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0);
+          const end = Offset.zero;
+          const curve = Curves.linear;
+
+          var tween =
+              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -128,37 +185,8 @@ class _HomeFeedPageState extends State<HomeFeedPage>
                   )),
                   child: FloatingActionButton(
                     heroTag: null,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        GetDialogRoute(
-                          pageBuilder:
-                              (buildContext, animation, secondaryAnimation) {
-                            return const ReplyPage();
-                          },
-                          transitionDuration: const Duration(milliseconds: 500),
-                          transitionBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            const begin = Offset(0.0, 1.0);
-                            const end = Offset.zero;
-                            const curve = Curves.linear;
-
-                            var tween = Tween(begin: begin, end: end)
-                                .chain(CurveTween(curve: curve));
-
-                            return SlideTransition(
-                              position: animation.drive(tween),
-                              child: child,
-                            );
-                          },
-                        ),
-                      );
-                      // showModalBottomSheet<dynamic>(
-                      //   context: context,
-                      //   isScrollControlled: true,
-                      //   builder: (context) => const ReplyDialog(),
-                      // );
-                    },
-                    tooltip: 'Create Feed',
+                    onPressed: _showPublishMenu,
+                    tooltip: '发布',
                     child: const Icon(Icons.add),
                   ),
                 )
