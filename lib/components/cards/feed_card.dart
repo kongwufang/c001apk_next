@@ -337,8 +337,19 @@ class FeedCard extends StatelessWidget {
   }
 
   List<Widget> _message() {
+    // ★ 标题回落（只在**详情页**做）：
+    //
+    // 实测普通动态（`is_html_article = "0"`）给的是
+    // `title = "xxx的点评"` + `message_title = ""` —— 标题只在 `title` 里。
+    // 不回落的话详情页会丢掉标题（正文修好之后这一行尤其显眼）。
+    //
+    // 列表卡**不做**这个回落：列表里 `title` 常是别的含义，
+    // 当成正文抬头显示会串味。
+    final title = !data.messageTitle.isNullOrEmpty
+        ? data.messageTitle.orEmpty
+        : (isFeedContent ? data.title.orEmpty : '');
     return [
-      if (!data.messageTitle.isNullOrEmpty)
+      if (title.isNotEmpty)
         Padding(
           padding: EdgeInsets.only(
             left: isFeedContent ? 16 : 10,
@@ -346,7 +357,7 @@ class FeedCard extends StatelessWidget {
             right: isFeedContent ? 16 : 10,
           ),
           child: htmlText(
-            data.messageTitle.orEmpty,
+            title,
             fontSize: 16,
             isBold: true,
           ),

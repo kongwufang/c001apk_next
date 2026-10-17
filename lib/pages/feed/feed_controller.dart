@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:get/get.dart';
 
@@ -87,23 +87,58 @@ class FeedController extends CommonController {
         : await NetworkRepo.getDataFromUrl(url: '/v6/feed/detail?id=$id');
     if (response is Success) {
       Datum data = (response.response as Datum);
-      if (data.messageRawOutput != 'null') {
-        List<dynamic> jsonList = jsonDecode(data.messageRawOutput!);
-        articleList = jsonList
-            .map((json) => FeedArticle.fromJson(json))
-            .where((item) => ['text', 'image', 'shareUrl'].contains(item.type))
-            .toList();
-        if (!data.title.isNullOrEmpty) {
-          articleList!.insert(0, FeedArticle(type: 'title', title: data.title));
+
+      // ★★ 正文解析：只有**真的解析出可渲染的块**才走「图文」布局。
+      //
+      // 原来的写法是 `if (messageRawOutput != 'null')` —— 但实测服务端对
+      // **普通动态**给的是字面量 `"[]"`（空数组，**不是** `"null"`），
+      // 于是：
+      //   1. 条件成立 → `jsonDecode("[]")` → 一个块都没有；
+      //   2. 但紧接着「title 非空就 insert 一个标题块」——
+      //      而普通动态的 title 几乎都非空（如「xxx的点评」），
+      //      `articleList` 就从 `[]` 变成 `[标题块]`，**非空了**；
+      //   3. `feed_page` 里据 `articleList.isNullOrEmpty` 二选一布局，
+      //      非空 → 走图文分支 → **只渲染标题 + 回复/赞，
+      //      `message` 里的 HTML 正文永远不渲染**。
+      //
+      // 表现出来就是「详情页只有作者、标题、回复/赞，正文一片空白」，
+      // 而且只有**title 非空**的动态才会中招（原标题为空的动态反而正常）。
+      //
+      // 正确规则：**标题只是正文的抬头，不能单独构成「图文」。**
+      final rawBlocks = data.messageRawOutput;
+      List<FeedArticle> blocks = const [];
+      if (rawBlocks != null && rawBlocks != 'null') {
+        try {
+          final decoded = jsonDecode(rawBlocks);
+          if (decoded is List) {
+            blocks = decoded
+                .map((json) => FeedArticle.fromJson(json))
+                .where(
+                    (item) => ['text', 'image', 'shareUrl'].contains(item.type))
+                .toList();
+          }
+        } catch (_) {
+          // 形状不对就当没有块 —— 退回渲染 `message`，绝不因此丢正文
+          blocks = const [];
         }
-        if (!data.messageCover.isNullOrEmpty) {
-          articleList!
-              .insert(0, FeedArticle(type: 'image', url: data.messageCover));
-        }
+      }
+      if (blocks.isNotEmpty) {
+        articleList = [
+          if (!data.messageCover.isNullOrEmpty)
+            FeedArticle(type: 'image', url: data.messageCover),
+          if (!data.title.isNullOrEmpty)
+            FeedArticle(type: 'title', title: data.title),
+          ...blocks,
+        ];
         articleImgList = articleList!
             .where((item) => item.type == 'image')
             .map((item) => item.url.orEmpty)
             .toList();
+      } else {
+        // 没有块 → `articleList` 保持 null/空，`feed_page` 会落到
+        // `FeedCard(isFeedContent: true)` 那条分支，由它渲染 `message`。
+        articleList = null;
+        articleImgList = null;
       }
       if (!data.topReplyRows.isNullOrEmpty) {
         topReply = data.topReplyRows![0];
