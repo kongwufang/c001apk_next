@@ -385,6 +385,20 @@ class NetworkRepo {
     );
   }
 
+  /// 酷安播放器解析：把 `requestParams` 换成能播的地址。
+  ///
+  /// 对应 Android `NetworkRepo.getVideoUrl` / `ApiService.getVideoUrl`。
+  /// 返回 `{"data":{"urlList":[...],"audioList":[...]}}`，
+  /// **失败时 `data` 是个数组 `[]`** —— 所以调用方要自己判形状
+  /// （`FeedVideo.withResolved` 就是干这个的）。
+  static Future<Response> postVideoUrl({required String params}) async {
+    return Request().post(
+      Api.postVideoUrl,
+      data: {'params': params},
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+  }
+
   static Future<Response> postReply(
     FormData data,
     dynamic id,

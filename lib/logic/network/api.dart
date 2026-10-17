@@ -53,6 +53,15 @@ class Api {
   static String postCreateFeed =
       '${Constants.URL_API_SERVICE}/v6/feed/createFeed';
 
+  /// 酷安播放器解析接口：微博 / B 站的 `media_url` 只是分享页地址，
+  /// 要过它一次才拿得到能播的 mp4（对应 Android `ApiService.getVideoUrl`）。
+  ///
+  /// ⚠️ `params` 必须是**单个档位对象**（形如
+  /// `{"fromType":"weiboDirect250924","0":"https://..."}`）；
+  /// 传整张档位表一律返回 `{"data":[]}`（Android 注释里的实测结论）。
+  static String postVideoUrl =
+      '${Constants.URL_API_SERVICE}/v6/player/getUrl';
+
   static String postRequestValidate =
       '${Constants.URL_API_SERVICE}/v6/account/requestValidate';
 

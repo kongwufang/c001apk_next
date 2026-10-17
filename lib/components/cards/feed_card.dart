@@ -9,7 +9,9 @@ import '../../components/imageview.dart';
 import '../../components/like_button.dart';
 import '../../components/no_splash_factory.dart';
 import '../../logic/model/feed/datum.dart';
+import '../../logic/model/feed/feed_video.dart';
 import '../../utils/date_util.dart';
+import 'video_slot.dart';
 import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
@@ -32,6 +34,16 @@ class FeedCard extends StatelessWidget {
   final Function(dynamic id)? onDelete;
   final Function(dynamic uid)? onBlock;
   final Function(dynamic id, dynamic like)? onLike;
+
+  /// 本条的**视频信息**；不是视频动态则为 null。
+  ///
+  /// 逻辑全在 `FeedVideo.from`（移植自 Android `util/FeedVideo.kt`），
+  /// 这里只是个 getter —— 每次 build 算一次，成本可以忽略。
+  FeedVideo? get _video => FeedVideo.from(
+        data.raw,
+        feedType: data.feedType,
+        feedTypeName: data.feedTypeName,
+      );
 
   void _onViewFeed() {
     Get.toNamed('/feed/${data.id}');
@@ -73,6 +85,11 @@ class FeedCard extends StatelessWidget {
                 },
               ),
               ..._message(),
+              // ★ 视频槽：视频动态的 `pic`/`picArr` **实测全为空**，
+              //   封面只在 `media_info.cover` 里 —— 九图槽位对视频不出图，
+              //   必须由它自己出封面（Android `item_home_feed.xml` 的同名注释）。
+              //   与九图槽在数据上互斥，两个槽位落同一位置。
+              if (_video != null) VideoSlot(video: _video!),
               if (!data.picArr.isNullOrEmpty) _image(),
               if (!data.forwardSourceType.isNullOrEmpty)
                 _forwardSourceFeed(context),
