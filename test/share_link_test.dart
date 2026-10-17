@@ -1,4 +1,7 @@
-import 'package:c001apk_flutter/utils/share_link.dart';
+// ★ 只 import **纯逻辑**文件（零依赖）——
+//   之前 import `share_link.dart` 会连带拉进 `utils.dart` 背后的一整片
+//   插件/页面依赖图，实测会**卡死 CI 的 `flutter test`**。
+import 'package:c001apk_flutter/utils/coolapk_link.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 剪贴板分享链接识别（`ShareLinkPrompter.findCoolapkLink`）的测试。
@@ -18,7 +21,7 @@ void main() {
   group('findCoolapkLink —— 微信/QQ 分享文案（链接和说明黏在一起）', () {
     test('前面有中文说明，取到链接', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink(
+        findCoolapkLink(
             '分享自酷安https://www.coolapk.com/feed/1?s=abc'),
         'https://www.coolapk.com/feed/1?s=abc',
       );
@@ -26,26 +29,26 @@ void main() {
 
     test('中文句号跟着一起复制过来，要削掉', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink('看这个。https://www.coolapk.com/feed/1'),
+        findCoolapkLink('看这个。https://www.coolapk.com/feed/1'),
         'https://www.coolapk.com/feed/1',
       );
       expect(
-        ShareLinkPrompter.findCoolapkLink('https://www.coolapk.com/feed/1。'),
+        findCoolapkLink('https://www.coolapk.com/feed/1。'),
         'https://www.coolapk.com/feed/1',
       );
       expect(
-        ShareLinkPrompter.findCoolapkLink('（https://www.coolapk.com/feed/1）'),
+        findCoolapkLink('（https://www.coolapk.com/feed/1）'),
         'https://www.coolapk.com/feed/1',
       );
     });
 
     test('尾部英文标点也要削', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink('https://www.coolapk.com/feed/1.'),
+        findCoolapkLink('https://www.coolapk.com/feed/1.'),
         'https://www.coolapk.com/feed/1',
       );
       expect(
-        ShareLinkPrompter.findCoolapkLink('https://www.coolapk.com/feed/1!'),
+        findCoolapkLink('https://www.coolapk.com/feed/1!'),
         'https://www.coolapk.com/feed/1',
       );
     });
@@ -54,26 +57,26 @@ void main() {
   group('findCoolapkLink —— 裸域名（有些 App 复制时吃掉 https://）', () {
     test('按空白切词能找到', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink('www.coolapk.com/feed/1'),
+        findCoolapkLink('www.coolapk.com/feed/1'),
         'www.coolapk.com/feed/1',
       );
       expect(
-        ShareLinkPrompter.findCoolapkLink('看看 www.coolapk.com/feed/1 这个'),
+        findCoolapkLink('看看 www.coolapk.com/feed/1 这个'),
         'www.coolapk.com/feed/1',
       );
     });
 
     test('裸域名也要削尾部标点', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink('www.coolapk.com/feed/1。'),
+        findCoolapkLink('www.coolapk.com/feed/1。'),
         'www.coolapk.com/feed/1',
       );
     });
 
     test('没有路径的裸域名不算', () {
       // 代码里要求 path 非空
-      expect(ShareLinkPrompter.findCoolapkLink('www.coolapk.com'), isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('www.coolapk.com/'), isNull);
+      expect(findCoolapkLink('www.coolapk.com'), isNull);
+      expect(findCoolapkLink('www.coolapk.com/'), isNull);
     });
   });
 
@@ -88,7 +91,7 @@ void main() {
         'm.coolapk1s.com',
       ]) {
         expect(
-          ShareLinkPrompter.findCoolapkLink('https://$host/feed/1'),
+          findCoolapkLink('https://$host/feed/1'),
           'https://$host/feed/1',
           reason: '应该认 $host',
         );
@@ -96,18 +99,18 @@ void main() {
     });
 
     test('白名单外的域名不认', () {
-      expect(ShareLinkPrompter.findCoolapkLink('https://www.baidu.com/feed/1'),
+      expect(findCoolapkLink('https://www.baidu.com/feed/1'),
           isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('https://coolapk.com.evil.io/x'),
+      expect(findCoolapkLink('https://coolapk.com.evil.io/x'),
           isNull);
     });
 
     test('★ 只有域名首页不算分享链接（path.length > 1）', () {
-      expect(ShareLinkPrompter.findCoolapkLink('https://www.coolapk.com'),
+      expect(findCoolapkLink('https://www.coolapk.com'),
           isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('https://www.coolapk.com/'),
+      expect(findCoolapkLink('https://www.coolapk.com/'),
           isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('https://www.coolapk.com/feed'),
+      expect(findCoolapkLink('https://www.coolapk.com/feed'),
           'https://www.coolapk.com/feed');
     });
   });
@@ -115,18 +118,18 @@ void main() {
   group('findCoolapkLink —— coolmarket:// scheme', () {
     test('白名单 host 认', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink(
+        findCoolapkLink(
             'coolmarket://www.coolapk.com/feed/74194931?s=abc'),
         'coolmarket://www.coolapk.com/feed/74194931?s=abc',
       );
       expect(
-        ShareLinkPrompter.findCoolapkLink('coolmarket://feed/1'),
+        findCoolapkLink('coolmarket://feed/1'),
         'coolmarket://feed/1',
       );
     });
 
     test('非白名单 host 不认', () {
-      expect(ShareLinkPrompter.findCoolapkLink('coolmarket://evil.com/x'),
+      expect(findCoolapkLink('coolmarket://evil.com/x'),
           isNull);
     });
   });
@@ -137,14 +140,14 @@ void main() {
       // 故意不宽容：`Utils.onOpenLink` 是大小写敏感的字符串替换，
       // 认下来只会让用户点「确认」后换回一句「不支持的链接」
       expect(
-        ShareLinkPrompter.findCoolapkLink('HTTPS://WWW.COOLAPK.COM/feed/1'),
+        findCoolapkLink('HTTPS://WWW.COOLAPK.COM/feed/1'),
         isNull,
       );
     });
 
     test('大写 host 不认', () {
       expect(
-        ShareLinkPrompter.findCoolapkLink('https://WWW.COOLAPK.COM/feed/1'),
+        findCoolapkLink('https://WWW.COOLAPK.COM/feed/1'),
         isNull,
       );
     });
@@ -152,20 +155,20 @@ void main() {
 
   group('findCoolapkLink —— 不该命中的输入', () {
     test('空串 / 纯文本 / 纯空白', () {
-      expect(ShareLinkPrompter.findCoolapkLink(''), isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('   '), isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('今天天气不错'), isNull);
-      expect(ShareLinkPrompter.findCoolapkLink('https://'), isNull);
+      expect(findCoolapkLink(''), isNull);
+      expect(findCoolapkLink('   '), isNull);
+      expect(findCoolapkLink('今天天气不错'), isNull);
+      expect(findCoolapkLink('https://'), isNull);
     });
 
     test('超过 4096 字符直接放弃', () {
       final long = '看这个 https://www.coolapk.com/feed/1 ' + List.filled(5000, 'x').join();
-      expect(ShareLinkPrompter.findCoolapkLink(long), isNull);
+      expect(findCoolapkLink(long), isNull);
     });
 
     test('4096 以内仍然认', () {
       final ok = 'https://www.coolapk.com/feed/1 ' + List.filled(3000, 'x').join();
-      expect(ShareLinkPrompter.findCoolapkLink(ok),
+      expect(findCoolapkLink(ok),
           'https://www.coolapk.com/feed/1');
     });
   });
