@@ -8,11 +8,10 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../components/cards/user_info_card.dart';
-import '../../components/footer.dart';
-import '../../components/item_card.dart';
 import '../../logic/model/feed/datum.dart';
 import '../../logic/state/loading_state.dart';
 import '../../pages/user/user_controller.dart';
+import '../../pages/user/user_tab.dart';
 import '../../utils/device_util.dart';
 import '../../utils/extensions.dart';
 import '../../utils/storage_util.dart';
@@ -38,7 +37,8 @@ class UserPage extends StatefulWidget {
   State<UserPage> createState() => _UserPageState();
 }
 
-class _UserPageState extends State<UserPage> {
+class _UserPageState extends State<UserPage>
+    with TickerProviderStateMixin {
   final String _uid = Get.parameters['uid'].orEmpty;
 
   late final String _random = DeviceUtil.randHexString(8);
@@ -47,8 +47,16 @@ class _UserPageState extends State<UserPage> {
     tag: _uid + _random,
   );
 
+  /// 个人主页的多标签（动态 / 点评 / 图文 / 问答 / 酷图）——
+  /// 照抄 Android `UserPagerFragment` 的 tabType / tabTitle。
+  late final TabController _tabController = TabController(
+    length: UserTabType.values.length,
+    vsync: this,
+  );
+
   @override
   void dispose() {
+    _tabController.dispose();
     _userController.scrollController?.dispose();
     Get.delete<UserController>(
       tag: _uid + _random,
@@ -91,130 +99,66 @@ class _UserPageState extends State<UserPage> {
     return const M3EWavyProgressIndicator();
   }
 
-  Widget _buildUserFeed(LoadingState loadingState) {
-    switch (loadingState) {
-      case Empty():
-        return SliverToBoxAdapter(
-          child: GestureDetector(
-            onTap: () {
-              _userController.setLoadingState(LoadingState.loading());
-              _userController.onGetData();
-            },
-            child: Container(
-              height: 80,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.all(10.0),
-              child: const Text('暂无内容'),
-            ),
-          ),
-        );
-      case Error():
-        return SliverToBoxAdapter(
-          child: GestureDetector(
-            onTap: _userController.isBlocked
-                ? null
-                : () {
-                    _userController.setLoadingState(LoadingState.loading());
-                    _userController.onGetData();
-                  },
-            child: Container(
-              height: 80,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.all(10.0),
-              child: Text(loadingState.errMsg),
-            ),
-          ),
-        );
-      case Success():
-        List<Datum> dataList = loadingState.response as List<Datum>;
-        return SliverPadding(
-          padding: EdgeInsets.only(
-              left: 10,
-              top: 10,
-              right: 10,
-              bottom: 10 + MediaQuery.of(context).padding.bottom),
-          sliver: SliverList.separated(
-            itemCount: dataList.length + 1,
-            itemBuilder: (_, index) {
-              if (index == dataList.length) {
-                if (!_userController.isEnd && !_userController.isLoading) {
-                  _userController.setFooterState(LoadingState.loading());
-                  _userController.onGetData(false);
-                }
-                return Obx(
-                  () => footerWidget(
-                    _userController.footerState.value,
-                    () {
-                      _userController.isEnd = false;
-                      _userController.setFooterState(LoadingState.loading());
-                      _userController.onGetData(false);
-                    },
-                  ),
-                );
-              } else {
-                return itemCard(
-                  dataList[index],
-                  // 个人主页的内容列表整页统一走完整动态卡
-                  //（对应 Android `UserTabViewModel.feedCoverAsFeed`
-                  //  = `type == "article" || type == "feed"`）
-                  feedCoverAsFeed: true,
-                  onBlock: _userController.onBlock,
-                );
-              }
-            },
-            separatorBuilder: (_, index) => const SizedBox(height: 10),
-          ),
-        );
-    }
-    return SliverToBoxAdapter(
-      child: Container(
-        height: 80,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.all(10.0),
-        child: const M3EWavyProgressIndicator(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
           Obx(
-            () => RefreshIndicator(
-              notificationPredicate: (notification) {
-                final double offset = notification.metrics.pixels;
-                if (offset >= 0) {
-                  _userController.scrollRatio.value = min(1.0, offset / 105);
-                }
-                return notification.depth == 0;
-              },
-              onRefresh: () async {
-                if (!_userController.isBlocked) {
-                  _userController.onReset();
-                  await _userController.onGetData();
-                } else {
-                  return Future.value();
-                }
-              },
-              child: _userController.userState.value is Success
-                  ? CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      slivers: [
+            () => _userController.userState.value is Success
+                ? RefreshIndicator(
+                    notificationPredicate: (notification) {
+                      final double offset = notification.metrics.pixels;
+                      if (offset >= 0) {
+                        _userController.scrollRatio.value =
+                            min(1.0, offset / 105);
+                      }
+                      return notification.depth == 0;
+                    },
+                    onRefresh: () async {
+                      if (!_userController.isBlocked) {
+                        _userController.onReset();
+                        await _userController.onGetData();
+                      }
+                    },
+                    // ★ 个人主页 = 「全屏封面头部 + 多标签」。
+                    //
+                    // 对应 Android `BasePagerFragment` 那套
+                    // CollapsingToolbar + TabLayout + ViewPager 的嵌套滚动结构，
+                    // Flutter 的等价物就是 `NestedScrollView` + 固定的 TabBar +
+                    // `TabBarView`（头部随滚动收起，TabBar 钉在顶部）。
+                    child: NestedScrollView(
+                      headerSliverBuilder: (_, __) => [
                         SliverToBoxAdapter(
-                          child:
-                              _buildUserInfo(_userController.userState.value),
+                          child: _buildUserInfo(
+                              _userController.userState.value),
                         ),
-                        _buildUserFeed(_userController.loadingState.value),
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _UserTabBarHeader(
+                            TabBar(
+                              controller: _tabController,
+                              isScrollable: true,
+                              tabAlignment: TabAlignment.start,
+                              tabs: UserTabType.values
+                                  .map((t) => Tab(text: t.label))
+                                  .toList(),
+                            ),
+                            Theme.of(context).colorScheme.surface,
+                          ),
+                        ),
                       ],
-                    )
-                  : Center(
-                      child: _buildUserInfo(_userController.userState.value),
+                      body: TabBarView(
+                        controller: _tabController,
+                        children: UserTabType.values
+                            .map((t) => UserTabContent(uid: _uid, type: t))
+                            .toList(),
+                      ),
                     ),
-            ),
+                  )
+                : Center(
+                    child: _buildUserInfo(_userController.userState.value),
+                  ),
           ),
           _header(),
         ],
@@ -248,7 +192,7 @@ class _UserPageState extends State<UserPage> {
                         'pageParam': _userController.uid,
                       }),
                       icon: const Icon(Icons.search),
-                      tooltip: 'Search',
+                      tooltip: '搜索',
                     ),
                   PopupMenuButton(
                     onSelected: (UserMenuItem item) {
@@ -278,7 +222,7 @@ class _UserPageState extends State<UserPage> {
                           if (Utils.isSupportWebview()) {
                             Utils.report(_userController.uid, ReportType.User);
                           } else {
-                            SmartDialog.showToast('not supported');
+                            SmartDialog.showToast('当前平台不支持');
                           }
                           break;
                         case UserMenuItem.UserInfo:
@@ -311,8 +255,8 @@ class _UserPageState extends State<UserPage> {
                               child: item == UserMenuItem.Block
                                   ? Text(
                                       _userController.isBlocked
-                                          ? 'UnBlock'
-                                          : 'Block',
+                                          ? '移出黑名单'
+                                          : '加入黑名单',
                                     )
                                   : Text(item.label),
                             ))
@@ -324,4 +268,27 @@ class _UserPageState extends State<UserPage> {
       ),
     );
   }
+}
+
+/// 钉在顶部的 TabBar（`SliverPersistentHeader` 的 delegate）。
+class _UserTabBarHeader extends SliverPersistentHeaderDelegate {
+  _UserTabBarHeader(this.tabBar, this.background);
+
+  final TabBar tabBar;
+  final Color background;
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+          BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      ColoredBox(color: background, child: tabBar);
+
+  @override
+  bool shouldRebuild(_UserTabBarHeader oldDelegate) =>
+      oldDelegate.tabBar != tabBar || oldDelegate.background != background;
 }
