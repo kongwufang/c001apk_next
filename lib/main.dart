@@ -139,6 +139,15 @@ class C001APKAPP extends StatelessWidget {
       return GetMaterialApp(
         title: 'c001apk',
         theme: ThemeData(
+          // ★ 统一 CJK 字体。
+          //
+          // 之前**完全没指定** fontFamily ⇒ Flutter 用默认的 Roboto（无 CJK）
+          // ⇒ 每个汉字逐个走**系统字体回退**，不同源的字重混在一起，
+          // 就出现「点评」的「点」、「酷图」的「酷」看起来比旁边粗 ✗
+          //
+          // Windows 上 `Microsoft YaHei` 一定有；回退链再兜一层黑体 / 宋体。
+          fontFamily: _cjkFontFamily,
+          fontFamilyFallback: _cjkFallback,
           colorScheme: selectedTheme == 2 ? darkColorScheme : lightColorScheme,
           useMaterial3: true,
           navigationBarTheme: NavigationBarThemeData(
@@ -198,6 +207,9 @@ class C001APKAPP extends StatelessWidget {
           ),
         ),
         darkTheme: ThemeData(
+          // 与 light 同一套字体（见上面的说明）
+          fontFamily: _cjkFontFamily,
+          fontFamilyFallback: _cjkFallback,
           colorScheme: selectedTheme == 1 ? lightColorScheme : darkColorScheme,
           useMaterial3: true,
           navigationBarTheme: NavigationBarThemeData(
@@ -271,6 +283,27 @@ class C001APKAPP extends StatelessWidget {
     });
   }
 }
+
+/// 统一 CJK 字体。
+///
+/// Flutter 默认字体 Roboto **没有汉字** ⇒ 每个汉字单独走系统回退，
+/// 不同字体的字重混排 ⇒ 同一行里「某个字更粗」✗
+/// 显式指定一个 CJK 字体就能统一。
+///
+/// - Windows：`Microsoft YaHei`（系统自带）
+/// - 其它平台：交给系统默认（传 null）
+String? get _cjkFontFamily {
+  if (Platform.isWindows) return 'Microsoft YaHei';
+  return null;
+}
+
+/// 回退链：YaHei → 微软雅黑（英文名）→ 黑体 → 宋体
+const List<String> _cjkFallback = [
+  'Microsoft YaHei',
+  'Microsoft YaHei UI',
+  'SimHei',
+  'SimSun',
+];
 
 class CustomHttpOverrides extends HttpOverrides {
   @override
