@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:dio/dio.dart';
 
 /// 阿里云 OSS 直传（STS 临时凭证 + V1 签名）。
@@ -100,9 +101,16 @@ class OssUpload {
       connectTimeout: const Duration(minutes: 5),
       receiveTimeout: const Duration(minutes: 5),
     ));
+    // ★ URL 必须是 `https://{bucket}.{host}/{objectName}`
+    //   （Android 的 `aliyun-oss` SDK 就是这么拼的：
+    //    `OSSClient(context, endPoint, ...)` + `PutObjectRequest(bucket, object, uri)`）
+    //   之前 PUT 到 `https://$host` 少了 bucket 前缀和对象路径 ✗ —— 会 403/404
+    final putUrl = 'https://$bucket.$host/$objectName';
+    debugPrint('OssUpload: PUT $putUrl (${bytes.length} B)');
+
     final res = await dio.put(
-      'https://$host',
-      data: Stream.fromIterable(bytes.map((b) => [b])),
+      putUrl,
+      data: bytes,
       options: Options(
         headers: {
           'Content-Type': mime,
@@ -118,8 +126,10 @@ class OssUpload {
     );
 
     if (res.statusCode == null || res.statusCode! < 200 || res.statusCode! >= 300) {
-      throw Exception('OSS 上传失败：HTTP ${res.statusCode}');
+      throw Exception('OSS 上传失败：HTTP ${res.statusCode} / ${res.data}');
     }
+    // OSS 的 callback 成功时返回的是服务端回调的结果（JSON），这里只关心 2xx
+    debugPrint('OssUpload: OK ${res.statusCode} ${res.data}');
     return objectName;
   }
 
