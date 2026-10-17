@@ -18,6 +18,10 @@ import '../logic/network/network_repo.dart';
 import '../pages/ffflist/ffflist_page.dart' show FFFListType;
 import '../utils/extensions.dart';
 import '../utils/cache_util.dart';
+// ShareLinkPrompter.markSelfCopied：应用自己复制剪贴板时登记一笔，
+// 免得切回来被「剪贴板分享链接识别」当成用户复制的内容再问一次。
+// （两文件互相 import 构成循环 —— Dart 允许，编译没问题。）
+import '../utils/share_link.dart';
 import '../utils/storage_util.dart';
 
 // ignore: constant_identifier_names
@@ -113,6 +117,8 @@ class Utils {
 
   static void copyText(String text) {
     Clipboard.setData(ClipboardData(text: text));
+    // 登记「这是应用自己复制的」—— 免得切回来被剪贴板识别当成分享链接再弹一次
+    ShareLinkPrompter.markSelfCopied(text);
     SmartDialog.showToast('已复制');
   }
 
@@ -167,6 +173,7 @@ class Utils {
 
   static void onDownloadFile(String url, String name) async {
     Clipboard.setData(ClipboardData(text: url));
+    ShareLinkPrompter.markSelfCopied(url);
     if (Platform.isAndroid) {
       if (!await platform.invokeMethod(
         'downloadApk',

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +10,7 @@ import '../../pages/home/home_page.dart';
 import '../../pages/main/main_controller.dart';
 import '../../pages/mine/mine_page.dart';
 import '../../utils/storage_util.dart';
+import '../../utils/share_link.dart';
 import '../../utils/utils.dart';
 
 class MainPage extends StatefulWidget {
@@ -32,6 +33,10 @@ class _MainPageState extends State<MainPage> {
     super.initState();
     // 先跟随官方最新版本号，再校验登录态（顺序见 MainController.initAndCheckLogin）
     _mainController.initAndCheckLogin();
+
+    // 进入应用时识别剪贴板里的**酷安分享链接**（对齐 Android `ShareLinkPrompter`）。
+    // 「进入应用」只在主页面首次挂载时算一次 —— 与 Android 的 0→1 口径一致。
+    ShareLinkPrompter.checkOnce();
   }
 
   @override
