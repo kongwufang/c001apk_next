@@ -37,6 +37,7 @@ class FeedCard extends StatelessWidget {
   final bool isFeedContent;
   final bool isHistory;
   final Function(dynamic id)? onDelete;
+  final Function(dynamic uid)? onBlock;
 
 
   /// 个人主页置顶 / 取消置顶：`(id, 当前是否已置顶)`。

@@ -141,7 +141,6 @@ Widget buildBody(
             onReply: onReply,
             onDelete: commonController.postLikeDeleteFollow,
             onStickTop: commonController.postStickTop,
-            onStickTop: commonController.postStickTop,
             onLike: commonController.onLike,
             onPM: commonController.onPM,
           );
