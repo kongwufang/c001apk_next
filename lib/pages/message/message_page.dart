@@ -68,6 +68,13 @@ class _MessagePageState extends State<MessagePage>
   @override
   bool get wantKeepAlive => true;
 
+  /// 安全取红点：`RxList` 没有 `getOrNull`（那是 `extensions.dart` 的扩展，
+  /// 这个文件没 import 它）。直接用下标 + 长度判断，零依赖。
+  int? _badgeAt(int i) {
+    final list = _controller.badges;
+    return i < list.length ? list[i] : null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -121,13 +128,13 @@ class _MessagePageState extends State<MessagePage>
                           _colors[i],
                           _icons[i],
                           _titles[i],
-                          _controller.badges.getOrNull(i),
+                          _badgeAt(i),
                           () {
                             Get.toNamed('/notification',
                                 arguments: {'type': _types[i]});
                             // 点过就把红点清掉
                             // （Android 是「离开本页时落账」，这里简化为点即清）
-                            if ((_controller.badges.getOrNull(i) ?? 0) > 0) {
+                            if ((_badgeAt(i) ?? 0) > 0) {
                               _controller.badges[i] = null;
                             }
                           },
