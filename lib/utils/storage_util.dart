@@ -149,6 +149,9 @@ class GStorage {
     GlobalData().uid = uid;
     GlobalData().username = username;
     GlobalData().token = token;
+    // 第二凭据也从本地恢复（首次启动时为空，等 checkLoginInfo 换到新的）
+    GlobalData().refreshToken =
+        settings.get(SettingsBoxKey.refreshToken, defaultValue: '');
   }
 
   /// 机型参数版本号。
@@ -689,6 +692,16 @@ class GStorage {
     GlobalData().token = value;
   }
 
+  /// 第二凭据（启动时用 [token] 换来的）。见 `GlobalData.refreshToken` 的注释。
+  static String get refreshToken {
+    return settings.get(SettingsBoxKey.refreshToken, defaultValue: '');
+  }
+
+  static void setRefreshToken(String value) {
+    settings.put(SettingsBoxKey.refreshToken, value);
+    GlobalData().refreshToken = value;
+  }
+
   static String get userAvatar {
     return settings.get(SettingsBoxKey.userAvatar, defaultValue: '');
   }
@@ -775,6 +788,7 @@ class SettingsBoxKey {
       userAgent = 'userAgent',
       xAppDevice = 'xAppDevice',
       isLogin = 'isLogin',
+  refreshToken = 'refreshToken',
       uid = 'uid',
       username = 'username',
       token = 'token',

@@ -135,8 +135,15 @@ class ApiInterceptor extends Interceptor {
       // Content-Type，只在 `post_form()` 里加。本工程同理，按请求由
       // `Options(contentType: Headers.formUrlEncodedContentType)` 指定
       // （见 `network_repo.dart`，上传走 multipartFormDataContentType）。
+      // ★ 凭据优先级：`refreshToken`（启动时换到的第二凭据）> `token`（主凭据）
+      //
+      //   两者在业务接口上表现一致（见 `GlobalData.refreshToken` 的注释），
+      //   所以启动换到后就整个进程都用它，直到下次启动再换。
+      final authToken = GlobalData().refreshToken.isNotEmpty
+          ? GlobalData().refreshToken
+          : GlobalData().token;
       options.headers['Cookie'] = GlobalData().isLogin
-          ? 'uid=${GlobalData().uid}; username=${GlobalData().username}; token=${GlobalData().token}'
+          ? 'uid=${GlobalData().uid}; username=${GlobalData().username}; token=$authToken'
           : GlobalData().SESSID;
     }
 

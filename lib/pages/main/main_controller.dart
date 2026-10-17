@@ -92,6 +92,7 @@ class MainController extends GetxController {
             GStorage.setUid('');
             GStorage.setUsername('');
             GStorage.setToken('');
+            GStorage.setRefreshToken('');
             GStorage.setIsLogin(false);
           }
         } else {
@@ -100,8 +101,13 @@ class MainController extends GetxController {
             GStorage.setUsername(
                 Uri.encodeComponent(responseData.data!.username.orEmpty));
             GStorage.setToken(responseData.data!.token.orEmpty);
+            // ★ 启动时换到的**第二凭据**：存下来，之后整个进程的业务请求
+            //   都优先用它（见 `interceptor.dart` 拼 Cookie 那行）。
+            //   两者在业务接口上表现一致 —— 见 `GlobalData.refreshToken` 的注释。
+            GStorage.setRefreshToken(responseData.data!.refreshToken.orEmpty);
             GStorage.setIsLogin(true);
-            debugPrint('checkLoginInfo: 已恢复登录态 uid=${responseData.data!.uid}');
+            debugPrint('checkLoginInfo: 已恢复登录态 uid=${responseData.data!.uid} '
+                'refreshToken=${responseData.data!.refreshToken.orEmpty.isNotEmpty ? "有" : "无"}');
           } else {
             debugPrint('checkLoginInfo: data 为 null');
           }

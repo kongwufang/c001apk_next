@@ -9,7 +9,7 @@ class Data {
   String? uid;
   String? username;
   String? token;
-  // String? refreshToken;
+  String? refreshToken;
   // int? level;
   // @JsonKey(name: 'user_type')
   // int? userType;
@@ -24,7 +24,7 @@ class Data {
     this.uid,
     this.username,
     this.token,
-    // this.refreshToken,
+    this.refreshToken,
     // this.level,
     // this.userType,
     // this.adminType,
