@@ -4,6 +4,7 @@ import 'package:get/get_navigation/src/dialog/dialog_route.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logic/state/loading_state.dart';
+import '../../components/h5_tab.dart';
 import '../../components/topic_header_card.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../pages/feed/reply/reply_dialog.dart' show ReplyType;
@@ -368,21 +369,37 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                           child: TabBarView(
                             controller: _tabController,
                             children: _topicController.tabList!
-                                .map((item) => TopicContent(
-                                      random: _random,
-                                      tag: _topicController.tag,
-                                      id: _topicController.id,
-                                      index:
-                                          _topicController.tabList!.indexOf(item),
-                                      entityType: _topicController.entityType!,
-                                      url: item.url.toString(),
-                                      title: item.title.toString(),
-                                      // 产品页「参数」tab 的版本配置列表 ——
-                                      // 服务端下发的 productConfigList 卡片 entities 恒为空，
-                                      // 要由这里注入（见 TopicContentController 的注释）
-                                      configRows: _topicController.configRows,
-                                    ))
-                                .toList(),
+                                .map((item) {
+                              final tabUrl = item.url.toString();
+                              // ★ H5 类型的 tab（活动详情 / 专题页「说明」）必须用 WebView 渲染。
+                              //
+                              // 对齐 Android `TopicFragment.getFragment`：
+                              // > H5 类型的 tab（如「活动详情」tab 的 url =
+                              // > https://m.coolapk.com/activity/<name>）
+                              // > 用 WebView 渲染，否则走 dataList 接口会返回空导致页面空白
+                              //
+                              // 这些 tab 的 `url` 是**完整 H5 地址**，不是 `/page?url=…`
+                              // 那种数据页；拿去调 `/v6/page/dataList` 只会得到空列表。
+                              // release-notes 那条「专题页「说明」与 H5 活动页补全渲染，
+                              // 修复空白」说的就是它。
+                              if (tabUrl.startsWith('http://') ||
+                                  tabUrl.startsWith('https://')) {
+                                return H5Tab(url: tabUrl);
+                              }
+                              return TopicContent(
+                                random: _random,
+                                tag: _topicController.tag,
+                                id: _topicController.id,
+                                index: _topicController.tabList!.indexOf(item),
+                                entityType: _topicController.entityType!,
+                                url: tabUrl,
+                                title: item.title.toString(),
+                                // 产品页「参数」tab 的版本配置列表 ——
+                                // 服务端下发的 productConfigList 卡片 entities 恒为空，
+                                // 要由这里注入（见 TopicContentController 的注释）
+                                configRows: _topicController.configRows,
+                              );
+                            }).toList(),
                           ),
                         ),
                       ],
