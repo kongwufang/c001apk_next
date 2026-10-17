@@ -175,16 +175,16 @@ class C001APKAPP extends StatelessWidget {
           // ⚠️ Flutter 的按钮形状是 `WidgetStateProperty`，只在状态切换时**瞬间**取值，
           //    没有插值 —— 所以这里是「跳变」，不是 Android 那种弹簧连续变化。
           filledButtonTheme: FilledButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           outlinedButtonTheme: OutlinedButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           textButtonTheme: TextButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           dialogTheme: DialogThemeData(
             surfaceTintColor: lightColorScheme.surfaceTint,
@@ -219,16 +219,16 @@ class C001APKAPP extends StatelessWidget {
           ),
           // 深色主题同样给 M3E 按钮形位（按下圆角收缩一档）
           filledButtonTheme: FilledButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           outlinedButtonTheme: OutlinedButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           textButtonTheme: TextButtonThemeData(
-            shape: M3EButtonShape.shape(),
+            style: ButtonStyle(shape: M3EButtonShape.shape()),
           ),
           dialogTheme: DialogThemeData(
             surfaceTintColor: darkColorScheme.surfaceTint,
