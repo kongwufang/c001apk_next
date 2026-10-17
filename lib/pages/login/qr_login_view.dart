@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -95,7 +96,10 @@ class _QrLoginViewState extends State<QrLoginView> {
       final randomId = const Uuid().v4().replaceAll('-', '');
       final device = _deviceName();
       final version = '1.0.0';
-      final sign = randomId; // 占位：服务端未部署，签名算法待联调确认
+      // ⚠️ `sign` 服务端目前**不做校验**（`qr/index.php` 只查非空）
+      //    协议里「签名」要绑什么内容还没定 ⇒ 先传 randomId 占位；
+      //    将来 PHP 端加校验时，这里同步改成「私钥签 device|randomId」✓
+      final sign = randomId;
       final prep = await _post('prepare', {
         'randomId': randomId,
         'device': device,
@@ -201,10 +205,39 @@ class _QrLoginViewState extends State<QrLoginView> {
     }
   }
 
-  /// 服务端请求（**占位实现** —— 接口未部署时明确报错，不假装能用）
-  Future<Map<String, dynamic>> _post(String action, Map<String, dynamic> body) async {
-    // TODO(阶段③): 服务端部署后接真实请求
-    throw UnsupportedError('服务端尚未部署（action=$action）');
+  /// 服务端请求（2026-10-18 已联调通过 ✓）
+  ///
+  /// 统一约定：`POST {_qrBase}?action=<动作>`，请求体是 JSON，
+  /// 响应形如 `{"data": {...}}`；失败时 `{"status":-1,"message":"..."}`
+  /// （参数错误 / 会话过期 / ticket 不匹配都走这一种）
+  static final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 15),
+  ));
+
+  Future<Map<String, dynamic>> _post(
+    String action,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final res = await _dio.post(
+        _qrBase,
+        queryParameters: {'action': action},
+        data: body,
+      );
+      final raw = res.data;
+      if (raw is Map) {
+        final d = raw['data'];
+        if (d is Map) {
+          return Map<String, dynamic>.from(d);
+        }
+        final msg = raw['message']?.toString();
+        throw StateError(msg?.isNotEmpty == true ? msg! : '服务端返回异常');
+      }
+      throw StateError('响应格式异常：${raw.runtimeType}');
+    } on DioException catch (e) {
+      throw StateError('请求失败（$action）：${e.message ?? e.type}');
+    }
   }
 
   String _deviceName() {
