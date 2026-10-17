@@ -366,7 +366,21 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                             headerSliverBuilder: (_, __) => [
                               // 1) 头部卡片（随滚动自然移出 = Android 的
                               //    `layout_scrollFlags="scroll|exitUntilCollapsed"`）
-                              SliverToBoxAdapter(child: _headerTop()),
+                              // ★ 头部卡改成**带视差**的 sliver。
+                              //
+                              //   对齐 Android `CollapsingToolbarLayout` 的
+                              //   `CollapseMode.PARALLAX`（内容按一半速度上移）。
+                              //
+                              //   为什么不能直接 `Transform.translate` 包
+                              //   `SliverToBoxAdapter`：那样只改绘制、不改布局，
+                              //   下移的部分会**半透明压在下面的卡片上** ✗（踩过两次）。
+                              //   用 `SliverPersistentHeader` + `ClipRect` 才是布局层解决的。
+                              SliverPersistentHeader(
+                                pinned: false,
+                                delegate: _TopicHeaderParallax(
+                                  child: _headerTop(),
+                                ),
+                              ),
                               // 2) TabBar 钉住（= TabLayout 不参与 collapse）
                               SliverPersistentHeader(
                                 pinned: true,
@@ -459,4 +473,57 @@ class _TopicTabBarHeader extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(_TopicTabBarHeader oldDelegate) =>
       oldDelegate.tabBar != tabBar || oldDelegate.background != background;
+}
+
+/// 带**视差**的头部卡（对齐 Android `CollapseMode.PARALLAX`）。
+///
+/// ## 为什么需要它
+/// `Transform.translate` 只改绘制、不改布局 ⇒ 平移出去的部分会**压在下面的卡片上** ✗
+/// `SliverToBoxAdapter` 又完全不裁剪。
+///
+/// 这个 delegate 用「固定高度 + `ClipRect` + 按 `shrinkOffset` 平移」解决：
+/// - 布局高度固定 [_height]，滚过去就真的滚过去（不会把下面的内容顶掉）
+/// - 内容按 [_factor] 的**一半速度**上移 = 视差
+/// - `ClipRect` 保证平移出界的那部分**不画** ⇒ 不会压到卡片上 ✓
+class _TopicHeaderParallax extends SliverPersistentHeaderDelegate {
+  _TopicHeaderParallax({required this.child});
+
+  final Widget child;
+
+  /// 固定高度。`TopicHeaderCard` 自然高度约 110–130，
+  /// 这里留 160 的余量，避免内容稍多就被裁。
+  static const double _height = 160;
+
+  /// 视差系数：0.5 = 内容以一半速度上移（同 Android PARALLAX）
+  static const double _factor = 0.5;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return SizedBox(
+      height: _height,
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.topCenter,
+          maxHeight: double.infinity,
+          child: Transform.translate(
+            offset: Offset(0, -shrinkOffset * _factor),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_TopicHeaderParallax old) => old.child != child;
 }
