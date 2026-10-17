@@ -272,6 +272,12 @@ class C001APKAPP extends StatelessWidget {
               //   `SelectionArea` 让子树里的文字像网页一样可拖选 + Ctrl+C，
               //   不需要跳到 `/copy` 那个中间页，也不是「长按复制全文」。
               child: SelectionArea(
+                // ★ 记录「当前有没有选中文本」—— `SecondaryTapBack` 据此
+                //   决定右键要不要返回（有选中就让选区菜单接管）✓
+                onSelectionChanged: (content) {
+                  TextSelectionState.hasSelection =
+                      (content?.plainText ?? '').isNotEmpty;
+                },
                 child: ShortcutScope(
                   child: SecondaryTapBack(child: child!),
                 ),

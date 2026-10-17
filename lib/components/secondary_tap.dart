@@ -23,6 +23,18 @@ import 'package:get/get.dart';
 ///
 /// ## 移动端
 /// 手机没有右键，`onSecondaryTap` 永远不触发 —— 对 Android 完全无影响。
+/// 当前是否存在**文本选中**（由 `SelectionArea.onSelectionChanged` 维护）。
+///
+/// 为什么要这个标记：桌面上「右键 = 返回」是全局的，
+/// 但拖选文本之后右键应该弹出**选区菜单**（复制 / 全选），
+/// 不能同时把页面也返回掉 —— 否则永远点不到「复制」✗
+class TextSelectionState {
+  TextSelectionState._();
+
+  /// 有选中的文字时为 true
+  static bool hasSelection = false;
+}
+
 class SecondaryTapBack extends StatelessWidget {
   const SecondaryTapBack({super.key, required this.child});
 
@@ -34,6 +46,10 @@ class SecondaryTapBack extends StatelessWidget {
       // translucent：参与命中测试但不遮挡子控件的点击
       behavior: HitTestBehavior.translucent,
       onSecondaryTap: () {
+        // ★ 正在拖选文本时不返回 —— 让 `SelectionArea` 自己弹选区菜单
+        //   （复制 / 全选）。左键点一下就会清掉选区，那时右键又恢复成「返回」✓
+        if (TextSelectionState.hasSelection) return;
+
         // 没有可返回的页面时什么也不做（比如在首页右键）
         final nav = Get.key.currentState;
         if (nav != null && nav.canPop()) {
