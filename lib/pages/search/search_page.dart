@@ -5,7 +5,11 @@ import 'package:get/get.dart';
 
 import '../../components/cards/search_history_card.dart';
 import '../../pages/search/search_page_controller.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
+
 import '../../utils/extensions.dart';
+import '../../utils/share_link.dart';
+import '../../utils/utils.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -35,16 +39,36 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void onSearch(String text) async {
-    if (text.isNotEmpty) {
-      _searchPageController.handleSearch(text);
-      await Get.toNamed('/searchResult', parameters: {
-        'keyword': text,
-        if (!_title.isNullOrEmpty) 'title': _title!,
-        if (!_pageType.isNullOrEmpty) 'pageType': _pageType!,
-        if (!_pageParam.isNullOrEmpty) 'pageParam': _pageParam!,
-      });
-      _focusNode.requestFocus();
+    final keyWord = text.trim();
+    if (keyWord.isEmpty) {
+      // Android 同：`Toast("请输入关键词")`
+      SmartDialog.showToast('请输入关键词');
+      return;
     }
+    // ★ 粘进来的是**酷安分享链接**就直接跳过去，别拿它当关键词去搜。
+    //
+    // 对齐 Android `SearchFragment.startSearch`：
+    // ```kotlin
+    // // 粘进来的是酷安分享链接就直接跳过去，别拿它当关键词去搜（与剪贴板识别同一套判定）
+    // NetWorkUtil.findCoolapkLink(keyWord)?.let {
+    //     NetWorkUtil.openLink(requireContext(), it, null)
+    //     return
+    // }
+    // ```
+    // 判定用的是与「剪贴板识别」**同一套** `findCoolapkLink`。
+    final link = ShareLinkPrompter.findCoolapkLink(keyWord);
+    if (link != null) {
+      Utils.onOpenLink(link, null);
+      return;
+    }
+    _searchPageController.handleSearch(keyWord);
+    await Get.toNamed('/searchResult', parameters: {
+      'keyword': keyWord,
+      if (!_title.isNullOrEmpty) 'title': _title!,
+      if (!_pageType.isNullOrEmpty) 'pageType': _pageType!,
+      if (!_pageParam.isNullOrEmpty) 'pageParam': _pageParam!,
+    });
+    _focusNode.requestFocus();
   }
 
   @override
@@ -61,7 +85,7 @@ class _SearchPageState extends State<SearchPage> {
           },
           decoration: InputDecoration(
             border: InputBorder.none,
-            hintText: 'Search${!_title.isNullOrEmpty ? ' in $_title' : ''}',
+            hintText: '搜索${!_title.isNullOrEmpty ? '：$_title' : ''}',
             hintStyle: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.normal,
