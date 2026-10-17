@@ -1,8 +1,9 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gif_view/gif_view.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../constants/constants.dart';
 import '../logic/repo/offline_cache_repo.dart';
@@ -41,7 +42,6 @@ Widget networkImage(
   }
 
   return _maybeDim(
-    context,
     imageUrl.endsWith(Constants.SUFFIX_GIF)
         ? GifView.network(
             imageUrl,
@@ -85,8 +85,16 @@ Widget networkImage(
 ///
 /// 深色模式下列表里的图片往往比文字亮得多，压暗一点观感更统一。
 /// 只压到 80%，避免糊成一片。
-Widget _maybeDim(BuildContext context, Widget child) {
-  if (Theme.of(context).brightness != Brightness.dark) return child;
+///
+/// ⚠️ 这里**不能要 `BuildContext`** —— `networkImage()` 的参数表里没有它
+/// （函数内部的 `context` 都来自 `placeholder` / `errorBuilder` 的闭包），
+/// 而调用点有几十处，加参数会牵一发动全身。
+/// 所以用 `Get.isDarkMode` 读**解析后的真实主题**。
+///
+/// ⚠️ 也别用 `GStorage.getBrightness()` —— 那个返回的是**状态栏图标**的亮度
+/// （浅色主题 → 深色图标），语义正好相反，用在这里会反。
+Widget _maybeDim(Widget child) {
+  if (!Get.isDarkMode) return child;
   if (!GStorage.isColorFilter) return child;
   return ColorFiltered(
     colorFilter: const ColorFilter.matrix(<double>[
