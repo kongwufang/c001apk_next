@@ -152,21 +152,46 @@ class ShareLinkPrompter {
   /// 那边 `openLink` 是**大小写敏感**的字符串替换，
   /// `HTTPS://WWW.COOLAPK.COM/feed/1` 它一样打不开，这里宽容地认下来
   /// 只会让用户点「确认」后换回一句「不支持的链接」。
+  ///
+  /// ⚠️ 所以 host **不能用 `Uri.host`** —— Dart 的 `Uri` 会把它**小写化**，
+  /// 于是 `https://WWW.COOLAPK.COM/feed/1` 会被误判成合法（Android 不会）。
+  /// 这里从原串里手工抠出 authority 段（保留大小写），只把 **path** 交给 `Uri`。
   static String? _linkOfSchemeUrl(String candidate) {
     final text = _trimTrailing(candidate.trim());
     if (text.isEmpty) return null;
     final uri = Uri.tryParse(text);
     if (uri == null) return null;
+    final host = _rawHost(text);
     switch (uri.scheme) {
       case 'http':
       case 'https':
-        final host = uri.host;
         return (_linkHosts.contains(host) && uri.path.length > 1) ? text : null;
       case 'coolmarket':
-        return _linkSchemeHosts.contains(uri.host) ? text : null;
+        return _linkSchemeHosts.contains(host) ? text : null;
       default:
         return null;
     }
+  }
+
+  /// 从原串里抠出 `://` 之后的 authority 段并按原样返回（**不小写**）。
+  ///
+  /// 会去掉 `user:pass@` 与 `:port`。不处理 IPv6 字面量 ——
+  /// 分享链接里不可能出现，真出现了也只是被判为「不认」，不会误放行。
+  static String _rawHost(String text) {
+    final i = text.indexOf('://');
+    if (i < 0) return '';
+    final rest = text.substring(i + 3);
+    var end = rest.length;
+    for (final sep in const ['/', '?', '#']) {
+      final j = rest.indexOf(sep);
+      if (j >= 0 && j < end) end = j;
+    }
+    var authority = rest.substring(0, end);
+    final at = authority.lastIndexOf('@');
+    if (at >= 0) authority = authority.substring(at + 1);
+    final colon = authority.indexOf(':');
+    if (colon >= 0) authority = authority.substring(0, colon);
+    return authority;
   }
 
   /// 裸域名（没有 scheme）：「www.coolapk.com/feed/1」
