@@ -54,6 +54,24 @@ class _TopicContentState extends State<TopicContent>
   @override
   bool get wantKeepAlive => true;
 
+  /// 头部折叠进度：0 = 完全展开（全亮），1 = 完全收起（全透明）。
+  ///
+  /// 由 `commonBody` 内部列表冒上来的 `ScrollNotification` 驱动，
+  /// 只重建头部那一个 `Opacity` —— 不触发整页重建。
+  ///
+  /// 对齐 Android `BasePagerFragment.applyHeaderFade`
+  /// （那边是折叠进度越高头部越透明，最后只剩折叠标题）。
+  final ValueNotifier<double> _headerFade = ValueNotifier<double>(0);
+
+  /// 头部大约这么高；滚过它就完全淡出（含上下 padding 的粗估）
+  static const double _headerFadeDistance = 120;
+
+  @override
+  void dispose() {
+    _headerFade.dispose();
+    super.dispose();
+  }
+
   late final _topicController = Get.put(
     TopicContentController(
       url: widget.url,
@@ -171,14 +189,34 @@ class _TopicContentState extends State<TopicContent>
     //    `COLLAPSE_MODE_PARALLAX`（**淡出 + 视差**），这里是**平移移出**。
     //    效果等价（头部让位、TabBar 吸顶），但不需要动 `commonBody` 的
     //    Sliver / 滚动控制器结构。
+    // ★ 用 `NotificationListener` 包住 `commonBody` 收滚动通知 ——
+    //   列表在 `commonBody` 内部，通知会往上冒，所以监听器挂在外层能收到。
+    //   这里只更新折叠进度，不 setState（避免每帧重建整页）。
+    Widget withScroll(Widget child) => NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            final t =
+                (n.metrics.pixels / _headerFadeDistance).clamp(0.0, 1.0);
+            // 变化小于 2% 就不通知，省掉大量无意义重建
+            if ((_headerFade.value - t).abs() > 0.02) _headerFade.value = t;
+            return false;
+          },
+          child: child,
+        );
     final orderController = _topicOrderController;
     if (orderController == null && widget.headerTop == null) {
-      return commonBody(_topicController);
+      return withScroll(commonBody(_topicController));
     }
     Widget buildHeader() => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (widget.headerTop != null) widget.headerTop!,
+            if (widget.headerTop != null)
+              ValueListenableBuilder<double>(
+                valueListenable: _headerFade,
+                // 只重建这一个 Opacity，child 复用不重建
+                builder: (_, fade, child) =>
+                    Opacity(opacity: 1 - fade, child: child),
+                child: widget.headerTop,
+              ),
             if (orderController != null)
               SortHeader(
                 current: orderController.topicSortType.value,
@@ -187,10 +225,10 @@ class _TopicContentState extends State<TopicContent>
           ],
         );
     if (orderController == null) {
-      return commonBody(_topicController, header: buildHeader());
+      return withScroll(commonBody(_topicController, header: buildHeader()));
     }
-    return Obx(
-      () => commonBody(_topicController, header: buildHeader()),
+    return withScroll(
+      Obx(() => commonBody(_topicController, header: buildHeader())),
     );
   }
 }
