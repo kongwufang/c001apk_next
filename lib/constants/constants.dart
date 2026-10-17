@@ -1,4 +1,4 @@
-﻿// ignore_for_file: constant_identifier_names
+// ignore_for_file: constant_identifier_names
 
 import 'package:flutter/material.dart';
 
@@ -91,6 +91,14 @@ class Constants {
     'feed_reply',
     'message',
     'collection',
+    // ★ 活动页「线下」tab 的实体商品卡。
+    //
+    // Android `CarouselViewModel` 的白名单里明确有它：
+    // ```kotlin
+    // if (it.entityType in listOf("feed","topic","product","user","card","pear_goods"))
+    // ```
+    // 不加这一条，线下 tab 会整页「没有更多了」（实测确认过）。
+    'pear_goods',
   ];
 
   static const entityTemplateList = [

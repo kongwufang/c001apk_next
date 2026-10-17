@@ -44,6 +44,18 @@ class CarouselController extends CommonController {
       lastItem: lastItem,
       page: page,
       inCluldeConfigCard: isInit,
+      // ★ 活动页的轮播 / 图文卡片都是 `entityType == 'card'`，线下 tab 还有
+      //   `pear_goods` —— 都要放行。
+      //
+      //   对齐 Android `CarouselViewModel`：
+      //   ```kotlin
+      //   // 「card」类型也要放行：活动页的轮播/图文卡片都是 card
+      //   if (it.entityType in listOf("feed","topic","product","user","card","pear_goods"))
+      //   ```
+      //   （`pear_goods` 走 `Constants.entityTypeList`，这里只管 `card`。）
+      //
+      //   不放行的话，「活动 → 线下」tab 会整页「没有更多了」（已实测确认）。
+      includeCardEntities: true,
     );
   }
 
