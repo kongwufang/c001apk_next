@@ -423,6 +423,9 @@ class _MinePageState extends State<MinePage> {
     Get.toNamed('/webview', parameters: {
       'url': 'https://m.coolapk.com/myDevice/${GStorage.uid}',
       'isLogin': '1',
+      // Android `MineMenuAdapter` 传的 editUrl —— 页面右上角会多一颗「编辑」按钮
+      'editUrl':
+          'https://m.coolapk.com/mp/do?c=product&m=editProductOwner&from=home',
     });
   }
 

@@ -35,8 +35,17 @@ class WebviewPage extends StatefulWidget {
 class _WebviewPageState extends State<WebviewPage> {
   final String _url = Get.parameters['url'] ?? '';
   final bool _isLogin = Get.parameters['isLogin'] == '1';
+
+  /// 右上角「编辑」按钮要打开的地址。
+  ///
+  /// 对齐 Android `WebViewActivity.editUrl`：只有显式传了才显示那颗按钮
+  /// （「我的装备」传的是 `/mp/do?c=product&m=editProductOwner&from=home`）。
+  final String _editUrl = Get.parameters['editUrl'] ?? '';
   final _titleStream = StreamController<String?>();
   final _progressStream = StreamController<double>();
+
+  /// cookie 是否已写好。**写完才建 WebView** —— 否则首屏请求不带 cookie。
+  bool _cookiesReady = false;
 
   InAppWebViewController? _webViewController;
 
@@ -69,42 +78,80 @@ class _WebviewPageState extends State<WebviewPage> {
   CookieManager get _cookieManager =>
       CookieManager.instance(webViewEnvironment: WebViewEnv.instance);
 
+
+  /// 先写 cookie，再放行 WebView。
+  ///
+  /// 为什么要等：`initialUrlRequest` 是 WebView **创建时**发出的，
+  /// 而 `setCookie` 是异步的 —— 不等的话首屏请求就是**匿名**的，
+  /// 服务端会把「我的装备」当成「别人看你的私密装备」⇒ 报「因隐私设置无法查看」。
+  /// Android 那边是先 `applyCoolapkCookies(url)` 再 `loadUrl(url)`，顺序一样。
+  Future<void> _prepareCookies() async {
+    await _applyCoolapkCookies();
+    if (!mounted) return;
+    setState(() => _cookiesReady = true);
+  }
+
+  /// 把登录态 cookie 写进 WebView 的 CookieManager。
+  ///
+  /// 逐条对齐 Android `WebViewActivity.applyCoolapkCookies`：
+  /// ```kotlin
+  /// val cookies = listOf(
+  ///     "DID=${PrefManager.SZLMID}",
+  ///     "forward=https://www.coolapk.com",
+  ///     "displayVersion=v14",
+  ///     "uid=${PrefManager.uid}",
+  ///     "username=${PrefManager.username}",
+  ///     "token=${PrefManager.token}",
+  /// )
+  /// cookies.forEach { value ->
+  ///     cookieManager.setCookie(url, "$value; path=/")
+  ///     if (host != "m.coolapk.com") {
+  ///         cookieManager.setCookie("https://m.coolapk.com/", "$value; domain=.coolapk.com; path=/")
+  ///     }
+  /// }
+  /// ```
+  ///
+  /// 这里直接写 **`domain = '.coolapk.com'`** 一份就够 ——
+  /// 它覆盖 m / www / account / api 等所有子域，等价于 Android 的「双写」。
+  ///
+  /// ⚠️ 原来这里写的是 `Uri.parse('.coolapk.com')`：它**没有 scheme/host**，
+  /// cookie 会被记到一个不存在的域上，等于没写 ✗。必须用**真实 URL**。
+  Future<void> _applyCoolapkCookies() async {
+    if (!GlobalData().isLogin) return;
+    // 与 Android 逐条一致（空值跳过：写个空 token 比不写更糟）
+    final cookies = <String, String>{
+      'DID': GStorage.szlmId,
+      'forward': 'https://www.coolapk.com',
+      'displayVersion': 'v14',
+      'uid': GlobalData().uid,
+      'username': GlobalData().username,
+      'token': GlobalData().token,
+    };
+    // 真实 URL —— 借它给出 scheme/host，实际生效的是下面的 domain
+    final url = WebUri('https://m.coolapk.com/');
+    for (final e in cookies.entries) {
+      if (e.value.isEmpty) continue;
+      try {
+        await _cookieManager.setCookie(
+          url: url,
+          name: e.key,
+          value: e.value,
+          path: '/',
+          domain: '.coolapk.com',
+        );
+      } catch (err) {
+        debugPrint('applyCoolapkCookies: ${e.key} 写入失败：$err');
+      }
+    }
+    debugPrint('applyCoolapkCookies: 已写 ${cookies.length} 条（domain=.coolapk.com）');
+  }
+
   @override
   void initState() {
     super.initState();
-    _cookieManager.deleteAllCookies();
-    if (GlobalData().isLogin) {
-      _cookieManager.setCookie(
-        url: WebUri.uri(Uri.parse('.coolapk.com')),
-        name: 'DID',
-        value: GStorage.szlmId,
-      );
-      _cookieManager.setCookie(
-        url: WebUri.uri(Uri.parse('.coolapk.com')),
-        name: 'forward',
-        value: 'https://www.coolapk.com',
-      );
-      _cookieManager.setCookie(
-        url: WebUri.uri(Uri.parse('.coolapk.com')),
-        name: 'displayVersion',
-        value: 'v14',
-      );
-      _cookieManager.setCookie(
-        url: WebUri.uri(Uri.parse('.coolapk.com')),
-        name: 'uid',
-        value: GlobalData().uid,
-      );
-      _cookieManager.setCookie(
-        url: WebUri.uri(Uri.parse('.coolapk.com')),
-        name: 'username',
-        value: GlobalData().username,
-      );
-      _cookieManager.setCookie(
-        url: WebUri.uri(Uri.parse('.coolapk.com')),
-        name: 'token',
-        value: GlobalData().token,
-      );
-    }
+    // ★ 写登录态 cookie **必须在建 WebView 之前完成**，否则
+    //   `initialUrlRequest` 发出的首屏请求不带 cookie（见 `_applyCoolapkCookies` 的注释）。
+    _prepareCookies();
 
     // ★ 登录页要**主动轮询 cookie**，不能只靠 URL 跳转事件。
     //
@@ -281,6 +328,21 @@ class _WebviewPageState extends State<WebviewPage> {
           ),
         ),
         actions: [
+          // ★ 「编辑」按钮：只有传了 `editUrl` 的页面才有
+          //   （对齐 Android `menu?.findItem(R.id.editDevice)?.isVisible = editUrl != null`）
+          if (_editUrl.isNotEmpty)
+            IconButton(
+              tooltip: '编辑',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () async {
+                // 换页前**再写一次 cookie** —— Android 也是这么做的
+                // （`applyCoolapkCookies(url); webView?.loadUrl(url)`）
+                await _applyCoolapkCookies();
+                await _webViewController?.loadUrl(
+                  urlRequest: URLRequest(url: WebUri(_editUrl)),
+                );
+              },
+            ),
           PopupMenuButton(
             onSelected: (item) async {
               switch (item) {
@@ -330,7 +392,10 @@ class _WebviewPageState extends State<WebviewPage> {
           )
         ],
       ),
-      body: InAppWebView(
+      // ★ cookie 没写完就不建 WebView（否则首屏请求是匿名的）
+      body: !_cookiesReady
+          ? const Center(child: CircularProgressIndicator())
+          : InAppWebView(
         // ★ Windows 上要把同一个 `WebViewEnvironment` 也传给 WebView 本体，
         // 否则 `CookieManager` 拿到的环境跟它不一致，照样取不到 cookie。
         webViewEnvironment: WebViewEnv.instance,
