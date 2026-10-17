@@ -63,12 +63,25 @@ enum UserTabType {
   /// - 点评 `/feed/nodeRatingList?uid=..&targetType=all&parseRatingToFeed=1`（**走 page/dataList**）
   /// - 酷图 `/feed/userCoolPictureFeedList?fragmentTemplate=flex&uid=..`（**走 page/dataList**）
   String url(String uid) => switch (this) {
-        UserTabType.FEED =>
-          '/v6/user/feedList?showAnonymous=0&isIncludeTop=1&showDoing=0',
+        // ⚠️ 这三个必须带 `uid`！
+        //
+        // Android `ApiService.kt` 里 `uid` 是 **`@Query`** 参数：
+        // ```kotlin
+        // @GET("/v6/user/feedList?showAnonymous=0&isIncludeTop=1&showDoing=0")
+        // fun getUserFeed(@Query("uid") uid: String, @Query("page") page: Int,
+        //                 @Query("lastItem") lastItem: String?)
+        // @GET("/v6/user/htmlFeedList")          … @Query("uid") uid: String
+        // @GET("/v6/user/questionAndAnswerList") … @Query("uid") uid: String
+        // ```
+        //
+        // 之前这里**漏了 `uid`** ⇒ 服务端按「当前登录用户」返回
+        // ⇒ 进别人主页时，下面的动态 / 图文 / 问答显示的是**自己的内容** ✗
+        UserTabType.FEED => '/v6/user/feedList'
+            '?showAnonymous=0&isIncludeTop=1&showDoing=0&uid=$uid',
         UserTabType.RATING =>
           '/feed/nodeRatingList?uid=$uid&targetType=all&parseRatingToFeed=1',
-        UserTabType.ARTICLE => '/v6/user/htmlFeedList',
-        UserTabType.QUESTION => '/v6/user/questionAndAnswerList',
+        UserTabType.ARTICLE => '/v6/user/htmlFeedList?uid=$uid',
+        UserTabType.QUESTION => '/v6/user/questionAndAnswerList?uid=$uid',
         UserTabType.COOLPIC =>
           '/feed/userCoolPictureFeedList?fragmentTemplate=flex&uid=$uid',
       };
