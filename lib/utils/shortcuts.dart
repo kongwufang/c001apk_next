@@ -92,14 +92,16 @@ class _ShortcutScopeState extends State<ShortcutScope> {
     return w is EditableText;
   }
 
-  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+  bool _handleKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    // 诊断：确认按键真的到了这里（很便宜，桌面端开着方便排查）
+    debugPrint('Shortcut: ${event.logicalKey.keyLabel} typing=$_typing');
     // 带修饰键的一律放行（Ctrl+V / Ctrl+C / Alt+… 交给系统）
     final keys = HardwareKeyboard.instance;
     if (keys.isControlPressed || keys.isAltPressed || keys.isMetaPressed) {
-      return KeyEventResult.ignored;
+      return false;
     }
-    if (_typing) return KeyEventResult.ignored;
+    if (_typing) return false;
 
     final k = event.logicalKey;
 
@@ -108,14 +110,14 @@ class _ShortcutScopeState extends State<ShortcutScope> {
       final back = ShortcutBus.find(ShortcutBus.back);
       if (back != null) {
         back();
-        return KeyEventResult.handled;
+        return true;
       }
       // 不在某个页面自己处理，就走路由后退
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).maybePop();
-        return KeyEventResult.handled;
+        return true;
       }
-      return KeyEventResult.ignored;
+      return false;
     }
 
     final action = switch (k) {
@@ -126,7 +128,7 @@ class _ShortcutScopeState extends State<ShortcutScope> {
       LogicalKeyboardKey.keyM => ShortcutBus.message,
       _ => null,
     };
-    if (action == null) return KeyEventResult.ignored;
+    if (action == null) return false;
 
     // 作者主页的 `s` 是「关注」—— 那边会把 follow 注册到 share 这个槽位，
     // 这里再兜一层：share 槽位为空但 follow 有值就用 follow
@@ -134,25 +136,37 @@ class _ShortcutScopeState extends State<ShortcutScope> {
     if (cb == null && action == ShortcutBus.share) {
       cb = ShortcutBus.find(ShortcutBus.follow);
     }
-    if (cb == null) return KeyEventResult.ignored;
+    if (cb == null) return false;
     cb();
-    return KeyEventResult.handled;
+    return true;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // ★ 用 `HardwareKeyboard` 的**全局**处理器，而不是 `Focus.onKeyEvent`。
+    //
+    //   之前用 `Focus(autofocus: true, onKeyEvent: ...)` —— autofocus 只在
+    //   第一帧抢一次焦点。之后只要有任何控件拿到焦点（搜索框 / TabBar /
+    //   点一下卡片 / 拖选文字…），这个节点就**永久失去**焦点 ⇒
+    //   `onKeyEvent` 再也不触发 ⇒ 快捷键整体失效 ✗
+    //   （用户实测：按键还会触发输入法 —— 因为焦点其实在某个文本控件上）
+    //
+    //   `HardwareKeyboard.addHandler` 收**所有**按键，与焦点无关 ✓
+    HardwareKeyboard.instance.addHandler(_handleKey);
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKey);
     _focus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focus,
-      autofocus: true,
-      onKeyEvent: _onKey,
-      child: widget.child,
-    );
+    // 不再需要 `Focus` 包装（按键由 `HardwareKeyboard` 全局收）
+    return widget.child;
   }
 }
 
