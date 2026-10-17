@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'components/custom_toast.dart';
 import 'components/secondary_tap.dart';
 import 'constants/constants.dart';
+import 'constants/m3e_button.dart';
 import 'logic/network/request.dart';
 import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
@@ -164,6 +165,27 @@ class C001APKAPP extends StatelessWidget {
             surfaceTintColor: lightColorScheme.surfaceTint,
             shadowColor: Colors.transparent,
           ),
+          // ★ M3E 按钮的**按下形位**：按下时圆角收缩一档（16dp → 12dp）。
+          //
+          // 对齐 Android：`themes_m3e.xml` 把 materialButtonStyle /
+          // materialButtonOutlinedStyle / borderlessButtonStyle 等 12 个样式
+          // 全部指向 `Widget.Material3Expressive.Button*`，
+          // 形状取自 `m3expressive_button_shape_state_list`。
+          //
+          // ⚠️ Flutter 的按钮形状是 `WidgetStateProperty`，只在状态切换时**瞬间**取值，
+          //    没有插值 —— 所以这里是「跳变」，不是 Android 那种弹簧连续变化。
+          filledButtonTheme: FilledButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
           dialogTheme: DialogThemeData(
             surfaceTintColor: lightColorScheme.surfaceTint,
           ),
@@ -194,6 +216,19 @@ class C001APKAPP extends StatelessWidget {
           cardTheme: CardThemeData(
             surfaceTintColor: darkColorScheme.surfaceTint,
             shadowColor: Colors.transparent,
+          ),
+          // 深色主题同样给 M3E 按钮形位（按下圆角收缩一档）
+          filledButtonTheme: FilledButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            shape: M3EButtonShape.shape(),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            shape: M3EButtonShape.shape(),
           ),
           dialogTheme: DialogThemeData(
             surfaceTintColor: darkColorScheme.surfaceTint,
