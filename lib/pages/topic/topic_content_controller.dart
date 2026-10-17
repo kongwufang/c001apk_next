@@ -27,6 +27,15 @@ class TopicContentController extends CommonController {
       firstItem: firstItem,
       lastItem: lastItem,
       page: page,
+      // ★ 话题 / 产品内容列表要放行 `entityType == 'card'`。
+      //
+      //   对齐 Android `TopicContentViewModel`：
+      //   > 「card」类型也要放行：产品页「参数」tab 的
+      //   > productConfigList/listCard 都是 card，过滤掉会整页空白
+      //
+      //   不放行的话，参数 tab 的 4 条会被全局白名单全过滤掉，
+      //   界面显示成「没有更多了」。
+      includeCardEntities: true,
     );
 
     // ★ 产品页「参数」tab：把本地 `configRows` **注入**到服务端下发的

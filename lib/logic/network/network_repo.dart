@@ -678,6 +678,12 @@ class NetworkRepo {
     required String? lastItem,
     required int page,
     bool inCluldeConfigCard = false,
+    /// 是否放行 `entityType == 'card'` 的条目（`sortSelectCard` 除外）。
+    ///
+    /// 只有**话题 / 产品内容列表**需要（产品页「参数」tab 的
+    /// `productConfigList` / `listCard` 都是 card）。
+    /// 对齐 Android `TopicContentViewModel` 的过滤条件。
+    bool includeCardEntities = false,
   }) async {
     return getListData(
       () => Request().get(
@@ -692,6 +698,7 @@ class NetworkRepo {
         },
       ),
       inCluldeConfigCard: inCluldeConfigCard,
+      includeCardEntities: includeCardEntities,
     );
   }
 
@@ -708,12 +715,14 @@ class NetworkRepo {
   static Future<LoadingState> getListData(
     Future<Response<dynamic>> Function() get, {
     bool inCluldeConfigCard = false,
+    bool includeCardEntities = false,
   }) async {
     try {
       var response = await get();
       return await handleListResponse(
         response,
         inCluldeConfigCard: inCluldeConfigCard,
+        includeCardEntities: includeCardEntities,
       );
     } catch (err) {
       return LoadingState.error(err.toString());
@@ -741,6 +750,7 @@ class NetworkRepo {
   static Future<LoadingState> handleListResponse(
     Response<dynamic> response, {
     bool inCluldeConfigCard = false,
+    bool includeCardEntities = false,
   }) async {
     if (response.statusCode == HttpStatus.ok) {
       DataListModel responseData = DataListModel.fromJson(response.data);
@@ -757,6 +767,23 @@ class NetworkRepo {
                     item.title.orEmpty.contains('没有')
                 ? true
                 : (Constants.entityTypeList.contains(item.entityType) ||
+                        // ★ 话题 / 产品内容列表要放行 `entityType == 'card'`
+                        //   （`sortSelectCard` 除外）。
+                        //
+                        //   对齐 Android `TopicContentViewModel`：
+                        //   ```kotlin
+                        //   // 「card」类型也要放行：产品页「参数」tab 的
+                        //   // productConfigList/listCard 都是 card，过滤掉会整页空白
+                        //   if (it.entityType in listOf("feed","topic","product","user","card")
+                        //       && it.entityTemplate != "sortSelectCard")
+                        //   ```
+                        //
+                        //   不加这条的话，产品页「参数」tab 的 4 条
+                        //   （productConfigList + 2 个 listCard）会被全部过滤掉，
+                        //   列表显示成「没有更多了」。
+                        (includeCardEntities &&
+                                item.entityType == 'card' &&
+                                item.entityTemplate != 'sortSelectCard') ||
                         (Constants.entityTemplateList +
                                 (inCluldeConfigCard ? ['configCard'] : []))
                             .contains(item.entityTemplate)) &&
