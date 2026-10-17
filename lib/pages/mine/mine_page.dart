@@ -168,9 +168,18 @@ class _MinePageState extends State<MinePage> {
     return _card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
+        // ★ UI 层刷新：登录页返回后**本页自己** setState + 重新拉资料 ✓
+        //
+        //   为什么不用 `Get.forceAppUpdate()`（全局重建）✗
+        //   —— 它在启动阶段被调过一次，直接把正在初始化的控制器销毁，
+        //      导致所有页面显示「服务器异常」（2026-10-17 实测，已回滚）
+        //   ⇒ 只在**需要的那一页**做局部刷新 ✓
+        onTap: () async {
           if (!_isLogin) {
-            Get.toNamed('/login');
+            await Get.toNamed('/login');
+            if (!mounted) return;
+            setState(() {}); // 让「点击登录」换成昵称/头像
+            if (_isLogin) _fetchProfile(); // 再把头像/等级/经验拉下来
           } else if (GStorage.uid.isNotEmpty) {
             // 头部整块点击进入自己的主页
             Get.toNamed('/u/${GStorage.uid}');
