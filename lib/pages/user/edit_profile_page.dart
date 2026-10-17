@@ -232,14 +232,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
           contentType: DioMediaType('image', 'jpeg'),
         ),
       });
+      _log('avatar 上传中 md5=$md5Name size=${bytes.length}');
       final res = await NetworkRepo.postChangeAvatar(data: form);
+      _log('avatar 响应 status=${res.statusCode} data=${res.data}');
       final url = (res.data is Map) ? res.data['data']?.toString() : null;
       if (url != null && url.isNotEmpty) {
         GStorage.setUserAvatar(url);
         SmartDialog.showToast('头像已更新');
         if (mounted) setState(() {});
       } else {
-        SmartDialog.showToast('头像上传失败');
+        _log('avatar 响应里没有 url');
+        SmartDialog.showToast('头像上传失败：响应里没有 url');
       }
     } catch (e) {
       debugPrint('EditProfile.avatar: $e');
@@ -293,18 +296,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
             '"type":"image/jpeg","md5":"$md5Hex"}]',
         'toUid': '',
       });
+      _log('cover prepare 请求 size=${bytes.length} md5=$md5Hex');
       final prep = await NetworkRepo.postOSSUploadPrepare(data: prepareForm);
+      _log('cover prepare 响应 status=${prep.statusCode} data=${prep.data}');
       final prepData = (prep.data is Map) ? prep.data['data'] : null;
       final info = prepData?['uploadPrepareInfo'];
       final fileInfo = (prepData?['fileInfo'] is List)
           ? (prepData['fileInfo'] as List).first
           : null;
       if (info == null || fileInfo == null) {
+        _log('cover prepare 里没有 uploadPrepareInfo/fileInfo');
         SmartDialog.showToast('背景图上传失败：prepare 无数据');
         return;
       }
 
       // ② 直传 OSS
+      _log('cover OSS put: endPoint=${info['endPoint']} bucket=${info['bucket']} '
+          'object=${fileInfo['uploadFileName']}');
       final objectName = await OssUpload.put(
         endPoint: info['endPoint']?.toString() ?? '',
         bucket: info['bucket']?.toString() ?? '',
@@ -318,8 +326,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       // ③ 回传完整 CDN 地址
+      _log('cover OSS 成功 object=$objectName');
       final url = 'http://avatar.coolapk.com/$objectName';
-      await NetworkRepo.postChangeAvatarCover(url: url);
+      final coverRes = await NetworkRepo.postChangeAvatarCover(url: url);
+      _log('cover 响应 status=${coverRes.statusCode} data=${coverRes.data}');
       SmartDialog.showToast('背景图已更新');
       if (mounted) setState(() {});
     } catch (e) {

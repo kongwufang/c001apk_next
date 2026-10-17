@@ -239,8 +239,15 @@ class _CropImagePageState extends State<CropImagePage> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         actions: [
+          // ★ 黑底上 `TextButton` 用主题的 primary 会显得很暗（像禁用）✗
+          //   显式给白色 + 加粗，才看得出是「可点的完成」✓
           TextButton(
             onPressed: _busy ? null : _confirm,
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              disabledForegroundColor: Colors.white38,
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             child: Text(_busy ? '处理中…' : '完成'),
           ),
         ],
