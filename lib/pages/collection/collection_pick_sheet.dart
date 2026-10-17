@@ -381,6 +381,8 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
       onTap: _loading ? null : () => _toggle(item),
       // **长按 = 编辑**（与 Android `root.setOnLongClickListener { showEditDialog(item) }` 一致）
       onLongPress: _loading ? null : () => _openEdit(item),
+      // 桌面端：右键 = 长按（= 编辑收藏夹）
+      onSecondaryTap: _loading ? null : () => _openEdit(item),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(

@@ -1,4 +1,4 @@
-﻿import 'package:c001apk_flutter/components/network_image.dart';
+import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -58,6 +58,10 @@ class FeedReplyCard extends StatelessWidget {
           }
         },
         onLongPress: () {
+          Get.toNamed('/copy', parameters: {'text': data.message.toString()});
+        },
+        // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+        onSecondaryTap: () {
           Get.toNamed('/copy', parameters: {'text': data.message.toString()});
         },
         borderRadius:
@@ -281,6 +285,29 @@ class FeedReplyCard extends StatelessWidget {
   }
 
   Widget _replyRowsItem(BuildContext context, Datum reply) {
+    // 抽成局部函数，让「长按」和「右键」共用同一个回调
+    //（桌面端右键 = 长按，见 components/secondary_tap.dart）
+    void showMorePanel() {
+      showModalBottomSheet(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        builder: (context) {
+          return _MorePanel(
+            id: reply.id,
+            uid: reply.uid,
+            message: reply.message.toString(),
+            fid: data.id,
+            reply: reply,
+            onBlock:
+                onBlock != null ? () => onBlock!(reply.uid, data.id) : null,
+            onDelete:
+                onDelete != null ? () => onDelete!(reply.id, data.id) : null,
+          );
+        },
+      );
+    }
+
     return InkWell(
       onTap: () {
         if (onReply != null) {
@@ -291,26 +318,8 @@ class FeedReplyCard extends StatelessWidget {
           );
         }
       },
-      onLongPress: () {
-        showModalBottomSheet(
-          context: context,
-          useRootNavigator: true,
-          isScrollControlled: true,
-          builder: (context) {
-            return _MorePanel(
-              id: reply.id,
-              uid: reply.uid,
-              message: reply.message.toString(),
-              fid: data.id,
-              reply: reply,
-              onBlock:
-                  onBlock != null ? () => onBlock!(reply.uid, data.id) : null,
-              onDelete:
-                  onDelete != null ? () => onDelete!(reply.id, data.id) : null,
-            );
-          },
-        );
-      },
+      onLongPress: showMorePanel,
+      onSecondaryTap: showMorePanel,
       child: Container(
         width: double.infinity,
         alignment: Alignment.centerLeft,

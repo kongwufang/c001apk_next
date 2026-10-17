@@ -96,6 +96,50 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   @override
+  /// 消息长按菜单（删除 / 复制）。
+  ///
+  /// 抽成方法是为了让「长按」和「右键」共用同一个回调 ——
+  /// 桌面端右键 = 长按，见 `components/secondary_tap.dart`。
+  void _showMessageMenu(BuildContext context, Datum data) {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            clipBehavior: Clip.hardEdge,
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 8),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text(
+                    '删除',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  onTap: () {
+                    _chatController
+                        .onDeleteMsg(data.id);
+                    Get.back();
+                  },
+                ),
+                if (!data.message.isNullOrEmpty)
+                  ListTile(
+                    title: const Text(
+                      '复制',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    onTap: () {
+                      Utils.copyText(
+                          data.message!);
+                      Get.back();
+                    },
+                  ),
+              ],
+            ),
+          );
+        });
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -172,45 +216,11 @@ class _ChatPageState extends State<ChatPage> {
                         "imgList": [dataList[index].messagePic!],
                       });
                     },
-                    onLongPress: () {
-                      showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              clipBehavior: Clip.hardEdge,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 8),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ListTile(
-                                    title: const Text(
-                                      '删除',
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                    onTap: () {
-                                      _chatController
-                                          .onDeleteMsg(dataList[index].id);
-                                      Get.back();
-                                    },
-                                  ),
-                                  if (!dataList[index].message.isNullOrEmpty)
-                                    ListTile(
-                                      title: const Text(
-                                        '复制',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      onTap: () {
-                                        Utils.copyText(
-                                            dataList[index].message!);
-                                        Get.back();
-                                      },
-                                    ),
-                                ],
-                              ),
-                            );
-                          });
-                    },
+                    // 桌面端：右键 = 长按
+                    onLongPress: () =>
+                        _showMessageMenu(context, dataList[index]),
+                    onSecondaryTap: () =>
+                        _showMessageMenu(context, dataList[index]),
                   );
                 case 'messageExtra':
                   return ChatTimeCard(text: dataList[index].title ?? '');

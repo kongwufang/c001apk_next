@@ -1,4 +1,4 @@
-﻿import 'package:c001apk_flutter/components/network_image.dart';
+import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:html/dom.dart' as dom;
@@ -46,6 +46,9 @@ class NotificationCard extends StatelessWidget {
           }
         },
         onLongPress: () =>
+            Get.toNamed('/copy', parameters: {'text': data.note ?? ''}),
+        // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+        onSecondaryTap: () =>
             Get.toNamed('/copy', parameters: {'text': data.note ?? ''}),
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: Stack(

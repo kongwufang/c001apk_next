@@ -33,6 +33,8 @@ class ChatCard extends StatelessWidget {
         splashColor: Colors.transparent,
         splashFactory: NoSplashFactory(),
         onLongPress: onLongPress,
+        // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+        onSecondaryTap: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(

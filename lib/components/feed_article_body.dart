@@ -31,6 +31,10 @@ Widget feedArticleBody(
             Get.toNamed('/copy', parameters: {'text': data.message.orEmpty});
             HapticFeedback.mediumImpact();
           },
+          // 桌面端：右键 = 长按
+          onSecondaryTap: () {
+            Get.toNamed('/copy', parameters: {'text': data.message.orEmpty});
+          },
           child: htmlText(
             data.message.orEmpty,
             fontSize: 16,

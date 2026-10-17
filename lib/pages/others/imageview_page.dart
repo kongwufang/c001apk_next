@@ -37,6 +37,79 @@ class _ImageViewPageState extends State<ImageViewPage> {
     _imgList = List.from(Get.arguments['imgList']);
   }
 
+  /// 图片菜单（保存 / 分享 / 复制 / 在浏览器打开）。
+  ///
+  /// 抽成方法是为了让「长按」和「右键」共用同一个回调 ——
+  /// 桌面端右键 = 长按，见 `components/secondary_tap.dart`。
+  void _showImageMenu(BuildContext context) {
+                showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        clipBehavior: Clip.hardEdge,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              title: const Text(
+                                '保存',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              onTap: () {
+                                DownloadUtils.downloadImg(
+                                    [_imgList[_initialPage]]);
+                                Get.back();
+                              },
+                            ),
+                            if (_imgList.length != 1)
+                              ListTile(
+                                title: const Text(
+                                  '全部保存',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: () {
+                                  DownloadUtils.downloadImg(_imgList);
+                                  Get.back();
+                                },
+                              ),
+                            ListTile(
+                              title: const Text(
+                                '分享',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              onTap: () {
+                                Utils.onShareImg(_imgList[_initialPage]);
+                                Get.back();
+                              },
+                            ),
+                            ListTile(
+                              title: const Text(
+                                '复制',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              onTap: () {
+                                Utils.copyText(_imgList[_initialPage]);
+                                Get.back();
+                              },
+                            ),
+                            if (Utils.isDesktop)
+                              ListTile(
+                                title: const Text(
+                                  '在浏览器打开',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: () {
+                                  Utils.launchURL(_imgList[_initialPage]);
+                                  Get.back();
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,74 +125,9 @@ class _ImageViewPageState extends State<ImageViewPage> {
         alignment: Alignment.center,
         children: [
           GestureDetector(
-            onLongPress: () {
-              showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      clipBehavior: Clip.hardEdge,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            title: const Text(
-                              'Save',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            onTap: () {
-                              DownloadUtils.downloadImg(
-                                  [_imgList[_initialPage]]);
-                              Get.back();
-                            },
-                          ),
-                          if (_imgList.length != 1)
-                            ListTile(
-                              title: const Text(
-                                'Save All',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              onTap: () {
-                                DownloadUtils.downloadImg(_imgList);
-                                Get.back();
-                              },
-                            ),
-                          ListTile(
-                            title: const Text(
-                              'Share',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            onTap: () {
-                              Utils.onShareImg(_imgList[_initialPage]);
-                              Get.back();
-                            },
-                          ),
-                          ListTile(
-                            title: const Text(
-                              'Copy',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            onTap: () {
-                              Utils.copyText(_imgList[_initialPage]);
-                              Get.back();
-                            },
-                          ),
-                          if (Utils.isDesktop)
-                            ListTile(
-                              title: const Text(
-                                'Open In Browser',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              onTap: () {
-                                Utils.launchURL(_imgList[_initialPage]);
-                                Get.back();
-                              },
-                            ),
-                        ],
-                      ),
-                    );
-                  });
-            },
+            // 桌面端：右键 = 长按
+            onLongPress: () => _showImageMenu(context),
+            onSecondaryTap: () => _showImageMenu(context),
             child: PhotoViewGallery.builder(
               backgroundDecoration: const BoxDecoration(
                 color: Colors.transparent,

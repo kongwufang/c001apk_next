@@ -1,4 +1,4 @@
-﻿import 'package:c001apk_flutter/components/network_image.dart';
+import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -50,6 +50,9 @@ class FeedCard extends StatelessWidget {
         splashFactory: isFeedContent ? NoSplashFactory() : null,
         onTap: isFeedContent ? null : _onViewFeed,
         onLongPress: () =>
+            Get.toNamed('/copy', parameters: {'text': data.message.orEmpty}),
+        // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+        onSecondaryTap: () =>
             Get.toNamed('/copy', parameters: {'text': data.message.orEmpty}),
         borderRadius: isFeedContent ? null : BorderRadius.circular(12),
         child: Padding(
@@ -126,6 +129,11 @@ class FeedCard extends StatelessWidget {
               ? () => Get.toNamed('/feed/${data.forwardSourceFeed?.id}')
               : null,
           onLongPress: data.forwardSourceFeed != null
+              ? () => Get.toNamed('/copy',
+                  parameters: {'text': data.forwardSourceFeed?.message ?? ''})
+              : null,
+          // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+          onSecondaryTap: data.forwardSourceFeed != null
               ? () => Get.toNamed('/copy',
                   parameters: {'text': data.forwardSourceFeed?.message ?? ''})
               : null,
@@ -256,6 +264,9 @@ class FeedCard extends StatelessWidget {
         child: InkWell(
           onTap: _onViewFeed,
           onLongPress: () =>
+              Get.toNamed('/copy', parameters: {'text': reply.message.orEmpty}),
+          // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+          onSecondaryTap: () =>
               Get.toNamed('/copy', parameters: {'text': reply.message.orEmpty}),
           borderRadius: BorderRadius.circular(12),
           child: Padding(

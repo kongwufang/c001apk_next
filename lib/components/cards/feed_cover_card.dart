@@ -84,6 +84,12 @@ class FeedCoverCard extends StatelessWidget {
             Utils.copyText(data.message!);
           }
         },
+        // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
+        onSecondaryTap: () {
+          if (!data.message.isNullOrEmpty) {
+            Utils.copyText(data.message!);
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(

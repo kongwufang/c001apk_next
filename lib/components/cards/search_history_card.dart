@@ -17,6 +17,8 @@ class SearchHistoryCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
+      // 桌面端：右键 = 长按
+      onSecondaryTap: onLongPress,
       borderRadius: BorderRadius.circular(20),
       child: Ink(
         decoration: BoxDecoration(

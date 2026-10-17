@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'components/custom_toast.dart';
+import 'components/secondary_tap.dart';
 import 'constants/constants.dart';
 import 'logic/network/request.dart';
 import 'logic/repo/spam_config_repo.dart';
@@ -202,7 +203,10 @@ class C001APKAPP extends StatelessWidget {
             child: MediaQuery(
               data: MediaQuery.of(context)
                   .copyWith(textScaler: TextScaler.linear(fontScale)),
-              child: child!,
+              // ★ 桌面端：右键 = 长按（在有长按的控件上）/ 返回（其余地方）。
+              //   详见 `components/secondary_tap.dart` 的说明。
+              //   内层有 `onSecondaryTap` 时它优先，所以不会误触返回。
+              child: SecondaryTapBack(child: child!),
             ),
           );
         },
