@@ -270,21 +270,6 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                bottom: _topicController.isBlocked
-                    ? const PreferredSize(
-                        preferredSize: Size.zero, child: Divider(height: 1))
-                    : TabBar(
-                        controller: _tabController,
-                        isScrollable: true,
-                        tabs: _topicController.tabList!
-                            .map((item) => Tab(text: item.title.toString()))
-                            .toList(),
-                        onTap: (value) {
-                          if (!_tabController!.indexIsChanging) {
-                            _pageScrollController.setIndex(value);
-                          }
-                        },
-                      ),
                 actions: [
                   if (!_topicController.isBlocked)
                     IconButton(
@@ -374,7 +359,36 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                   ? Center(
                       child: Text('${_topicController.title} is Blocked'),
                     )
-                  : TabBarView(
+                  : NestedScrollView(
+                            // ★ 布局顺序对齐 Android `base_tablayout_viewpager.xml`：
+                            //   AppBarLayout = [CollapsingToolbarLayout(头部) → TabLayout(横条)]
+                            //   ⇒ **头部在 TabBar 上面**，TabBar 钉住，头部随滚动移出。
+                            //   之前把头部塞进每个 tab 的列表 ⇒ 它跑到 TabBar **下面** ✗
+                            headerSliverBuilder: (_, __) => [
+                              // 1) 头部卡片（随滚动自然移出 = Android 的
+                              //    `layout_scrollFlags="scroll|exitUntilCollapsed"`）
+                              SliverToBoxAdapter(child: _headerTop()),
+                              // 2) TabBar 钉住（= TabLayout 不参与 collapse）
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: _TopicTabBarHeader(
+                                  TabBar(
+                                    controller: _tabController,
+                                    isScrollable: true,
+                                    tabs: _topicController.tabList!
+                                        .map((item) => Tab(text: item.title.toString()))
+                                        .toList(),
+                                    onTap: (value) {
+                                      if (!_tabController!.indexIsChanging) {
+                                        _pageScrollController.setIndex(value);
+                                      }
+                                    },
+                                  ),
+                                  Theme.of(context).colorScheme.surface,
+                                ),
+                              ),
+                            ],
+                            body: TabBarView(
                             controller: _tabController,
                             children: _topicController.tabList!
                                 .map((item) {
@@ -395,9 +409,9 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                                 return H5Tab(url: tabUrl);
                               }
                               return TopicContent(
-                                // 头部卡片交给列表（随滚动移出，TabBar 仍钉在
-                                // `AppBar.bottom`）。见 `TopicContent.headerTop` 的注释。
-                                headerTop: _headerTop(),
+                                // ★ 不再传 `headerTop` —— 头部卡已经移到 `NestedScrollView` 的
+                                //   sliver 里、位于 TabBar **上面**（对齐 Android
+                                //   `base_tablayout_viewpager.xml`）。这里只留「讨论」tab 自己的三段式排序。
                                 random: _random,
                                 tag: _topicController.tag,
                                 id: _topicController.id,
@@ -413,6 +427,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                             }).toList(),
                   ),
             )
+            )
           : Scaffold(
               appBar: AppBar(),
               body:
@@ -420,4 +435,29 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
             ),
     );
   }
+}
+
+/// 把 TabBar 钉在头部卡片下面（= Android `TabLayout` 不参与 collapse）。
+///
+/// 照搬 `user_page.dart` 的 `_UserTabBarHeader` —— 用户主页那个布局已验收通过。
+class _TopicTabBarHeader extends SliverPersistentHeaderDelegate {
+  _TopicTabBarHeader(this.tabBar, this.background);
+
+  final TabBar tabBar;
+  final Color background;
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+          BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      ColoredBox(color: background, child: tabBar);
+
+  @override
+  bool shouldRebuild(_TopicTabBarHeader oldDelegate) =>
+      oldDelegate.tabBar != tabBar || oldDelegate.background != background;
 }
