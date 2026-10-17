@@ -205,8 +205,7 @@ class UserInfoCard extends StatelessWidget {
           ),
         ),
         // 签名：折叠 2 行 + 「展开 / 收起」，**只有真被截断才露「展开」**。
-        // 对齐 Android UserPagerFragment.bindBio / 
-efreshBioExpand
+        // 对齐 Android UserPagerFragment.bindBio / refreshBioExpand
         // （BIO_COLLAPSED_LINES = 2）。
         ExpandableBio(
           text: (data.bio?.isEmpty ?? true) ? '这个人很懒，什么都没写' : data.bio!,
