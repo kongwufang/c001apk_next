@@ -166,9 +166,6 @@ class _SearchPageState extends State<SearchPage> {
                             },
                             onLongPress: () =>
                                 _searchPageController.handleSearch(text, true),
-                            // 桌面端：右键 = 长按
-                            onSecondaryTap: () =>
-                                _searchPageController.handleSearch(text, true),
                           ),
                         )
                         .toList(),

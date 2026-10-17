@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -216,10 +216,7 @@ class _ChatPageState extends State<ChatPage> {
                         "imgList": [dataList[index].messagePic!],
                       });
                     },
-                    // 桌面端：右键 = 长按
                     onLongPress: () =>
-                        _showMessageMenu(context, dataList[index]),
-                    onSecondaryTap: () =>
                         _showMessageMenu(context, dataList[index]),
                   );
                 case 'messageExtra':

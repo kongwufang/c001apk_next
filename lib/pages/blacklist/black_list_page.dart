@@ -220,8 +220,6 @@ class _BlackListPageState extends State<BlackListPage> {
                             }
                           },
                           onLongPress: () => _controller.handleData(text, true),
-                          // 桌面端：右键 = 长按
-                          onSecondaryTap: () => _controller.handleData(text, true),
                         ),
                       )
                       .toList(),
