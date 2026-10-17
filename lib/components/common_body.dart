@@ -47,6 +47,7 @@ Widget commonBody(
               isReply2Reply: isReply2Reply,
               feedCoverAsFeed: feedCoverAsFeed,
               uid: uid,
+              header: header,
             ),
           )
         : Center(
@@ -56,6 +57,7 @@ Widget commonBody(
               isReply2Reply: isReply2Reply,
               feedCoverAsFeed: feedCoverAsFeed,
               uid: uid,
+              header: header,
             ),
           ),
   );
