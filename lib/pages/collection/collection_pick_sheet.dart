@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart' show DioMediaType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 // ⚠️ get 经 get_connect 也导出了 `FormData` / `MultipartFile`（它自己那套），
 // 与 dio 的同名类冲突 —— 这里两个都 hide，用 dio 的。
@@ -277,11 +278,60 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
   }
 
   @override
+
+  /// 面板内的键盘处理（只在这个面板里生效）。
+  ///
+  /// - 数字 `1`–`9`：直选第 N 个收藏夹（等价于点它）
+  /// - `l`：本地（离线）保存
+  ///
+  /// ★ 处理了就返回 `handled`，**不冒泡**给全局 `ShortcutScope` ——
+  /// 否则按 `l` 会连带触发全局「点赞」。
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final k = event.logicalKey;
+
+    // l = 本地保存
+    if (k == LogicalKeyboardKey.keyL) {
+      if (!_savingOffline) _saveOffline();
+      return KeyEventResult.handled;
+    }
+
+    // 数字 1–9 = 直选第 N 个收藏夹
+    const digits = [
+      LogicalKeyboardKey.digit1, LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3, LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5, LogicalKeyboardKey.digit6,
+      LogicalKeyboardKey.digit7, LogicalKeyboardKey.digit8,
+      LogicalKeyboardKey.digit9,
+    ];
+    // 小键盘也要
+    const pads = [
+      LogicalKeyboardKey.numpad1, LogicalKeyboardKey.numpad2,
+      LogicalKeyboardKey.numpad3, LogicalKeyboardKey.numpad4,
+      LogicalKeyboardKey.numpad5, LogicalKeyboardKey.numpad6,
+      LogicalKeyboardKey.numpad7, LogicalKeyboardKey.numpad8,
+      LogicalKeyboardKey.numpad9,
+    ];
+    var idx = digits.indexOf(k);
+    if (idx < 0) idx = pads.indexOf(k);
+    if (idx < 0) return KeyEventResult.ignored;
+
+    // `_list` 是异步加载的，可能还是空的
+    if (_loading || idx >= _list.length) return KeyEventResult.handled;
+    _toggle(_list[idx]);
+    return KeyEventResult.handled;
+  }
+
+
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final maxH = MediaQuery.of(context).size.height * 0.7;
 
-    return Container(
+    // ★ 键盘：数字 1–9 直选收藏夹，`l` 本地保存（见 `_onKey`）
+    return Focus(
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: Container(
       constraints: BoxConstraints(maxHeight: maxH),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
@@ -339,6 +389,20 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
                 ],
               ),
             ),
+            // ★ 桌面端：提示可以按数字直选 / L 本地保存
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '按数字直接选择收藏夹 · L 本地保存',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
 
             if (_loading) const LinearProgressIndicator(minHeight: 2),
 
@@ -362,6 +426,7 @@ class _CollectionPickSheetState extends State<_CollectionPickSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
