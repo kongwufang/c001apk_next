@@ -16,6 +16,7 @@ import '../components/cards/image_text_scroll_card.dart';
 import '../components/cards/like_card.dart';
 import '../components/cards/message_card.dart';
 import '../components/cards/notification_card.dart';
+import '../components/cards/product_config_list_card.dart';
 import '../components/cards/rating_card.dart';
 import '../components/cards/text_card.dart';
 import '../components/cards/title_card.dart';
@@ -186,6 +187,11 @@ Widget itemCard(
     // 个人主页「点评」tab 的实体（Android `AppAdapter` 的 viewType 21）
     case 'nodeRating':
       return RatingCard(data: data);
+    // 产品页「参数」tab 的版本配置卡（Android viewType 15）。
+    // ⚠️ 服务端下发的这张卡 entities **恒为空**，
+    //    内容靠 `TopicContentController` 从 `product/detail` 的 configRows 注入。
+    case 'productConfigList':
+      return ProductConfigListCard(data: data);
   }
   // ★ 顶层 `entityType` 也没匹配到 → 同样交给通用卡片。
   //

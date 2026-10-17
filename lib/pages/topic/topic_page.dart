@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
 import 'package:share_plus/share_plus.dart';
@@ -335,6 +335,10 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                                 entityType: _topicController.entityType!,
                                 url: item.url.toString(),
                                 title: item.title.toString(),
+                                // 产品页「参数」tab 的版本配置列表 ——
+                                // 服务端下发的 productConfigList 卡片 entities 恒为空，
+                                // 要由这里注入（见 TopicContentController 的注释）
+                                configRows: _topicController.configRows,
                               ))
                           .toList(),
                     ),

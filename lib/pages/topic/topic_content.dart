@@ -18,6 +18,7 @@ class TopicContent extends StatefulWidget {
     required this.entityType,
     required this.url,
     required this.title,
+    this.configRows,
   });
 
   final String random;
@@ -27,6 +28,12 @@ class TopicContent extends StatefulWidget {
   final String entityType;
   final String url;
   final String title;
+
+  /// 产品页「参数」tab 的版本配置列表（其余 tab 为 null）。
+  ///
+  /// 见 `TopicContentController` 里那段「服务端下发的 productConfigList
+  /// 卡片 entities 恒为空」的说明。
+  final List<Map<String, dynamic>>? configRows;
 
   @override
   State<TopicContent> createState() => _TopicContentState();
@@ -41,6 +48,7 @@ class _TopicContentState extends State<TopicContent>
     TopicContentController(
       url: widget.url,
       title: widget.title,
+      configRows: widget.configRows,
     ),
     tag: widget.url + widget.title + widget.random,
   );
@@ -76,7 +84,7 @@ class _TopicContentState extends State<TopicContent>
           tag: (widget.tag ?? widget.id!) + widget.random);
       _topicOrderController?.topicSortType.listen((type) {
         _topicController.url =
-            '/page?url=/product/feedList?type=feed&id=${widget.id}&';
+            '/page?url=/product/feedList?cacheExpires=60&type=feed&id=${widget.id}&';
         switch (type) {
           case TopicSortType.DEFAULT:
             _topicController.url = '${_topicController.url}ignoreEntityById=1';
