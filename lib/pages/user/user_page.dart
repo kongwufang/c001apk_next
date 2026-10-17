@@ -13,6 +13,7 @@ import '../../pages/user/user_controller.dart';
 import '../../pages/user/user_tab.dart';
 import '../../utils/device_util.dart';
 import '../../utils/extensions.dart';
+import '../../utils/global_data.dart';
 import '../../utils/shortcuts.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
