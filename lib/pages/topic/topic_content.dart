@@ -79,26 +79,62 @@ class _TopicContentState extends State<TopicContent>
       }
     });
 
-    if (widget.entityType == 'product' && widget.title == '讨论') {
+    // 三段式排序（默认 / 最新 / 热度）覆盖两类栏目 ——
+    // 照抄 Android `TopicContentFragment.initAdapter()`：
+    // > 1) 产品讨论 tab：`product/feedList` + `type=feed`（排序参数 **listType**）
+    // > 2) 话题讨论 tab：`topic/tagFeedList` + `withSortCard=1`（排序参数 **sortField**）
+    //
+    // ★ 判据用 **URL 解码后 contains**，不是 `entityType` / `title`。
+    //   Android 那边专门写了这条注释：
+    //   > `product/detail` 下发的 tab url 是 **URL 编码的**（如 `%2Fproduct%2FfeedList`、
+    //   > `type%3Dfeed`），必须先解码再判断，否则 contains 匹配不到，排序开关就不显示。
+    //
+    //   原来这里用 `entityType == 'product' && title == '讨论'` 只覆盖了产品；
+    //   **话题的讨论 tab 点了排序没有任何反应** —— 这次一并修掉。
+    final decodedUrl = Uri.decodeComponent(widget.url);
+    final isProductFeed = decodedUrl.contains('product/feedList') &&
+        decodedUrl.contains('type=feed');
+    final isTopicFeed = decodedUrl.contains('topic/tagFeedList') &&
+        decodedUrl.contains('withSortCard=1');
+
+    if (isProductFeed || isTopicFeed) {
       _topicOrderController = Get.find<TopicOrderController>(
           tag: (widget.tag ?? widget.id!) + widget.random);
       _topicOrderController?.topicSortType.listen((type) {
-        _topicController.url =
-            '/page?url=/product/feedList?cacheExpires=60&type=feed&id=${widget.id}&';
-        switch (type) {
-          case TopicSortType.DEFAULT:
-            _topicController.url = '${_topicController.url}ignoreEntityById=1';
-            _topicController.title = '默认';
-            break;
-          case TopicSortType.DATELINE:
-            _topicController.url =
-                '${_topicController.url}ignoreEntityById=1&listType=dateline_desc';
-            _topicController.title = '最新';
-            break;
-          case TopicSortType.HOT:
-            _topicController.url = '${_topicController.url}listType=rank_score';
-            _topicController.title = '热度';
-            break;
+        if (isTopicFeed) {
+          // 话题讨论 tab：排序走 `sortField` 参数
+          // （Android：最新 → dateline_desc / 热度 → rank_score / 默认 → lastupdate_desc）
+          final sortValue = switch (type) {
+            TopicSortType.DATELINE => 'dateline_desc',
+            TopicSortType.HOT => 'rank_score',
+            _ => 'lastupdate_desc',
+          };
+          _topicController.url = decodedUrl.contains('sortField=')
+              ? decodedUrl.replaceAll(
+                  RegExp('sortField=[^&]*'), 'sortField=$sortValue')
+              : '$decodedUrl&sortField=$sortValue';
+          _topicController.title = type.label;
+        } else {
+          // 产品讨论 tab：排序走 `listType` 参数
+          _topicController.url =
+              '/page?url=/product/feedList?cacheExpires=60&type=feed&id=${widget.id}&';
+          switch (type) {
+            case TopicSortType.DEFAULT:
+              _topicController.url =
+                  '${_topicController.url}ignoreEntityById=1';
+              _topicController.title = '默认';
+              break;
+            case TopicSortType.DATELINE:
+              _topicController.url =
+                  '${_topicController.url}ignoreEntityById=1&listType=dateline_desc';
+              _topicController.title = '最新';
+              break;
+            case TopicSortType.HOT:
+              _topicController.url =
+                  '${_topicController.url}listType=rank_score';
+              _topicController.title = '热度';
+              break;
+          }
         }
         if (_topicController.loadingState.value is Success) {
           _topicController.animateToTop();
