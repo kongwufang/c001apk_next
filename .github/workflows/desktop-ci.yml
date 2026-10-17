@@ -54,8 +54,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # ★ 去掉 `continue-on-error: true`。
+      #
+      # 原来设了它 ⇒ `flutter analyze` 就算报 **error**（编译错误）也只算 warning，
+      # 这个 step 永远显示 completed success ✗
+      #
+      # 实测后果：`2f3cabff` 的 Analyze 明明报了
+      #   error - Undefined name 'onStickTop' - lib/components/cards/feed_card.dart:555:29
+      # 却仍显示成功，只能等 10 分钟后的 `Build` 才发现 —— 白白浪费一轮。
+      #
+      # `--no-fatal-infos --no-fatal-warnings` 已经保证 **info / warning 不致命**，
+      # 而 **error 本来就该致命**。去掉开关后 analyze 变成一个 ~2 分钟的快速编译门禁。
       - name: Analyze
-        continue-on-error: true
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       # ★ 单元测试：其中 test/token_v3_test.dart 用 golden 向量逐字节校验
