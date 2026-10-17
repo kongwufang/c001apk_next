@@ -114,7 +114,7 @@ class SettingsAppearancePage extends StatelessWidget {
             title: const Text('编辑Tab'),
             subtitle: const Text('调整首页顶部的分类标签'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Get.to(() => const EditTabPage()),
+            onTap: () => Get.toNamed('/editTab'),
           ),
 
           // ── 转场动画 ──

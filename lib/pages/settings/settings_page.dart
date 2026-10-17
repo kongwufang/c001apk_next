@@ -66,27 +66,27 @@ class _SettingsPageState extends State<SettingsPage> {
           _entry(
             icon: Icons.palette_outlined,
             title: '外观',
-            onTap: () => Get.to(() => const SettingsAppearancePage()),
+            onTap: () => Get.toNamed('/settingsAppearance'),
           ),
           _entry(
             icon: Icons.dynamic_feed_outlined,
             title: '推荐流相关',
-            onTap: () => Get.to(() => const SettingsRecommendPage()),
+            onTap: () => Get.toNamed('/settingsRecommend'),
           ),
           _entry(
             icon: Icons.block_outlined,
             title: '隐私',
-            onTap: () => Get.to(() => const SettingsPrivacyPage()),
+            onTap: () => Get.toNamed('/settingsPrivacy'),
           ),
           _entry(
             icon: Icons.developer_mode_outlined,
             title: '高级',
-            onTap: () => Get.to(() => const SettingsAdvancedPage()),
+            onTap: () => Get.toNamed('/settingsAdvanced'),
           ),
           _entry(
             icon: Icons.more_horiz_outlined,
             title: '其他',
-            onTap: () => Get.to(() => const SettingsOtherPage()),
+            onTap: () => Get.toNamed('/settingsOther'),
           ),
           // 「关于」在一级，点击**直接**打开关于页
           //（Android 注释：去掉了「其他 → 关于 → 关于本应用」中间那两层无用目录）

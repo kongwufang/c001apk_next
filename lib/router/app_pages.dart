@@ -21,7 +21,13 @@ import '../pages/others/imageview_page.dart';
 import '../pages/search/search_page.dart';
 import '../pages/search/search_result_page.dart';
 import '../pages/settings/about_page.dart';
+import '../pages/settings/edit_tab_page.dart';
 import '../pages/settings/params_page.dart';
+import '../pages/settings/settings_advanced_page.dart';
+import '../pages/settings/settings_appearance_page.dart';
+import '../pages/settings/settings_other_page.dart';
+import '../pages/settings/settings_privacy_page.dart';
+import '../pages/settings/settings_recommend_page.dart';
 import '../pages/offline/offline_cache_page.dart';
 import '../pages/spam/spam_shield_page.dart';
 import '../pages/szlm/szlm_id_web_page.dart';
@@ -70,6 +76,33 @@ class AppPages {
     _getPage(
       name: '/params',
       page: () => const ParamsPage(),
+    ),
+    // ★ 设置下的二级页也走 `_getPage` —— 之前它们是 `Get.to(() => Page())`，
+    //   绕过了路由表 ⇒ 用 GetX 默认转场（不是 M3、也不读「转场速度」设置）✗
+    //   这就是「设置页里转场动画不统一」的原因。
+    _getPage(
+      name: '/settingsAppearance',
+      page: () => const SettingsAppearancePage(),
+    ),
+    _getPage(
+      name: '/settingsRecommend',
+      page: () => const SettingsRecommendPage(),
+    ),
+    _getPage(
+      name: '/settingsPrivacy',
+      page: () => const SettingsPrivacyPage(),
+    ),
+    _getPage(
+      name: '/settingsAdvanced',
+      page: () => const SettingsAdvancedPage(),
+    ),
+    _getPage(
+      name: '/settingsOther',
+      page: () => const SettingsOtherPage(),
+    ),
+    _getPage(
+      name: '/editTab',
+      page: () => const EditTabPage(),
     ),
     _getPage(
       name: '/about',
