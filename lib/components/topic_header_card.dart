@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
-import '../network_image.dart';
+import 'network_image.dart';
 
 /// 话题 / 机型页的**头部卡片**。
 ///
