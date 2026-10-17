@@ -298,8 +298,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       //     resolution = "1080x1080"（宽 x 高）
       //     md5        = 图片 md5 的十六进制
       //     hdr        = 0
-      final rand = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-      final fileName = '$rand$rand.jpg'.substring(0, 40);
+      // ⚠️ 不要用 `substring(0, 40)` —— 时间戳十六进制只有 15~16 位，
+      //   拼两次 + ".jpg" 也才 34~36 字符 ⇒ 会抛 `RangeError` ✗
+      //   （2026-10-18 实测：异常发生在取文件名这一步，上传根本没开始）
+      //
+      //   Android 是 UUID 去掉横线（32 字符）+ ".jpg" ⇒ 共 36 ✓
+      final rand = DateTime.now().microsecondsSinceEpoch.toRadixString(16).padLeft(16, '0');
+      final fileName = '$rand$rand.jpg'; // 16+16+4 = 36 ✓
       final uploadFileList =
           '[{"name":"$fileName","resolution":"1080x1080",'
           '"md5":"$md5Hex","hdr":0}]';
