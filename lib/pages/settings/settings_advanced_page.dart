@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../components/settings/drop_down_menu_item.dart';
 import '../../components/settings/edittext_item.dart';
+import '../../components/settings/switch_item.dart';
 import '../../utils/storage_util.dart';
 
 /// 设置 → **高级**。
