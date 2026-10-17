@@ -342,12 +342,12 @@ class _ArticlePublishPageState extends State<ArticlePublishPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          // 标题
+          // 标题（Android `articleTitle`：match_parent × wrap_content，15sp）
           TextField(
             controller: _titleController,
             maxLines: 2,
             minLines: 1,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 15),
             decoration: const InputDecoration(
               hintText: '标题',
               border: InputBorder.none,
@@ -407,9 +407,12 @@ class _ArticlePublishPageState extends State<ArticlePublishPage> {
     return InkWell(
       onTap: _pickCover,
       borderRadius: BorderRadius.circular(12),
-      child: AspectRatio(
-        // 1600:719
-        aspectRatio: 1600 / 719,
+      child: SizedBox(
+        // ★ Android `activity_article_publish.xml` 里 `coverContainer` 是**固定 180dp 高**
+        //   （`android:layout_height="180dp"`），不是按 1600:719 的宽高比撑开 ——
+        //   桌面宽屏下按比例会撑到 400+ dp，非常高。
+        //   `coverImage` 是 match_parent + centerCrop。
+        height: 180,
         child: Container(
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainer,
