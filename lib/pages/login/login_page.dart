@@ -284,10 +284,19 @@ class _LoginPageState extends State<LoginPage>
   ///   1. 存 `refreshToken`（第二凭据，业务请求会优先用它 ✓）
   ///   2. **不动** `token`（主凭据保留 ✓）
   ///   3. uid / username 由下次 `checkLoginInfo` 补齐 ✓
-  Future<void> _onQrLoggedIn(String refreshToken) async {
+  Future<void> _onQrLoggedIn(
+    String refreshToken, {
+    String uid = '',
+    String username = '',
+  }) async {
     if (refreshToken.isEmpty) return;
 
     GStorage.setRefreshToken(refreshToken);
+    // ★ uid / username 也随密文一起传过来（用户要求一并加密 ✓）
+    //   `checkLoginInfo` 必须 **token + uid + username 三者齐全** 才认 ✗
+    //   —— 这是 2026-10-18 用新鲜 cookie 实测出来的（见台账 11.8）
+    if (uid.isNotEmpty) GStorage.setUid(uid);
+    if (username.isNotEmpty) GStorage.setUsername(username);
     GStorage.setIsLogin(true);
     SmartDialog.showToast('登录成功');
     Get.back(result: true);

@@ -37,7 +37,8 @@ class QrLoginView extends StatefulWidget {
   const QrLoginView({super.key, this.onLoggedIn});
 
   /// 拿到 refreshToken 后的回调（由登录页负责写入登录态 + 跳转）
-  final void Function(String refreshToken)? onLoggedIn;
+  /// [uid] / [username] 手机端一起加密传过来的（可能为空 ← 旧版本客户端）
+  final void Function(String refreshToken, {String uid, String username})? onLoggedIn;
 
   @override
   State<QrLoginView> createState() => _QrLoginViewState();
@@ -192,11 +193,28 @@ class _QrLoginViewState extends State<QrLoginView> {
     try {
       final aesKeyBytes = QrCrypto.decryptPkcs1(priv as dynamic, '${r['encKey']}');
       final aesKeyB64 = base64Encode(aesKeyBytes);
-      final token = QrCrypto.aesCbcDecrypt(aesKeyB64, '${r['encToken']}');
+      final plain = QrCrypto.aesCbcDecrypt(aesKeyB64, '${r['encToken']}');
+      if (plain.isEmpty) throw StateError('解出的内容为空');
+
+      // ★ 手机端把「refreshToken + uid + username」打包成 JSON 后整体加密 ✓
+      //   兼容旧格式：解出来不是 JSON 就当成纯 token ✓
+      String token = plain;
+      String uid = '';
+      String uname = '';
+      try {
+        final j = jsonDecode(plain);
+        if (j is Map) {
+          token = '${j['token'] ?? ''}';
+          uid = '${j['uid'] ?? ''}';
+          uname = '${j['username'] ?? ''}';
+        }
+      } catch (_) {
+        // 旧格式：plain 本身就是 token
+      }
       if (token.isEmpty) throw StateError('解出的 token 为空');
 
       setState(() => _phase = _Phase.confirmed);
-      widget.onLoggedIn?.call(token);
+      widget.onLoggedIn?.call(token, uid: uid, username: uname);
     } catch (e) {
       setState(() {
         _phase = _Phase.failed;
