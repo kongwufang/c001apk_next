@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 import '../../logic/model/feed/datum.dart';
 import '../../utils/date_util.dart';

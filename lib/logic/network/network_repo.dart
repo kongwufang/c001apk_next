@@ -747,7 +747,12 @@ class NetworkRepo {
       Future<Response<dynamic>> Function() get) async {
     try {
       var response = await get();
-      return handleDataResponse(response);
+      // ★ 必须 `await`：`handleDataResponse` 本身是 async，
+      //   不加 await 的话它内部抛的异常会**逃出 try**，
+      //   `catch` 接不到 ⇒ 调用方拿不到 `LoadingState.error`，
+      //   而是变成一个未处理的 Future 错误。
+      //   （下面 `getListData` 一直是对的：它写的是 `return await handleListResponse(...)`。）
+      return await handleDataResponse(response);
     } catch (err) {
       return LoadingState.error(err.toString());
     }

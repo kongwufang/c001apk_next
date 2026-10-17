@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 
 import '../../logic/model/feed/feed_video.dart';
 import '../../logic/network/network_repo.dart';
