@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../components/cards/user_info_card.dart';
 import '../../logic/model/feed/datum.dart';
@@ -203,9 +202,10 @@ class _UserPageState extends State<UserPage>
                               .toString());
                           break;
                         case UserMenuItem.Share:
-                          SharePlus.instance.share(ShareParams(
-                              uri: Utils.getShareUri(
-                                  _userController.uid, ShareType.u)));
+                          // ★ 分享一律**直接复制链接**
+                          Utils.copyText(Utils.getShareUri(
+                                  _userController.uid, ShareType.u)
+                              .toString());
                           break;
                         case UserMenuItem.Block:
                           GStorage.onBlock(

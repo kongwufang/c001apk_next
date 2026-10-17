@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:share_plus/share_plus.dart';
 // import 'package:url_launcher/url_launcher_string.dart';
 
 extension ScrollControllerExt on ScrollController {
@@ -176,7 +175,9 @@ extension NullableStringExt on String? {
     if (isNullOrBlank) {
       return '内容为空，取消操作'.toast();
     }
-    SharePlus.instance.share(ShareParams(text: this!));
+    // ★ 分享一律**直接复制**（与全应用一致，不再弹系统分享面板）
+    Clipboard.setData(ClipboardData(text: this!));
+    SmartDialog.showToast('已复制');
     // FlutterClipboard.copy(this!).then((_) => '尝试分享，并复制到剪切板'.toast());
   }
 }

@@ -6,7 +6,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../components/cards/feed_reply_card.dart';
 import '../../components/feed_article_body.dart';
@@ -173,10 +172,11 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                   onAction: (action) =>
                       _feedController.onCollectionAction(action),
                 ),
-                // Android `onShareFeed` 的注释：拉系统分享面板发链接
-                //（**不是转发动态**，forwardnum 不变）
-                onForward: () => SharePlus.instance.share(
-                  ShareParams(uri: Utils.getShareUri(_id, ShareType.feed)),
+                // ★ 用户要求：分享一律**直接复制链接**，不弹系统分享面板。
+                //   （Android 原本是 `onShareFeed` 拉系统分享面板；
+                //     注意那也**不是转发动态**，forwardnum 不变）
+                onForward: () => Utils.copyText(
+                  Utils.getShareUri(_id, ShareType.feed).toString(),
                 ),
               )
             : SliverList.separated(
@@ -215,9 +215,8 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                           onAction: (action) =>
                               _feedController.onCollectionAction(action),
                         ),
-                        onForward: () => SharePlus.instance.share(
-                          ShareParams(
-                              uri: Utils.getShareUri(_id, ShareType.feed)),
+                        onForward: () => Utils.copyText(
+                          Utils.getShareUri(_id, ShareType.feed).toString(),
                         ),
                       ),
                     );
@@ -539,8 +538,10 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                                     .toString());
                             break;
                           case FeedMenuItem.Share:
-                            SharePlus.instance.share(ShareParams(
-                                uri: Utils.getShareUri(_id, ShareType.feed)));
+                            // ★ 分享一律**直接复制链接**
+                            Utils.copyText(
+                                Utils.getShareUri(_id, ShareType.feed)
+                                    .toString());
                             break;
                           case FeedMenuItem.Fav:
                             // ★ 云端收藏夹（多收藏夹）。

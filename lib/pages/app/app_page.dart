@@ -4,7 +4,6 @@ import 'package:extended_nested_scroll_view/extended_nested_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Response;
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../components/cards/app_info_card.dart';
 import '../../components/sticky_sliver_to_box_adapter.dart';
@@ -211,9 +210,10 @@ class _AppPageState extends State<AppPage> with TickerProviderStateMixin {
                                   .toString());
                               break;
                             case AppMenuItem.Share:
-                              SharePlus.instance.share(ShareParams(
-                                  uri: Utils.getShareUri(
-                                      controller.id!, ShareType.apk)));
+                              // ★ 用户要求：分享一律**直接复制链接**，不弹系统分享面板
+                              Utils.copyText(Utils.getShareUri(
+                                      controller.id!, ShareType.apk)
+                                  .toString());
                               break;
                             case AppMenuItem.Follow:
                               if (GlobalData().isLogin) {

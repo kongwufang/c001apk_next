@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../logic/state/loading_state.dart';
 import '../../components/h5_tab.dart';
@@ -299,15 +298,15 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                           ).toString());
                           break;
                         case TopicMenuItem.Share:
-                          SharePlus.instance.share(ShareParams(
-                              uri: Utils.getShareUri(
+                          // ★ 分享一律**直接复制链接**
+                          Utils.copyText(Utils.getShareUri(
                             _topicController.entityType == 'topic'
                                 ? _topicController.title!
                                 : _topicController.id!,
                             _topicController.entityType == 'topic'
                                 ? ShareType.t
                                 : ShareType.product,
-                          )));
+                          ).toString());
                           break;
                         case TopicMenuItem.Follow:
                           _onFollow();
