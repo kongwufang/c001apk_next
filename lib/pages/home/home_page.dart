@@ -10,6 +10,7 @@ import '../../pages/home/feed/home_feed_page.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../pages/home/topic/home_topic_page.dart';
 import '../../pages/message/message_page.dart';
+import '../../utils/storage_util.dart';
 
 /// 首页 tab。
 ///
@@ -50,7 +51,49 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // late final _config = Provider.of<AppConfigProvider>(context, listen: false);
   // late bool _showFab = true; //_config.isLogin;
 
-  final _tabList = TabType.values.map((type) => Tab(text: type.label)).toList();
+  /// 首页 tab 的**顺序与启用状态**现在由设置决定
+  /// （`设置 - 外观 - 布局 - 编辑Tab`，对齐 Android `HomeMenu` 表）。
+  late final List<TabType> _tabs = _buildTabs();
+
+  /// 按 `GStorage.homeMenu` 的顺序与启用状态构建。
+  ///
+  /// 对齐 Android `HomeViewModel.defaultList`：
+  /// 默认 7 项「关注 / 应用 / 头条 / 热榜 / 话题 / 数码 / 酷图」。
+  static List<TabType> _buildTabs() {
+    final list = <TabType>[];
+    for (final name in GStorage.homeMenu) {
+      final type = TabType.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => TabType.NONE,
+      );
+      if (type == TabType.NONE) continue;
+      // 「应用」只有 Android 有（桌面端没有 AppListPage）——
+      // 与原来 `if (Platform.isAndroid)` 的规则一致
+      if (type == TabType.APP && !Platform.isAndroid) continue;
+      if (!list.contains(type)) list.add(type);
+    }
+    // 兜底：存储被清空 / 损坏 / 全被禁用时至少给一个 tab，
+    // 否则 `TabController(length: 0)` 会直接崩。
+    if (list.isEmpty) list.add(TabType.FEED);
+    return list;
+  }
+
+  /// 每个 tab 对应的页面
+  static Widget _pageOf(TabType type) => switch (type) {
+        TabType.FOLLOW => const HomeFeedPage(tabType: TabType.FOLLOW),
+        TabType.APP => const AppListPage(),
+        TabType.FEED => const HomeFeedPage(tabType: TabType.FEED),
+        TabType.HOT => const HomeFeedPage(tabType: TabType.HOT),
+        TabType.TOPIC => const HomeTopicPage(tabType: TabType.TOPIC),
+        TabType.PRODUCT => const HomeTopicPage(tabType: TabType.PRODUCT),
+        TabType.COOLPIC => const HomeFeedPage(tabType: TabType.COOLPIC),
+        TabType.NONE => const SizedBox.shrink(),
+      };
+
+  late final List<Widget> _pages = _tabs.map(_pageOf).toList();
+
+  late final List<Tab> _tabList =
+      _tabs.map((type) => Tab(text: type.label)).toList();
 
   /// 消息未读数（顶栏消息图标右上角红点）
   /// 对齐 Android 端 `HomeFragment`：口径与消息中心宫格同源（UnreadCounter），
@@ -73,37 +116,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  final _pages = [
-    const HomeFeedPage(tabType: TabType.FOLLOW),
-    if (Platform.isAndroid) const AppListPage(),
-    const HomeFeedPage(tabType: TabType.FEED),
-    const HomeFeedPage(tabType: TabType.HOT),
-    const HomeTopicPage(tabType: TabType.TOPIC),
-    const HomeTopicPage(tabType: TabType.PRODUCT),
-    const HomeFeedPage(tabType: TabType.COOLPIC),
-  ];
-
   void scrollToTop(int index) {
-    _pageScrollController.setIndex(Platform.isAndroid
-        ? index
-        : index == 0
-            ? 0
-            : index + 1);
+    // ★ 直接按 tab 下标找页面下标 —— 原来这里是
+    //   `Platform.isAndroid ? index : (index == 0 ? 0 : index + 1)`，
+    //   那是「桌面端少一个『应用』页、下标要 +1」的硬编码补偿。
+    //   现在 tab 顺序/启用都由用户配置，页数不再固定，改成按 `_tabs` 算：
+    //   tab 与页面是**一一对应**的（`_pages = _tabs.map(_pageOf)`），所以下标相同。
+    if (index >= 0 && index < _tabs.length) {
+      _pageScrollController.setIndex(index);
+    }
   }
 
   @override
   void initState() {
     super.initState();
 
-    _tabList.removeLast();
-    if (!Platform.isAndroid) {
-      _tabList.removeAt(1);
-    }
+    // 默认落在「头条」（对齐 Android：进首页默认头条）。
+    // 用户可能把它禁用了，那就退回第一个。
+    final feedIndex = _tabs.indexOf(TabType.FEED);
 
     _tabController = TabController(
       vsync: this,
-      initialIndex: Platform.isAndroid ? 2 : 1,
-      length: _tabList.length,
+      initialIndex: feedIndex >= 0 ? feedIndex : 0,
+      length: _tabs.length,
     );
 
     _pageScrollController.index.listen((index) {

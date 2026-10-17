@@ -351,6 +351,35 @@ class GStorage {
     settings.put(SettingsBoxKey.animDuration, value);
   }
 
+  /// 首页顶部 tab 的**启用顺序**（元素是 `TabType` 的枚举名）。
+  ///
+  /// 对齐 Android `HomeMenu` 表（`position` + `isEnable`）：
+  /// 默认 7 项「关注 / 应用 / 头条 / 热榜 / 话题 / 数码 / 酷图」。
+  ///
+  /// 存成「有序的启用名单」而不是「每项带 position + enable」：
+  /// - 不在名单里 = 已禁用，一个字段表达两件事；
+  /// - 表结构不会随 tab 增减而错位。
+  static List<String> get homeMenu {
+    final v = settings.get(SettingsBoxKey.homeMenu);
+    if (v is List) return v.map((e) => e.toString()).toList();
+    return defaultHomeMenu;
+  }
+
+  static void setHomeMenu(List<String> value) {
+    settings.put(SettingsBoxKey.homeMenu, value);
+  }
+
+  /// Android `HomeViewModel.defaultList` 的顺序
+  static const List<String> defaultHomeMenu = [
+    'FOLLOW', // 关注
+    'APP', // 应用（仅 Android）
+    'FEED', // 头条
+    'HOT', // 热榜
+    'TOPIC', // 话题
+    'PRODUCT', // 数码
+    'COOLPIC', // 酷图
+  ];
+
   static int get staticColor {
     return settings.get(SettingsBoxKey.staticColor, defaultValue: 0);
   }
@@ -684,6 +713,9 @@ class SettingsBoxKey {
       animType = 'animType',
       // 时长：100 / 200 / 300 / 400 / 500（毫秒）
       animDuration = 'animDuration',
+      // 首页顶部 tab 的顺序与启用状态（对齐 Android `HomeMenu` 表）
+      // 存 `List<String>`，元素是 `TabType` 的枚举名；**不在列表里 = 已禁用**
+      homeMenu = 'homeMenu',
       szlmId = 'szlmId',
       // 取号用的 SSAID（对应 Android 的 Settings.Secure.ANDROID_ID），首次生成后持久化
       ssaid = 'ssaid',

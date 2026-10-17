@@ -7,6 +7,7 @@ import '../../components/settings/item_title.dart';
 import '../../components/settings/switch_item.dart';
 import '../../constants/constants.dart';
 import '../../utils/storage_util.dart';
+import 'edit_tab_page.dart';
 
 /// 设置 → **外观**。
 ///
@@ -100,6 +101,20 @@ class SettingsAppearancePage extends StatelessWidget {
             title: '深色模式压暗图片',
             boxKey: SettingsBoxKey.isColorFilter,
             defaultValue: true,
+          ),
+
+          // ── 布局 ──
+          //
+          // 照抄 Android `res/xml/settings.xml` 的 `settings_category_layout` 分类。
+          // 原来首页工具栏有个「编辑Tab」按钮，位置让给消息入口后挪到了这里
+          // （Android 注释：「2026-10-05：首页工具栏那个位置让给了消息入口，编辑 Tab 挪到这儿」）。
+          const ItemTitle(title: '布局'),
+          ListTile(
+            leading: const Icon(Icons.menu),
+            title: const Text('编辑Tab'),
+            subtitle: const Text('调整首页顶部的分类标签'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Get.to(() => const EditTabPage()),
           ),
 
           // ── 转场动画 ──
