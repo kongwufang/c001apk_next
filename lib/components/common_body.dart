@@ -29,6 +29,9 @@ Widget commonBody(
   /// `feedCover` 是否按完整动态卡排（见 `item_card.dart` 的同名参数）
   bool feedCoverAsFeed = false,
   dynamic uid,
+  /// 列表**最上面**额外插入的一块（目前只有产品/话题「讨论」tab 的
+  /// 三段式排序控件用；见 `components/sort_header.dart`）。
+  Widget? header,
 }) {
   return Obx(
     () => commonController.loadingState.value is Success
@@ -65,6 +68,8 @@ Widget buildBody(
   /// `feedCover` 是否按完整动态卡排（见 `item_card.dart` 的同名参数）
   bool feedCoverAsFeed = false,
   dynamic uid,
+  /// 插到列表最前面的一块（三段式排序控件）
+  Widget? header,
   Function(
     dynamic id,
     dynamic uname,
@@ -154,6 +159,7 @@ Widget buildBody(
             parent: BouncingScrollPhysics(),
           ),
           slivers: [
+            if (header != null) SliverToBoxAdapter(child: header),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
               sliver: SliverMasonryGrid.count(
@@ -185,12 +191,16 @@ Widget buildBody(
             ? EdgeInsets.only(bottom: bottomPadding)
             : EdgeInsets.only(
                 left: 10, top: 10, right: 10, bottom: 10 + bottomPadding),
-        itemCount: dataList.length + 1,
+        // 有 header 时多一项（header 固定在最前，不吃 separator）
+        itemCount: dataList.length + 1 + (header != null ? 1 : 0),
         itemBuilder: (_, index) {
-          if (index == dataList.length) {
+          // 三段式排序控件（产品/话题「讨论」tab）
+          if (header != null && index == 0) return header;
+          final i = header != null ? index - 1 : index;
+          if (i == dataList.length) {
             return footer();
           } else {
-            return cell(index);
+            return cell(i);
           }
         },
         separatorBuilder: (_, index) => isReply2Reply

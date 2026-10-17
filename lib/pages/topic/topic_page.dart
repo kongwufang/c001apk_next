@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
 import 'package:share_plus/share_plus.dart';
@@ -56,8 +56,6 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
   String? _tag = Get.parameters['tag'];
   final String? _id = Get.parameters['id'];
 
-  bool _shouldShowActions = false;
-
   TabController? _tabController;
   late final ReturnTopController _pageScrollController;
   late final TopicOrderController _topicOrderController;
@@ -104,11 +102,6 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
     Get.delete<TopicOrderController>(tag: (_tag ?? _id!) + _random);
     Get.delete<TopicController>(tag: '$_tag$_id$_random');
     super.dispose();
-  }
-
-  void setShouldShowActions(int index) {
-    _shouldShowActions = _topicController.entityType == 'product' &&
-        _topicController.tabList![index].title == '讨论';
   }
 
   /// 发布入口。
@@ -303,9 +296,6 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                                 : ShareType.product,
                           )));
                           break;
-                        case TopicMenuItem.Sort:
-                          _showPopupMenu();
-                          break;
                         case TopicMenuItem.Follow:
                           _onFollow();
                           break;
@@ -329,19 +319,12 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                         value: TopicMenuItem.Share,
                         child: Text(TopicMenuItem.Share.label),
                       ),
-                      if (_shouldShowActions)
-                        PopupMenuItem(
-                          value: TopicMenuItem.Sort,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 1,
-                                child: Text(TopicMenuItem.Sort.label),
-                              ),
-                              const Icon(Icons.arrow_right)
-                            ],
-                          ),
-                        ),
+                      // ★ 菜单里**不再**放「排序」项。
+                      //
+                      // 产品 / 话题的「讨论」tab 现在用**内联三段式控件**
+                      // （列表顶部的 默认/最新/热度，见 `components/sort_header.dart`），
+                      // 对齐 Android `ProductSortHeaderAdapter` ——
+                      // 那边**只有**内联控件，菜单里没有排序入口。
                       PopupMenuItem(
                         value: TopicMenuItem.Follow,
                         // 文案本地化：与 Android `strings.xml` 对齐
@@ -413,23 +396,5 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                   Center(child: _buildBody(_topicController.topicState.value)),
             ),
     );
-  }
-
-  void _showPopupMenu() async {
-    final screenSize = MediaQuery.of(context).size;
-    await showMenu(
-      initialValue: _topicOrderController.topicSortType.value,
-      context: context,
-      position:
-          RelativeRect.fromLTRB(screenSize.width, 0, 0, screenSize.height),
-      items: TopicSortType.values
-          .map((type) => PopupMenuItem(value: type, child: Text(type.label)))
-          .toList(),
-      elevation: 8.0,
-    ).then((value) {
-      if (value != null) {
-        _topicOrderController.setTopicSortType(value);
-      }
-    });
   }
 }

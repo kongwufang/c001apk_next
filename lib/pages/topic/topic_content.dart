@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart' hide SearchController;
+﻿import 'package:flutter/material.dart' hide SearchController;
 import 'package:get/get.dart';
 
 import '../../components/common_body.dart';
+import '../../components/sort_header.dart';
 import '../../logic/state/loading_state.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../pages/topic/topic_content_controller.dart';
@@ -149,6 +150,21 @@ class _TopicContentState extends State<TopicContent>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return commonBody(_topicController);
+    // 产品 / 话题的「讨论」tab：列表最上面插一段**三段式排序**
+    // （默认 / 最新 / 热度）—— 对齐 Android `ProductSortHeaderAdapter`。
+    //
+    // 只有 `_topicOrderController != null` 时才有排序（即 discussion tab），
+    // 其余 tab 不插入任何东西。
+    final orderController = _topicOrderController;
+    if (orderController == null) return commonBody(_topicController);
+    return Obx(
+      () => commonBody(
+        _topicController,
+        header: SortHeader(
+          current: orderController.topicSortType.value,
+          onChanged: orderController.setTopicSortType,
+        ),
+      ),
+    );
   }
 }
