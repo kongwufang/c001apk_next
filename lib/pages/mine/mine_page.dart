@@ -422,7 +422,20 @@ class _MinePageState extends State<MinePage> {
     }
     Get.toNamed('/webview', parameters: {
       'url': 'https://m.coolapk.com/myDevice/${GStorage.uid}',
-      'isLogin': '1',
+      // ⚠️ **不要传 `isLogin: '1'`**。Android 给「我的装备」只传 `url` + `editUrl`，
+      //    没有任何登录标志。
+      //
+      //    `isLogin: '1'` 在 `WebviewPage` 里控制的全是**登录页专属**行为：
+      //      · 启动「每秒轮询 cookie」的计时器
+      //      · 用移动浏览器 UA（页面会按手机版渲染）
+      //      · `_checkLoginCookie()` —— 一旦发现已登录就 `Get.back()`
+      //      · 登录跳转的 URL 拦截
+      //    实测后果：一进装备页就检测到 uid=32864090 已登录 → 立刻 `Get.back()`
+      //    ⇒ **WebView 自己关掉了，看起来像「点了没反应」** ✗
+      //
+      //    cookie 注入判断的是 `GlobalData().isLogin`（不是这个参数），
+      //    所以去掉它**不影响** `_applyCoolapkCookies()` 往里写 token。
+      'isLogin': '0',
       // Android `MineMenuAdapter` 传的 editUrl —— 页面右上角会多一颗「编辑」按钮
       'editUrl':
           'https://m.coolapk.com/mp/do?c=product&m=editProductOwner&from=home',
