@@ -58,11 +58,11 @@ class FeedReplyCard extends StatelessWidget {
           }
         },
         onLongPress: () {
-          Get.toNamed('/copy', parameters: {'text': data.message.toString()});
+          Utils.copyText(data.message.toString());
         },
         // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
         onSecondaryTap: () {
-          Get.toNamed('/copy', parameters: {'text': data.message.toString()});
+          Utils.copyText(data.message.toString());
         },
         borderRadius:
             !isFeedReply ? const BorderRadius.all(Radius.circular(12)) : null,
@@ -422,7 +422,7 @@ class _MorePanel extends StatelessWidget {
     switch (type) {
       case PanelAction.copy:
         Get.back();
-        Get.toNamed('/copy', parameters: {'text': message.toString()});
+        Utils.copyText(message.toString());
         break;
       case PanelAction.block:
         Get.back();

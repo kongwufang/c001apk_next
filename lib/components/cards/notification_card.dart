@@ -46,10 +46,10 @@ class NotificationCard extends StatelessWidget {
           }
         },
         onLongPress: () =>
-            Get.toNamed('/copy', parameters: {'text': data.note ?? ''}),
+            Utils.copyText(data.note ?? ''),
         // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
         onSecondaryTap: () =>
-            Get.toNamed('/copy', parameters: {'text': data.note ?? ''}),
+            Utils.copyText(data.note ?? ''),
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: Stack(
           children: [

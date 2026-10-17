@@ -94,10 +94,10 @@ class FeedCard extends StatelessWidget {
         splashFactory: isFeedContent ? NoSplashFactory() : null,
         onTap: isFeedContent ? null : _onViewFeed,
         onLongPress: () =>
-            Get.toNamed('/copy', parameters: {'text': data.message.orEmpty}),
+            Utils.copyText(data.message.orEmpty),
         // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
         onSecondaryTap: () =>
-            Get.toNamed('/copy', parameters: {'text': data.message.orEmpty}),
+            Utils.copyText(data.message.orEmpty),
         borderRadius: isFeedContent ? null : BorderRadius.circular(12),
         child: Padding(
           padding: EdgeInsets.only(bottom: isFeedContent ? 12 : 10),
@@ -187,13 +187,11 @@ class FeedCard extends StatelessWidget {
               ? () => Get.toNamed('/feed/${data.forwardSourceFeed?.id}')
               : null,
           onLongPress: data.forwardSourceFeed != null
-              ? () => Get.toNamed('/copy',
-                  parameters: {'text': data.forwardSourceFeed?.message ?? ''})
+              ? () => Utils.copyText(data.forwardSourceFeed?.message ?? '')
               : null,
           // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
           onSecondaryTap: data.forwardSourceFeed != null
-              ? () => Get.toNamed('/copy',
-                  parameters: {'text': data.forwardSourceFeed?.message ?? ''})
+              ? () => Utils.copyText(data.forwardSourceFeed?.message ?? '')
               : null,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -322,10 +320,10 @@ class FeedCard extends StatelessWidget {
         child: InkWell(
           onTap: _onViewFeed,
           onLongPress: () =>
-              Get.toNamed('/copy', parameters: {'text': reply.message.orEmpty}),
+              Utils.copyText(reply.message.orEmpty),
           // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
           onSecondaryTap: () =>
-              Get.toNamed('/copy', parameters: {'text': reply.message.orEmpty}),
+              Utils.copyText(reply.message.orEmpty),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(10),

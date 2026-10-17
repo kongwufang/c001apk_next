@@ -28,12 +28,12 @@ Widget feedArticleBody(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: GestureDetector(
           onLongPress: () {
-            Get.toNamed('/copy', parameters: {'text': data.message.orEmpty});
+            Utils.copyText(data.message.orEmpty);
             HapticFeedback.mediumImpact();
           },
           // 桌面端：右键 = 长按
           onSecondaryTap: () {
-            Get.toNamed('/copy', parameters: {'text': data.message.orEmpty});
+            Utils.copyText(data.message.orEmpty);
           },
           child: htmlText(
             data.message.orEmpty,
