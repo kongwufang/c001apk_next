@@ -380,6 +380,26 @@ class GStorage {
     'COOLPIC', // 酷图
   ];
 
+  /// 校验 SSL 证书（默认开 —— Android `settings.xml` 里 `defaultValue="true"`）
+  static bool get sslVerify {
+    return settings.get(SettingsBoxKey.sslVerify, defaultValue: true);
+  }
+
+  static void setSslVerify(bool value) {
+    settings.put(SettingsBoxKey.sslVerify, value);
+  }
+
+  /// 网络传输调试模式（默认关）。
+  ///
+  /// Android 注释：与严格校验**互斥**，开启后彻底跳过校验方便抓包调试。
+  static bool get sslDebug {
+    return settings.get(SettingsBoxKey.sslDebug, defaultValue: false);
+  }
+
+  static void setSslDebug(bool value) {
+    settings.put(SettingsBoxKey.sslDebug, value);
+  }
+
   static int get staticColor {
     return settings.get(SettingsBoxKey.staticColor, defaultValue: 0);
   }
@@ -716,6 +736,10 @@ class SettingsBoxKey {
       // 首页顶部 tab 的顺序与启用状态（对齐 Android `HomeMenu` 表）
       // 存 `List<String>`，元素是 `TabType` 的枚举名；**不在列表里 = 已禁用**
       homeMenu = 'homeMenu',
+      // 设置 - 高级 - 校验 SSL 证书（默认开，对齐 Android `defaultValue=true`）
+      sslVerify = 'sslVerify',
+      // 设置 - 高级 - 网络传输调试模式（默认关；开启后彻底跳过证书校验，便于抓包）
+      sslDebug = 'sslDebug',
       szlmId = 'szlmId',
       // 取号用的 SSAID（对应 Android 的 Settings.Secure.ANDROID_ID），首次生成后持久化
       ssaid = 'ssaid',

@@ -57,6 +57,27 @@ class SettingsAdvancedPage extends StatelessWidget {
               DropdownMenuItem<int>(value: 2, child: Text('缩略图')),
             ],
           ),
+
+          // ── SSL 证书校验 ──
+          //
+          // 照抄 Android `settings.xml` 的 `sslVerify` / `isSslDebug` 两项。
+          // 真源：`util/SslVerify.kt`。
+          //
+          // ★ 两项**互斥**：调试模式开了就不校验。
+          // ★ 改完**需重启应用**才生效 —— OkHttpClient / HttpClient 是单例，
+          //   构建时就把 TrustManager / SecurityContext 固化了（Android 同此）。
+          const SwitchItem(
+            icon: Icons.verified_user_outlined,
+            title: '校验 SSL 证书',
+            boxKey: SettingsBoxKey.sslVerify,
+            defaultValue: true,
+          ),
+          const SwitchItem(
+            icon: Icons.network_check,
+            title: '网络传输调试模式',
+            boxKey: SettingsBoxKey.sslDebug,
+            defaultValue: false,
+          ),
         ],
       ),
     );

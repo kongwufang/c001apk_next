@@ -14,6 +14,7 @@ import 'logic/network/request.dart';
 import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
 import 'utils/global_data.dart';
+import 'utils/ssl_verify.dart';
 import 'utils/storage_util.dart';
 import 'utils/utils.dart';
 import 'utils/webview_env.dart';
@@ -44,6 +45,16 @@ void main() async {
 
   await GStorage.init();
   HttpOverrides.global = CustomHttpOverrides();
+
+  // SSL 证书校验：把内置的 122 张 CA 读进 `SecurityContext`。
+  //
+  // 必须在**第一次网络请求之前**完成 ——
+  // Dio 的 `onHttpClientCreate` 回调是同步的，里面没法 `await rootBundle`。
+  // 见 `utils/ssl_verify.dart`。
+  await SslVerify.init();
+  debugPrint('main: SSL 校验=${SslVerify.enabled ? "开" : "关"} '
+      '调试模式=${SslVerify.debugMode ? "开" : "关"} '
+      '内置CA=${SslVerify.strictContext != null ? "已加载" : "(不可用，退回系统根)"}');
 
   // 诊断：确认从 Hive 加载出来的登录态（stderr/stdout 用
   // `_rev/win_ref/launch_with_log.ps1` 抓）

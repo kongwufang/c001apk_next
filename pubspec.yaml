@@ -1,4 +1,4 @@
-﻿name: c001apk_flutter
+name: c001apk_flutter
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -134,6 +134,11 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/emojis/
+    # 内置 CA 根证书库（122 张 Mozilla CA + 追加的 DigiCert 历史根），
+    # 供「设置 - 高级 - 校验 SSL 证书」做锚点白名单校验。
+    # 来源：Android `app/src/main/res/raw/cacert_000.pem ~ cacert_121.pem`，
+    # 已合并成单个 PEM bundle（`SecurityContext` 能一次吃多张）。
+    - assets/cacert/mozilla_all.pem
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
