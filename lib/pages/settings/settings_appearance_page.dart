@@ -159,11 +159,17 @@ class SettingsAppearancePage extends StatelessWidget {
             //   `DropdownButton` 找不到 value=0 的项会直接 assert。
             defaultValue: 400,
             items: [
-              DropdownMenuItem<int>(value: 100, child: Text('100 ms')),
-              DropdownMenuItem<int>(value: 200, child: Text('200 ms')),
-              DropdownMenuItem<int>(value: 300, child: Text('300 ms')),
-              DropdownMenuItem<int>(value: 400, child: Text('400 ms')),
-              DropdownMenuItem<int>(value: 500, child: Text('500 ms')),
+              // Android `arrays.xml` 的 `anim_speed_texts` 是
+              // 「100ms（退出 50ms）」这样带**退出时长**的写法。
+              // 但 Flutter 侧退出时长用不上（GetX 的 `GetPage` 没有
+              // `reverseTransitionDuration`，退出与进入同长 —— 见
+              // `M3MotionConfig.exitDuration` 的注释），
+              // **写了就是骗人**，所以这里只标进入时长，并保留「M3 默认」标注。
+              DropdownMenuItem<int>(value: 100, child: Text('100ms')),
+              DropdownMenuItem<int>(value: 200, child: Text('200ms')),
+              DropdownMenuItem<int>(value: 300, child: Text('300ms · M3 默认')),
+              DropdownMenuItem<int>(value: 400, child: Text('400ms')),
+              DropdownMenuItem<int>(value: 500, child: Text('500ms')),
             ],
           ),
         ],

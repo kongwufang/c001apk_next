@@ -252,7 +252,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                             : _topicController.id!,
                       }),
                       icon: const Icon(Icons.search),
-                      tooltip: 'Search',
+                      tooltip: '搜索',
                     ),
                   PopupMenuButton(
                     onSelected: (TopicMenuItem item) {
@@ -336,13 +336,16 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                         ),
                       PopupMenuItem(
                         value: TopicMenuItem.Follow,
+                        // 文案本地化：与 Android `strings.xml` 对齐
+                        // （关注 / 取消关注）。原来这里是英文 'Follow' / 'UnFollow'。
                         child: Text(
-                            _topicController.isFollow ? 'UnFollow' : 'Follow'),
+                            _topicController.isFollow ? '取消关注' : '关注'),
                       ),
                       PopupMenuItem(
                         value: TopicMenuItem.Block,
+                        // 屏蔽 / 取消屏蔽（原来也是英文）
                         child: Text(
-                            _topicController.isBlocked ? 'UnBlock' : 'Block'),
+                            _topicController.isBlocked ? '取消屏蔽' : '屏蔽'),
                       ),
                     ],
                   ),

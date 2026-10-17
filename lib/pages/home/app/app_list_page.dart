@@ -105,7 +105,7 @@ class _AppListPageState extends State<AppListPage>
                   child: FloatingActionButton(
                     heroTag: null,
                     onPressed: () => Get.toNamed('/appUpdate'),
-                    tooltip: 'Update',
+                    tooltip: '更新',
                     child: const Icon(Icons.update),
                   ),
                 )
@@ -148,7 +148,7 @@ class _AppListPageState extends State<AppListPage>
         child: Container(
           alignment: Alignment.center,
           padding: const EdgeInsets.all(10.0),
-          child: Text(error ?? 'unknown error'),
+          child: Text(error ?? '未知错误'),
         ),
       ),
     );

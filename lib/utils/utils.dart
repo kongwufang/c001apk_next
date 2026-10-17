@@ -156,7 +156,7 @@ class Utils {
           );
           return url;
         } else {
-          SmartDialog.showToast('failed to get url');
+          SmartDialog.showToast('获取链接失败');
         }
       } else {
         SmartDialog.showToast('request failed: ${e.message}');
@@ -295,7 +295,7 @@ class Utils {
             launchURL(url);
           }
         } else {
-          SmartDialog.showToast('unsupported url: $url');
+          SmartDialog.showToast('不支持的链接: $url');
         }
       }
     }
@@ -338,7 +338,7 @@ class Utils {
     try {
       final Uri uri = Uri.parse(url);
       if (!await launchUrl(uri)) {
-        SmartDialog.showToast('Could not launch $url');
+        SmartDialog.showToast('无法打开: $url');
       }
     } catch (e) {
       SmartDialog.showToast(e.toString());

@@ -422,7 +422,7 @@ class _WebviewPageState extends State<WebviewPage> {
                   actions: [
                     TextButton(
                         onPressed: () => Get.back(),
-                        child: const Text('Close')),
+                        child: const Text('关闭')),
                     TextButton(
                         onPressed: () async {
                           Get.back();
@@ -431,7 +431,7 @@ class _WebviewPageState extends State<WebviewPage> {
                             suggestedFilename,
                           );
                         },
-                        child: Text('OK ($fileSize)')),
+                        child: Text('确定 ($fileSize)')),
                   ],
                 );
               });

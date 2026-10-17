@@ -97,7 +97,7 @@ class _BlackListPageState extends State<BlackListPage> {
                         _clearStream.add(false);
                       },
                       icon: const Icon(Icons.clear),
-                      tooltip: 'Clear',
+                      tooltip: '清空',
                     )
                   : const SizedBox.shrink(),
             ),
@@ -158,7 +158,7 @@ class _BlackListPageState extends State<BlackListPage> {
                 }
               },
               icon: const Icon(Icons.file_upload_outlined),
-              tooltip: 'Export',
+              tooltip: '导出',
             ),
             IconButton(
               onPressed: () async {
@@ -182,7 +182,7 @@ class _BlackListPageState extends State<BlackListPage> {
                 _focusNode.requestFocus();
               },
               icon: const Icon(Icons.file_download_outlined),
-              tooltip: 'Import',
+              tooltip: '导入',
             ),
           ],
           bottom: const PreferredSize(

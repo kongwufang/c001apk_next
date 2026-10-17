@@ -85,7 +85,7 @@ class _SearchPageState extends State<SearchPage> {
                       _clearStream.add(false);
                     },
                     icon: const Icon(Icons.clear),
-                    tooltip: 'Clear',
+                    tooltip: '清空',
                   )
                 : const SizedBox.shrink(),
           ),
@@ -94,7 +94,7 @@ class _SearchPageState extends State<SearchPage> {
               onSearch(_controller.text);
             },
             icon: const Icon(Icons.search),
-            tooltip: 'Search',
+            tooltip: '搜索',
           ),
         ],
         bottom: const PreferredSize(

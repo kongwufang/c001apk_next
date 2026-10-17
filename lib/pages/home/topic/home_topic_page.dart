@@ -156,7 +156,7 @@ class _HomeTopicPageState extends State<HomeTopicPage>
         child: Container(
           alignment: Alignment.center,
           padding: const EdgeInsets.all(10.0),
-          child: Text(error ?? 'unknown error'),
+          child: Text(error ?? '未知错误'),
         ),
       ),
     );

@@ -160,7 +160,7 @@ class _ChatPageState extends State<ChatPage> {
                     if (Utils.isSupportWebview()) {
                       Utils.report(_uid, ReportType.User);
                     } else {
-                      SmartDialog.showToast('not supported');
+                      SmartDialog.showToast('当前平台不支持');
                     }
                     break;
                 }
@@ -320,7 +320,7 @@ class _ChatPageState extends State<ChatPage> {
               );
             },
             icon: const Icon(Icons.emoji_emotions_outlined),
-            tooltip: 'Emoji',
+            tooltip: '表情',
           ),
           Expanded(
             child: Listener(

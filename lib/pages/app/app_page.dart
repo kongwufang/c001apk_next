@@ -175,7 +175,7 @@ class _AppPageState extends State<AppPage> with TickerProviderStateMixin {
                     //   ),
                     // );
                   },
-                  tooltip: 'Create Feed',
+                  tooltip: '发布',
                   child: const Icon(Icons.add),
                 )
               : const SizedBox(),
@@ -200,7 +200,7 @@ class _AppPageState extends State<AppPage> with TickerProviderStateMixin {
                             'pageParam': controller.id!,
                           }),
                           icon: const Icon(Icons.search),
-                          tooltip: 'Search',
+                          tooltip: '搜索',
                         ),
                       PopupMenuButton(
                         onSelected: (AppMenuItem item) {

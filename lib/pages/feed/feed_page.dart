@@ -453,7 +453,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                 )),
                 child: FloatingActionButton(
                   heroTag: null,
-                  tooltip: 'Reply',
+                  tooltip: '回复',
                   onPressed: () {
                     _onReply(
                       ReplyType.feed,
@@ -546,7 +546,7 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                             if (Utils.isSupportWebview()) {
                               Utils.report(_id, ReportType.Feed);
                             } else {
-                              SmartDialog.showToast('not supported');
+                              SmartDialog.showToast('当前平台不支持');
                             }
                             break;
                         }
