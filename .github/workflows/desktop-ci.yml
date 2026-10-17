@@ -8,6 +8,22 @@ on:
       - flutter
   workflow_dispatch:
 
+# ★ 并发组：**同一分支只保留最新一次运行**，新推入时取消正在跑的那次。
+#
+# 为什么需要：
+#   Windows + Android 双构建 + `flutter test` 一次约 10 分钟，而「一次一项走 CI」
+#   时提交频率远高于此 —— 实测排到过 **5 个 in_progress**（同一 workflow 串行，
+#   一个跑完才起下一个），日志要等 50 分钟，完全跟不上开发节奏。
+#
+# 取消旧的**不会漏验证**：每个提交都基于上一个提交，
+# 只要**最新一次绿**，它之前的所有提交就都被覆盖到了；
+# 反过来说，中间某次红的也一定会在最新一次的日志里体现出来。
+#
+# 需要逐个提交都留档时，用 `workflow_dispatch` 手动跑，或临时去掉这一段。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── Windows 桌面版（主线目标）──
   windows:
