@@ -12,6 +12,7 @@ import '../../components/no_splash_factory.dart';
 import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/feed_extra.dart';
 import '../../logic/model/feed/feed_video.dart';
+import '../../utils/shortcuts.dart';
 import '../../utils/date_util.dart';
 import '../clamped_html.dart';
 import 'extra_slot.dart';
@@ -93,11 +94,29 @@ class FeedCard extends StatelessWidget {
         splashColor: isFeedContent ? Colors.transparent : null,
         splashFactory: isFeedContent ? NoSplashFactory() : null,
         onTap: isFeedContent ? null : _onViewFeed,
-        onLongPress: () =>
-            Utils.copyText(data.message.orEmpty),
+        onLongPress: () => Utils.copyText(data.message.orEmpty),
         // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
-        onSecondaryTap: () =>
-            Utils.copyText(data.message.orEmpty),
+        onSecondaryTap: () => Utils.copyText(data.message.orEmpty),
+        // ★ 鼠标停在这张卡上时，键盘快捷键作用于**这一条**
+        //   （b 返回 / l 点赞 / c 收藏 / s 分享 / a 作者，见 `utils/shortcuts.dart`）
+        onHover: (hovering) {
+          if (hovering) {
+            ShortcutBus.hover
+              ..clear()
+              ..addAll({
+                if (onLike != null)
+                  ShortcutBus.like: () =>
+                      onLike!(data.id, data.userAction?.like),
+                if (onFavorite != null) ShortcutBus.collect: onFavorite!,
+                ShortcutBus.share: () => Utils.copyText(
+                    'https://www.coolapk.com/feed/${data.id}'),
+                if (data.uid != null)
+                  ShortcutBus.author: () => Get.toNamed('/u/${data.uid}'),
+              });
+          } else {
+            ShortcutBus.clearHover();
+          }
+        },
         borderRadius: isFeedContent ? null : BorderRadius.circular(12),
         child: Padding(
           padding: EdgeInsets.only(bottom: isFeedContent ? 12 : 10),

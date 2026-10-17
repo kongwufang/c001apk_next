@@ -14,6 +14,7 @@ import 'constants/m3e_button.dart';
 import 'logic/network/request.dart';
 import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
+import 'utils/shortcuts.dart';
 import 'utils/global_data.dart';
 import 'utils/ssl_verify.dart';
 import 'utils/storage_util.dart';
@@ -252,7 +253,12 @@ class C001APKAPP extends StatelessWidget {
               // ★ 桌面端：右键 = 长按（在有长按的控件上）/ 返回（其余地方）。
               //   详见 `components/secondary_tap.dart` 的说明。
               //   内层有 `onSecondaryTap` 时它优先，所以不会误触返回。
-              child: SecondaryTapBack(child: child!),
+              // ★ 桌面端键盘快捷键（b 返回 / l 点赞 / c 收藏 / s 分享 /
+              //   a 作者 / m 私信）—— 见 `utils/shortcuts.dart`。
+              //   套在 SecondaryTapBack 外层：右键返回与键盘返回互不影响。
+              child: ShortcutScope(
+                child: SecondaryTapBack(child: child!),
+              ),
             ),
           );
         },
