@@ -38,14 +38,30 @@ enum UserTabType {
   /// ```
   bool get feedCoverAsFeed => this == ARTICLE || this == FEED;
 
+  /// 该 tab 的数据**是否要走 `/v6/page/dataList?url=...`**。
+  ///
+  /// ★ 这一点很容易搞错：Android `UserTabViewModel.request()` 里，
+  /// 「动态 / 图文 / 问答」传的是**真实路径**（`/v6/user/feedList` 等），
+  /// 直接 `@GET` 那几条接口；
+  /// 而「点评 / 酷图」传的是
+  /// `/feed/nodeRatingList?uid=..&targetType=all&parseRatingToFeed=1`、
+  /// `/feed/userCoolPictureFeedList?fragmentTemplate=flex&uid=..` ——
+  /// 这两个是**页面 URL**，要当 `url` **查询参数**塞进
+  /// `GET /v6/page/dataList`（Android `ApiService.getDataList` 是
+  /// `@GET("/v6/page/dataList")` + `@Query("url")`，不是 `@Url`）。
+  ///
+  /// 我之前直接把 `/feed/nodeRatingList` 当路径打，服务端回 `API unsupported`，
+  /// 列表解析直接抛 `type 'String' is not a subtype of type 'Map<String, dynamic>'`。
+  bool get viaPageDataList => this == RATING || this == COOLPIC;
+
   /// 该 tab 的数据接口。
   ///
   /// 照抄 Android `UserTabViewModel.request()` 的 when 分支：
   /// - 动态 `GET /v6/user/feedList?showAnonymous=0&isIncludeTop=1&showDoing=0`（支持 lastItem）
   /// - 图文 `GET /v6/user/htmlFeedList`（支持 lastItem）
   /// - 问答 `GET /v6/user/questionAndAnswerList`（支持 lastItem）
-  /// - 点评 `GET /feed/nodeRatingList?uid=..&targetType=all&parseRatingToFeed=1`
-  /// - 酷图 `GET /feed/userCoolPictureFeedList?fragmentTemplate=flex&uid=..`
+  /// - 点评 `/feed/nodeRatingList?uid=..&targetType=all&parseRatingToFeed=1`（**走 page/dataList**）
+  /// - 酷图 `/feed/userCoolPictureFeedList?fragmentTemplate=flex&uid=..`（**走 page/dataList**）
   String url(String uid) => switch (this) {
         UserTabType.FEED =>
           '/v6/user/feedList?showAnonymous=0&isIncludeTop=1&showDoing=0',
@@ -73,6 +89,18 @@ class UserTabController extends CommonController {
 
   @override
   Future<LoadingState> customGetData() {
+    // 「点评 / 酷图」走 `/v6/page/dataList?url=...`，其余三个是真实路径。
+    // 详见 [UserTabType.viaPageDataList] 的注释（这里踩过坑）。
+    if (type.viaPageDataList) {
+      return NetworkRepo.getDataList(
+        url: type.url(uid),
+        title: '',
+        subTitle: '',
+        firstItem: firstItem,
+        lastItem: lastItem,
+        page: page,
+      );
+    }
     return NetworkRepo.getDataListFromUrl(
       url: type.url(uid),
       data: {
