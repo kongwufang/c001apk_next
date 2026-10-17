@@ -203,14 +203,6 @@ class FeedCard extends StatelessWidget {
           onTap: data.forwardSourceFeed != null
               ? () => Get.toNamed('/feed/${data.forwardSourceFeed?.id}')
               : null,
-          onLongPress: data.forwardSourceFeed != null
-              ? () => Utils.copyText(data.forwardSourceFeed?.message ?? '')
-              : null,
-          // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
-          onSecondaryTap: data.forwardSourceFeed != null
-              ? () => Utils.copyText(data.forwardSourceFeed?.message ?? '')
-              : null,
-          borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: data.forwardSourceFeed == null
@@ -336,12 +328,6 @@ class FeedCard extends StatelessWidget {
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: InkWell(
           onTap: _onViewFeed,
-          onLongPress: () =>
-              Utils.copyText(reply.message.orEmpty),
-          // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
-          onSecondaryTap: () =>
-              Utils.copyText(reply.message.orEmpty),
-          borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: htmlText(

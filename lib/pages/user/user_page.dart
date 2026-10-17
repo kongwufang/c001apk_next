@@ -93,6 +93,14 @@ class _UserPageState extends State<UserPage>
         return UserInfoCard(
           data: userState.response!,
           onFollow: _userController.onFollow,
+          // ★ 自己看自己 → 显示「编辑资料」而不是「关注」
+          //   （对齐 Android：那个位置是 `EditProfileActivity` 入口）
+          isMe: _uid == GStorage.uid,
+          onEditProfile: () {
+            // Android 是**原生**编辑资料页，Flutter 侧还没移植。
+            // 先给明确提示，不假装能编辑（见台账待办）。
+            SmartDialog.showToast('编辑资料页尚未移植');
+          },
         );
     }
     return const M3EWavyProgressIndicator();

@@ -45,12 +45,6 @@ class NotificationCard extends StatelessWidget {
             }
           }
         },
-        onLongPress: () =>
-            Utils.copyText(data.note ?? ''),
-        // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
-        onSecondaryTap: () =>
-            Utils.copyText(data.note ?? ''),
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: Stack(
           children: [
             Align(

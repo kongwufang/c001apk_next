@@ -78,18 +78,7 @@ class FeedCoverCard extends StatelessWidget {
       child: InkWell(
         // 与 FeedCard 一致：点进详情页
         onTap: onOpen ?? () => Get.toNamed('/feed/${data.id}'),
-        onLongPress: () {
-          // 对应 XML 的 `android:onLongClick="@{... onCopyText(view, data.message)}"`
-          if (!data.message.isNullOrEmpty) {
-            Utils.copyText(data.message!);
-          }
-        },
         // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
-        onSecondaryTap: () {
-          if (!data.message.isNullOrEmpty) {
-            Utils.copyText(data.message!);
-          }
-        },
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(

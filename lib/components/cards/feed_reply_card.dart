@@ -57,13 +57,7 @@ class FeedReplyCard extends StatelessWidget {
             Utils.onOpenLink(data.url ?? '');
           }
         },
-        onLongPress: () {
-          Utils.copyText(data.message.toString());
-        },
         // 桌面端：右键 = 长按（见 components/secondary_tap.dart）
-        onSecondaryTap: () {
-          Utils.copyText(data.message.toString());
-        },
         borderRadius:
             !isFeedReply ? const BorderRadius.all(Radius.circular(12)) : null,
         child: Stack(

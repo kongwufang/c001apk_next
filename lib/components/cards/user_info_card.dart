@@ -17,10 +17,21 @@ class UserInfoCard extends StatelessWidget {
     super.key,
     required this.data,
     required this.onFollow,
+    this.isMe = false,
+    this.onEditProfile,
   });
 
   final Datum data;
   final Function(dynamic uid, dynamic isFollow) onFollow;
+
+  /// 是不是**自己**的主页。
+  ///
+  /// Android 那边自己看自己没有「关注」，那个位置是「编辑资料」
+  /// （`ui/user/EditProfileActivity.kt`）。
+  final bool isMe;
+
+  /// 「编辑资料」点击回调（`isMe` 时才用）。
+  final VoidCallback? onEditProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -129,8 +140,14 @@ class UserInfoCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  // ★ 自己看自己：不显示「关注」，那个位置是「编辑资料」
+                  //   （对齐 Android `ui/user/EditProfileActivity.kt` 的入口）
                   FilledButton.tonal(
                     onPressed: () {
+                      if (isMe) {
+                        onEditProfile?.call();
+                        return;
+                      }
                       if (GlobalData().isLogin) {
                         onFollow(data.uid, data.isFollow);
                       }
@@ -141,7 +158,9 @@ class UserInfoCard extends StatelessWidget {
                         vertical: -2,
                       ),
                     ),
-                    child: Text(data.isFollow == 1 ? '取消关注' : '关注'),
+                    child: Text(
+                      isMe ? '编辑资料' : (data.isFollow == 1 ? '取消关注' : '关注'),
+                    ),
                   ),
                 ],
               ),
