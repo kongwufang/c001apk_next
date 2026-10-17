@@ -13,6 +13,7 @@ import '../../pages/user/user_controller.dart';
 import '../../pages/user/user_tab.dart';
 import '../../utils/device_util.dart';
 import '../../utils/extensions.dart';
+import '../../utils/shortcuts.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
 import '../../components/m3e_progress.dart';
@@ -90,7 +91,35 @@ class _UserPageState extends State<UserPage>
           ),
         );
       case Success():
-        return UserInfoCard(
+        // ★ 作者主页的快捷键（页面级）：`s` = 关注/取消、`m` = 私信
+        //   注意**不注册** `share` —— `ShortcutScope` 有兜底：
+        //   share 槽位为空时 `s` 自动落到 `follow` ✓
+        return ShortcutPage(
+          actions: {
+            ShortcutBus.follow: () {
+              if (GlobalData().isLogin) {
+                _userController.onFollow(
+                  userState.response!.uid,
+                  userState.response!.isFollow,
+                );
+              }
+            },
+            ShortcutBus.message: () {
+              if (!GlobalData().isLogin) return;
+              final me = GlobalData().uid;
+              final other = _userController.uid;
+              final ukey =
+                  (int.tryParse(me) ?? 0) < (int.tryParse(other) ?? 0)
+                      ? '${me}_$other'
+                      : '${other}_$me';
+              Get.toNamed('/chat', parameters: {
+                'ukey': ukey,
+                'uid': other,
+                'username': userState.response!.username ?? '',
+              });
+            },
+          },
+          child: UserInfoCard(
           data: userState.response!,
           onFollow: _userController.onFollow,
           // ★ 自己看自己 → 显示「编辑资料」而不是「关注」
@@ -101,6 +130,7 @@ class _UserPageState extends State<UserPage>
             // 先给明确提示，不假装能编辑（见台账待办）。
             SmartDialog.showToast('编辑资料页尚未移植');
           },
+          ),
         );
     }
     return const M3EWavyProgressIndicator();
