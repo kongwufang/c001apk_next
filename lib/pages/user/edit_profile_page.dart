@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide FormData, MultipartFile;
+import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -169,11 +171,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
   /// multipart 规则（`ApiService.kt` 抓包核对）：
   /// part 名 **`imgFile`**、filename 用**图片 md5（无扩展名）**、Content-Type `image/jpeg`
   Future<void> _pickAvatar() async {
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    final bytes = picked?.files.firstOrNull?.bytes;
+    final picked = await FilePicker.platform.pickFiles(type: FileType.image);
+    final path = picked?.files.firstOrNull?.path;
+    if (path == null) return;
+
+    // ★ 先进裁剪页（600×600 方形，对齐 Android EditProfileActivity 的注释）
+    final cropped = await Get.toNamed<Uint8List>('/cropImage', parameters: {
+      'path': path,
+      'outW': '600',
+      'outH': '600',
+    });
+    final bytes = cropped;
     if (bytes == null || bytes.isEmpty) return;
 
     final md5Name = md5.convert(bytes).toString();
@@ -210,11 +218,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   ///
   /// ⚠️ 同样**没做裁剪**（1080×1080）；上传流程见 `OssUpload` 的类注释。
   Future<void> _pickCover() async {
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    final bytes = picked?.files.firstOrNull?.bytes;
+    final picked = await FilePicker.platform.pickFiles(type: FileType.image);
+    final path = picked?.files.firstOrNull?.path;
+    if (path == null) return;
+
+    // ★ 先进裁剪页（1080×1080 方形）
+    final bytes = await Get.toNamed<Uint8List>('/cropImage', parameters: {
+      'path': path,
+      'outW': '1080',
+      'outH': '1080',
+    });
     if (bytes == null || bytes.isEmpty) return;
 
     setState(() => _saving = true);
@@ -307,7 +320,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('头像'),
                   subtitle: Text(
-                    _saving ? '上传中…' : '点击更换（暂不裁剪，原图上传）',
+                    _saving ? '上传中…' : '点击更换（先裁剪为 600×600）',
                   ),
                   onTap: _saving ? null : _pickAvatar,
                 ),
@@ -315,7 +328,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('个人主页背景图'),
                   subtitle: Text(
-                    _saving ? '上传中…' : '点击更换（暂不裁剪，原图上传）',
+                    _saving ? '上传中…' : '点击更换（先裁剪为 1080×1080）',
                   ),
                   onTap: _saving ? null : _pickCover,
                 ),

@@ -19,6 +19,7 @@ import '../pages/main/main_page.dart';
 import '../pages/message/message_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/noitfication/notification_page.dart';
+import '../pages/other/crop_image_page.dart';
 import '../pages/others/copy_page.dart';
 import '../pages/others/imageview_page.dart';
 import '../pages/search/search_page.dart';
@@ -83,6 +84,10 @@ class AppPages {
     // ★ 设置下的二级页也走 `_getPage` —— 之前它们是 `Get.to(() => Page())`，
     //   绕过了路由表 ⇒ 用 GetX 默认转场（不是 M3、也不读「转场速度」设置）✗
     //   这就是「设置页里转场动画不统一」的原因。
+    _getPage(
+      name: '/cropImage',
+      page: () => const CropImagePage(),
+    ),
     _getPage(
       name: '/message',
       page: () => const MessagePage(),
