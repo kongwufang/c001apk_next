@@ -24,6 +24,12 @@ Widget _bodyState(String text, Function() onTap) {
 
 Widget commonBody(
   CommonController commonController, {
+  /// 是否位于 `NestedScrollView` 里（产品/话题页为 true）。
+  ///
+  /// 在 `NestedScrollView` 里**不能**传自定义 controller —— 它会断掉内外层联动，
+  /// 导致外层 `headerSliverBuilder` 里的 sliver 永远收不起来 ✗
+  /// （必须显式传，因为 `commonBody` 内部拿不到上层 `context`）
+  bool inNestedScroll = false,
   bool isHomeCard = false,
   bool isReply2Reply = false,
   /// `feedCover` 是否按完整动态卡排（见 `item_card.dart` 的同名参数）
@@ -164,9 +170,7 @@ Widget buildBody(
       //
       //   没有 `NestedScrollView` 祖先的页面（首页/搜索/大部分列表）
       //   照旧用自己的 controller —— `animateToTop` / `scrollRatio` 依赖它。
-      controller: context.findAncestorWidgetOfExactType<NestedScrollView>() != null
-          ? null
-          : commonController.scrollController,
+      controller: inNestedScroll ? null : commonController.scrollController,
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
@@ -200,9 +204,7 @@ Widget buildBody(
       //
       //   没有 `NestedScrollView` 祖先的页面（首页/搜索/大部分列表）
       //   照旧用自己的 controller —— `animateToTop` / `scrollRatio` 依赖它。
-      controller: context.findAncestorWidgetOfExactType<NestedScrollView>() != null
-          ? null
-          : commonController.scrollController,
+      controller: inNestedScroll ? null : commonController.scrollController,
         physics: AlwaysScrollableScrollPhysics(
           parent: isReply2Reply
               ? const ClampingScrollPhysics()

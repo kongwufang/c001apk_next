@@ -214,7 +214,7 @@ class _TopicContentState extends State<TopicContent>
         );
     final orderController = _topicOrderController;
     if (orderController == null && widget.headerTop == null) {
-      return withScroll(commonBody(_topicController));
+      return withScroll(commonBody(_topicController, inNestedScroll: true));
     }
     Widget buildHeader() => Column(
           mainAxisSize: MainAxisSize.min,
@@ -242,10 +242,12 @@ class _TopicContentState extends State<TopicContent>
           ],
         );
     if (orderController == null) {
-      return withScroll(commonBody(_topicController, header: buildHeader()));
+      return withScroll(
+        commonBody(_topicController, header: buildHeader(), inNestedScroll: true),
+      );
     }
     return withScroll(
-      Obx(() => commonBody(_topicController, header: buildHeader())),
+      Obx(() => commonBody(_topicController, header: buildHeader(), inNestedScroll: true)),
     );
   }
 }
