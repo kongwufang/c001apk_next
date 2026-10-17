@@ -61,6 +61,9 @@ class Constants {
   static const PREFIX_USER_LIST = '/user/';
   static const PREFIX_DYH = '/dyh/';
   static const PREFIX_COLLECTION = '/collection/';
+
+  /// 众测 / 活动详情：/event/<id>（走原生页，不是 H5）
+  static const PREFIX_EVENT = '/event/';
   static const SUFFIX_THUMBNAIL = '.s.jpg';
   static const SUFFIX_GIF = '.gif';
 

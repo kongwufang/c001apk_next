@@ -233,6 +233,24 @@ class Utils {
     } else if (path.startsWith(Constants.PREFIX_PRODUCT)) {
       Get.toNamed(
           '/product/${path.replaceFirst(Constants.PREFIX_PRODUCT, '')}');
+    } else if (path.startsWith(Constants.PREFIX_EVENT)) {
+      // 众测 / 活动详情：走**原生页**。
+      //
+      // 对齐 Android `NetWorkUtil`：
+      // > 众测/活动详情没有 H5，`www.coolapk.com/event/<id>` 只是下载引导落地页。
+      // > 改为原生接口 `/v6/event/detail`。
+      //
+      // id 取到 `?` 或下一个 `/` 之前
+      // （Android：`.substringBefore('?').substringBefore('/')`）。
+      final id = path
+          .replaceFirst(Constants.PREFIX_EVENT, '')
+          .split('?')
+          .first
+          .split('/')
+          .first;
+      if (id.isNotEmpty) {
+        Get.toNamed('/event/$id');
+      }
     } else if (path.startsWith(Constants.PREFIX_CAROUSEL)) {
       Get.toNamed(
         '/carousel',

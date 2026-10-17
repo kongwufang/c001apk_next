@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../components/cards/app_card.dart';
 import '../components/cards/carousel_card.dart';
@@ -16,6 +16,7 @@ import '../components/cards/image_text_scroll_card.dart';
 import '../components/cards/like_card.dart';
 import '../components/cards/message_card.dart';
 import '../components/cards/notification_card.dart';
+import '../components/cards/pear_goods_card.dart';
 import '../components/cards/product_config_list_card.dart';
 import '../components/cards/rating_card.dart';
 import '../components/cards/text_card.dart';
@@ -199,6 +200,13 @@ Widget itemCard(
     // 个人主页「点评」tab 的实体（Android `AppAdapter` 的 viewType 21）
     case 'nodeRating':
       return RatingCard(data: data);
+    // ★ 活动页「线下」tab 的实体商品卡（Android viewType 19）。
+    //
+    //   判据是 **`entityType == 'pear_goods'`** —— 这类条目**没有 entityTemplate**
+    //   （Android 原注释：「活动页「线下」tab 的 pear_goods 实体（无 entityTemplate，
+    //   仅有 goods_* 字段）」）。与 `feedCover` / `productConfigList` 那两次正好相反。
+    case 'pear_goods':
+      return PearGoodsCard(data: data);
   }
   // ★ 顶层 `entityType` 也没匹配到 → 同样交给通用卡片。
   //

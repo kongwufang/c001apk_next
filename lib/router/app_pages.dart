@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../constants/m3_tokens.dart';
@@ -25,6 +25,7 @@ import '../pages/settings/params_page.dart';
 import '../pages/offline/offline_cache_page.dart';
 import '../pages/spam/spam_shield_page.dart';
 import '../pages/szlm/szlm_id_web_page.dart';
+import '../pages/event/event_detail_page.dart';
 import '../pages/topic/topic_page.dart';
 import '../pages/user/user_page.dart';
 import '../pages/webview/webview_page.dart';
@@ -100,6 +101,12 @@ class AppPages {
     _getPage(
       name: '/t/:tag',
       page: () => const TopicPage(),
+    ),
+    _getPage(
+      name: '/event/:id',
+      // 众测 / 活动详情（原生）—— 对齐 Android `EventDetailActivity`。
+      // 不原生化的话，点众测卡片会跳到「请下载酷安 App」的 H5 落地页。
+      page: () => EventDetailPage(id: Get.parameters['id']!),
     ),
     _getPage(
       name: '/product/:id',
