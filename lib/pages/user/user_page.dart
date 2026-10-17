@@ -125,10 +125,14 @@ class _UserPageState extends State<UserPage>
           // ★ 自己看自己 → 显示「编辑资料」而不是「关注」
           //   （对齐 Android：那个位置是 `EditProfileActivity` 入口）
           isMe: _uid == GStorage.uid,
-          onEditProfile: () {
-            // Android 是**原生**编辑资料页，Flutter 侧还没移植。
-            // 先给明确提示，不假装能编辑（见台账待办）。
-            SmartDialog.showToast('编辑资料页尚未移植');
+          onEditProfile: () async {
+            // 编辑资料页（性别 / 生日 / 地区 / 签名）。
+            // 头像、背景图、用户名还没做 —— 见 `EditProfilePage` 的类注释。
+            final ok = await Get.toNamed('/editProfile');
+            if (ok == true) {
+              // Android `MineFragment.kt:196`：编辑资料返回后同步头部
+              await _userController.onGetUserData();
+            }
           },
           ),
         );

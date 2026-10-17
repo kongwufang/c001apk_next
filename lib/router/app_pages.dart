@@ -27,6 +27,7 @@ import '../pages/spam/spam_shield_page.dart';
 import '../pages/szlm/szlm_id_web_page.dart';
 import '../pages/event/event_detail_page.dart';
 import '../pages/topic/topic_page.dart';
+import '../pages/user/edit_profile_page.dart';
 import '../pages/user/user_page.dart';
 import '../pages/webview/webview_page.dart';
 import '../utils/m3_transition.dart';
@@ -81,6 +82,10 @@ class AppPages {
     _getPage(
       name: '/feed/:id',
       page: () => const FeedPage(),
+    ),
+    _getPage(
+      name: '/editProfile',
+      page: () => const EditProfilePage(),
     ),
     _getPage(
       name: '/u/:uid',

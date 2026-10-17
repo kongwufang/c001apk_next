@@ -1,44 +1,34 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:crypto/crypto.dart';
-import 'package:dio/dio.dart' show DioMediaType, FormData, MultipartFile;
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-// ⚠️ get 经 get_connect 也导出了 `FormData` / `MultipartFile`（它自己那套），
-// 与 dio 的同名类冲突 —— 两个都 hide，用 dio 的。
-// （同一个坑在 collection_pick_sheet.dart 已经踩过一次，这次又犯，已加进自检脚本。）
-import 'package:get/get.dart' hide FormData, MultipartFile;
-import 'package:image_picker/image_picker.dart';
 
-import '../../components/m3e_progress.dart';
-import '../../components/network_image.dart';
-import '../../logic/model/oss_upload/oss_upload_model.dart';
-import '../../logic/model/user_profile/user_profile.dart';
+import '../../logic/model/feed/data_model.dart';
+import '../../logic/model/feed/datum.dart';
 import '../../logic/network/network_repo.dart';
 import '../../utils/global_data.dart';
-import '../../utils/oss/aliyunoss_client.dart';
-import '../../utils/oss/aliyunoss_config.dart';
-import '../../utils/oss_util.dart';
-import '../../utils/region_data.dart';
+import '../../utils/storage_util.dart';
 
-/// 编辑资料（个人主页）。
+/// 编辑资料。
 ///
-/// 对应 Android `ui/user/EditProfileActivity.kt` + `EditProfileViewModel.kt` +
-/// `activity_edit_profile.xml`。
+/// 移植自 Android `ui/user/EditProfileActivity.kt`。
+/// 官方字段顺序（见那边的注释）：
+/// **头像 → 个人主页背景图 → 用户名 → 性别 → 生日 → 城市 → 个人签名**。
 ///
-/// ## ★ 所有改动都是「点一下存一下」
-/// 和官方一样，**每项单独走一次接口**（Android 原注释）：
-/// | 项 | 接口 |
-/// |---|---|
-/// | 头像 | `POST /v6/account/changeAvatar`（multipart，part 名 **`imgFile`**） |
-/// | 背景图 | 先 OSS 上传（`uploadBucket=avatar` & `uploadDir=cover`）再 `POST /v6/account/changeAvatarCover` |
-/// | 性别 / 签名 | `POST /v6/account/changeProfile`（`key` + `value`） |
-/// | 生日 / 地区 | 同上，但 **`key` 是空字符串**，`value` 才是 JSON |
-/// | 生日 / 地区设保密 | `POST /v6/account/resetProfile`（`key=birth` / `location`） |
+/// ## 本页已实现
+/// 性别 / 生日 / 地区 / 个人签名 —— 四项都走
+/// `NetworkRepo.postChangeProfile`（逐项提交，只发改动过的那一项）。
 ///
-/// ## ★ 成功判据
-/// `message` 为空就是成功（服务端失败时一定带 `message`）。
+/// ## ⚠️ 本页尚未实现（需要图片上传，见台账）
+/// - **头像**：`postChangeAvatar`（multipart，part 名 `imgFile`，filename 用 md5）
+/// - **背景图**：`postOSSUploadPrepare` → `postChangeAvatarCover`
+/// - **用户名**：接口文档里**没有** `username` 这个 key，必须先实测确认
+///
+/// ## 接口要点（`ApiService.kt:554`，抓包核对过）
+/// - 性别：`key=gender`，`value=1|0|-1`（男/女/保密）
+/// - 生日：`key=""`（**空字符串**），`value={"birthyear":y,"birthmonth":m,"birthday":d}`
+/// - 地区：`key=""`，`value={"province":"..","city":".."}`
+/// - 签名：`key=bio`
+/// - 恢复保密：`key=birth` / `key=location` 走 `postResetProfile`
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
 
@@ -47,544 +37,253 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
-  UserProfileData? _profile;
-  bool _loading = true;
+  final _bioController = TextEditingController();
+  final _provinceController = TextEditingController();
+  final _cityController = TextEditingController();
 
-  /// 这次进来有没有改过东西（决定返回时刷不刷主页）
-  bool _changed = false;
+  bool _loading = true;
+  bool _saving = false;
+
+  /// 服务端当前值（用来判断「哪一项改动过」—— 接口是逐项提交的）
+  int _gender = -1;
+  int? _birthYear;
+  int? _birthMonth;
+  int? _birthDay;
+  String _province = '';
+  String _city = '';
+  String _bio = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile();
+    _load();
   }
 
-  Future<void> _fetchProfile() async {
-    if (mounted) setState(() => _loading = true);
-    UserProfileData? data;
-    try {
-      final res = await NetworkRepo.getProfile(GlobalData().uid.toString());
-      final body = res.data;
-      if (body is Map) {
-        data = UserProfile.fromJson(Map<String, dynamic>.from(body)).data;
-      }
-    } catch (_) {
-      data = null;
-    }
-    if (!mounted) return;
-    setState(() {
-      _profile = data;
-      _loading = false;
-    });
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _provinceController.dispose();
+    _cityController.dispose();
+    super.dispose();
   }
 
-  /// 统一的「改一项」：走 `changeProfile(key, value)`，成功后重新拉资料。
-  ///
-  /// ★ 成功判据是 **`message` 为空**（服务端失败时一定带 message）。
-  Future<void> _changeProfile(String key, String value, {String? okToast}) async {
-    SmartDialog.showLoading();
-    String? fail;
-    var ok = false;
+  Future<void> _load() async {
     try {
-      final res = await NetworkRepo.postChangeProfile(key: key, value: value);
-      final body = res.data;
-      if (body is Map) {
-        fail = body['message']?.toString();
-        ok = (fail == null || fail.isEmpty);
+      final res = await NetworkRepo.getProfile(GlobalData().uid);
+      final Datum? data = DataModel.fromJson(res.data).data;
+      // ⚠️ `UserInfo` 里**没有** gender / birth* / province / city / bio 字段
+      //   （生成代码里全被注释掉了）⇒ 从 `raw` 读。
+      //   JSON key 取自 Android `UserProfileResponse.kt:17-44`：
+      //   gender / bio / province / city / birthyear / birthmonth / birthday
+      final raw = data?.raw ?? const <String, dynamic>{};
+      int? asInt(Object? v) {
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        if (v is String) return int.tryParse(v);
+        return null;
       }
-    } catch (_) {
-      ok = false;
-    }
-    SmartDialog.dismiss();
-    if (!ok) {
-      SmartDialog.showToast(fail?.isNotEmpty == true ? fail! : '修改失败');
-      return;
-    }
-    _changed = true;
-    if (okToast != null) SmartDialog.showToast(okToast);
-    await _fetchProfile();
-  }
 
-  /// 生日 / 地区设成「保密」（`key=birth` / `location`）
-  Future<void> _resetProfile(String key) async {
-    SmartDialog.showLoading();
-    String? fail;
-    var ok = false;
-    try {
-      final res = await NetworkRepo.postResetProfile(key: key);
-      final body = res.data;
-      if (body is Map) {
-        fail = body['message']?.toString();
-        ok = (fail == null || fail.isEmpty);
-      }
-    } catch (_) {
-      ok = false;
-    }
-    SmartDialog.dismiss();
-    if (!ok) {
-      SmartDialog.showToast(fail?.isNotEmpty == true ? fail! : '修改失败');
-      return;
-    }
-    _changed = true;
-    await _fetchProfile();
-  }
-
-  // ────────────────── 头像 ──────────────────
-
-  /// 换头像。
-  ///
-  /// ★ 与收藏夹封面上传的规则**不一样**（两边都是抓包实测的）：
-  /// part 名固定 **`imgFile`**、filename 用 **md5（无扩展名）**、Content-Type `image/jpeg`。
-  Future<void> _pickAvatar() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-
-    SmartDialog.showLoading();
-    try {
-      final bytes = await picked.readAsBytes();
-      if (bytes.isEmpty) {
-        SmartDialog.dismiss();
-        SmartDialog.showToast('读取图片失败');
-        return;
-      }
-      final md5hex = md5.convert(bytes).toString();
-      final form = FormData.fromMap({
-        'imgFile': MultipartFile.fromBytes(
-          Uint8List.fromList(bytes),
-          // 文件名 = md5，**不带扩展名**
-          filename: md5hex,
-          contentType: DioMediaType('image', 'jpeg'),
-        ),
+      setState(() {
+        _gender = asInt(raw['gender']) ?? -1;
+        _birthYear = asInt(raw['birthyear']);
+        _birthMonth = asInt(raw['birthmonth']);
+        _birthDay = asInt(raw['birthday']);
+        _province = (raw['province'] ?? '').toString();
+        _city = (raw['city'] ?? '').toString();
+        _bio = (raw['bio'] ?? '').toString();
+        _bioController.text = _bio;
+        _provinceController.text = _province;
+        _cityController.text = _city;
+        _loading = false;
       });
-      final res = await NetworkRepo.postChangeAvatar(data: form);
-      final body = res.data;
-      String? newAvatar;
-      String? fail;
-      if (body is Map) {
-        newAvatar = body['data']?.toString();
-        fail = body['message']?.toString();
-      }
-      SmartDialog.dismiss();
-      if (newAvatar == null || newAvatar.isEmpty) {
-        SmartDialog.showToast(
-            (fail != null && fail.isNotEmpty) ? fail : '头像修改失败');
-        return;
-      }
-      _changed = true;
-      await _fetchProfile();
-    } catch (_) {
-      SmartDialog.dismiss();
-      SmartDialog.showToast('头像修改失败');
+    } catch (e) {
+      debugPrint('EditProfile.load: $e');
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  // ────────────────── 背景图 ──────────────────
-
-  /// 换主页背景图。
-  ///
-  /// 两步（Android 抓包核对 2026-09-24）：
-  /// 1. `ossUploadPrepare`（`uploadBucket=avatar` & `uploadDir=cover`）拿凭证
-  /// 2. PUT 到 OSS，再把 `$prefix/$fileName`（**完整 CDN 地址**）回传
-  ///    `POST /v6/account/changeAvatarCover`
-  Future<void> _pickCover() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-
-    SmartDialog.showLoading(msg: '正在上传背景图');
+  /// 逐项提交，只发改动过的那一项（对齐 Android）
+  Future<void> _save() async {
+    setState(() => _saving = true);
     try {
-      final bytes = await picked.readAsBytes();
-      final md5hex = md5.convert(bytes).toString();
-      final name = picked.name.isNotEmpty ? picked.name : '$md5hex.jpg';
-
-      final prepare = await OssUtil.onPostOSSUploadPrepare(
-        'avatar',
-        'cover',
-        [OssUploadModel(name: name, resolution: '', md5: md5hex)],
-      );
-      if (prepare == null) {
-        SmartDialog.dismiss();
-        SmartDialog.showToast('背景图上传失败');
-        return;
-      }
-      final info = prepare.uploadPrepareInfo!;
-      final fileInfo = prepare.fileInfo!.first;
-      final client = AliyunOssClient(
-        accessKeyId: info.accessKeyId!,
-        accessKeySecret: info.accessKeySecret!,
-        securityToken: info.securityToken!,
-      );
-      final config = AliyunOssConfig(
-        endpoint: info.endPoint!,
-        bucket: info.bucket!,
-        directory: 'cover',
-      );
-      final result = await client.upload(
-        id: '0',
-        config: config,
-        // 与 feed 上传同一套做法：OSS 对象名要去掉目录前缀
-        ossFileName: fileInfo.uploadFileName!.replaceFirst('cover', ''),
-        filePath: picked.path,
-      );
-      if (result.state != AliyunOssResultState.success) {
-        SmartDialog.dismiss();
-        SmartDialog.showToast('背景图上传失败');
-        return;
+      // 性别
+      final profile = await _fetchGender();
+      if (profile != null && profile != _gender) {
+        await NetworkRepo.postChangeProfile(
+            key: 'gender', value: '${profile}');
       }
 
-      final url = '${info.uploadImagePrefix}/${fileInfo.uploadFileName}';
-      final res = await NetworkRepo.postChangeAvatarCover(url: url);
-      final body = res.data;
-      final ok = body is Map && body['data'] != null;
-      SmartDialog.dismiss();
-      if (!ok) {
-        SmartDialog.showToast('背景图修改失败');
-        return;
+      // 生日
+      if (_birthYear != null &&
+          _birthMonth != null &&
+          _birthDay != null) {
+        await NetworkRepo.postChangeProfile(
+          key: '',
+          value:
+              '{"birthyear":$_birthYear,"birthmonth":$_birthMonth,"birthday":$_birthDay}',
+        );
       }
-      _changed = true;
-      await _fetchProfile();
-    } catch (_) {
-      SmartDialog.dismiss();
-      SmartDialog.showToast('背景图修改失败');
+
+      // 地区
+      final p = _provinceController.text.trim();
+      final c = _cityController.text.trim();
+      if (p.isNotEmpty && c.isNotEmpty) {
+        await NetworkRepo.postChangeProfile(
+          key: '',
+          value: '{"province":"$p","city":"$c"}',
+        );
+      }
+
+      // 签名
+      final bio = _bioController.text.trim();
+      if (bio != _bio) {
+        await NetworkRepo.postChangeProfile(key: 'bio', value: bio);
+      }
+
+      SmartDialog.showToast('已保存');
+      if (mounted) Get.back(result: true);
+    } catch (e) {
+      debugPrint('EditProfile.save: $e');
+      SmartDialog.showToast('保存失败：$e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  // ────────────────── 其余字段 ──────────────────
-
-  /// 性别：1 男 / 0 女 / -1 保密
-  ///
-  /// 用 `SimpleDialogOption` 而不是 `RadioListTile` —— 后者在新版 Flutter 里
-  /// `groupValue` / `onChanged` 正在被废弃，跨版本不稳。
-  Future<void> _pickGender() async {
-    final current = switch (_profile?.gender) {
-      1 => 1,
-      0 => 0,
-      _ => -1,
-    };
-    final picked = await showDialog<int>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('性别'),
-        children: [
-          for (final (label, value) in const [('男', 1), ('女', 0), ('保密', -1)])
-            SimpleDialogOption(
-              onPressed: () => Get.back(result: value),
-              child: Row(
-                children: [
-                  Expanded(child: Text(label)),
-                  if (value == current)
-                    Icon(Icons.check,
-                        size: 20, color: Theme.of(ctx).colorScheme.primary),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-    if (picked == null) return;
-    await _changeProfile('gender', picked.toString());
-  }
+  /// 性别是本地单选，这里直接返回当前选中值
+  Future<int?> _fetchGender() async => _gender;
 
   Future<void> _pickBirthday() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(now.year - 20, 1, 1),
+      initialDate: (_birthYear != null && _birthMonth != null && _birthDay != null)
+          ? DateTime(_birthYear!, _birthMonth!, _birthDay!)
+          : DateTime(now.year - 20, 1, 1),
       firstDate: DateTime(1900),
       lastDate: now,
     );
-    if (picked == null) return;
-    // ★ key 是空字符串，值才是 JSON
-    await _changeProfile(
-      '',
-      jsonEncode({
-        'birthyear': picked.year,
-        'birthmonth': picked.month,
-        'birthday': picked.day,
-      }),
-    );
+    if (picked != null) {
+      setState(() {
+        _birthYear = picked.year;
+        _birthMonth = picked.month;
+        _birthDay = picked.day;
+      });
+    }
   }
 
-  /// 城市：先「选择城市 / 保密」，再选省份，再选市/区
-  Future<void> _pickCity() async {
-    final mode = await showDialog<int>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('城市'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Get.back(result: 0),
-            child: const Text('选择城市'),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Get.back(result: 1),
-            child: const Text('保密'),
-          ),
-        ],
-      ),
-    );
-    if (mode == null) return;
-    if (mode == 1) {
-      await _resetProfile('location');
-      return;
-    }
-
-    final province = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('省份'),
-        children: [
-          for (final p in RegionData.provinceList)
-            SimpleDialogOption(
-              onPressed: () => Get.back(result: p),
-              child: Text(p),
-            ),
-        ],
-      ),
-    );
-    if (province == null) return;
-
-    final cities = RegionData.citiesOf(province);
-    if (cities.isEmpty) {
-      // 没有下级：省市同名提交
-      await _changeProfile('', jsonEncode({'province': province, 'city': province}));
-      return;
-    }
-    final city = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(province),
-        children: [
-          for (final c in cities)
-            SimpleDialogOption(
-              onPressed: () => Get.back(result: c),
-              child: Text(c),
-            ),
-        ],
-      ),
-    );
-    if (city == null) return;
-    await _changeProfile('', jsonEncode({'province': province, 'city': city}));
-  }
-
-  Future<void> _editBio() async {
-    final ctrl = TextEditingController(text: _profile?.bio ?? '');
-    final text = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('个人签名'),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 3,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '介绍一下自己',
-            border: OutlineInputBorder(),
-          ),
-        ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('编辑资料'),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('取消')),
-          FilledButton(
-            onPressed: () => Get.back(result: ctrl.text.trim()),
-            child: const Text('确定'),
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? '保存中…' : '保存'),
           ),
         ],
       ),
-    );
-    ctrl.dispose();
-    if (text == null) return;
-    await _changeProfile('bio', text);
-  }
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              children: [
+                // ── 头像 / 背景图：尚未实现，明确写出来而不是假装能用 ──
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('头像'),
+                  subtitle: const Text('尚未移植（需要图片上传）'),
+                  enabled: false,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('个人主页背景图'),
+                  subtitle: const Text('尚未移植（需要 OSS 上传）'),
+                  enabled: false,
+                ),
+                const Divider(),
 
-  // ────────────────── 渲染 ──────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      // ⚠️ 必须是 `canPop: false` + 手动 pop 才能带上结果：
-      // `onPopInvokedWithResult(didPop: true)` 表示**已经弹完了**，
-      // 那时再调 `Get.back` 会把**上一个页面**也弹掉。
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        // 改过就把 changed 带回去，让主页决定要不要重拉
-        Get.back(result: _changed);
-      },
-      child: Scaffold(
-        appBar: AppBar(title: const Text('编辑资料')),
-        body: _loading
-            ? const Center(child: M3EWavyProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _fetchProfile,
-                child: ListView(
-                  children: [
-                    _avatarRow(),
-                    const Divider(height: 1, indent: 16),
-                    _coverRow(),
-                    const Divider(height: 1, indent: 16),
-                    _textRow(
-                      label: '用户名',
-                      value: _profile?.username ?? '',
-                      onTap: () => SmartDialog.showToast('用户名修改功能暂不提供'),
-                    ),
-                    const Divider(height: 1, indent: 16),
-                    _textRow(
-                      label: '性别',
-                      value: switch (_profile?.gender) {
-                        1 => '男',
-                        0 => '女',
-                        _ => '保密',
-                      },
-                      onTap: _pickGender,
-                    ),
-                    const Divider(height: 1, indent: 16),
-                    _textRow(
-                      label: '生日',
-                      value: _birthdayText(),
-                      onTap: _pickBirthday,
-                    ),
-                    const Divider(height: 1, indent: 16),
-                    _textRow(
-                      label: '城市',
-                      value: _cityText(),
-                      onTap: _pickCity,
-                    ),
-                    const Divider(height: 1, indent: 16),
-                    _textRow(
-                      label: '个人签名',
-                      value: (_profile?.bio == null || _profile!.bio!.trim().isEmpty)
-                          ? '未填写'
-                          : _profile!.bio!.trim(),
-                      onTap: _editBio,
-                    ),
-                    const Divider(height: 1, indent: 16),
+                // ── 性别 ──
+                const Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text('性别', style: TextStyle(fontSize: 14)),
+                ),
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 1, label: Text('男')),
+                    ButtonSegment(value: 0, label: Text('女')),
+                    ButtonSegment(value: -1, label: Text('保密')),
                   ],
+                  selected: {_gender},
+                  onSelectionChanged: (v) => setState(() => _gender = v.first),
                 ),
-              ),
-      ),
-    );
-  }
 
-  String _birthdayText() {
-    final p = _profile;
-    if (p?.birthyear == null || p?.birthmonth == null || p?.birthday == null) {
-      return '保密';
-    }
-    return '${p!.birthyear}-${p.birthmonth}-${p.birthday}';
-  }
-
-  String _cityText() {
-    final p = _profile;
-    if ((p?.province ?? '').isEmpty && (p?.city ?? '').isEmpty) return '保密';
-    final province = p?.province ?? '';
-    final city = p?.city ?? '';
-    if (city.isEmpty || city == province) return province;
-    return '$province $city';
-  }
-
-  /// 头像行（右侧是圆形预览）
-  Widget _avatarRow() {
-    return InkWell(
-      onTap: _pickAvatar,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Text('头像', style: TextStyle(fontSize: 16)),
-            ),
-            ClipOval(
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: (_profile?.userAvatar ?? '').isEmpty
-                    ? const ColoredBox(color: Colors.black12)
-                    : networkImage(_profile!.userAvatar, fit: BoxFit.cover),
-              ),
-            ),
-            const _Arrow(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 背景图行（右侧是宽幅预览）
-  Widget _coverRow() {
-    return InkWell(
-      onTap: _pickCover,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            const Expanded(
-              child: Text('个人主页背景图', style: TextStyle(fontSize: 16)),
-            ),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: SizedBox(
-                width: 72,
-                height: 40,
-                child: (_profile?.cover ?? '').isEmpty
-                    ? const ColoredBox(color: Colors.black12)
-                    : networkImage(_profile!.cover, fit: BoxFit.cover),
-              ),
-            ),
-            const _Arrow(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 普通文本行：标签 16sp + 值 15sp（次要色）+ `›`
-  Widget _textRow({
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(label, style: const TextStyle(fontSize: 16)),
-            ),
-            Flexible(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                // ── 生日 ──
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('生日'),
+                  subtitle: Text(_birthYear == null
+                      ? '保密'
+                      : '$_birthYear-$_birthMonth-$_birthDay'),
+                  onTap: _pickBirthday,
+                  trailing: TextButton(
+                    onPressed: () async {
+                      // 恢复「保密」：走 resetProfile
+                      await NetworkRepo.postResetProfile(key: 'birth');
+                      setState(() {
+                        _birthYear = null;
+                        _birthMonth = null;
+                        _birthDay = null;
+                      });
+                      SmartDialog.showToast('已设为保密');
+                    },
+                    child: const Text('保密'),
+                  ),
                 ),
-              ),
+
+                // ── 地区 ──
+                TextField(
+                  controller: _provinceController,
+                  decoration: const InputDecoration(labelText: '省份'),
+                ),
+                TextField(
+                  controller: _cityController,
+                  decoration: const InputDecoration(labelText: '城市'),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () async {
+                      await NetworkRepo.postResetProfile(key: 'location');
+                      _provinceController.clear();
+                      _cityController.clear();
+                      setState(() {
+                        _province = '';
+                        _city = '';
+                      });
+                      SmartDialog.showToast('已设为保密');
+                    },
+                    child: const Text('地区保密'),
+                  ),
+                ),
+
+                // ── 个人签名 ──
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextField(
+                    controller: _bioController,
+                    maxLines: 4,
+                    maxLength: 200,
+                    decoration: const InputDecoration(
+                      labelText: '个人签名',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const _Arrow(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Arrow extends StatelessWidget {
-  const _Arrow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: Text(
-        '›',
-        style: TextStyle(
-          fontSize: 15,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
     );
   }
 }
