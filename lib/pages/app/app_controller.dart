@@ -10,10 +10,18 @@ class AppController extends CommonController {
   AppController({required this.packageName});
   final String packageName;
 
-  late final String? id;
-  late final int? commentStatus;
-  late final String? commentStatusText;
-  late final String? entityType;
+  // ⚠️ 这几个**不能写 `late`**（原来写的是 `late final`）：
+  //   它们只在 `_getAppData` 的 `if (response is Success)` 分支里赋值，
+  //   请求失败时没人赋值 —— 而 UI 读它们会抛 `LateInitializationError`
+  //   （`late` 字段在赋值前被读是**抛异常**，不是返回 null）✗
+  //   而且 `late final` 只能赋一次，`regetData()` 刷新后值不会更新 ✗
+  //
+  //   同类 bug 的实证见 `topic_content.dart` 的 `_topicOrderController`
+  //   （产品页除「讨论」外所有 tab 整页空白）。
+  String? id;
+  int? commentStatus;
+  String? commentStatusText;
+  String? entityType;
 
   Rx<LoadingState> appState = LoadingState.loading().obs;
   String? appName;

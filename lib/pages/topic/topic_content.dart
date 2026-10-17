@@ -77,7 +77,20 @@ class _TopicContentState extends State<TopicContent>
     tag: widget.url + widget.title + widget.random,
   );
 
-  late final TopicOrderController? _topicOrderController;
+  /// 三段式排序的控制器。
+  ///
+  /// ⚠️ **不能写 `late`**：只有「讨论」tab 会赋值（见 `initState` 里的
+  /// `if (isProductFeed || isTopicFeed)`），而 `build()` 里会读它。
+  ///
+  /// `late` 字段在赋值前被读会抛 `LateInitializationError`（**不是返回 null**）✗
+  /// ⇒ 除「讨论」外的每个 tab 一 build 就抛异常 ⇒ 整页空白。
+  /// 实测日志：
+  /// ```
+  /// LateInitializationError: Field '_topicOrderController@…' has not been initialized.
+  /// #0  _TopicContentState.build (pages/topic/topic_content.dart)
+  /// ```
+  /// 去掉 `late` 后未赋值时就是 `null`，下面 `orderController == null` 的判断才生效 ✓
+  TopicOrderController? _topicOrderController;
 
   @override
   void dispose() {
