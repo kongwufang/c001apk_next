@@ -20,6 +20,7 @@ class TopicContent extends StatefulWidget {
     required this.url,
     required this.title,
     this.configRows,
+    this.headerTop,
   });
 
   final String random;
@@ -35,6 +36,14 @@ class TopicContent extends StatefulWidget {
   /// 见 `TopicContentController` 里那段「服务端下发的 productConfigList
   /// 卡片 entities 恒为空」的说明。
   final List<Map<String, dynamic>>? configRows;
+
+  /// 列表**最上面**那块（话题 / 产品页的头部卡片）。
+  ///
+  /// 放进 `commonBody(header:)` 而不是固定在页面上 —— 这样它会**随列表滚动移出**，
+  /// TabBar 仍钉在 `AppBar.bottom` 上，对齐 release-notes 的
+  /// 「头部卡片跟随标题栏折叠」（与 Android `CollapsingToolbarLayout` 的
+  /// 淡出 + 视差不同，这里是**平移移出**）。
+  final Widget? headerTop;
 
   @override
   State<TopicContent> createState() => _TopicContentState();
@@ -150,21 +159,38 @@ class _TopicContentState extends State<TopicContent>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // 产品 / 话题的「讨论」tab：列表最上面插一段**三段式排序**
-    // （默认 / 最新 / 热度）—— 对齐 Android `ProductSortHeaderAdapter`。
+    // 列表最上面那块，两种情况：
+    // - 每个 tab 都有**头部卡片**（`headerTop`），它会随列表滚动移出；
+    // - 「讨论」tab 还有**三段式排序**（默认 / 最新 / 热度），
+    //   对齐 Android `ProductSortHeaderAdapter`。
     //
-    // 只有 `_topicOrderController != null` 时才有排序（即 discussion tab），
-    // 其余 tab 不插入任何东西。
+    // 两者都通过 `commonBody(header:)` 作为**第一个 sliver** 插进列表 ——
+    // 于是头部卡自然随滚动走掉，TabBar 仍钉在 `AppBar.bottom` 上。
+    //
+    // ⚠️ 与 Android 的差别：那边是 `CollapsingToolbarLayout` +
+    //    `COLLAPSE_MODE_PARALLAX`（**淡出 + 视差**），这里是**平移移出**。
+    //    效果等价（头部让位、TabBar 吸顶），但不需要动 `commonBody` 的
+    //    Sliver / 滚动控制器结构。
     final orderController = _topicOrderController;
-    if (orderController == null) return commonBody(_topicController);
+    if (orderController == null && widget.headerTop == null) {
+      return commonBody(_topicController);
+    }
+    Widget buildHeader() => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.headerTop != null) widget.headerTop!,
+            if (orderController != null)
+              SortHeader(
+                current: orderController.topicSortType.value,
+                onChanged: orderController.setTopicSortType,
+              ),
+          ],
+        );
+    if (orderController == null) {
+      return commonBody(_topicController, header: buildHeader());
+    }
     return Obx(
-      () => commonBody(
-        _topicController,
-        header: SortHeader(
-          current: orderController.topicSortType.value,
-          onChanged: orderController.setTopicSortType,
-        ),
-      ),
+      () => commonBody(_topicController, header: buildHeader()),
     );
   }
 }

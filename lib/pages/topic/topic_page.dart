@@ -115,6 +115,35 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
   ///
   /// 「发点评」只在**产品页**、且服务端 `allow_rating == 1`、
   /// 且下发了 `rating_item_info` 时才给。
+  /// 头部卡片（logo / 标题 / 统计 / 简介 / 关注行）+ 分隔线。
+  ///
+  /// ★ 它**不再固定在页面上**，而是交给每个 tab 的 TopicContent.headerTop，
+  ///   由 commonBody(header:) 作为列表的**第一个 sliver** 渲染 ⇒
+  ///   随列表滚动自然移出屏幕，TabBar 仍钉在 AppBar.bottom 上。
+  ///
+  /// 对齐 release-notes 的「头部卡片跟随标题栏折叠」。
+  /// 与 Android CollapsingToolbarLayout + COLLAPSE_MODE_PARALLAX 的
+  /// **淡出 + 视差**不同，这里是**平移移出** —— 效果等价（头部让位、TabBar 吸顶），
+  /// 但不需要动 commonBody 的 Sliver / 滚动控制器结构。
+  Widget _headerTop() => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TopicHeaderCard(
+            logo: _topicController.headerLogo,
+            title: _topicController.title ?? '',
+            hotNum: _topicController.headerHotNum,
+            commentNum: _topicController.headerCommentNum,
+            intro: _topicController.headerIntro,
+            followNum: _topicController.headerFollowNum,
+            avatars: _topicController.headerAvatars,
+            isFollow: _topicController.isFollow,
+            isLogin: GlobalData().isLogin,
+            onFollow: _onFollow,
+          ),
+          const Divider(height: 1),
+        ],
+      );
+
   /// 关注 / 取消关注（话题走 tag 接口、产品走 follow 接口）。
   ///
   /// 抽成方法是为了让**菜单项**和**头部卡片上的关注按钮**共用一套逻辑
@@ -345,28 +374,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                   ? Center(
                       child: Text('${_topicController.title} is Blocked'),
                     )
-                  : Column(
-                      children: [
-                        // 头部卡片（logo / 标题 / 统计 / 简介 / 关注行）
-                        //
-                        // ⚠️ Android 是 `CollapsingToolbarLayout`，上滑会**折叠淡出**；
-                        //    本工程先做成**固定**（见 TopicHeaderCard 的注释：
-                        //    做折叠要动 `commonBody` 的 Sliver 结构，风险大）。
-                        TopicHeaderCard(
-                          logo: _topicController.headerLogo,
-                          title: _topicController.title ?? '',
-                          hotNum: _topicController.headerHotNum,
-                          commentNum: _topicController.headerCommentNum,
-                          intro: _topicController.headerIntro,
-                          followNum: _topicController.headerFollowNum,
-                          avatars: _topicController.headerAvatars,
-                          isFollow: _topicController.isFollow,
-                          isLogin: GlobalData().isLogin,
-                          onFollow: _onFollow,
-                        ),
-                        const Divider(height: 1),
-                        Expanded(
-                          child: TabBarView(
+                  : TabBarView(
                             controller: _tabController,
                             children: _topicController.tabList!
                                 .map((item) {
@@ -387,6 +395,9 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                                 return H5Tab(url: tabUrl);
                               }
                               return TopicContent(
+                                // 头部卡片交给列表（随滚动移出，TabBar 仍钉在
+                                // `AppBar.bottom`）。见 `TopicContent.headerTop` 的注释。
+                                headerTop: _headerTop(),
                                 random: _random,
                                 tag: _topicController.tag,
                                 id: _topicController.id,
@@ -400,10 +411,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                                 configRows: _topicController.configRows,
                               );
                             }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
+                  ),
             )
           : Scaffold(
               appBar: AppBar(),
