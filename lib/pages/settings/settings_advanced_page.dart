@@ -40,7 +40,7 @@ class SettingsAdvancedPage extends StatelessWidget {
             leading: const Icon(Icons.cloud_download_outlined),
             title: const Text('获取数字联盟ID'),
             subtitle: const Text('内置网页取号（人机验证 + 签名校验）'),
-            onTap: () => Get.toNamed('/szlmId'),
+            onTap: _onFetchSzlmId,
           ),
           ListTile(
             leading: const Icon(Icons.developer_mode),
@@ -82,5 +82,49 @@ class SettingsAdvancedPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 自动取号前弹**知情同意**。
+  ///
+  /// 对齐 Android `util/SzlmIdPrompt.kt`：
+  /// - 正文**逐条列出**会上传的设备信息（隐私必须告知）
+  /// - 两个出口：「不同意并手动填入」（走上面那个输入框自己填）
+  ///   和「我已知情并同意」（打开内置网页换取 DUID）
+  ///
+  /// 原文案见 `res/values/strings.xml` 的 `szlm_id_consent_*`。
+  Future<void> _onFetchSzlmId() async {
+    final agree = await showDialog<bool>(
+      context: Get.context!,
+      builder: (context) => AlertDialog(
+        title: const Text('获取数字联盟ID'),
+        content: const SingleChildScrollView(
+          child: Text(
+            '本应用创新性地内置了一套数字联盟 ID（DUID）的获取方法。'
+            '为完成换取，需要把你的以下设备信息上传到本应用的服务器：\n\n'
+            '· 机型参数：厂商、品牌、型号、版本号、Android 版本、API 等级\n'
+            '· 安卓设备唯一标识 SSAID（ANDROID_ID）\n'
+            '· 本应用的版本信息：版本名、版本号、包名\n'
+            '· 本应用的真实 UA\n\n'
+            '这些信息仅用于换取并缓存 DUID，不作其它用途，'
+            '也不包含你的账号信息。需要你知情并同意。',
+          ),
+        ),
+        actions: [
+          TextButton(
+            // 「不同意并手动填入」：关掉弹窗即可 —— 上面那个「数字联盟ID」
+            // 输入框就是手动填写入口（Android 也是落同一个 preference）
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('不同意并手动填入'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('我已知情并同意'),
+          ),
+        ],
+      ),
+    );
+    if (agree == true) {
+      Get.toNamed('/szlmId');
+    }
   }
 }
