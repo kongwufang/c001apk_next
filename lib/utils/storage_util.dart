@@ -651,10 +651,15 @@ class GStorage {
   static void setIsLogin(bool value) {
     settings.put(SettingsBoxKey.isLogin, value);
     GlobalData().isLogin = value;
-    // ★ 登录 / 退出后刷新整棵界面。
-    //   `GlobalData` 没有可监听的信号 ⇒ 不主动重建的话，
-    //   「我的」页、动态卡片的点赞/收藏按钮、「关注」按钮全都还是旧状态 ✗
-    GlobalData().refresh();
+    // ⚠️ 这里**不能**调 `GlobalData().refresh()`（`Get.forceAppUpdate()`）。
+    //
+    //   `setIsLogin` 在**启动阶段**就会被调到（`getLogin()` 那条路径），
+    //   此时强制重建整棵树会把正在初始化的控制器销毁，
+    //   所有请求随即走进 `Failure` ⇒ **每个页面都显示「服务器异常」** ✗✗
+    //   （2026-10-17 实测踩过，回滚）
+    //
+    //   登录态变化后的刷新要**在 UI 层做**（登录成功回调里、页面 `onInit` 里），
+    //   不要在存储层这种「任何时候都可能被调用」的地方触发全局重建。
   }
 
   static String get uid {
