@@ -48,9 +48,26 @@ class _CropImagePageState extends State<CropImagePage> {
   bool _borderLight = true; // true = 亮画面 → 用黑描边
   bool _busy = false;
 
-  String get _path => Get.parameters['path'] ?? '';
-  int get _outW => int.tryParse(Get.parameters['outW'] ?? '') ?? 1600;
-  int get _outH => int.tryParse(Get.parameters['outH'] ?? '') ?? 719;
+  /// 用 `Get.arguments` 而不是 `Get.parameters`。
+  ///
+  /// `toNamed(name, parameters:)` 的 `parameters` 在某些 GetX 版本/路由形态下
+  /// 取不到（实测裁剪页进去后一直转圈 ✗）⇒ 改用 `arguments`，更可靠。
+  Map get _args =>
+      (Get.arguments is Map) ? (Get.arguments as Map) : const {};
+
+  String get _path => (_args['path'] ?? '').toString();
+
+  int get _outW {
+    final v = _args['outW'];
+    if (v is int) return v;
+    return int.tryParse('$v') ?? 1600;
+  }
+
+  int get _outH {
+    final v = _args['outH'];
+    if (v is int) return v;
+    return int.tryParse('$v') ?? 719;
+  }
 
   @override
   void initState() {
@@ -66,9 +83,20 @@ class _CropImagePageState extends State<CropImagePage> {
     super.dispose();
   }
 
+  String? _error;
+
   Future<void> _load() async {
-    final file = File(_path);
-    if (!file.existsSync()) return;
+    final path = _path;
+    debugPrint('CropImage: args=${Get.arguments} path=$path');
+    if (path.isEmpty) {
+      setState(() => _error = '没有拿到图片路径（arguments 为空）');
+      return;
+    }
+    final file = File(path);
+    if (!file.existsSync()) {
+      setState(() => _error = '文件不存在：$path');
+      return;
+    }
     final bytes = await file.readAsBytes();
     final img = await decodeImageFromList(bytes);
     // ★ 加载时算一次画面平均亮度（决定裁剪框描边用黑还是白）
@@ -200,8 +228,19 @@ class _CropImagePageState extends State<CropImagePage> {
           ),
         ],
       ),
-      body: img == null
-          ? const Center(child: CircularProgressIndicator())
+      body: _error != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ),
+            )
+          : img == null
+              ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
               builder: (context, constraints) => Stack(
                 children: [

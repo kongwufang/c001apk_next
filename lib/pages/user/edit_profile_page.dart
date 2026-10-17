@@ -171,18 +171,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
   /// multipart 规则（`ApiService.kt` 抓包核对）：
   /// part 名 **`imgFile`**、filename 用**图片 md5（无扩展名）**、Content-Type `image/jpeg`
   Future<void> _pickAvatar() async {
-    final picked = await FilePicker.platform.pickFiles(type: FileType.image);
-    final path = picked?.files.firstOrNull?.path;
-    if (path == null) return;
-
-    // ★ 先进裁剪页（600×600 方形，对齐 Android EditProfileActivity 的注释）
-    final cropped = await Get.toNamed<Uint8List>('/cropImage', parameters: {
-      'path': path,
-      'outW': '600',
-      'outH': '600',
-    });
-    final bytes = cropped;
-    if (bytes == null || bytes.isEmpty) return;
+    Uint8List? bytes;
+    try {
+      final picked = await FilePicker.platform.pickFiles(type: FileType.image);
+      final path = picked?.files.firstOrNull?.path;
+      debugPrint('EditProfile.avatar: picked=${picked?.files.length} path=$path');
+      if (path == null) {
+        SmartDialog.showToast('没有选到文件');
+        return;
+      }
+      // ★ 先进裁剪页（600×600 方形，对齐 Android EditProfileActivity 的注释）
+      final cropped = await Get.toNamed<Uint8List>('/cropImage', arguments: {
+        'path': path,
+        'outW': 600,
+        'outH': 600,
+      });
+      debugPrint('EditProfile.avatar: cropped=${cropped?.length}');
+      bytes = cropped;
+    } catch (e, st) {
+      debugPrint('EditProfile.avatar 选图/裁剪失败: $e\n$st');
+      SmartDialog.showToast('选图/裁剪失败：$e');
+      return;
+    }
+    if (bytes == null || bytes.isEmpty) {
+      // 用户在裁剪页点了返回（不是错误，不弹 toast）
+      return;
+    }
 
     final md5Name = md5.convert(bytes).toString();
     setState(() => _saving = true);
@@ -218,16 +232,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
   ///
   /// ⚠️ 同样**没做裁剪**（1080×1080）；上传流程见 `OssUpload` 的类注释。
   Future<void> _pickCover() async {
-    final picked = await FilePicker.platform.pickFiles(type: FileType.image);
-    final path = picked?.files.firstOrNull?.path;
-    if (path == null) return;
-
-    // ★ 先进裁剪页（1080×1080 方形）
-    final bytes = await Get.toNamed<Uint8List>('/cropImage', parameters: {
-      'path': path,
-      'outW': '1080',
-      'outH': '1080',
-    });
+    Uint8List? bytes;
+    try {
+      final picked = await FilePicker.platform.pickFiles(type: FileType.image);
+      final path = picked?.files.firstOrNull?.path;
+      debugPrint('EditProfile.cover: picked=${picked?.files.length} path=$path');
+      if (path == null) {
+        SmartDialog.showToast('没有选到文件');
+        return;
+      }
+      // ★ 先进裁剪页（1080×1080 方形）
+      bytes = await Get.toNamed<Uint8List>('/cropImage', arguments: {
+        'path': path,
+        'outW': 1080,
+        'outH': 1080,
+      });
+      debugPrint('EditProfile.cover: cropped=${bytes?.length}');
+    } catch (e, st) {
+      debugPrint('EditProfile.cover 选图/裁剪失败: $e\n$st');
+      SmartDialog.showToast('选图/裁剪失败：$e');
+      return;
+    }
     if (bytes == null || bytes.isEmpty) return;
 
     setState(() => _saving = true);
