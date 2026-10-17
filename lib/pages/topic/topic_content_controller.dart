@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import '../../logic/model/feed/datum.dart';
 import '../../logic/network/network_repo.dart';
 import '../../logic/state/loading_state.dart';
@@ -49,15 +51,26 @@ class TopicContentController extends CommonController {
     //
     //   注入方式：`Datum` 没有 `configRows` 字段（加字段要重跑 build_runner
     //   生成 `.g.dart`），所以走 `raw` —— 与视频槽 / 附加信息槽同一套做法。
-    if (result is Success && configRows != null && configRows!.isNotEmpty) {
-      final list = result.response;
+    if (result is Success && configRows != null && configRows!.isNotEmpty) {      final list = result.response;
       if (list is List) {
         for (final item in list) {
           if (item is Datum &&
               item.entityTemplate == 'productConfigList' &&
               item.raw != null) {
-            // 服务端真给了就不覆盖
-            item.raw!.putIfAbsent('configRows', () => configRows);
+            // ★ 不能用 `putIfAbsent` —— 服务端那条**很可能带 `configRows: null`**
+            //   （键存在、值是 null），`putIfAbsent` 见键存在就直接跳过，
+            //   于是注入永远不生效（实测：卡片出来了但行是空的）。
+            //
+            //   Android 的写法是 `if (it.configRows == null) it.copy(...)` ——
+            //   也就是「**为 null 就覆盖**」，不是「键不存在才写」。
+            final existing = item.raw!['configRows'];
+            if (existing is! List || existing.isEmpty) {
+              item.raw!['configRows'] = configRows;
+            }
+            // 诊断：注入有没有生效
+            debugPrint('TopicContentController: 注入 configRows → '
+                'title=${item.title} '
+                '现有=${(item.raw!['configRows'] as List?)?.length}');
           }
         }
       }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
 
 import '../../logic/model/feed/datum.dart';
@@ -72,6 +73,11 @@ class TopicController extends CommonController {
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
+      // 诊断：参数 tab 的版本配置到底有没有取到
+      debugPrint('TopicController: id=$id entityType=$entityType '
+          'raw有configRows=${data.raw?.containsKey('configRows')} '
+          'configRows=${configRows?.length} '
+          'tabList=${tabList?.map((e) => e.title).toList()}');
 
       topicState.value = LoadingState.success(response.response);
     } else {
