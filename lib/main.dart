@@ -256,8 +256,13 @@ class C001APKAPP extends StatelessWidget {
               // ★ 桌面端键盘快捷键（b 返回 / l 点赞 / c 收藏 / s 分享 /
               //   a 作者 / m 私信）—— 见 `utils/shortcuts.dart`。
               //   套在 SecondaryTapBack 外层：右键返回与键盘返回互不影响。
-              child: ShortcutScope(
-                child: SecondaryTapBack(child: child!),
+              // ★ 桌面端「本页面直接自由复制」：
+              //   `SelectionArea` 让子树里的文字像网页一样可拖选 + Ctrl+C，
+              //   不需要跳到 `/copy` 那个中间页，也不是「长按复制全文」。
+              child: SelectionArea(
+                child: ShortcutScope(
+                  child: SecondaryTapBack(child: child!),
+                ),
               ),
             ),
           );
