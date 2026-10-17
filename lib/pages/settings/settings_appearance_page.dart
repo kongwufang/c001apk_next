@@ -101,6 +101,56 @@ class SettingsAppearancePage extends StatelessWidget {
             boxKey: SettingsBoxKey.isColorFilter,
             defaultValue: true,
           ),
+
+          // ── 转场动画 ──
+          //
+          // 照抄 Android `res/xml/settings.xml` 的 `animation` 子屏，三项：
+          // 转场曲线 / 转场类型 / 转场速度。
+          // 文案直接取 `arrays.xml` 的 `anim_curve_texts` / `anim_type_texts` /
+          // `anim_speed_texts`。
+          const ItemTitle(title: '转场动画'),
+          const DropDownMenuItem(
+            icon: Icons.show_chart,
+            title: '转场曲线',
+            boxKey: SettingsBoxKey.animCurve,
+            // 与 `GStorage.animCurve` 的默认值一致（2 = std）。
+            // 必须显式给 —— 组件原来的默认是 0，会与 getter 对不上。
+            defaultValue: 2,
+            items: [
+              DropdownMenuItem<int>(value: 0, child: Text('线性（匀速）· 改造前')),
+              DropdownMenuItem<int>(value: 1, child: Text('M2 标准 (0.4, 0, 0.2, 1)')),
+              DropdownMenuItem<int>(value: 2, child: Text('M3 标准')),
+              DropdownMenuItem<int>(value: 3, child: Text('M3 强调')),
+              DropdownMenuItem<int>(value: 4, child: Text('弹簧（rikkahub 同款）')),
+            ],
+          ),
+          const DropDownMenuItem(
+            icon: Icons.animation,
+            title: '转场类型',
+            boxKey: SettingsBoxKey.animType,
+            defaultValue: 0, // slide
+            items: [
+              DropdownMenuItem<int>(value: 0, child: Text('水平滑动')),
+              DropdownMenuItem<int>(value: 1, child: Text('淡入淡出')),
+              DropdownMenuItem<int>(value: 2, child: Text('无动画')),
+            ],
+          ),
+          const DropDownMenuItem(
+            icon: Icons.speed,
+            title: '转场速度',
+            boxKey: SettingsBoxKey.animDuration,
+            // ★ 这个必须给，否则首启会崩：
+            //   `items` 的 value 是 100~500，而组件默认读 0，
+            //   `DropdownButton` 找不到 value=0 的项会直接 assert。
+            defaultValue: 400,
+            items: [
+              DropdownMenuItem<int>(value: 100, child: Text('100 ms')),
+              DropdownMenuItem<int>(value: 200, child: Text('200 ms')),
+              DropdownMenuItem<int>(value: 300, child: Text('300 ms')),
+              DropdownMenuItem<int>(value: 400, child: Text('400 ms')),
+              DropdownMenuItem<int>(value: 500, child: Text('500 ms')),
+            ],
+          ),
         ],
       ),
     );

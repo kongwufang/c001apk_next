@@ -1,4 +1,4 @@
-/// Material 3 / M3E 设计令牌 —— **数值全部从 material AAR 取到，不靠记忆猜**。
+﻿/// Material 3 / M3E 设计令牌 —— **数值全部从 material AAR 取到，不靠记忆猜**。
 ///
 /// 来源：`themes_m3e.xml` 注释写明基于 material **1.14.0**，取法为
 /// ```
@@ -68,6 +68,10 @@ class M3Easing {
 /// lin（旧页回场） -100% → 0
 /// rout（新页退出）   0   → 100%
 /// ```
+/// ⚠️ **已被 utils/m3_transition.dart 的 M3MotionConfig 取代**。
+/// 这几个常量当时是「用户拍板的配置」的固化值；现在转场曲线/类型/时长都从
+/// 设置里读（设置 - 外观 - 转场动画），所以这里只留作历史参考与默认值出处。
+/// 
 class M3Transition {
   const M3Transition._();
 

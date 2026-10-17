@@ -319,6 +319,38 @@ class GStorage {
     settings.put(SettingsBoxKey.isColorFilter, value);
   }
 
+  /// 转场曲线：`0=linear 1=m2 2=std 3=emph 4=spring`
+  ///
+  /// 默认 **2 (std)** —— 台账里记的「用户拍板 std + slide + 400ms，权威」。
+  /// 注：Android `settings.xml` 里声明的默认值是 `emph` / `300`，
+  /// 但那是「选项默认值」，用户 2026-10-06 真机实测后拍板的是 std / 400，
+  /// 所以这里取后者（保持现有观感不变），下拉框里仍可切到 emph。
+  static int get animCurve {
+    return settings.get(SettingsBoxKey.animCurve, defaultValue: 2);
+  }
+
+  static void setAnimCurve(int value) {
+    settings.put(SettingsBoxKey.animCurve, value);
+  }
+
+  /// 转场类型：`0=slide 1=fade 2=none`
+  static int get animType {
+    return settings.get(SettingsBoxKey.animType, defaultValue: 0);
+  }
+
+  static void setAnimType(int value) {
+    settings.put(SettingsBoxKey.animType, value);
+  }
+
+  /// 转场进入时长（毫秒）：100 / 200 / 300 / 400 / 500
+  static int get animDuration {
+    return settings.get(SettingsBoxKey.animDuration, defaultValue: 400);
+  }
+
+  static void setAnimDuration(int value) {
+    settings.put(SettingsBoxKey.animDuration, value);
+  }
+
   static int get staticColor {
     return settings.get(SettingsBoxKey.staticColor, defaultValue: 0);
   }
@@ -645,6 +677,13 @@ class SettingsBoxKey {
       blackDarkTheme = 'blackDarkTheme',
       // 深色模式压暗图片（对齐 Android `isColorFilter`）
       isColorFilter = 'isColorFilter',
+      // ── 转场动画（对齐 Android `TransitionAnim` 的三项设置）──
+      // 曲线：0=linear 1=m2 2=std 3=emph 4=spring
+      animCurve = 'animCurve',
+      // 类型：0=slide 1=fade 2=none
+      animType = 'animType',
+      // 时长：100 / 200 / 300 / 400 / 500（毫秒）
+      animDuration = 'animDuration',
       szlmId = 'szlmId',
       // 取号用的 SSAID（对应 Android 的 Settings.Secure.ANDROID_ID），首次生成后持久化
       ssaid = 'ssaid',

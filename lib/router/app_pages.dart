@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../constants/m3_tokens.dart';
@@ -47,13 +47,20 @@ class AppPages {
       name: name,
       page: page,
       transition: Transition.rightToLeft,
-      transitionDuration: M3Transition.enterDuration,
+      // 时长读设置（`设置 - 外观 - 转场动画 - 转场速度`）。
+      // ⚠️ 改完要 `Get.forceAppUpdate()` 才生效 —— 所以下面 `getPages` 是
+      //    **getter** 而不是 `final` 字段，重建时才拿得到新时长。
+      transitionDuration: M3MotionConfig.enterDuration,
+      // 这条 `curve` 会被 `M3SlideTransition` **忽略**（M3 的进出要用两条不同曲线）
       curve: M3Easing.standard,
       customTransition: M3SlideTransition(),
     );
   }
 
-  static final List<GetPage> getPages = [
+  /// ★ 是 **getter** 而不是 `final` 字段：
+  /// `transitionDuration` 来自设置，用户改完转场速度后 `Get.forceAppUpdate()`
+  /// 会重建 `GetMaterialApp`，这里才会重新生成带新时长的路由表。
+  static List<GetPage> get getPages => [
     _getPage(
       name: '/',
       page: () => const MainPage(),
