@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../logic/model/feed/datum.dart';
+// `orEmpty` / `isNullOrEmpty` 是 `utils/extensions.dart` 里的**扩展**，
+// 不是类成员 —— 缺这个 import 时 Dart 报的是
+// 「The getter 'orEmpty' isn't defined for the type 'String?'」，
+// 看着像字段不存在，其实是扩展没进来。
+import '../../utils/extensions.dart';
 import '../../utils/utils.dart';
 
 /// 产品页「参数」tab 的**版本配置**卡片（`entityTemplate == 'productConfigList'`）。
