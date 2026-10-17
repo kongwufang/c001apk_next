@@ -7,8 +7,10 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../logic/model/feed/data_model.dart';
 import '../../logic/model/feed/datum.dart';
+import '../../constants/constants.dart';
 import '../../logic/network/network_repo.dart';
 import '../../utils/global_data.dart';
+import '../../utils/oss_upload.dart';
 import '../../utils/storage_util.dart';
 
 /// 编辑资料。
@@ -201,6 +203,69 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  /// 换主页背景图。
+  ///
+  /// 对齐 Android `EditProfileActivity`：
+  /// > 背景图：相册选图 → 方形裁剪 1080x1080 → OSS 上传 → changeAvatarCover
+  ///
+  /// ⚠️ 同样**没做裁剪**（1080×1080）；上传流程见 `OssUpload` 的类注释。
+  Future<void> _pickCover() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    final bytes = picked?.files.firstOrNull?.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      // ① prepare：uploadBucket=avatar / uploadDir=cover（Android EditProfileViewModel:176）
+      final md5Hex = md5.convert(bytes).toString();
+      final prepareForm = FormData.fromMap({
+        'uploadBucket': 'avatar',
+        'uploadDir': 'cover',
+        'is_anonymous': '0',
+        'uploadFileList': '[{"name":"cover.jpg","size":${bytes.length},'
+            '"type":"image/jpeg","md5":"$md5Hex"}]',
+        'toUid': '',
+      });
+      final prep = await NetworkRepo.postOSSUploadPrepare(data: prepareForm);
+      final prepData = (prep.data is Map) ? prep.data['data'] : null;
+      final info = prepData?['uploadPrepareInfo'];
+      final fileInfo = (prepData?['fileInfo'] is List)
+          ? (prepData['fileInfo'] as List).first
+          : null;
+      if (info == null || fileInfo == null) {
+        SmartDialog.showToast('背景图上传失败：prepare 无数据');
+        return;
+      }
+
+      // ② 直传 OSS
+      final objectName = await OssUpload.put(
+        endPoint: info['endPoint']?.toString() ?? '',
+        bucket: info['bucket']?.toString() ?? '',
+        objectName: fileInfo['uploadFileName']?.toString() ?? '',
+        accessKeyId: info['accessKeyId']?.toString() ?? '',
+        accessKeySecret: info['accessKeySecret']?.toString() ?? '',
+        securityToken: info['securityToken']?.toString() ?? '',
+        bytes: bytes,
+        mime: 'image/jpeg',
+        versionCode: Constants.VERSION_CODE,
+      );
+
+      // ③ 回传完整 CDN 地址
+      final url = 'http://avatar.coolapk.com/$objectName';
+      await NetworkRepo.postChangeAvatarCover(url: url);
+      SmartDialog.showToast('背景图已更新');
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('EditProfile.cover: $e');
+      SmartDialog.showToast('背景图上传失败：$e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _pickBirthday() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -249,8 +314,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('个人主页背景图'),
-                  subtitle: const Text('尚未移植（需要 OSS 签名上传 + 1080 裁剪）'),
-                  enabled: false,
+                  subtitle: Text(
+                    _saving ? '上传中…' : '点击更换（暂不裁剪，原图上传）',
+                  ),
+                  onTap: _saving ? null : _pickCover,
                 ),
                 const Divider(),
 
