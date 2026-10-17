@@ -42,7 +42,9 @@ class TopicContent extends StatefulWidget {
   /// 放进 `commonBody(header:)` 而不是固定在页面上 —— 这样它会**随列表滚动移出**，
   /// TabBar 仍钉在 `AppBar.bottom` 上，对齐 release-notes 的
   /// 「头部卡片跟随标题栏折叠」（与 Android `CollapsingToolbarLayout` 的
-  /// 淡出 + 视差不同，这里是**平移移出**）。
+  /// **淡出 + 视差**也都补上了（见 `_headerFade` 与 `Transform.translate` 两处）。
+  /// 做法不同：这里是「sliver 内平移 + 透明度 + 半速视差」，
+  /// 那边是 `CollapsingToolbarLayout` 内部自己算的。
   final Widget? headerTop;
 
   @override
@@ -185,10 +187,10 @@ class _TopicContentState extends State<TopicContent>
     // 两者都通过 `commonBody(header:)` 作为**第一个 sliver** 插进列表 ——
     // 于是头部卡自然随滚动走掉，TabBar 仍钉在 `AppBar.bottom` 上。
     //
-    // ⚠️ 与 Android 的差别：那边是 `CollapsingToolbarLayout` +
-    //    `COLLAPSE_MODE_PARALLAX`（**淡出 + 视差**），这里是**平移移出**。
-    //    效果等价（头部让位、TabBar 吸顶），但不需要动 `commonBody` 的
-    //    Sliver / 滚动控制器结构。
+    // Android 是 `CollapsingToolbarLayout` + `COLLAPSE_MODE_PARALLAX`
+    //    （**淡出 + 视差**）。这里用 `Opacity` + `Transform.translate`
+    //    手工做出同样的效果，好处是**不需要动 `commonBody` 的
+    //    Sliver / 滚动控制器结构**。
     // ★ 用 `NotificationListener` 包住 `commonBody` 收滚动通知 ——
     //   列表在 `commonBody` 内部，通知会往上冒，所以监听器挂在外层能收到。
     //   这里只更新折叠进度，不 setState（避免每帧重建整页）。
@@ -213,8 +215,17 @@ class _TopicContentState extends State<TopicContent>
               ValueListenableBuilder<double>(
                 valueListenable: _headerFade,
                 // 只重建这一个 Opacity，child 复用不重建
-                builder: (_, fade, child) =>
-                    Opacity(opacity: 1 - fade, child: child),
+                builder: (_, fade, child) => Opacity(
+                  opacity: 1 - fade,
+                  // ★ 视差：把头部**往下**偏移「折叠进度 × 半程」，
+                  //   于是它上移的速度只有列表的一半 —— 对齐 Android
+                  //   CollapsingToolbarLayout 的 COLLAPSE_MODE_PARALLAX。
+                  //   只偏移、不改 sliver 高度：列表照常收上去，头部像「拖在后面」。
+                  child: Transform.translate(
+                    offset: Offset(0, fade * _headerFadeDistance * 0.5),
+                    child: child,
+                  ),
+                ),
                 child: widget.headerTop,
               ),
             if (orderController != null)
