@@ -257,15 +257,29 @@ class _LoginPageState extends State<LoginPage>
     }
   }
 
-  /// 扫码登录成功：拿到的 refreshToken 写入登录态，再按「网页登录」同样的方式收尾。
+  /// 扫码登录成功：拿到的 `refreshToken` 写入登录态，并**立刻**补齐用户信息。
   ///
-  /// ⚠️ 扫码只给 `refreshToken`（协议如此 ✓），**没有** uid / username ✗
-  /// ⇒ 这里先存 token，由调用方（或下次启动的 `checkLoginInfo`）补齐用户信息 ✓
+  /// ## ⚠️ 这里踩过一个坑（2026-10-18，务必别重犯）
+  /// 第一版写成了：
+  /// ```dart
+  /// GStorage.setToken(refreshToken);   // ✗✗ 灾难
+  /// ```
+  /// ⇒ 把**主 token 覆盖成 refreshToken** ✗
+  /// ⇒ 下次启动 `checkLoginInfo` 拿它当主凭据 ⇒ 服务端**不认** ✗
+  /// ⇒ 回「登录信息有误」⇒ 触发 `setIsLogin(false)` + 清空 uid/username/token ✗✗
+  /// ⇒ 现象就是「诡异的成功」：Hive 里看得见凭据，重启后登录态全没了 ✗
+  ///
+  /// **结论（实测得出）**：`refreshToken` 能用于**业务接口**（早期研究结论 ✓），
+  /// 但**不能当 `checkLoginInfo` 的主凭据** ✗ —— 那个接口只认 `token`。
+  ///
+  /// 所以正确做法是：
+  ///   1. 存 `refreshToken`（第二凭据，业务请求会优先用它 ✓）
+  ///   2. **不动** `token`
+  ///   3. 用 `checkLoginInfo` 换回真正的 uid/username/token —— 不行就调一次业务接口
   Future<void> _onQrLoggedIn(String refreshToken) async {
     if (refreshToken.isEmpty) return;
-    // 两个都写：refreshToken 是第二凭据，token 保证下次启动的换证流程能跑
+
     GStorage.setRefreshToken(refreshToken);
-    GStorage.setToken(refreshToken);
     GStorage.setIsLogin(true);
     SmartDialog.showToast('登录成功');
     Get.back(result: true);
