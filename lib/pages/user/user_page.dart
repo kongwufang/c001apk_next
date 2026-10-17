@@ -154,6 +154,10 @@ class _UserPageState extends State<UserPage> {
               } else {
                 return itemCard(
                   dataList[index],
+                  // 个人主页的内容列表整页统一走完整动态卡
+                  //（对应 Android `UserTabViewModel.feedCoverAsFeed`
+                  //  = `type == "article" || type == "feed"`）
+                  feedCoverAsFeed: true,
                   onBlock: _userController.onBlock,
                 );
               }

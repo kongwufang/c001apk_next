@@ -26,6 +26,8 @@ Widget commonBody(
   CommonController commonController, {
   bool isHomeCard = false,
   bool isReply2Reply = false,
+  /// `feedCover` 是否按完整动态卡排（见 `item_card.dart` 的同名参数）
+  bool feedCoverAsFeed = false,
   dynamic uid,
 }) {
   return Obx(
@@ -40,6 +42,7 @@ Widget commonBody(
               commonController,
               isHomeCard: isHomeCard,
               isReply2Reply: isReply2Reply,
+              feedCoverAsFeed: feedCoverAsFeed,
               uid: uid,
             ),
           )
@@ -48,6 +51,7 @@ Widget commonBody(
               commonController,
               isHomeCard: isHomeCard,
               isReply2Reply: isReply2Reply,
+              feedCoverAsFeed: feedCoverAsFeed,
               uid: uid,
             ),
           ),
@@ -58,6 +62,8 @@ Widget buildBody(
   CommonController commonController, {
   bool isHomeCard = false,
   bool isReply2Reply = false,
+  /// `feedCover` 是否按完整动态卡排（见 `item_card.dart` 的同名参数）
+  bool feedCoverAsFeed = false,
   dynamic uid,
   Function(
     dynamic id,
@@ -122,6 +128,7 @@ Widget buildBody(
             isHomeCard: isHomeCard,
             isReply2Reply: isReply2Reply,
             isTopReply: isReply2Reply && index == 0,
+            feedCoverAsFeed: feedCoverAsFeed,
             uid: uid,
             onBlock: commonController.onBlock,
             onReply: onReply,

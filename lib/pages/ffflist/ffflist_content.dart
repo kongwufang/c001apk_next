@@ -58,6 +58,24 @@ class _FFFListContentState extends State<FFFListContent> {
 
   @override
   Widget build(BuildContext context) {
-    return commonBody(_fffController);
+    // ★ 这几个列表是「某人的内容列表」，整页要走**同一种排法**。
+    //
+    // 对应 Android `FollowViewModel.FULL_CARD_LISTS`：
+    //   setOf("feed", "like", "reply", "replyToMe", "recentHistory")
+    // 原注释：
+    // > 这几个 type 都是「某人的内容列表」，整页按完整动态卡排。
+    // > （htmlFeedList 实测 17 条里 6 条 feedCover、11 条 feed，照模板分派会在一页里
+    // >   混出「紧凑封面卡 / 完整动态卡」两种排法）
+    const fullCardLists = {
+      FFFListType.FEED,
+      FFFListType.LIKE,
+      FFFListType.REPLY,
+      FFFListType.REPLYME,
+      FFFListType.RECENT,
+    };
+    return commonBody(
+      _fffController,
+      feedCoverAsFeed: fullCardLists.contains(widget.type),
+    );
   }
 }

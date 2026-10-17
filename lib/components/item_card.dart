@@ -4,6 +4,7 @@ import '../components/cards/app_card.dart';
 import '../components/cards/carousel_card.dart';
 import '../components/cards/collection_card.dart';
 import '../components/cards/feed_card.dart';
+import '../components/cards/feed_cover_card.dart';
 import '../components/cards/feed_reply_card.dart';
 import '../components/cards/generic_card.dart';
 import '../components/cards/icon_link_grid_card.dart';
@@ -26,6 +27,15 @@ Widget itemCard(
   bool isHomeCard = false,
   bool isReply2Reply = false,
   bool isTopReply = false,
+  /// `feedCover` 是否**按完整动态卡排**。
+  ///
+  /// 对应 Android `AppAdapter.feedCoverAsFeed`，默认 false。原注释：
+  /// > 个人主页「动态」「图文」tab、我的动态 / 我的赞 / 我的回复 / 我的常去这些列表
+  /// > 会把文章（entityTemplate=feedCover）和普通动态混在同一个列表里下发
+  /// > （htmlFeedList 实测 17 条里 6 条 feedCover、11 条 feed），照模板分派会在一页里
+  /// > 混出「紧凑封面卡 / 完整动态卡」两种排法，而要求是整页长一样。
+  /// > 首页 / 教程页 / 产品页晒单 / 数码首页那些发现流仍走紧凑卡（viewType 27）。
+  bool feedCoverAsFeed = false,
   dynamic uid,
   Function(dynamic uid)? onBlock,
   Function(dynamic id, dynamic uname, dynamic fid)? onReply,
@@ -35,7 +45,38 @@ Widget itemCard(
   Function(dynamic id, dynamic like, {bool isFeed, bool isReply})? onLike,
   Function(dynamic id)? onPM,
 }) {
+  // ★ `feedCover` 在「整页统一」的列表里要走**完整动态卡**，
+  //   所以把这一坨抽成局部函数给两个 case 共用。
+  //   （Dart 的 `break` 是**退出整个 switch**，不是 fall-through，
+  //     不能像 Java 那样靠 break 落到下一个 case。）
+  Widget buildFeedCard() => FeedCard(
+        data: data,
+        isFeedContent: isFeedContent,
+        onBlock: onBlock,
+        onDelete: (id) {
+          if (onDelete != null) {
+            onDelete(id, null, isFeed: true);
+          }
+        },
+        onLike: (id, like) {
+          if (onLike != null) {
+            onLike(id, like, isFeed: true);
+          }
+        },
+      );
+
   switch (data.entityType) {
+    // ★ feedCover（紧凑封面卡）—— 没有头像/用户名区，是另一套排法。
+    //   见 `cards/feed_cover_card.dart` 的规格说明。
+    case 'feedCover':
+      if (!feedCoverAsFeed) {
+        return FeedCoverCard(
+          data: data,
+          onLike:
+              onLike != null ? () => onLike(data.id, true, isFeed: true) : null,
+        );
+      }
+      return buildFeedCard();
     case 'card':
       switch (data.entityTemplate) {
         case 'imageCarouselCard_1':
@@ -69,21 +110,7 @@ Widget itemCard(
           return genericCard(data);
       }
     case 'feed':
-      return FeedCard(
-        data: data,
-        isFeedContent: isFeedContent,
-        onBlock: onBlock,
-        onDelete: (id) {
-          if (onDelete != null) {
-            onDelete(id, null, isFeed: true);
-          }
-        },
-        onLike: (id, like) {
-          if (onLike != null) {
-            onLike(id, like, isFeed: true);
-          }
-        },
-      );
+      return buildFeedCard();
     case 'feed_reply':
       if (data.likeUserInfo != null) {
         return LikeCard(data: data);
