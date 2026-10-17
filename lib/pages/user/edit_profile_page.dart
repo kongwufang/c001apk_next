@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide FormData, MultipartFile;
+import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../logic/model/feed/data_model.dart';
@@ -153,6 +156,51 @@ class _EditProfilePageState extends State<EditProfilePage> {
   /// 性别是本地单选，这里直接返回当前选中值
   Future<int?> _fetchGender() async => _gender;
 
+  /// 换头像。
+  ///
+  /// 对齐 Android `EditProfileActivity`：
+  /// > 头像：相册选图 → 方形裁剪 600x600 → multipart 上传（imgFile）→ 返回新头像地址
+  ///
+  /// ⚠️ **没做裁剪**：Android 会先弹 600×600 的方形裁剪页，
+  /// Flutter 侧还没有裁剪页，这里直接传原图（服务端一般会自己缩）。
+  ///
+  /// multipart 规则（`ApiService.kt` 抓包核对）：
+  /// part 名 **`imgFile`**、filename 用**图片 md5（无扩展名）**、Content-Type `image/jpeg`
+  Future<void> _pickAvatar() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    final bytes = picked?.files.firstOrNull?.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+
+    final md5Name = md5.convert(bytes).toString();
+    setState(() => _saving = true);
+    try {
+      final form = FormData.fromMap({
+        'imgFile': MultipartFile.fromBytes(
+          bytes,
+          filename: md5Name, // 无扩展名
+          contentType: DioMediaType('image', 'jpeg'),
+        ),
+      });
+      final res = await NetworkRepo.postChangeAvatar(data: form);
+      final url = (res.data is Map) ? res.data['data']?.toString() : null;
+      if (url != null && url.isNotEmpty) {
+        GStorage.setUserAvatar(url);
+        SmartDialog.showToast('头像已更新');
+        if (mounted) setState(() {});
+      } else {
+        SmartDialog.showToast('头像上传失败');
+      }
+    } catch (e) {
+      debugPrint('EditProfile.avatar: $e');
+      SmartDialog.showToast('头像上传失败：$e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _pickBirthday() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -193,13 +241,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('头像'),
-                  subtitle: const Text('尚未移植（需要图片上传）'),
-                  enabled: false,
+                  subtitle: Text(
+                    _saving ? '上传中…' : '点击更换（暂不裁剪，原图上传）',
+                  ),
+                  onTap: _saving ? null : _pickAvatar,
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('个人主页背景图'),
-                  subtitle: const Text('尚未移植（需要 OSS 上传）'),
+                  subtitle: const Text('尚未移植（需要 OSS 签名上传 + 1080 裁剪）'),
                   enabled: false,
                 ),
                 const Divider(),
