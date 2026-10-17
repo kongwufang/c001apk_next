@@ -205,7 +205,7 @@ class _CropImagePageState extends State<CropImagePage> {
       _log('confirm: png bytes=${data?.lengthInBytes}');
       if (data == null) throw Exception('导出失败');
       Get.back<Uint8List>(result: data.buffer.asUint8List());
-    } catch (e) {
+    } catch (e, st) {
       _log('confirm 失败: $e\n$st');
       if (mounted) setState(() => _busy = false);
     }
