@@ -288,12 +288,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       // ① prepare：uploadBucket=avatar / uploadDir=cover（Android EditProfileViewModel:176）
       final md5Hex = md5.convert(bytes).toString();
+      // ★ `uploadFileList` 的字段必须和 Android 的 `OSSUploadPrepareModel` 一致：
+      //     name / resolution / md5 / hdr
+      //   之前我发的是 `name/size/type/md5` ✗ —— **缺 `resolution`** ✗
+      //   ⇒ 服务端回「图片分辨率异常」(-2011) ✗（实测踩过）
+      //
+      //   Android 侧构造（`EditProfileActivity.uploadCover`）：
+      //     name       = "<UUID 去掉横线>.jpg"
+      //     resolution = "1080x1080"（宽 x 高）
+      //     md5        = 图片 md5 的十六进制
+      //     hdr        = 0
+      final rand = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
+      final fileName = '$rand$rand.jpg'.substring(0, 40);
+      final uploadFileList =
+          '[{"name":"$fileName","resolution":"1080x1080",'
+          '"md5":"$md5Hex","hdr":0}]';
+      _log('cover uploadFileList=$uploadFileList');
       final prepareForm = FormData.fromMap({
         'uploadBucket': 'avatar',
         'uploadDir': 'cover',
         'is_anonymous': '0',
-        'uploadFileList': '[{"name":"cover.jpg","size":${bytes.length},'
-            '"type":"image/jpeg","md5":"$md5Hex"}]',
+        'uploadFileList': uploadFileList,
         'toUid': '',
       });
       _log('cover prepare 请求 size=${bytes.length} md5=$md5Hex');
