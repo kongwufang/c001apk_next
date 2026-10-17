@@ -10,6 +10,7 @@ import '../../logic/network/network_repo.dart';
 import '../../logic/state/loading_state.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../utils/extensions.dart';
+import '../../utils/global_data.dart';
 
 abstract class CommonController extends GetxController {
   int page = 1;
@@ -191,6 +192,66 @@ abstract class CommonController extends GetxController {
         }).toList();
         loadingState.value = LoadingState.success(dataList);
       }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
+
+  /// 个人主页**置顶 / 取消置顶**，并在成功后**本地即时生效**。
+  ///
+  /// 对齐 Android `BaseAppViewModel.onPostStickTop`：
+  /// - 未登录 / uid 为空直接返回；
+  /// - 已置顶 → 调取消接口，否则调置顶接口（见 `NetworkRepo.postStickTop`）；
+  /// - `message` 非空 → 只弹提示（失败）；
+  /// - 否则**本地把小标记翻过来**，并把**置顶项排到列表最前**
+  ///   （「和主页的服务端顺序一致」——Android 原注释）。
+  ///
+  /// 之前只在 `_MorePanel` 里调接口 + toast，置顶后界面毫无变化，
+  /// 徽标和顺序都得刷新才更新 —— 这里补上。
+  Future<void> postStickTop(dynamic id, bool isStickTop) async {
+    final myUid = GlobalData().uid;
+    if (myUid.isEmpty) return;
+    try {
+      final response = await NetworkRepo.postStickTop(
+        feedId: id.toString(),
+        isStickTop: isStickTop,
+        myUid: myUid,
+      );
+      final data = LoginResponse.fromJson(response.data);
+      if (!data.message.isNullOrEmpty) {
+        SmartDialog.showToast(data.message!);
+        return;
+      }
+      final state = loadingState.value;
+      if (state is! Success) return;
+      var dataList = state.response as List<Datum>;
+      // 小标记翻面
+      dataList = dataList.map((d) {
+        if (d.id == id) {
+          d.isStickTop = isStickTop ? 0 : 1;
+        }
+        return d;
+      }).toList();
+      // 刚置顶 → 排到最前
+      if (!isStickTop) {
+        Datum? target;
+        for (final d in dataList) {
+          if (d.id == id) {
+            target = d;
+            break;
+          }
+        }
+        if (target != null) {
+          dataList = [
+            target,
+            ...dataList.where((d) => d.id != id),
+          ];
+        }
+      }
+      loadingState.value = LoadingState.success(dataList);
+      final ok = data.data;
+      if (ok != null) SmartDialog.showToast(ok);
     } catch (e) {
       debugPrint(e.toString());
     }

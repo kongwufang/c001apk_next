@@ -12,7 +12,6 @@ import '../../components/no_splash_factory.dart';
 import '../../logic/model/feed/datum.dart';
 import '../../logic/model/feed/feed_extra.dart';
 import '../../logic/model/feed/feed_video.dart';
-import '../../logic/network/network_repo.dart';
 import '../../utils/date_util.dart';
 import '../clamped_html.dart';
 import 'extra_slot.dart';
@@ -29,6 +28,7 @@ class FeedCard extends StatelessWidget {
     this.isFeedContent = false,
     this.isHistory = false,
     this.onDelete,
+    this.onStickTop,
     this.onBlock,
     this.onLike,
   });
@@ -37,7 +37,14 @@ class FeedCard extends StatelessWidget {
   final bool isFeedContent;
   final bool isHistory;
   final Function(dynamic id)? onDelete;
-  final Function(dynamic uid)? onBlock;
+
+
+  /// 个人主页置顶 / 取消置顶：`(id, 当前是否已置顶)`。
+  ///
+  /// ★ 真正的接口调用 + **本地切标记 / 排到最前**都在
+  /// `CommonController.postStickTop` 里（对齐 Android `onPostStickTop`），
+  /// 这里只负责把点击传上去。
+  final Function(dynamic id, bool isStickTop)? onStickTop;
   final Function(dynamic id, dynamic like)? onLike;
 
   /// 本条的**视频信息**；不是视频动态则为 null。
@@ -544,6 +551,7 @@ Widget header(
                 isHistory: isHistory,
                 onDelete: onDelete,
                 onBlock: onBlock,
+                onStickTop: onStickTop,
                 isStickTop: data.isStickTop == 1,
                 entityType: data.entityType,
               );
@@ -626,6 +634,7 @@ class _MorePanel extends StatelessWidget {
     required this.onBlock,
     required this.isStickTop,
     required this.entityType,
+    required this.onStickTop,
   });
 
   final dynamic id;
@@ -639,6 +648,9 @@ class _MorePanel extends StatelessWidget {
 
   /// 实体类型 —— 只有 `feed` 才允许置顶（Android 同）
   final String? entityType;
+
+  /// 置顶 / 取消置顶的回调（`(id, 当前是否已置顶)`）
+  final Function(dynamic id, bool isStickTop)? onStickTop;
 
   Future<dynamic> menuActionHandler(PanelAction type) async {
     switch (type) {
@@ -665,28 +677,11 @@ class _MorePanel extends StatelessWidget {
         break;
       case PanelAction.stickTop:
         Get.back();
-        // 对齐 Android `BaseAppViewModel.onPostStickTop`：
-        // 已置顶 → 调**取消**接口；未置顶 → 调置顶接口。
-        final myUid = GlobalData().uid;  // 非空 String，默认 ''
-        if (myUid.isEmpty) return;
-        try {
-          final response = await NetworkRepo.postStickTop(
-            feedId: id.toString(),
-            isStickTop: isStickTop,
-            myUid: myUid,
-          );
-          final data = response.data;
-          // 服务端成功时 `data` 是一句话（「个人主页置顶成功」），
-          // 失败时 `message` 有内容 → 照 Android 那样优先弹 message
-          final msg = (data is Map ? data['message'] : null)?.toString() ?? '';
-          if (msg.isNotEmpty) {
-            SmartDialog.showToast(msg);
-          } else {
-            SmartDialog.showToast(isStickTop ? '已取消置顶' : '已置顶');
-          }
-        } catch (e) {
-          SmartDialog.showToast('操作失败');
-        }
+        // 接口调用 + **本地切标记 / 把置顶项排到列表最前** 都在
+        // `CommonController.postStickTop` 里（对齐 Android `onPostStickTop`）。
+        // 这里只负责把点击传上去 —— 之前直接在这儿调接口，
+        // 置顶后界面毫无变化，徽标和顺序都得刷新才更新。
+        onStickTop?.call(id, isStickTop);
         break;
     }
   }

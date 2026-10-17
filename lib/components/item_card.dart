@@ -45,6 +45,10 @@ Widget itemCard(
   Function(dynamic id, dynamic fid, {bool isFeed, bool isReply, bool isNoti})?
       onDelete,
   Function(dynamic id)? onDeleteNoti,
+  /// 个人主页置顶 / 取消置顶：入参是 `(id, 当前是否已置顶)`
+  Function(dynamic id, bool isStickTop)? onStickTop,
+  /// 个人主页置顶 / 取消置顶：入参是 `(id, 当前是否已置顶)`
+  Function(dynamic id, bool isStickTop)? onStickTop,
   Function(dynamic id, dynamic like, {bool isFeed, bool isReply})? onLike,
   Function(dynamic id)? onPM,
 }) {
@@ -56,6 +60,8 @@ Widget itemCard(
         data: data,
         isFeedContent: isFeedContent,
         onBlock: onBlock,
+        onStickTop: onStickTop,
+        onStickTop: onStickTop,
         onDelete: (id) {
           if (onDelete != null) {
             onDelete(id, null, isFeed: true);
