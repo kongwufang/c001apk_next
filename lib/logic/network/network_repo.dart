@@ -398,11 +398,15 @@ class NetworkRepo {
       isStickTop
           ? '${Constants.URL_API_SERVICE}/v6/feed/cancelTopFromNode'
           : '${Constants.URL_API_SERVICE}/v6/feed/addTopToNode',
-      data: FormData.fromMap({
+      // ★ 用**普通 Map** 而不是 `FormData` —— 这样 dio 发的是
+      // `application/x-www-form-urlencoded`，与 Android 的 `@FormUrlEncoded` 一致。
+      // （`postLikeDeleteFollow` 那边用 `FormData` 是因为它要传 multipart；
+      //   置顶这三个字段是纯文本表单字段，跟 Android 对齐更稳。）
+      data: {
         'nodeType': 'member',
         'nodeId': myUid,
         'feedId': feedId,
-      }),
+      },
     );
   }
 
