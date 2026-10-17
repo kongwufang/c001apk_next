@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../components/cards/message_third_card.dart';
 import '../../components/common_body.dart';
 import '../../pages/noitfication/notification_page.dart';
 import '../../utils/global_data.dart';
@@ -87,6 +86,79 @@ class _MessagePageState extends State<MessagePage>
     await _controller.onGetData();
   }
 
+  /// 一个宫格入口。尺寸严格照 `item_message_mess.xml`：
+  /// 42dp 圆形彩色底 + 24dp 白色图标 + 12sp 标题（marginTop 8）+ 上下 padding 10。
+  Widget _entryCell(int i, int? badge) {
+    return InkWell(
+      onTap: () {
+        Get.toNamed('/notification', arguments: {'type': _types[i]});
+        // 点过就把红点清掉（Android 是「离开本页时落账」，这里简化为点即清）
+        if ((badge ?? 0) > 0) {
+          _controller.badges[i] = null;
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 42,
+              height: 42,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // 圆形彩色底
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Color(_colors[i]),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(_icons[i], size: 24, color: Colors.white),
+                  ),
+                  // 未读红点（Android 由 MessageBadgeDecoration 画在顶层；
+                  // 这里用 Badge 挂在圆形右上角，效果等价）
+                  if ((badge ?? 0) > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        constraints:
+                            const BoxConstraints(minWidth: 16, minHeight: 16),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          badge! > 99 ? '99+' : '$badge',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _titles[i],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -115,32 +187,30 @@ class _MessagePageState extends State<MessagePage>
                 // ★ 宫格**固定在顶部，不随列表滚动** ——
                 //   Android 原话：「入口宫格不进列表，是为了让『未读红点』
                 //   始终可见，不用滚回顶部才能看。」
+                // 宫格：**竖直小格子**，尺寸照抄 Android `item_message_mess.xml`
+                //   圆形彩色底 42dp + 白色图标 24dp + 标题 12sp(marginTop 8) + 上下 padding 10
+                //   总高 ≈ 87dp；4 列**紧挨着**（crossAxisSpacing 0），左右 padding 8
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: GridView.count(
-                    crossAxisCount: 4,
+                  child: GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: List.generate(_titles.length, (i) {
-                      return Obx(
-                        () => messageThirdCard(
-                          context,
-                          _colors[i],
-                          _icons[i],
-                          _titles[i],
-                          _badgeAt(i),
-                          () {
-                            Get.toNamed('/notification',
-                                arguments: {'type': _types[i]});
-                            // 点过就把红点清掉
-                            // （Android 是「离开本页时落账」，这里简化为点即清）
-                            if ((_badgeAt(i) ?? 0) > 0) {
-                              _controller.badges[i] = null;
-                            }
-                          },
-                        ),
-                      );
-                    }),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 0,
+                      mainAxisSpacing: 0,
+                      // ★ 用固定格高而不是 childAspectRatio ——
+                      //   aspectRatio 会让格高随窗口宽度变化（宽屏下被拉得很大）
+                      mainAxisExtent: 87,
+                    ),
+                    itemCount: _titles.length,
+                    itemBuilder: (context, i) => Obx(
+                      () => _entryCell(
+                        i,
+                        _badgeAt(i),
+                      ),
+                    ),
                   ),
                 ),
                 const Divider(height: 1),
