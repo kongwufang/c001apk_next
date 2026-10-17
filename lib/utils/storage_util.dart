@@ -651,6 +651,10 @@ class GStorage {
   static void setIsLogin(bool value) {
     settings.put(SettingsBoxKey.isLogin, value);
     GlobalData().isLogin = value;
+    // ★ 登录 / 退出后刷新整棵界面。
+    //   `GlobalData` 没有可监听的信号 ⇒ 不主动重建的话，
+    //   「我的」页、动态卡片的点赞/收藏按钮、「关注」按钮全都还是旧状态 ✗
+    GlobalData().refresh();
   }
 
   static String get uid {

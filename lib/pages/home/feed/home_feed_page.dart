@@ -30,7 +30,8 @@ class _HomeFeedPageState extends State<HomeFeedPage>
   @override
   bool get wantKeepAlive => true;
 
-  late final bool isLogin = GlobalData().isLogin;
+  // ★ 不能是 `late final`：那样只读一次，登录/退出后**永远还是旧值** ✗
+  bool get isLogin => GlobalData().isLogin;
   AnimationController? _fabAnimationCtr;
   late bool _isFabVisible = true;
 
