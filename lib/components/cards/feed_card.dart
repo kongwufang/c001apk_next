@@ -97,6 +97,7 @@ class FeedCard extends StatelessWidget {
                 isFeedContent,
                 isHistory: isHistory,
                 onDelete: onDelete,
+                onStickTop: onStickTop,
                 onBlock: () {
                   if (onBlock != null) {
                     onBlock!(data.uid);
@@ -436,6 +437,9 @@ Widget header(
   bool isHistory = false,
   Function(dynamic id)? onDelete,
   Function()? onBlock,
+  /// 个人主页置顶 / 取消置顶 —— `header(...)` 是**顶层函数**
+  /// （不在 `FeedCard` 里），`FeedCard.onStickTop` 不会自动可见，必须显式传进来。
+  Function(dynamic id, bool isStickTop)? onStickTop,
 }) {
   return Row(
     children: [
