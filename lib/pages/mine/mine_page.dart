@@ -106,7 +106,7 @@ class _MinePageState extends State<MinePage> {
           if (_isLogin)
             IconButton(
               onPressed: () async {
-                final changed = await Get.to(() => const EditProfilePage());
+                final changed = await Get.toNamed('/editProfile');
                 // 改过就重拉资料
                 if (changed == true) _fetchProfile();
               },
@@ -122,7 +122,7 @@ class _MinePageState extends State<MinePage> {
             ),
           // 未登录也能进设置，只是没有「退出登录」可按
           IconButton(
-            onPressed: () => Get.to(() => const SettingsPage()),
+            onPressed: () => Get.toNamed('/settings'),
             icon: const Icon(Icons.settings_outlined),
             tooltip: '设置',
           ),

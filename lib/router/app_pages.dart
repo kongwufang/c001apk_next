@@ -8,6 +8,7 @@ import '../pages/carousel/carousel_page.dart';
 import '../pages/chat/chat_page.dart';
 import '../pages/coolpic/coolpic_page.dart';
 import '../pages/dyh/dyh_page.dart';
+import '../pages/article/article_publish_page.dart';
 import '../pages/feed/feed_page.dart';
 import '../pages/ffflist/ffflist_page.dart';
 import '../pages/history/cloud_history_page.dart';
@@ -15,6 +16,8 @@ import '../pages/history/history_page.dart';
 import '../pages/home/app/update/app_update_page.dart';
 import '../pages/login/login_page.dart';
 import '../pages/main/main_page.dart';
+import '../pages/message/message_page.dart';
+import '../pages/settings/settings_page.dart';
 import '../pages/noitfication/notification_page.dart';
 import '../pages/others/copy_page.dart';
 import '../pages/others/imageview_page.dart';
@@ -80,6 +83,18 @@ class AppPages {
     // ★ 设置下的二级页也走 `_getPage` —— 之前它们是 `Get.to(() => Page())`，
     //   绕过了路由表 ⇒ 用 GetX 默认转场（不是 M3、也不读「转场速度」设置）✗
     //   这就是「设置页里转场动画不统一」的原因。
+    _getPage(
+      name: '/message',
+      page: () => const MessagePage(),
+    ),
+    _getPage(
+      name: '/settings',
+      page: () => const SettingsPage(),
+    ),
+    _getPage(
+      name: '/articlePublish',
+      page: () => const ArticlePublishPage(),
+    ),
     _getPage(
       name: '/settingsAppearance',
       page: () => const SettingsAppearancePage(),

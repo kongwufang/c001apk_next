@@ -87,7 +87,7 @@ class _HomeFeedPageState extends State<HomeFeedPage>
     if (which == null || !mounted) return;
 
     if (which == 1) {
-      Get.to(() => const ArticlePublishPage());
+      Get.toNamed('/articlePublish');
       return;
     }
     Navigator.of(context).push(

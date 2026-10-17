@@ -185,7 +185,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           // 消息入口 + 未读角标（对应 Android 的 FrameLayout#message + messageBadge）
           IconButton(
-            onPressed: () => Get.to(() => const MessagePage()),
+            onPressed: () => Get.toNamed('/message'),
             icon: Badge.count(
               count: _unreadCount,
               isLabelVisible: _unreadCount > 0,
