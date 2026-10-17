@@ -31,6 +31,8 @@ class FeedCard extends StatelessWidget {
     this.onStickTop,
     this.onBlock,
     this.onLike,
+    this.onFavorite,
+    this.onForward,
   });
 
   final Datum data;
@@ -47,6 +49,17 @@ class FeedCard extends StatelessWidget {
   /// 这里只负责把点击传上去。
   final Function(dynamic id, bool isStickTop)? onStickTop;
   final Function(dynamic id, dynamic like)? onLike;
+
+  /// 「收藏」——点开**多收藏夹选择面板**（对齐 Android `ItemListener.onFavoriteClick`）。
+  ///
+  /// 只有详情页传；列表卡不传（回到「底栏只有回复数 + 点赞数」的原样）。
+  final Function()? onFavorite;
+
+  /// 「转发」——**拉系统分享面板发链接**，不是转发动态。
+  ///
+  /// Android `ItemListener.onShareFeed` 原注释：
+  /// > 详情页底栏「转发」：拉系统分享面板发链接（不是转发动态，forwardnum 不变）
+  final Function()? onForward;
 
   /// 本条的**视频信息**；不是视频动态则为 null。
   ///
@@ -125,7 +138,9 @@ class FeedCard extends StatelessWidget {
                 if (onLike != null) {
                   onLike!(data.id, data.userAction?.like);
                 }
-              }),
+              },
+                  onFavorite: onFavorite,
+                  onForward: onForward),
               if (data.targetRow != null || !data.relationRows.isNullOrEmpty)
                 _rows(context),
             ],
@@ -576,7 +591,26 @@ Widget bottomInfo(
   Function()? onViewFeed,
   Function()? onLike, {
   bool isFeedArticle = false,
+  // 「收藏」「转发」只有详情页会传（对齐 Android `item_feed_article_action.xml`）
+  Function()? onFavorite,
+  Function()? onForward,
 }) {
+  // `Datum` 没生成 `favnum` / `forwardnum` 字段，`UserAction` 也只有 like/follow
+  // ⇒ 从 `raw` 读。`isFavorited` 照 Android 的计算属性：
+  //   `userAction?.collect == 1 || userAction?.favorite == 1`
+  final raw = data.raw;
+  String? rawStr(String k) {
+    final v = raw?[k];
+    if (v == null) return null;
+    return v.toString();
+  }
+
+  final favNum = rawStr('favnum');
+  final forwardNum = rawStr('forwardnum');
+  final ua = raw?['userAction'];
+  bool isOne(Object? v) => v == 1 || v == '1';
+  final isFav =
+      ua is Map && (isOne(ua['collect']) || isOne(ua['favorite']));
   return Padding(
     padding: EdgeInsets.only(
       left: isFeedContent ? 16 : 10,
@@ -621,6 +655,24 @@ Widget bottomInfo(
                 onLike();
               }
             },
+          ),
+        // ── 以下两个只在详情页出现（列表卡不传 onFavorite / onForward）──
+        // 对齐 Android `item_feed_article_action.xml` 的 favorite / forward
+        if (onFavorite != null && favNum != null)
+          LikeButton(
+            value: favNum,
+            icon: isFav ? Icons.star : Icons.star_border,
+            isLike: isFav,
+            onClick: () {
+              if (GlobalData().isLogin) onFavorite!();
+            },
+          ),
+        if (onForward != null && forwardNum != null)
+          LikeButton(
+            value: forwardNum,
+            // Android 用 `ic_feed_forward`（一个朝右的转发箭头）
+            icon: Icons.forward,
+            onClick: onForward,
           ),
       ],
     ),

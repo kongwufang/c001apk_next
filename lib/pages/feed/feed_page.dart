@@ -166,6 +166,18 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                     );
                   }
                 },
+                // ★ 详情页底栏的「收藏」「转发」（列表卡不传这两个，行为不变）
+                //   对齐 Android `item_feed_article_action.xml`
+                onFavorite: () => showCollectionPickSheet(
+                  feedId: _id,
+                  onAction: (action) =>
+                      _feedController.onCollectionAction(action),
+                ),
+                // Android `onShareFeed` 的注释：拉系统分享面板发链接
+                //（**不是转发动态**，forwardnum 不变）
+                onForward: () => SharePlus.instance.share(
+                  ShareParams(uri: Utils.getShareUri(_id, ShareType.feed)),
+                ),
               )
             : SliverList.separated(
                 itemCount: _feedController.articleList!.length + 2,
@@ -184,7 +196,9 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                         feedState.response!,
                         true,
                         null,
-                        isFeedArticle: true,
+                        // ⚠️ 位置参数必须排在命名参数**前面** ——
+                        //    原来这里把 `isFeedArticle: true` 写在 onLike 之前，
+                        //    位置参数排到了命名参数后面（Dart 不允许）。
                         () {
                           if (GlobalData().isLogin) {
                             Datum data = feedState.response;
@@ -195,6 +209,16 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                             );
                           }
                         },
+                        isFeedArticle: true,
+                        onFavorite: () => showCollectionPickSheet(
+                          feedId: _id,
+                          onAction: (action) =>
+                              _feedController.onCollectionAction(action),
+                        ),
+                        onForward: () => SharePlus.instance.share(
+                          ShareParams(
+                              uri: Utils.getShareUri(_id, ShareType.feed)),
+                        ),
                       ),
                     );
                   } else {
