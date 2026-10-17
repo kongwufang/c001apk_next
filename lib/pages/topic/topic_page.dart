@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logic/state/loading_state.dart';
+import '../../components/topic_header_card.dart';
 import '../../pages/home/return_top_controller.dart';
 import '../../pages/feed/reply/reply_dialog.dart' show ReplyType;
 import '../../pages/feed/reply/reply_page.dart';
@@ -122,6 +123,30 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
   ///
   /// 「发点评」只在**产品页**、且服务端 `allow_rating == 1`、
   /// 且下发了 `rating_item_info` 时才给。
+  /// 关注 / 取消关注（话题走 tag 接口、产品走 follow 接口）。
+  ///
+  /// 抽成方法是为了让**菜单项**和**头部卡片上的关注按钮**共用一套逻辑
+  /// （Android 那边也是两处都调 `onSubscribeClick()`）。
+  void _onFollow() {
+    if (!GlobalData().isLogin) return;
+    if (_topicController.entityType == 'topic') {
+      _topicController.onGetFollow(
+        _topicController.isFollow,
+        _topicController.isFollow
+            ? '/v6/feed/unFollowTag'
+            : '/v6/feed/followTag',
+        tag: _topicController.title,
+      );
+    } else {
+      _topicController.postLikeDeleteFollow(
+        _topicController.id,
+        null,
+        isProduct: true,
+        isFollow: _topicController.isFollow,
+      );
+    }
+  }
+
   Future<void> _onPublish() async {
     final isProduct = _topicController.entityType == 'product';
     final canRating = isProduct &&
@@ -282,24 +307,7 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                           _showPopupMenu();
                           break;
                         case TopicMenuItem.Follow:
-                          if (GlobalData().isLogin) {
-                            if (_topicController.entityType == 'topic') {
-                              _topicController.onGetFollow(
-                                _topicController.isFollow,
-                                _topicController.isFollow
-                                    ? "/v6/feed/unFollowTag"
-                                    : "/v6/feed/followTag",
-                                tag: _topicController.title,
-                              );
-                            } else {
-                              _topicController.postLikeDeleteFollow(
-                                _topicController.id,
-                                null,
-                                isProduct: true,
-                                isFollow: _topicController.isFollow,
-                              );
-                            }
-                          }
+                          _onFollow();
                           break;
                         case TopicMenuItem.Block:
                           GStorage.onBlock(
@@ -355,23 +363,48 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                   ? Center(
                       child: Text('${_topicController.title} is Blocked'),
                     )
-                  : TabBarView(
-                      controller: _tabController,
-                      children: _topicController.tabList!
-                          .map((item) => TopicContent(
-                                random: _random,
-                                tag: _topicController.tag,
-                                id: _topicController.id,
-                                index: _topicController.tabList!.indexOf(item),
-                                entityType: _topicController.entityType!,
-                                url: item.url.toString(),
-                                title: item.title.toString(),
-                                // 产品页「参数」tab 的版本配置列表 ——
-                                // 服务端下发的 productConfigList 卡片 entities 恒为空，
-                                // 要由这里注入（见 TopicContentController 的注释）
-                                configRows: _topicController.configRows,
-                              ))
-                          .toList(),
+                  : Column(
+                      children: [
+                        // 头部卡片（logo / 标题 / 统计 / 简介 / 关注行）
+                        //
+                        // ⚠️ Android 是 `CollapsingToolbarLayout`，上滑会**折叠淡出**；
+                        //    本工程先做成**固定**（见 TopicHeaderCard 的注释：
+                        //    做折叠要动 `commonBody` 的 Sliver 结构，风险大）。
+                        TopicHeaderCard(
+                          logo: _topicController.headerLogo,
+                          title: _topicController.title ?? '',
+                          hotNum: _topicController.headerHotNum,
+                          commentNum: _topicController.headerCommentNum,
+                          intro: _topicController.headerIntro,
+                          followNum: _topicController.headerFollowNum,
+                          avatars: _topicController.headerAvatars,
+                          isFollow: _topicController.isFollow,
+                          isLogin: GlobalData().isLogin,
+                          onFollow: _onFollow,
+                        ),
+                        const Divider(height: 1),
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: _topicController.tabList!
+                                .map((item) => TopicContent(
+                                      random: _random,
+                                      tag: _topicController.tag,
+                                      id: _topicController.id,
+                                      index:
+                                          _topicController.tabList!.indexOf(item),
+                                      entityType: _topicController.entityType!,
+                                      url: item.url.toString(),
+                                      title: item.title.toString(),
+                                      // 产品页「参数」tab 的版本配置列表 ——
+                                      // 服务端下发的 productConfigList 卡片 entities 恒为空，
+                                      // 要由这里注入（见 TopicContentController 的注释）
+                                      configRows: _topicController.configRows,
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                      ],
                     ),
             )
           : Scaffold(

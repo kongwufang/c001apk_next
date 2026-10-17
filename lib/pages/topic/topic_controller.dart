@@ -40,6 +40,25 @@ class TopicController extends CommonController {
 
   /// 这个产品**允许点评**（`allow_rating == 1`）
   bool allowRating = false;
+
+  // ── 头部卡片（`item_topic_header.xml`）──
+  //
+  // 字段口径照抄 Android `TopicViewModel.publishHeader`：
+  // ```
+  // logo       ← data.logo
+  // title      ← data.title
+  // hotNum     ← hot_num_txt
+  // commentNum ← commentnum_txt
+  // intro      ← intro
+  // followNum  ← follownum_txt
+  // avatars    ← recent_follow_list[].userAvatar
+  // ```
+  String headerLogo = '';
+  String headerHotNum = '';
+  String headerCommentNum = '';
+  String headerIntro = '';
+  String headerFollowNum = '';
+  List<String> headerAvatars = const [];
   RxInt initialIndex = 0.obs;
   Rx<LoadingState> topicState = LoadingState.loading().obs;
 
@@ -99,6 +118,22 @@ class TopicController extends CommonController {
             .toList();
       }
       allowRating = data.raw?['allow_rating']?.toString() == '1';
+
+      // 头部卡片（字段口径见字段声明的注释）
+      String s(String key) => data.raw?[key]?.toString() ?? '';
+      headerLogo = s('logo');
+      headerHotNum = s('hot_num_txt');
+      headerCommentNum = s('commentnum_txt');
+      headerIntro = s('intro');
+      headerFollowNum = s('follownum_txt');
+      final recentFollow = data.raw?['recent_follow_list'];
+      if (recentFollow is List) {
+        headerAvatars = recentFollow
+            .whereType<Map>()
+            .map((e) => e['userAvatar']?.toString() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
 
       // 诊断：参数 tab 的版本配置到底有没有取到
       debugPrint('TopicController: id=$id entityType=$entityType '
