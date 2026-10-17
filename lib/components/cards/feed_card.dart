@@ -1,4 +1,4 @@
-﻿import 'package:c001apk_flutter/components/network_image.dart';
+import 'package:c001apk_flutter/components/network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -387,7 +387,6 @@ class FeedCard extends StatelessWidget {
       )
     ];
   }
-}
 
   /// 正文：列表里**最多 5 行 + 「查看更多」**，详情页给全文。
   ///
@@ -417,6 +416,7 @@ class FeedCard extends StatelessWidget {
       child: content,
     );
   }
+}
 
 Widget header(
   BuildContext context,
