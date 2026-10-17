@@ -199,13 +199,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
         return;
       }
       // ★ 先进裁剪页（600×600 方形，对齐 Android EditProfileActivity 的注释）
-      final cropped = await Get.toNamed<Uint8List>('/cropImage', arguments: {
+      // ★ 不能用 `Get.toNamed<Uint8List>`：
+      //   GetX 内部建的是 `GetPageRoute<dynamic>`，
+      //   泛型一加上去就会在 `pushNamed` 里抛
+      //   `type 'GetPageRoute<dynamic>' is not a subtype of type 'Route<Uint8List?>?'` ✗
+      //   （2026-10-18 实测踩过，日志里有完整堆栈）
+      //   ⇒ 用无泛型的 `Get.toNamed`，拿到结果再自己判类型 ✓
+      final raw = await Get.toNamed('/cropImage', arguments: {
         'path': path,
         'outW': 600,
         'outH': 600,
       });
-      _log('avatar cropped=${cropped?.length}');
-      bytes = cropped;
+      _log('avatar raw=${raw.runtimeType} len=${raw is Uint8List ? raw.length : null}');
+      bytes = raw is Uint8List ? raw : null;
     } catch (e, st) {
       _log('avatar 失败: $e\n$st');
       SmartDialog.showToast('选图/裁剪失败：$e');
@@ -260,12 +266,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
         return;
       }
       // ★ 先进裁剪页（1080×1080 方形）
-      bytes = await Get.toNamed<Uint8List>('/cropImage', arguments: {
+      // ★ 同 `_pickAvatar`：不能带泛型（`GetPageRoute<dynamic>` 转不过去 ✗）
+      final raw = await Get.toNamed('/cropImage', arguments: {
         'path': path,
         'outW': 1080,
         'outH': 1080,
       });
-      _log('cover cropped=${bytes?.length}');
+      _log('cover raw=${raw.runtimeType} len=${raw is Uint8List ? raw.length : null}');
+      bytes = raw is Uint8List ? raw : null;
     } catch (e, st) {
       _log('cover 失败: $e\n$st');
       SmartDialog.showToast('选图/裁剪失败：$e');
