@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../components/cards/app_card.dart';
 import '../components/cards/carousel_card.dart';
@@ -16,6 +16,7 @@ import '../components/cards/image_text_scroll_card.dart';
 import '../components/cards/like_card.dart';
 import '../components/cards/message_card.dart';
 import '../components/cards/notification_card.dart';
+import '../components/cards/rating_card.dart';
 import '../components/cards/text_card.dart';
 import '../components/cards/title_card.dart';
 import '../logic/model/feed/datum.dart';
@@ -182,6 +183,9 @@ Widget itemCard(
       return MessageCard(data: data, onPM: onPM);
     case 'collection':
       return CollectionCard(data: data);
+    // 个人主页「点评」tab 的实体（Android `AppAdapter` 的 viewType 21）
+    case 'nodeRating':
+      return RatingCard(data: data);
   }
   // ★ 顶层 `entityType` 也没匹配到 → 同样交给通用卡片。
   //
