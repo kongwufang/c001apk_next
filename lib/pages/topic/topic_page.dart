@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/dialog/dialog_route.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logic/state/loading_state.dart';
 import '../../pages/home/return_top_controller.dart';
+import '../../pages/feed/reply/reply_dialog.dart' show ReplyType;
 import '../../pages/feed/reply/reply_page.dart';
 import '../../pages/topic/topic_content.dart';
 import '../../pages/topic/topic_controller.dart';
@@ -109,6 +110,76 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
         _topicController.tabList![index].title == '讨论';
   }
 
+  /// 发布入口。
+  ///
+  /// 对齐 Android `TopicFragment.startReply`：
+  /// ```kotlin
+  /// MaterialAlertDialogBuilder(...)
+  ///   .setItems(arrayOf(publishFeed, publishRating))
+  ///   { _, which -> startReply(if (which == 0) "createFeed" else "rating") }
+  /// ```
+  /// —— 产品页是**二选一**（发动态 / 发点评），话题页只有一个（发动态）。
+  ///
+  /// 「发点评」只在**产品页**、且服务端 `allow_rating == 1`、
+  /// 且下发了 `rating_item_info` 时才给。
+  Future<void> _onPublish() async {
+    final isProduct = _topicController.entityType == 'product';
+    final canRating = isProduct &&
+        _topicController.allowRating &&
+        (_topicController.ratingItems?.isNotEmpty ?? false);
+
+    var rating = false;
+    if (canRating) {
+      final which = await showDialog<int>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: const Text('发布'),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Get.back(result: 0),
+              child: const Text('发动态'),
+            ),
+            SimpleDialogOption(
+              onPressed: () => Get.back(result: 1),
+              child: const Text('发点评'),
+            ),
+          ],
+        ),
+      );
+      if (which == null || !mounted) return;
+      rating = which == 1;
+    }
+
+    Navigator.of(context).push(
+      GetDialogRoute(
+        pageBuilder: (buildContext, animation, secondaryAnimation) {
+          return ReplyPage(
+            type: rating ? ReplyType.rating : null,
+            ratingItems: rating ? _topicController.ratingItems : null,
+            targetType:
+                _topicController.entityType == 'topic' ? 'tag' : 'product_phone',
+            targetId: _topicController.id,
+            title: _topicController.title,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0);
+          const end = Offset.zero;
+          const curve = Curves.linear;
+
+          var tween =
+              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildBody(LoadingState topicState) {
     switch (topicState) {
       case Empty():
@@ -142,51 +213,8 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
                       !_topicController.isBlocked
                   ? FloatingActionButton(
                       heroTag: null,
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          GetDialogRoute(
-                            pageBuilder:
-                                (buildContext, animation, secondaryAnimation) {
-                              return ReplyPage(
-                                targetType:
-                                    _topicController.entityType == 'topic'
-                                        ? 'tag'
-                                        : 'product_phone',
-                                targetId: _topicController.id,
-                                title: _topicController.title,
-                              );
-                            },
-                            transitionDuration:
-                                const Duration(milliseconds: 500),
-                            transitionBuilder: (context, animation,
-                                secondaryAnimation, child) {
-                              const begin = Offset(0.0, 1.0);
-                              const end = Offset.zero;
-                              const curve = Curves.linear;
-
-                              var tween = Tween(begin: begin, end: end)
-                                  .chain(CurveTween(curve: curve));
-
-                              return SlideTransition(
-                                position: animation.drive(tween),
-                                child: child,
-                              );
-                            },
-                          ),
-                        );
-                        // showModalBottomSheet<dynamic>(
-                        //   context: context,
-                        //   isScrollControlled: true,
-                        //   builder: (context) => ReplyDialog(
-                        //     targetType: _topicController.entityType == 'topic'
-                        //         ? 'tag'
-                        //         : 'product_phone',
-                        //     targetId: _topicController.id,
-                        //     title: _topicController.title,
-                        //   ),
-                        // );
-                      },
-                      tooltip: 'Create Feed',
+                      onPressed: _onPublish,
+                      tooltip: '发布',
                       child: const Icon(Icons.add),
                     )
                   : null,

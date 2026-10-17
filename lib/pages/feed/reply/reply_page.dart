@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -21,6 +21,7 @@ import '../../../logic/model/oss_upload/datum.dart';
 import '../../../logic/model/oss_upload/oss_upload_model.dart';
 import '../../../logic/network/network_repo.dart';
 import '../../../pages/feed/reply/emoji_panel.dart';
+import '../../../pages/feed/reply/rating_panel.dart';
 import '../../../pages/feed/reply/reply_dialog.dart' show ReplyType;
 import '../../../pages/feed/reply/toolbar_icon_button.dart';
 import '../../../utils/extensions.dart';
@@ -40,6 +41,7 @@ class ReplyPage extends StatefulWidget {
     this.targetType,
     this.targetId,
     this.title,
+    this.ratingItems,
   });
 
   final ReplyType? type;
@@ -48,6 +50,13 @@ class ReplyPage extends StatefulWidget {
   final String? targetType;
   final dynamic targetId;
   final String? title;
+
+  /// **发表点评**（`type == ReplyType.rating`）用的评分子项定义。
+  ///
+  /// 来自 `product/detail` 的 `rating_item_info`：
+  /// `[{id: 'v4_score_item_1', name: '续航', …}, …]`。
+  /// 提交时子项字段名直接取 `id`（`v4_score_item_1..n`）。
+  final List<Map<String, dynamic>>? ratingItems;
 
   @override
   State<ReplyPage> createState() => _ReplyPageState();
@@ -79,6 +88,11 @@ class _ReplyPageState extends State<ReplyPage>
   String? _pic;
 
   late final _scrollController = ScrollController();
+
+  /// 发表点评时的表单快照（由 [RatingPanel] 回填）
+  RatingFormValue? _ratingValue;
+
+  bool get _isRating => widget.type == ReplyType.rating;
 
   @override
   void initState() {
@@ -257,6 +271,21 @@ class _ReplyPageState extends State<ReplyPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ★ 发表点评：评分面板占住上半部分，下面的输入框只写正文
+          //   （Android 原注释：「评分面板占住主区域，输入框只写正文」）
+          if (_isRating)
+            RatingPanel(
+              target: widget.title ?? '',
+              items: widget.ratingItems ?? const [],
+              onChanged: (value) {
+                _ratingValue = value;
+                // 评分面板齐了才允许发布
+                if (value.valid != _enablePublish) {
+                  _enablePublish = value.valid;
+                  _publishStream.add(value.valid);
+                }
+              },
+            ),
           Container(
             padding:
                 const EdgeInsets.only(top: 12, right: 15, left: 15, bottom: 10),
@@ -577,6 +606,57 @@ class _ReplyPageState extends State<ReplyPage>
         }
       }
       SmartDialog.showLoading(msg: '正在发布');
+      if (_isRating) {
+        // ★ 发表点评：字段口径照抄 Android `ReplyActivity` 的 rating 分支
+        //
+        //   - `rating_score_1` = 总体分（**1~5 星，原值**；6+ 服务端回「请正确打分」）
+        //   - `v4_score_item_n` = 子项分（**星数 × 2**，0~10 量纲；
+        //     实测真机提交 10/8/6/4/2）
+        //   - `publish_status` **固定 0**（点评不公开，与动态的 1 不同）
+        //   - `comment_general` 固定空串（安卓的上手点评不填总结）
+        final value = _ratingValue;
+        if (value == null || !value.valid) {
+          SmartDialog.dismiss();
+          SmartDialog.showToast('请给总体评分和每个分项都打分');
+          return;
+        }
+        final form = <String, dynamic>{
+          'id': '',
+          'message': _replyContentController.text,
+          'type': 'rating',
+          'status': '1',
+          'publish_status': '0',
+          if (widget.targetType != null) 'targetType': widget.targetType,
+          if (widget.targetId != null) 'targetId': widget.targetId,
+          'rating_score_1': value.overall.toString(),
+          'comment_good': value.good,
+          'comment_general': '',
+          'comment_bad': value.bad,
+          'buy_status': value.buyStatus ? '1' : '0',
+          'pic': _pic,
+        };
+        final items = widget.ratingItems ?? const [];
+        for (var i = 0; i < value.itemStars.length && i < items.length; i++) {
+          // 字段名取子项自己的 id（服务端给的就是 v4_score_item_n）
+          final key = items[i]['id']?.toString() ?? 'v4_score_item_${i + 1}';
+          form[key] = (value.itemStars[i] * 2).toString();
+        }
+        final response = await NetworkRepo.postCreateFeed(
+          FormData.fromMap(form),
+        );
+        LoginResponse data = LoginResponse.fromJson(response.data);
+        SmartDialog.dismiss();
+        if (!data.message.isNullOrEmpty) {
+          SmartDialog.showToast(data.message!);
+          if (data.messageStatus == 'err_request_captcha') {
+            _onGetCaptcha();
+          }
+        } else {
+          SmartDialog.showToast('点评成功');
+          Get.back();
+        }
+        return;
+      }
       if (widget.id == null) {
         Response response = await NetworkRepo.postCreateFeed(
           FormData.fromMap(

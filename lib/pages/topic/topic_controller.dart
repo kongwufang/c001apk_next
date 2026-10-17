@@ -19,8 +19,7 @@ class TopicController extends CommonController {
   String? entityType;
   List<TabList>? tabList;
 
-  /// 产品页「参数」tab 的**版本配置列表**（`product/detail` 的顶层 `configRows`）。
-  ///
+  /// 产品页「参数」tab 的**版本配置列表**（`product/detail` 的顶层 `configRows`）。  ///
   /// 对齐 Android `TopicContentViewModel.configRows`。真源注释：
   /// > 产品页「参数」tab：由 Fragment 从 product/detail 的 configRows 传入，
   /// > 合并进 dataList 下发的 productConfigList 卡片
@@ -28,6 +27,19 @@ class TopicController extends CommonController {
   ///
   /// 也就是说：不注入这份数据，参数 tab 就是一张**空白卡片**。
   List<Map<String, dynamic>>? configRows;
+
+  /// 点评的**评分子项**（`product/detail` 的 `rating_item_info`）。
+  ///
+  /// 实测形态：
+  /// ```
+  /// [{id: 'v4_score_item_1', name: '续航',
+  ///   star_desc: ['很差','较差','一般','较好','非常好'], v4_score: 0}, …]
+  /// ```
+  /// 提交时子项分数字段名就是 `v4_score_item_1..n`（**直接取 `id`** 即可）。
+  List<Map<String, dynamic>>? ratingItems;
+
+  /// 这个产品**允许点评**（`allow_rating == 1`）
+  bool allowRating = false;
   RxInt initialIndex = 0.obs;
   Rx<LoadingState> topicState = LoadingState.loading().obs;
 
@@ -73,10 +85,26 @@ class TopicController extends CommonController {
             .map((e) => Map<String, dynamic>.from(e))
             .toList();
       }
+      // 点评：子项定义 + 是否允许点评
+      //
+      // `product/detail` 实测字段：
+      //   rating_item_info: [{id: 'v4_score_item_1', name: '续航',
+      //                       star_desc: [...], v4_score: 0}, …]   ← 6 个子项
+      //   allow_rating: '1'
+      final rawRatingItems = data.raw?['rating_item_info'];
+      if (rawRatingItems is List) {
+        ratingItems = rawRatingItems
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+      allowRating = data.raw?['allow_rating']?.toString() == '1';
+
       // 诊断：参数 tab 的版本配置到底有没有取到
       debugPrint('TopicController: id=$id entityType=$entityType '
           'raw有configRows=${data.raw?.containsKey('configRows')} '
           'configRows=${configRows?.length} '
+          'ratingItems=${ratingItems?.length} allowRating=$allowRating '
           'tabList=${tabList?.map((e) => e.title).toList()}');
 
       topicState.value = LoadingState.success(response.response);

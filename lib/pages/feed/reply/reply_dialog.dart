@@ -28,7 +28,12 @@ import '../../../utils/utils.dart';
 
 /// From Pilipala
 
-enum ReplyType { feed, reply }
+/// 回复框的用途。
+///
+/// - `feed`：在首页/话题页**发新动态**（`type = "feed"`）
+/// - `reply`：回复某条动态
+/// - `rating`：**发表点评**（`type = "rating"`，见 `ReplyPage` 里的评分面板）
+enum ReplyType { feed, reply, rating }
 
 class ReplyDialog extends StatefulWidget {
   const ReplyDialog({
