@@ -170,12 +170,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
   ///
   /// multipart 规则（`ApiService.kt` 抓包核对）：
   /// part 名 **`imgFile`**、filename 用**图片 md5（无扩展名）**、Content-Type `image/jpeg`
+  /// 把诊断信息**写到文件**，方便事后排查（toast 一闪就没了 ✗）。
+  ///
+  /// 路径：`%TEMP%\c001apk_profile.log`（Windows 下即
+  /// `C:\Users\<你>\AppData\Local\Temp\c001apk_profile.log`）
+  static void _log(String msg) {
+    debugPrint('EditProfile: $msg');
+    try {
+      final f = File('${Directory.systemTemp.path}/c001apk_profile.log');
+      f.writeAsStringSync(
+        '[${DateTime.now().toIso8601String()}] $msg\n',
+        mode: FileMode.append,
+        flush: true,
+      );
+    } catch (_) {}
+  }
+
   Future<void> _pickAvatar() async {
     Uint8List? bytes;
     try {
       final picked = await FilePicker.platform.pickFiles(type: FileType.image);
       final path = picked?.files.firstOrNull?.path;
-      debugPrint('EditProfile.avatar: picked=${picked?.files.length} path=$path');
+      _log('avatar picked=${picked?.files.length} path=$path');
       if (path == null) {
         SmartDialog.showToast('没有选到文件');
         return;
@@ -186,10 +202,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'outW': 600,
         'outH': 600,
       });
-      debugPrint('EditProfile.avatar: cropped=${cropped?.length}');
+      _log('avatar cropped=${cropped?.length}');
       bytes = cropped;
     } catch (e, st) {
-      debugPrint('EditProfile.avatar 选图/裁剪失败: $e\n$st');
+      _log('avatar 失败: $e\n$st');
       SmartDialog.showToast('选图/裁剪失败：$e');
       return;
     }
@@ -236,7 +252,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final picked = await FilePicker.platform.pickFiles(type: FileType.image);
       final path = picked?.files.firstOrNull?.path;
-      debugPrint('EditProfile.cover: picked=${picked?.files.length} path=$path');
+      _log('cover picked=${picked?.files.length} path=$path');
       if (path == null) {
         SmartDialog.showToast('没有选到文件');
         return;
@@ -247,9 +263,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'outW': 1080,
         'outH': 1080,
       });
-      debugPrint('EditProfile.cover: cropped=${bytes?.length}');
+      _log('cover cropped=${bytes?.length}');
     } catch (e, st) {
-      debugPrint('EditProfile.cover 选图/裁剪失败: $e\n$st');
+      _log('cover 失败: $e\n$st');
       SmartDialog.showToast('选图/裁剪失败：$e');
       return;
     }

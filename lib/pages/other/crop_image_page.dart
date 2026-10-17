@@ -85,9 +85,22 @@ class _CropImagePageState extends State<CropImagePage> {
 
   String? _error;
 
+  /// 诊断日志写到 `%TEMP%\c001apk_profile.log`（toast 一闪就没了 ✗）
+  static void _log(String msg) {
+    debugPrint('CropImage: $msg');
+    try {
+      final f = File('${Directory.systemTemp.path}/c001apk_profile.log');
+      f.writeAsStringSync(
+        '[${DateTime.now().toIso8601String()}] CropImage: $msg\n',
+        mode: FileMode.append,
+        flush: true,
+      );
+    } catch (_) {}
+  }
+
   Future<void> _load() async {
     final path = _path;
-    debugPrint('CropImage: args=${Get.arguments} path=$path');
+    _log('args=${Get.arguments} path=$path');
     if (path.isEmpty) {
       setState(() => _error = '没有拿到图片路径（arguments 为空）');
       return;
@@ -160,6 +173,7 @@ class _CropImagePageState extends State<CropImagePage> {
     final img = _image;
     if (img == null || _busy) return;
     setState(() => _busy = true);
+    _log('confirm: box=$_cropRect scale=${_tc.value.getMaxScaleOnAxis()} out=${_outW}x$_outH');
     try {
       final box = _cropRect;
       final m = _tc.value;
@@ -183,13 +197,16 @@ class _CropImagePageState extends State<CropImagePage> {
         Rect.fromLTWH(0, 0, _outW.toDouble(), _outH.toDouble()),
         Paint()..filterQuality = FilterQuality.high,
       );
+      _log('confirm: srcRect=$srcRect');
       final picture = recorder.endRecording();
       final out = await picture.toImage(_outW, _outH);
+      _log('confirm: toImage ok ${out.width}x${out.height}');
       final data = await out.toByteData(format: ui.ImageByteFormat.png);
+      _log('confirm: png bytes=${data?.lengthInBytes}');
       if (data == null) throw Exception('导出失败');
       Get.back<Uint8List>(result: data.buffer.asUint8List());
     } catch (e) {
-      debugPrint('CropImage: $e');
+      _log('confirm 失败: $e\n$st');
       if (mounted) setState(() => _busy = false);
     }
   }
