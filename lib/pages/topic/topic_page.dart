@@ -22,7 +22,9 @@ import '../../components/m3e_progress.dart';
 enum TopicMenuItem {
   Copy('复制'),       // copyText
   Share('分享'),      // share
-  Sort('排序'),
+  // ★ 没有 `Sort` 了 —— 产品/话题「讨论」tab 的排序改成**内联三段式控件**
+  //   （列表顶部，见 `components/sort_header.dart`），对齐 Android
+  //   `ProductSortHeaderAdapter`；那边菜单里也没有排序入口。
   Follow('关注'),     // follow
   Block('加入黑名单'); // block
 
@@ -87,10 +89,6 @@ class _TopicPageState extends State<TopicPage> with TickerProviderStateMixin {
         initialIndex: initialIndex < 0 ? 0 : initialIndex,
         length: _topicController.tabList!.length,
       );
-      setShouldShowActions(initialIndex);
-      _tabController?.addListener(() {
-        setShouldShowActions(_tabController!.index);
-      });
     });
   }
 
