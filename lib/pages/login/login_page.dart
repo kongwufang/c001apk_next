@@ -17,6 +17,7 @@ import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 import '../../utils/utils.dart';
+import 'qr_login_view.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,7 +26,11 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController =
+      TabController(length: 2, vsync: this);
+
   bool _showPassword = false;
   final _showPasswordStream = StreamController<bool>();
   final _showClearAccount = StreamController<bool>();
@@ -159,6 +164,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _showPasswordStream.close();
     _showClearAccount.close();
     _showClearCaptcha.close();
@@ -172,88 +178,96 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('登录'),
-        bottom: const PreferredSize(
-          preferredSize: Size.zero,
-          child: Divider(height: 1),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: '网页登录'),
+            Tab(text: '扫码登录'),
+          ],
         ),
-        actions: [
-          if (Utils.isSupportWebview())
-            TextButton(
-              onPressed: () async {
-                dynamic result = await Get.toNamed('/webview', parameters: {
-                  'url': Constants.URL_LOGIN,
-                  'isLogin': '1',
-                });
-                if (result == true) {
-                  SmartDialog.showToast('登录成功');
-                  Get.back(result: true);
-                } else if (result == false) {
-                  SmartDialog.showToast('网页登录失败');
-                }
-              },
-              child: const Text('网页登录'),
-            ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _webLoginPane(context),
+          QrLoginView(onLoggedIn: _onQrLoggedIn),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Align(
-          alignment: Utils.isPortrait(context)
-              ? Alignment.topCenter
-              : Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ★ 把「网页登录」放到**表单上方**并做成主按钮。
-              //
-              // 原因：服务端**已经移除表单登录接口**（Android `ApiService` 里
-              // 已无 `loginByCoolapk`，注释是「登录表单相关的接口已随表单登录一起移除」），
-              // 所以下面那套账号 / 密码 / 验证码**点了也不会通**。
-              // 上游只把「网页登录」塞在 AppBar 的 actions 里，很不显眼，
-              // 用户会先去填表单然后一直失败。
-              if (Utils.isSupportWebview()) ...[
-                SizedBox(
-                  width: 500.0,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      dynamic result =
-                          await Get.toNamed('/webview', parameters: {
-                        'url': Constants.URL_LOGIN,
-                        'isLogin': '1',
-                      });
-                      if (result == true) {
-                        SmartDialog.showToast('登录成功');
-                        Get.back(result: true);
-                      } else if (result == false) {
-                        SmartDialog.showToast('网页登录失败');
-                      }
-                    },
-                    icon: const Icon(Icons.public),
-                    label: const Text('网页登录（推荐）'),
+    );
+  }
+
+  /// 「网页登录」那一页（原来的内容整块搬进来）
+  Widget _webLoginPane(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Align(
+        alignment: Utils.isPortrait(context)
+            ? Alignment.topCenter
+            : Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ★ 表单登录接口服务端已移除（Android `ApiService` 里已无 `loginByCoolapk`），
+            //   所以这里只留「网页登录」这一条能走通的路。
+            if (Utils.isSupportWebview()) ...[
+              SizedBox(
+                width: 500.0,
+                child: FilledButton.icon(
+                  onPressed: _doWebLogin,
+                  icon: const Icon(Icons.public),
+                  label: const Text('网页登录（推荐）'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 500.0,
+                child: Text(
+                  '表单登录接口服务端已移除，请用「网页登录」',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 500.0,
-                  child: Text(
-                    '表单登录接口服务端已移除，请用「网页登录」',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
+              ),
+              const SizedBox(height: 20),
             ],
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  /// 网页登录（AppBar 的按钮和页面主按钮共用这段逻辑）
+  Future<void> _doWebLogin() async {
+    dynamic result = await Get.toNamed('/webview', parameters: {
+      'url': Constants.URL_LOGIN,
+      'isLogin': '1',
+    });
+    if (result == true) {
+      SmartDialog.showToast('登录成功');
+      Get.back(result: true);
+    } else if (result == false) {
+      SmartDialog.showToast('网页登录失败');
+    }
+  }
+
+  /// 扫码登录成功：拿到的 refreshToken 写入登录态，再按「网页登录」同样的方式收尾。
+  ///
+  /// ⚠️ 扫码只给 `refreshToken`（协议如此 ✓），**没有** uid / username ✗
+  /// ⇒ 这里先存 token，由调用方（或下次启动的 `checkLoginInfo`）补齐用户信息 ✓
+  Future<void> _onQrLoggedIn(String refreshToken) async {
+    if (refreshToken.isEmpty) return;
+    // 两个都写：refreshToken 是第二凭据，token 保证下次启动的换证流程能跑
+    GStorage.setRefreshToken(refreshToken);
+    GStorage.setToken(refreshToken);
+    GStorage.setIsLogin(true);
+    SmartDialog.showToast('登录成功');
+    Get.back(result: true);
   }
 }
