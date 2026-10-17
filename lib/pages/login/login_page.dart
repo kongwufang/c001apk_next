@@ -265,17 +265,25 @@ class _LoginPageState extends State<LoginPage>
   /// GStorage.setToken(refreshToken);   // ✗✗ 灾难
   /// ```
   /// ⇒ 把**主 token 覆盖成 refreshToken** ✗
-  /// ⇒ 下次启动 `checkLoginInfo` 拿它当主凭据 ⇒ 服务端**不认** ✗
-  /// ⇒ 回「登录信息有误」⇒ 触发 `setIsLogin(false)` + 清空 uid/username/token ✗✗
+  /// ⇒ 重启后 `checkLoginInfo` 发出的 cookie 变成
+  ///   `uid=; username=; token=<refreshToken>`（uid / username 都是空的 ✗）
+  /// ⇒ 服务端判为无效 ⇒ 回「登录信息有误」⇒ 清空 uid/username/token ✗✗
   /// ⇒ 现象就是「诡异的成功」：Hive 里看得见凭据，重启后登录态全没了 ✗
   ///
-  /// **结论（实测得出）**：`refreshToken` 能用于**业务接口**（早期研究结论 ✓），
-  /// 但**不能当 `checkLoginInfo` 的主凭据** ✗ —— 那个接口只认 `token`。
+  /// ## ★ 关于 refreshToken 的能力边界（已核对原文，别再猜）
+  /// `_rev/win_ref/verify_token_live.py` 的 `CASES` **第一条就是**
+  /// `("登录自检", "/v6/account/checkLoginInfo", None)` ✓
+  /// 而且两种凭据（`login token` / `refreshToken`）各跑了一遍全部 11 条接口 ✓
+  /// 结论：**业务接口上表现逐项一致** ✓（`DETAIL_5902.md:145`）
+  ///
+  /// ⇒ `refreshToken` **是能用于 `checkLoginInfo` 的** ✓
+  /// ⇒ 上面那次失败是「空的 uid=/username= 让它判无效」✗，**不是** refreshToken 不被认 ✗
+  ///   （我一度写成了「不认」✗ —— 那是凭一次现象下的错结论，已更正）
   ///
   /// 所以正确做法是：
   ///   1. 存 `refreshToken`（第二凭据，业务请求会优先用它 ✓）
-  ///   2. **不动** `token`
-  ///   3. 用 `checkLoginInfo` 换回真正的 uid/username/token —— 不行就调一次业务接口
+  ///   2. **不动** `token`（主凭据保留 ✓）
+  ///   3. uid / username 由下次 `checkLoginInfo` 补齐 ✓
   Future<void> _onQrLoggedIn(String refreshToken) async {
     if (refreshToken.isEmpty) return;
 
