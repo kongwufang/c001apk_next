@@ -11,6 +11,7 @@ import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../../utils/webview_env.dart';
 
 // ignore: constant_identifier_names
 enum WebviewMenuItem {
@@ -63,37 +64,42 @@ class _WebviewPageState extends State<WebviewPage> {
     'https://m.coolapk.com',
   ];
 
+  /// ★ Windows 上**必须**把 `webViewEnvironment` 传给 `CookieManager`，
+  /// 否则取 cookie 会返回空（插件已知缺陷，详见 `utils/webview_env.dart`）。
+  CookieManager get _cookieManager =>
+      CookieManager.instance(webViewEnvironment: WebViewEnv.instance);
+
   @override
   void initState() {
     super.initState();
-    CookieManager().deleteAllCookies();
+    _cookieManager.deleteAllCookies();
     if (GlobalData().isLogin) {
-      CookieManager().setCookie(
+      _cookieManager.setCookie(
         url: WebUri.uri(Uri.parse('.coolapk.com')),
         name: 'DID',
         value: GStorage.szlmId,
       );
-      CookieManager().setCookie(
+      _cookieManager.setCookie(
         url: WebUri.uri(Uri.parse('.coolapk.com')),
         name: 'forward',
         value: 'https://www.coolapk.com',
       );
-      CookieManager().setCookie(
+      _cookieManager.setCookie(
         url: WebUri.uri(Uri.parse('.coolapk.com')),
         name: 'displayVersion',
         value: 'v14',
       );
-      CookieManager().setCookie(
+      _cookieManager.setCookie(
         url: WebUri.uri(Uri.parse('.coolapk.com')),
         name: 'uid',
         value: GlobalData().uid,
       );
-      CookieManager().setCookie(
+      _cookieManager.setCookie(
         url: WebUri.uri(Uri.parse('.coolapk.com')),
         name: 'username',
         value: GlobalData().username,
       );
-      CookieManager().setCookie(
+      _cookieManager.setCookie(
         url: WebUri.uri(Uri.parse('.coolapk.com')),
         name: 'token',
         value: GlobalData().token,
@@ -134,29 +140,71 @@ class _WebviewPageState extends State<WebviewPage> {
     String? username;
 
     for (final url in _cookieUrls) {
-      for (final name in const ['uid', 'token', 'username']) {
-        if (name == 'uid' && uid != null) continue;
-        if (name == 'token' && token != null) continue;
-        if (name == 'username' && username != null) continue;
-        try {
-          final c = await CookieManager()
-              .getCookie(url: WebUri.uri(Uri.parse(url)), name: name);
-          final v = c?.value;
-          if (v == null || v.isEmpty) continue;
-          switch (name) {
-            case 'uid':
-              uid = v;
-              break;
-            case 'token':
-              token = v;
-              break;
-            case 'username':
-              username = v;
-              break;
-          }
-        } catch (_) {
-          // 某个域取不到就跳过，别让一个异常打断整轮检查
+      if (uid != null && token != null && username != null) break;
+      List<Cookie> list;
+      try {
+        // ★★★ 关键：**必须传 `webViewController`**。
+        //
+        // Windows 上不传它就取不到「带分区键的 cookie」，返回空列表 ——
+        // 这正是登录一直检测不到的原因（插件已知缺陷，作者在
+        // issue #2314 里明确给出这个修法，6.2.0-beta.2 起支持）。
+        // 同时还要求 `CookieManager.instance(webViewEnvironment: ...)`
+        // 与 `InAppWebView(webViewEnvironment: ...)` 传的是同一个环境。
+        list = await _cookieManager.getCookies(
+          url: WebUri.uri(Uri.parse(url)),
+          webViewController: _webViewController,
+        );
+      } catch (_) {
+        // 某个域取不到就跳过，别让一个异常打断整轮检查
+        continue;
+      }
+      for (final c in list) {
+        switch (c.name) {
+          case 'uid':
+            uid ??= c.value;
+            break;
+          case 'token':
+            token ??= c.value;
+            break;
+          case 'username':
+            username ??= c.value;
+            break;
         }
+      }
+    }
+
+    // ★ 兜底：直接读 `document.cookie`。
+    //
+    // 不依赖插件的 cookie API，所以在插件仍有问题的平台上也可能拿到。
+    // 局限：**读不到 HttpOnly 的 cookie** —— 所以它只是补充，
+    // 主路径仍然是上面带 `webViewController` 的 `getCookies`。
+    if (uid.isNullOrEmpty || token.isNullOrEmpty) {
+      try {
+        final raw = await _webViewController?.evaluateJavascript(
+          source: 'document.cookie',
+        );
+        if (raw is String && raw.isNotEmpty) {
+          for (final part in raw.split(';')) {
+            final kv = part.trim().split('=');
+            if (kv.length < 2) continue;
+            final name = kv[0].trim();
+            final value = kv.sublist(1).join('=').trim();
+            if (value.isEmpty) continue;
+            switch (name) {
+              case 'uid':
+                uid ??= value;
+                break;
+              case 'token':
+                token ??= value;
+                break;
+              case 'username':
+                username ??= value;
+                break;
+            }
+          }
+        }
+      } catch (_) {
+        // 兜底失败无所谓，主路径的结果才算数
       }
     }
 
@@ -275,6 +323,9 @@ class _WebviewPageState extends State<WebviewPage> {
         ],
       ),
       body: InAppWebView(
+        // ★ Windows 上要把同一个 `WebViewEnvironment` 也传给 WebView 本体，
+        // 否则 `CookieManager` 拿到的环境跟它不一致，照样取不到 cookie。
+        webViewEnvironment: WebViewEnv.instance,
         initialSettings: InAppWebViewSettings(
           useHybridComposition: false,
           mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,

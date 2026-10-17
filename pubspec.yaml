@@ -1,4 +1,4 @@
-name: c001apk_flutter
+﻿name: c001apk_flutter
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -45,7 +45,7 @@ dependencies:
   expandable_page_view: ^1.0.17
   extended_nested_scroll_view: ^6.2.1
   file_picker: ^10.2.0
-  flutter_inappwebview: ^6.0.0
+  flutter_inappwebview: ^6.2.0-beta.2
   flutter_smart_dialog: ^4.9.7+9
   # 双列瀑布流：对齐 Android 端横屏的
   # `StaggeredGridLayoutManager(2, VERTICAL)`（见 BaseViewFragment.initView()）。

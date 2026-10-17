@@ -14,6 +14,7 @@ import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
 import 'utils/storage_util.dart';
 import 'utils/utils.dart';
+import 'utils/webview_env.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,11 @@ void main() async {
 
   await GStorage.init();
   HttpOverrides.global = CustomHttpOverrides();
+
+  // Windows 上必须先建 `WebViewEnvironment` 才能正确读 cookie ——
+  // 否则 `CookieManager` 返回空列表，**网页登录永远检测不到登录态**。
+  // 详见 `utils/webview_env.dart` 的说明。非 Windows 会直接返回。
+  await WebViewEnv.init();
 
   // 其他屏蔽项（关键字 / 用户 / 节点）先用本地缓存初始化 ——
   // **冷启动没网也要能过滤**，随后由 SpamConfigRepo.refresh() 拿网络结果覆盖。
