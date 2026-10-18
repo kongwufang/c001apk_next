@@ -207,6 +207,11 @@ class ApiError {
         return '发送超时，请稍后重试';
       case DioExceptionType.unknown:
         return '未知错误';
+      // ⚠️ dio 5.11 新增了 `transformTimeout`（还有可能继续加 ✗）
+      //    用 `default` 兜底 ✓ 否则升级 dio 就 Analyze 红 ✗
+      //    （enum 的 switch 在 Dart 里允许 default ✓）
+      default:
+        return '网络请求失败';
     }
   }
 
