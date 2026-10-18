@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
 import '../../constants/constants.dart';
 import '../../utils/storage_util.dart';
+import '../../utils/update_checker.dart';
 import '../../utils/utils.dart';
 
 /// 关于本应用。
@@ -67,6 +69,67 @@ class _AboutPageState extends State<AboutPage> {
     } catch (_) {
       // 网络不通 / 被限流：不显示 bio ✓
     }
+  }
+
+  /// 「立即检查更新」。
+  ///
+  /// 走 Android **同一个接口** ✓（`https://service.houlangs.cn/c001apk/update/`）
+  /// 请求头里带 `X-Client-Platform: windows` ✓ 服务端据此下发
+  /// `stable-windows.json` 而不是安卓的 `stable.json` ✓
+  /// 随机用户 ID 用 `GStorage.userRandomId` ✓（生成一次、永久复用）
+  Future<void> _checkUpdate() async {
+    SmartDialog.showToast('正在检查更新…');
+    final info = await UpdateChecker.fetchUpdate();
+    if (!mounted) return;
+
+    if (info == null) {
+      SmartDialog.showToast('检查更新失败，请稍后再试');
+      return;
+    }
+    if (!info.isNewer) {
+      SmartDialog.showToast('已是最新版本');
+      return;
+    }
+
+    // 有新版本：版本号 + 更新日志 + 下载线路
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('发现新版本 ${info.versionName}'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (info.changelog.isNotEmpty)
+                Text(info.changelog, style: const TextStyle(fontSize: 13)),
+              if (info.lines.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('下载地址', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                for (final line in info.lines)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.download, size: 20),
+                    title: Text(line.name.isEmpty ? '下载' : line.name),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Utils.launchURL(line.url);
+                    },
+                  ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('稍后'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -167,7 +230,7 @@ class _AboutPageState extends State<AboutPage> {
             leading: const Icon(Icons.system_update_alt),
             title: const Text('立即检查更新'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Get.toNamed('/appUpdate'), // ← 路由名是 /appUpdate ✗ 不是 /update
+            onTap: _checkUpdate,
           ),
         ],
       ),
