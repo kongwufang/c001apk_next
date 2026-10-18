@@ -54,9 +54,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExeName}
 SetupLogging=yes
 
+; ⚠️ Inno Setup **不自带简体中文语言包** ✗（`Languages\ChineseSimplified.isl` 不存在）
+;    所以界面只有英文 ✓ 要中文得把社区维护的 .isl 一起提交进仓库（以后再说）
 [Languages]
-Name: "chinesesimp"; MessagesFile: "compiler:Default.isl"
-Name: "english"; MessagesFile: "compiler:Languages\English.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加任务:"; Flags: unchecked
