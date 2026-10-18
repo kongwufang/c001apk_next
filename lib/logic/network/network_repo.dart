@@ -12,6 +12,7 @@ import '../../logic/state/loading_state.dart';
 import '../../utils/extensions.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
+import 'api_error.dart';
 
 class NetworkRepo {
   /// 其他屏蔽项（关键字 / 用户 / 节点）的配置。
@@ -754,7 +755,8 @@ class NetworkRepo {
       //   （下面 `getListData` 一直是对的：它写的是 `return await handleListResponse(...)`。）
       return await handleDataResponse(response);
     } catch (err) {
-      return LoadingState.error(err.toString());
+      // ★ 统一走 ApiError ✓ —— 从响应体的 message 取人话 ✓
+      return LoadingState.error(_errText(err));
     }
   }
 
@@ -771,8 +773,21 @@ class NetworkRepo {
         includeCardEntities: includeCardEntities,
       );
     } catch (err) {
-      return LoadingState.error(err.toString());
+      return LoadingState.error(_errText(err));
     }
+  }
+
+  /// 把任意异常转成一句人话 ✓
+  ///
+  /// **这是整个 App 错误文案的唯一出口** —— UI 层不再自己猜 ✓
+  /// - `DioException` ⇒ 优先用它响应体里的 `message` ✓ 没有才按类型分类 ✓
+  /// - 其它异常   ⇒ `toString()` 但去掉 `Exception: ` 前缀 ✓
+  static String _errText(Object err) {
+    if (err is DioException) {
+      return ApiError.fromDio(err).title;
+    }
+    final s = err.toString();
+    return s.startsWith('Exception: ') ? s.substring(11) : s;
   }
 
   static Future<LoadingState> handleDataResponse(
@@ -789,7 +804,8 @@ class NetworkRepo {
         }
       }
     } else {
-      return LoadingState.error('statusCode: ${response.statusCode}');
+      // ★ 非 200 时**也要**从响应体里找 message ✓（原来只给状态码 ✗ 用户看不懂 ✗）
+      return LoadingState.error(ApiError.fromResponse(response).title);
     }
   }
 
@@ -845,7 +861,7 @@ class NetworkRepo {
         }
       }
     } else {
-      return LoadingState.error('statusCode: ${response.statusCode}');
+      return LoadingState.error(ApiError.fromResponse(response).title);
     }
   }
 }
