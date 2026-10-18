@@ -1,19 +1,19 @@
 {
-  "versionName": "V1.0.5",
-  "versionCode": 10005,
-  "changelog": "V1.0.5 · 正式版\n\n【卡片渲染】\n- 新增通用卡片渲染：服务端下发的全部卡片模板都能正确展示，不再出现空白或错版\n- 照官方重画一批卡片：链接卡、胶囊列表卡、图文展开卡、选择器链接卡、标题卡、图文按钮卡、封面卡、续航卡、跑分卡、置顶内容卡\n- 补齐视频槽与附加信息槽（点评/二手/商品清单），动态与图文按官方模板展示\n- 移除字号行距的云端热更依赖，样式改由内置规则表控制\n\n【离线缓存】\n- 动态与图文存到本机，断网也能看\n- 新增「离线缓存」管理页，可查看与清理\n\n【安全】\n- 数字联盟 ID 改走内置人机验证网页（CF Turnstile + App 签名校验）\n- 新增包签名校验：非本机签名的包拒绝启动\n\n【其它】\n- 正文超 5 行折叠时露出「查看更多」，点击进详情页看全文\n- 识别剪贴板里的酷安分享链接并提示打开；搜索框粘贴链接直接跳转\n- 个人主页签名的展开/收起按钮改用主题色\n- 收藏后星标点亮与收藏数回写修复；收藏夹勾选改为主题色\n- 换数字联盟 ID 不再重置机型参数",
+  "versionName": "V1.0.6",
+  "versionCode": 10006,
+  "changelog": "V1.0.6 · 正式版\n\n【可诊断性】\n- 出错时显示服务端返回的**真实原因**，不再只有一句「加载失败」\n- 40 处列表 / 详情页的固定错误文案换成真实错误信息\n- 新增「记录 HTTP 请求日志」（设置 → 高级，**默认关闭**）\n  全局记录请求方法 / 地址 / 状态码 / 耗时 / 响应体（前 2KB）\n  敏感字段（token、Cookie、设备标识等）在本机脱敏，只保留长度\n  可导出成文件（不需要存储权限）、可一键清空；按天存放，2MB 滚动，保留 7 天\n\n【消息中心】\n- 显示**全部**消息，不再「读完就消失」\n- 宫格补齐「我的回复」「酷安小秘书」，共 7 项，配色对齐官方\n\n【数字联盟 ID 失效可自救】\n- 命中「评论接口异常 / 当前访问需要验证码 / 版本异常(-419) / HTTP 567」时\n  自动弹窗说明原因，并可直接跳转到取号页；完成人机验证后自动恢复\n\n【其它】\n- 若干稳定性修复",
   "download": [
     {
       "name": "高速下载",
-      "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next-V1.0.5-release.10005.apk"
+      "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next-V1.0.6-release.10006.apk"
     },
     {
       "name": "线路一（GitHub 直链）",
-      "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.5-release.10005.apk"
+      "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.6-release.10006.apk"
     },
     {
       "name": "线路二（发行版页面）",
-      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/release-latest"
+      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.6"
     }
   ]
 }

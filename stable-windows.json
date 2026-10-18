@@ -1,0 +1,19 @@
+{
+  "versionName": "1.0.6",
+  "versionCode": 10006,
+  "changelog": "V1.0.6 · 正式版（Windows 桌面端）\n\n【首个正式版】\n- 修复装好后**窗口全白**（关掉 Impeller，回到 Skia 渲染）\n- 修复内置网页打不开（WebView 数据目录落在 Program Files 里不可写）\n- 登录默认「扫码登录」，并在顶部说明为什么更安全\n\n【与安卓端对齐】\n- 「我的赞」改为**点赞来源卡**\n- 补上**搜索联想**（250ms 防抖、关键词高亮、一键回填）\n- 消息中心补齐「我的回复」「酷安小秘书」，显示全部消息\n- 用户认证角标（头像右下角）、关于页作者头像\n\n【可诊断性】\n- 同样的错误详情显示（复制详情 / 重试）\n- 同样的 HTTP 请求日志（开关 / 导出 / 清空）\n- 修分页：原来会一次性把所有分页拉完，改成**滚到底才加载**\n\n【版本】\n- 与安卓端统一版本号：10006",
+  "download": [
+    {
+      "name": "高速下载",
+      "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next_desktop-V1.0.6-release.exe"
+    },
+    {
+      "name": "GitHub Releases（安装程序）",
+      "url": "https://github.com/kongwufang/c001apk_next/releases/download/V1.0.6/c001apk_next_desktop-V1.0.6-release.exe"
+    },
+    {
+      "name": "发行版页面（含源码包）",
+      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.6"
+    }
+  ]
+}
