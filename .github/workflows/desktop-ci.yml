@@ -77,7 +77,43 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release
 
-      - name: Upload
+      # ★ 出**安装程序**（.exe），不是压缩包 —— 用户要求双击即装 ✓
+      #
+      # 用 Inno Setup：windows-2022 运行器**自带** ISCC.exe ✓ 不用额外装
+      # 版本号从 pubspec.yaml 取（形如 `1.0.0+1`，只取 `+` 前面那段）
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)' |
+                  Select-Object -First 1).Matches.Groups[1].Value
+          Write-Host "版本: $ver"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            # 兜底：有些镜像装在 Program Files
+            $iscc = "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          }
+          if (-not (Test-Path $iscc)) {
+            Write-Error "找不到 ISCC.exe ✗"
+            exit 1
+          }
+          Write-Host "ISCC: $iscc"
+          & $iscc "/DAppVersion=$ver" `
+                  "/DSourceDir=$PWD\build\windows\x64\runner\Release" `
+                  "/DOutputDir=$PWD\build\installer" `
+                  "$PWD\installer\c001apk.iss"
+          if ($LASTEXITCODE -ne 0) { Write-Error "ISCC 失败 ✗"; exit $LASTEXITCODE }
+          Get-ChildItem build\installer | Format-Table Name, Length
+
+      # ① 安装程序（主产物 ✓）
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-windows-installer
+          path: build/installer/*.exe
+          compression-level: 0
+
+      # ② 绿色版目录（保留 —— 免安装/调试时更方便 ✓）
+      - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
           name: c001apk-windows-x64
