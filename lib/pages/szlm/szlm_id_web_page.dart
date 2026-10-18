@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
@@ -98,6 +99,8 @@ window.C001Bridge = {
             callback: (args) async {
               final duid = (args.isNotEmpty ? args.first : '').toString().trim();
               if (duid.isEmpty) return null;
+              // ★ 打一行日志：用户报「取号没反应」时能直接从日志判断有没有回调 ✓
+              debugPrint('szlm: 取号成功 len=${duid.length}');
               await GStorage.saveSzlmId(duid);
               if (mounted) {
                 Get.back(result: duid);
