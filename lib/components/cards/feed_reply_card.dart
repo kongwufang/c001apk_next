@@ -13,6 +13,7 @@ import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../verify_badge_view.dart';
 
 class FeedReplyCard extends StatelessWidget {
   const FeedReplyCard({
@@ -99,11 +100,19 @@ class FeedReplyCard extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () => Get.toNamed('/u/${data.uid}'),
-                    child: clipNetworkImage(
-                      data.userAvatar ?? '',
-                      isAvatar: true,
-                      height: 30,
-                      width: 30,
+                    // ★ 回复者头像认证角标
+                    child: VerifyAvatar(
+                      uid: data.userInfo?.uid ?? data.uid,
+                      status:
+                          data.userInfo?.verifyStatus ?? data.verifyStatus,
+                      icon: data.userInfo?.verifyIcon ?? data.verifyIcon,
+                      dotSize: 12,
+                      child: clipNetworkImage(
+                        data.userAvatar ?? '',
+                        isAvatar: true,
+                        height: 30,
+                        width: 30,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),

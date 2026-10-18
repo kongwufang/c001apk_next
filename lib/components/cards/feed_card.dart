@@ -22,6 +22,7 @@ import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
 import '../../logic/model/collection/collection.dart';
+import '../verify_badge_view.dart';
 
 class FeedCard extends StatelessWidget {
   const FeedCard({
@@ -480,12 +481,19 @@ Widget header(
             children: [
               GestureDetector(
                 onTap: () => Get.toNamed('/u/${data.uid}'),
-                child: clipNetworkImage(
-                  data.userAvatar.orEmpty,
-                  radius: 50,
-                  width: 35,
-                  height: 35,
-                  isAvatar: true,
+                // ★ 作者头像右下角认证角标（对齐 Android 列表页 verifyUserData）
+                child: VerifyAvatar(
+                  uid: data.userInfo?.uid ?? data.uid,
+                  status: data.userInfo?.verifyStatus ?? data.verifyStatus,
+                  icon: data.userInfo?.verifyIcon ?? data.verifyIcon,
+                  dotSize: 13,
+                  child: clipNetworkImage(
+                    data.userAvatar.orEmpty,
+                    radius: 50,
+                    width: 35,
+                    height: 35,
+                    isAvatar: true,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
