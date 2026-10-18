@@ -14,6 +14,7 @@ import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 import '../../components/error_view.dart';
 import 'api_error.dart';
+import '../model/search_suggest.dart';
 
 class NetworkRepo {
   /// 其他屏蔽项（关键字 / 用户 / 节点）的配置。
