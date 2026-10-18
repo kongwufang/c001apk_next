@@ -38,6 +38,12 @@ class _AboutPageState extends State<AboutPage> {
   /// 维护者的 GitHub bio（异步拉，拉不到就不显示）
   String _bio = '';
 
+  /// GitHub 头像：用户名 → avatar_url（异步拉 ✓ 拉不到就用图标兜底 ✓）
+  ///
+  /// 三个人的头像**都从 `api.github.com/users/{user}` 取** ✓
+  /// 未登录调用限流 60 次/小时 ✓ 这里只拉 3 次 ✓ 拉一次就够 ✓
+  final Map<String, String> _avatars = {};
+
   static const String _maintainer = 'kongwufang';
 
   /// 装机量统计页。
@@ -50,26 +56,49 @@ class _AboutPageState extends State<AboutPage> {
   @override
   void initState() {
     super.initState();
-    _fetchBio();
+    _fetchGitHub();
   }
 
-  /// 拉维护者的 GitHub bio。失败就静默（不打扰用户 ✓）
-  Future<void> _fetchBio() async {
-    try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-      ));
-      final res = await dio.get<Map<String, dynamic>>(
-        'https://api.github.com/users/$_maintainer',
-      );
-      final bio = (res.data?['bio'] as String?)?.trim() ?? '';
-      if (!mounted || bio.isEmpty) return;
-      setState(() => _bio = bio);
-    } catch (_) {
-      // 网络不通 / 被限流：不显示 bio ✓
+  /// 拉 GitHub 资料：**头像**（三个人）+ **bio**（只有维护者）。
+  ///
+  /// 失败就静默 ✓（网络不通 / 被限流 ⇒ 头像退回图标 ✓ 不打扰用户 ✓）
+  ///
+  /// ## 为什么要拉头像
+  /// 用户反馈：关于页的作者那一栏**只有图标、没有头像** ✗
+  /// 而 Android 那边每条是有头像图的 ✓ —— 桌面端从来没拉过 `avatar_url` ✗
+  Future<void> _fetchGitHub() async {
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      // GitHub 要求带 UA，否则可能 403 ✗
+      headers: {'User-Agent': 'c001apk-flutter'},
+    ));
+    for (final user in _githubUsers) {
+      try {
+        final res = await dio.get<Map<String, dynamic>>(
+          'https://api.github.com/users/$user',
+        );
+        final data = res.data;
+        if (data == null) continue;
+        final avatar = (data['avatar_url'] as String?)?.trim() ?? '';
+        final bio = (data['bio'] as String?)?.trim() ?? '';
+        if (!mounted) return;
+        setState(() {
+          if (avatar.isNotEmpty) _avatars[user] = avatar;
+          if (user == _maintainer && bio.isNotEmpty) _bio = bio;
+        });
+      } catch (_) {
+        // 单个失败不影响其它 ✓
+      }
     }
   }
+
+  /// 要拉头像的三个 GitHub 用户 ✓（与开发者卡里的条目一一对应）
+  static const List<String> _githubUsers = [
+    'bggRGjQaUbCoE',
+    'klxiaoniu',
+    'kongwufang',
+  ];
 
   /// 「立即检查更新」。
   ///
@@ -252,6 +281,7 @@ class _AboutPageState extends State<AboutPage> {
             title: 'bggRGjQaUbCoE',
             subtitle: '开发者 / 设计',
             url: 'https://github.com/bggRGjQaUbCoE',
+            avatarUrl: _avatars['bggRGjQaUbCoE'],
           ),
           _divider(),
           _entry(
@@ -260,6 +290,7 @@ class _AboutPageState extends State<AboutPage> {
             title: 'klxiaoniu',
             subtitle: '开发者 / 协作',
             url: 'https://github.com/klxiaoniu',
+            avatarUrl: _avatars['klxiaoniu'],
           ),
           _sectionTitle(context, '维护者'),
           _entry(
@@ -268,6 +299,7 @@ class _AboutPageState extends State<AboutPage> {
             title: _maintainer,
             subtitle: '维护者',
             url: 'https://github.com/$_maintainer',
+            avatarUrl: _avatars[_maintainer],
             extra: _bio.isEmpty
                 ? null
                 : Padding(
@@ -356,6 +388,8 @@ class _AboutPageState extends State<AboutPage> {
   Widget _divider() => const Divider(height: 1, indent: 72, endIndent: 16);
 
   /// `item_about_entry`：头像 + 标题 + 副标题 + 右箭头（点了开外链）
+  ///
+  /// [avatarUrl] 传了就用**圆形头像图** ✓ 没传 / 加载失败就退回 [icon] ✓
   Widget _entry(
     BuildContext context, {
     required IconData icon,
@@ -363,9 +397,17 @@ class _AboutPageState extends State<AboutPage> {
     required String subtitle,
     required String url,
     Widget? extra,
+    String? avatarUrl,
   }) {
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
     return ListTile(
-      leading: CircleAvatar(radius: 20, child: Icon(icon, size: 20)),
+      leading: CircleAvatar(
+        radius: 20,
+        // 头像加载失败时自动退回图标 ✓（不会留一个破图 ✗）
+        backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+        onBackgroundImageError: hasAvatar ? (_, __) {} : null,
+        child: hasAvatar ? null : Icon(icon, size: 20),
+      ),
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
