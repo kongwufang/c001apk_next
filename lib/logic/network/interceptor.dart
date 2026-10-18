@@ -1,9 +1,11 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../constants/constants.dart';
 import '../../utils/global_data.dart';
+import '../../utils/http_log.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 
@@ -53,6 +55,9 @@ class ApiInterceptor extends Interceptor {
 
   @override
   void onRequest(options, handler) async {
+    // 记下起点，供 HttpLog 算耗时 ✓（关着开关也只是一个 Map 写入 ✓ 可忽略）
+    options.extra['_httpLogT0'] = DateTime.now().microsecondsSinceEpoch;
+
     if (TokenUtils.isPreGetLoginParam) {
       options.headers.clear();
       TokenUtils.isPreGetLoginParam = false;
@@ -151,7 +156,28 @@ class ApiInterceptor extends Interceptor {
   }
 
   @override
+  void onResponse(response, handler) async {
+    _logHttp(
+      method: response.requestOptions.method,
+      url: response.requestOptions.uri.toString(),
+      status: response.statusCode,
+      t0: response.requestOptions.extra['_httpLogT0'],
+      reqBody: _bodyOf(response.requestOptions.data),
+      respBody: _bodyOf(response.data),
+    );
+    handler.next(response);
+  }
+
   void onError(err, handler) async {
+    _logHttp(
+      method: err.requestOptions.method,
+      url: err.requestOptions.uri.toString(),
+      status: err.response?.statusCode,
+      t0: err.requestOptions.extra['_httpLogT0'],
+      reqBody: _bodyOf(err.requestOptions.data),
+      respBody: _bodyOf(err.response?.data),
+      error: '${err.type.name}: ${err.message ?? ''}',
+    );
     String url = err.requestOptions.uri.toString();
     if (!url.contains('/v6/apk/download') &&
         !url.contains('/v6/message/showImage')) {
@@ -161,6 +187,50 @@ class ApiInterceptor extends Interceptor {
       );
     }
     super.onError(err, handler);
+  }
+
+  /// 把请求体/响应体转成可写日志的字符串（超长由 HttpLog 截断 ✓）
+  static String _bodyOf(dynamic data) {
+    if (data == null) return '';
+    try {
+      if (data is String) return data;
+      if (data is FormData) {
+        // multipart 只记字段名 ✓ 文件内容不记 ✗
+        final fields = data.fields.map((e) => '${e.key}=${e.value}').join('&');
+        final files = data.files.map((e) => '${e.key}=<file:${e.value.filename}>').join('&');
+        return [fields, files].where((e) => e.isNotEmpty).join('&');
+      }
+      return jsonEncode(data);
+    } catch (_) {
+      return data.toString();
+    }
+  }
+
+  /// 记一条 HTTP 日志（开关关着 ⇒ HttpLog 内部直接返回 ✓）
+  static void _logHttp({
+    required String method,
+    required String url,
+    int? status,
+    dynamic t0,
+    String? reqBody,
+    String? respBody,
+    String? error,
+  }) {
+    if (!GStorage.recordHttpLog) return; // ★ 零开销：一次 bool 判断 ✓
+    final start = t0 is int ? t0 : null;
+    final elapsed = start == null
+        ? Duration.zero
+        : Duration(microseconds: DateTime.now().microsecondsSinceEpoch - start);
+    // 不 await ✓ 绝不能拖慢请求 ✓
+    HttpLog.record(
+      method: method,
+      url: url,
+      status: status,
+      elapsed: elapsed,
+      reqBody: reqBody,
+      respBody: respBody,
+      error: error,
+    );
   }
 
   static Future<String> dioError(DioException error) async {

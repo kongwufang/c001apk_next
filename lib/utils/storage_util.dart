@@ -580,6 +580,20 @@ class GStorage {
     settings.put(SettingsBoxKey.userRandomId, value);
   }
 
+  /// 是否记录 HTTP 请求日志（**默认关闭** ✓）
+  ///
+  /// 打开后 `ApiInterceptor` 会把每个请求的方法/URL/状态码/耗时/响应体（截断）
+  /// 追加到 `<应用支持目录>/http_logs/YYYYMMDD.log` ✓ 见 `utils/http_log.dart`
+  ///
+  /// ⚠️ 关着的时候拦截器只做一次 bool 判断 ✓ **零开销** ✓
+  static bool get recordHttpLog {
+    return settings.get(SettingsBoxKey.recordHttpLog, defaultValue: false);
+  }
+
+  static void setRecordHttpLog(bool value) {
+    settings.put(SettingsBoxKey.recordHttpLog, value);
+  }
+
   static String get versionName {
     return settings.get(SettingsBoxKey.versionName, defaultValue: '');
   }
@@ -812,6 +826,8 @@ class SettingsBoxKey {
       /// 本机随机用户 ID —— 与 Android `PrefManager.userRandomId` 对应 ✓
       /// 只上报匿名 ID，不拿 DUID（那能反查到具体设备）
       userRandomId = 'userRandomId',
+      /// 是否记录 HTTP 请求日志（设置 → 高级，**默认关闭** ✓）
+      recordHttpLog = 'recordHttpLog',
   refreshToken = 'refreshToken',
       uid = 'uid',
       username = 'username',
