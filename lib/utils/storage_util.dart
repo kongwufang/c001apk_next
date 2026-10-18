@@ -590,6 +590,15 @@ class GStorage {
     return settings.get(SettingsBoxKey.recordHttpLog, defaultValue: false);
   }
 
+  /// 用户认证表缓存（原始 JSON ✓ 见 `utils/remote_config.dart`）
+  static String get userVerifyConfig {
+    return settings.get(SettingsBoxKey.userVerifyConfig, defaultValue: '');
+  }
+
+  static void setUserVerifyConfig(String value) {
+    settings.put(SettingsBoxKey.userVerifyConfig, value);
+  }
+
   static void setRecordHttpLog(bool value) {
     settings.put(SettingsBoxKey.recordHttpLog, value);
   }
@@ -828,6 +837,8 @@ class SettingsBoxKey {
       userRandomId = 'userRandomId',
       /// 是否记录 HTTP 请求日志（设置 → 高级，**默认关闭** ✓）
       recordHttpLog = 'recordHttpLog',
+      /// 用户认证表缓存（`RemoteConfig.verifyUrl` 的原始响应 ✓）
+      userVerifyConfig = 'userVerifyConfig',
   refreshToken = 'refreshToken',
       uid = 'uid',
       username = 'username',

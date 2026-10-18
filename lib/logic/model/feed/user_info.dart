@@ -22,10 +22,12 @@ class UserInfo {
   // int? avatarCoverStatus;
   // int? regdate;
   // int? logintime;
-  // @JsonKey(name: 'verify_title')
-  // String? verifyTitle;
-  // @JsonKey(name: 'verify_status')
-  // int? verifyStatus;
+  /// 完整认证名（如「酷安认证: 酷安员工」），只在个人主页展示
+  @JsonKey(name: 'verify_title')
+  String? verifyTitle;
+  /// 1 = 有认证（头像右下角挂角标）
+  @JsonKey(name: 'verify_status')
+  int? verifyStatus;
   // @JsonKey(name: 'user_type')
   // int? userType;
   // @JsonKey(name: 'verify_show_type')
@@ -41,8 +43,9 @@ class UserInfo {
   // String? userSmallAvatar;
   // String? userBigAvatar;
   // String? cover;
-  // @JsonKey(name: 'verify_icon')
-  // String? verifyIcon;
+  /// 角标图标名：v_green / v_yellow
+  @JsonKey(name: 'verify_icon')
+  String? verifyIcon;
   // @JsonKey(name: 'verify_label')
   // String? verifyLabel;
   // int? isDeveloper;
@@ -82,8 +85,8 @@ class UserInfo {
     // this.avatarCoverStatus,
     // this.regdate,
     // this.logintime,
-    // this.verifyTitle,
-    // this.verifyStatus,
+    this.verifyTitle,
+    this.verifyStatus,
     // this.userType,
     // this.verifyShowType,
     // this.avatarPluginStatus,
@@ -96,7 +99,7 @@ class UserInfo {
     // this.userSmallAvatar,
     // this.userBigAvatar,
     // this.cover,
-    // this.verifyIcon,
+    this.verifyIcon,
     // this.verifyLabel,
     // this.isDeveloper,
     // this.nextLevelExperience,

@@ -16,6 +16,7 @@ import 'logic/repo/spam_config_repo.dart';
 import 'router/app_pages.dart';
 import 'utils/shortcuts.dart';
 import 'utils/global_data.dart';
+import 'utils/remote_config.dart';
 import 'utils/ssl_verify.dart';
 import 'utils/storage_util.dart';
 import 'utils/utils.dart';
@@ -73,6 +74,11 @@ void main() async {
   // **冷启动没网也要能过滤**，随后由 SpamConfigRepo.refresh() 拿网络结果覆盖。
   // 对应 Android `SpamConfigRepo.init { spamConfig.postValue(cached) }`。
   SpamConfigRepo.initFromCache();
+
+  // 云端配置（用户认证表）：先用缓存立刻生效，再后台刷新一次 ✓
+  // 对齐 Android `MyApplication` 的 RemoteConfig.initFromCache() / refreshAsync()
+  RemoteConfig.initFromCache();
+  RemoteConfig.refreshAsync();
 
   if (Platform.isAndroid || Platform.isIOS) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
