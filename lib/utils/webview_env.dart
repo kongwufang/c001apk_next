@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// 全局 `WebViewEnvironment`（**仅 Windows 需要**）。
 ///
@@ -44,11 +45,29 @@ class WebViewEnv {
       // 让 WebView 用默认的（cookie 取不到，但页面还能显示）
       final available = await WebViewEnvironment.getAvailableVersion();
       if (available == null) return;
+      // ★★ 必须是**绝对的可写路径**（2026-10-18 修）
+      //
+      // 原来写的是相对路径 `'c001apk_webview'` ✗
+      // ⇒ WebView2 把它解析到 **exe 所在目录** ✗
+      // ⇒ 装到 `C:\Program Files\c001apk\` 后普通用户**无写权限** ✗
+      // ⇒ 一打开 WebView 就弹：
+      //     「无法创建数据目录
+      //       Microsoft Edge 无法读取和写入其数据目录:
+      //       C:\Program Files\c001apk\c001apk_webview\EBWebView」
+      //
+      // 现在放到应用支持目录（和 Hive 同一个地方 ✓ 一定可写 ✓）：
+      //   %APPDATA%\Integral\c001apk-flutter\webview
+      final supportDir = await getApplicationSupportDirectory();
+      final webViewDir =
+          '${supportDir.path}${Platform.pathSeparator}webview';
+      // 先自己建出来：WebView2 对已存在的目录更宽容，也能提前暴露权限问题
+      await Directory(webViewDir).create(recursive: true);
+
       _instance = await WebViewEnvironment.create(
         settings: WebViewEnvironmentSettings(
           // 固定用户数据目录，保证登录态在重启后还在
           // （否则每次可能落到不同的临时目录）
-          userDataFolder: 'c001apk_webview',
+          userDataFolder: webViewDir,
         ),
       );
     } catch (_) {
