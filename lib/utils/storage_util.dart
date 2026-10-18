@@ -12,6 +12,7 @@ import '../logic/model/fav_history/fav_history.dart';
 import '../utils/device_util.dart';
 import '../utils/global_data.dart';
 import '../utils/token_util.dart';
+import 'package:uuid/uuid.dart';
 
 class GStorage {
   static late final Box<dynamic> searchHistory;
@@ -559,6 +560,26 @@ class GStorage {
     settings.put(SettingsBoxKey.installTime, value);
   }
 
+  /// 本机随机用户 ID（**只生成一次，之后永远用同一个** ✓）
+  ///
+  /// 对应 Android `PrefManager.userRandomId`。
+  /// 首次访问时用 `Uuid().v4()` 生成并落盘 —— 与 Android 的行为一致 ✓
+  ///
+  /// ⚠️ **不要**拿它去换 DUID / SZLM ID：那是设备级实名标识，能反查到具体设备 ✗
+  /// 这里是纯随机的匿名 ID ✓ 只用于「统计有多少台机器在用」和「判断是不是新装」
+  static String get userRandomId {
+    var v = settings.get(SettingsBoxKey.userRandomId, defaultValue: '');
+    if (v.isEmpty) {
+      v = const Uuid().v4().replaceAll('-', '');
+      settings.put(SettingsBoxKey.userRandomId, v);
+    }
+    return v;
+  }
+
+  static void setUserRandomId(String value) {
+    settings.put(SettingsBoxKey.userRandomId, value);
+  }
+
   static String get versionName {
     return settings.get(SettingsBoxKey.versionName, defaultValue: '');
   }
@@ -788,6 +809,9 @@ class SettingsBoxKey {
       userAgent = 'userAgent',
       xAppDevice = 'xAppDevice',
       isLogin = 'isLogin',
+      /// 本机随机用户 ID —— 与 Android `PrefManager.userRandomId` 对应 ✓
+      /// 只上报匿名 ID，不拿 DUID（那能反查到具体设备）
+      userRandomId = 'userRandomId',
   refreshToken = 'refreshToken',
       uid = 'uid',
       username = 'username',
