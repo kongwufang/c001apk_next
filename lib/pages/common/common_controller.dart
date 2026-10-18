@@ -20,6 +20,21 @@ abstract class CommonController extends GetxController {
   bool isLoading = false;
   bool isEnd = false;
 
+  /// 上一次「加载更多」开始的时间 —— 用来节流。
+  ///
+  /// ## 为什么需要
+  /// 列表底部的 footer 是在 **build 里**触发翻页的（见 `common_body.dart` 的
+  /// `footer()`）：只要它被构建就视作「翻到底了」⇒ 立刻请求下一页 ✗
+  /// 结果：列表不满一屏 / 内容很短时，底部 footer **一直在视野里** ✗
+  /// ⇒ 一页接一页地连发 ✗
+  ///
+  /// 实测（2026-10-18，消息中心）：1 秒内发出 30+ 个分页请求
+  /// （4 个接口 × page=2…8 ✗）—— 白白耗流量，也更容易被风控盯上 ✗
+  DateTime _lastPageLoadAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// 两次「加载更多」之间的最小间隔
+  static const Duration _minPageGap = Duration(milliseconds: 350);
+
   Rx<LoadingState> loadingState = LoadingState.loading().obs;
   Rx<LoadingState> footerState = LoadingState.empty().obs;
   GlobalKey<RefreshIndicatorState>? refreshKey;
@@ -41,7 +56,17 @@ abstract class CommonController extends GetxController {
   Future<LoadingState> customGetData();
 
   Future<void> onGetData([bool isRefresh = true]) async {
+    if (isLoading) return;
+    // ★ 翻页节流：footer 是在 build 里触发翻页的，列表不满一屏时会连发 ✗
+    //   这里强制两次翻页至少隔 _minPageGap ✓（下拉刷新不受影响 ✓）
+    if (!isRefresh) {
+      final gap = DateTime.now().difference(_lastPageLoadAt);
+      if (gap < _minPageGap) {
+        await Future<void>.delayed(_minPageGap - gap);
+      }
+    }
     if (!isLoading) {
+      _lastPageLoadAt = DateTime.now();
       isLoading = true;
       LoadingState response = await customGetData();
       if (response is Success) {
