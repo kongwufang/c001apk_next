@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../components/cards/search_history_card.dart';
+import '../../logic/model/search_suggest.dart';
+import 'search_suggest_card.dart';
 import '../../pages/search/search_page_controller.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
@@ -68,6 +70,12 @@ class _SearchPageState extends State<SearchPage> {
       if (!_pageType.isNullOrEmpty) 'pageType': _pageType!,
       if (!_pageParam.isNullOrEmpty) 'pageParam': _pageParam!,
     });
+    // ★ 从结果页回来 ⇒ 回到**默认态**（历史），而不是停在联想列表 ✓
+    //   对齐 Android `SearchFragment` 的同一处理 ✓
+    _controller.clear();
+    _clearStream.add(false);
+    _searchPageController.clearSuggest();
+    if (mounted) setState(() {});
     _focusNode.requestFocus();
   }
 
@@ -82,6 +90,11 @@ class _SearchPageState extends State<SearchPage> {
           style: const TextStyle(fontSize: 18),
           onChanged: (value) {
             _clearStream.add(value.isNotEmpty);
+            // ★ 搜索联想（对齐 Android `SearchFragment` 的 TextWatcher）
+            //   控制器内部有 250ms 防抖 ✓ 这里只管把最新输入交出去 ✓
+            _searchPageController.fetchSuggest(value);
+            // 输入框非空 ⇄ 空 要切换面板（联想 ⇄ 历史）⇒ 触发重建 ✓
+            setState(() {});
           },
           decoration: InputDecoration(
             border: InputBorder.none,
@@ -126,7 +139,11 @@ class _SearchPageState extends State<SearchPage> {
           child: Divider(height: 1),
         ),
       ),
-      body: Obx(() => _searchPageController.historyList.isNotEmpty
+      // 输入非空 ⇒ 联想面板；空 ⇒ 历史面板 ✓
+      // （对齐 Android `SearchFragment.updatePanelState` 的 visible 切换 ✓）
+      body: _controller.text.trim().isNotEmpty
+          ? _buildSuggestPanel()
+          : Obx(() => _searchPageController.historyList.isNotEmpty
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -199,5 +216,53 @@ class _SearchPageState extends State<SearchPage> {
             )
           : const SizedBox()),
     );
+  }
+
+  /// 搜索联想面板
+  Widget _buildSuggestPanel() {
+    return Obx(() {
+      final cs = Theme.of(Get.context!).colorScheme;
+      final list = _searchPageController.suggestList;
+      final keyword = _searchPageController.suggestKeyword.value;
+      if (list.isEmpty) {
+        // 还没拉到（防抖窗口内）或确实没有联想 ⇒ 不给空白页，给一句提示 ✓
+        return Center(
+          child: Text(
+            '输入关键词后显示联想',
+            style: TextStyle(fontSize: 13, color: cs.outline),
+          ),
+        );
+      }
+      return ListView.builder(
+        padding: EdgeInsets.only(
+          bottom: 10 + MediaQuery.of(Get.context!).padding.bottom,
+        ),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        itemCount: list.length,
+        itemBuilder: (context, i) {
+          final SearchSuggestData item = list[i];
+          return SearchSuggestCard(
+            data: item,
+            keyword: keyword,
+            // 点整行：直接搜 ✓（「搜索用户：」项也按词去搜 ✓
+            // 对齐 Android：onItemClick 传的是**去掉前缀**的词 ✓）
+            onTap: (word, isUser) {
+              _controller.text = word;
+              _clearStream.add(true);
+              onSearch(word);
+            },
+            // 点箭头：只回填 ✓
+            onFill: (word) {
+              _controller.text = word;
+              _clearStream.add(true);
+              _searchPageController.fetchSuggest(word);
+              setState(() {});
+            },
+          );
+        },
+      );
+    });
   }
 }

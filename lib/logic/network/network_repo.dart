@@ -670,6 +670,26 @@ class NetworkRepo {
     );
   }
 
+  /// 搜索联想。
+  ///
+  /// 不走 `getData`（那个会包成 `LoadingState` 并要求 `data` 是 Datum 列表 ✗）
+  /// —— 联想的响应形状不一样 ✓ 这里只取 `data` 数组 ✓
+  static Future<List<SearchSuggestData>> getSuggestSearchWords(
+      String keyword) async {
+    final response = await Request().get(
+      Api.getSuggestSearchWords,
+      queryParameters: {'searchValue': keyword, 'type': 'app'},
+    );
+    final body = response.data;
+    if (body is! Map) return [];
+    final list = body['data'];
+    if (list is! List) return [];
+    return list
+        .whereType<Map>()
+        .map((e) => SearchSuggestData.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
   static Future<LoadingState> getDataFromUrl({
     required String url,
     Map<String, dynamic>? data,

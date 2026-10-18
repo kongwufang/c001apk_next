@@ -19,6 +19,11 @@ class Api {
 
   static String getSearch = '${Constants.URL_API_SERVICE}/v6/search';
 
+  /// 搜索联想（输入过程中的下拉建议）
+  /// 对齐 Android `ApiService.getSuggestSearchWords`
+  static String getSuggestSearchWords =
+      '${Constants.URL_API_SERVICE}/v6/search/suggestSearchWordsNew';
+
   static String checkLoginInfo =
       '${Constants.URL_API_SERVICE}/v6/account/checkLoginInfo';
 
