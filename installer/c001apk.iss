@@ -43,7 +43,10 @@ DisableProgramGroupPage=yes
 ; 用户目录安装不需要管理员；这里选「管理员」是因为要写 Program Files
 PrivilegesRequired=admin
 OutputDir={#OutputDir}
-OutputBaseFilename=c001apk-{#AppVersion}-windows-x64-setup
+; ★ 命名规则（2026-10-18 用户规定）：
+;   c001apk_next_desktop-V1.0.6-release
+;   前缀 = 仓库名 + _desktop；版本号与安卓端统一（同一个 VERSION_CODE / VERSION_NAME）
+OutputBaseFilename=c001apk_next_desktop-V{#AppVersion}-release
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
