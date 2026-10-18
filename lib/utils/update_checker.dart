@@ -52,7 +52,10 @@ class UpdateChecker {
         options: Options(headers: _headers()),
       );
       final body = res.data;
-      if (body is! Map) return null;
+      // ⚠️ `is! Map` **不能**把 `Map<String, dynamic>?` 提升为非空 ✗
+      //    （负向分支已 return，但类型系统只把它当 `Map<dynamic, dynamic>?`）
+      //    ⇒ 必须**显式**判 null ✓
+      if (body == null) return null;
       if ((body['code'] as num?)?.toInt() != 0) return null;
 
       final stable = body['stable'];
