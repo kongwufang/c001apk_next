@@ -74,8 +74,21 @@ jobs:
       - name: Test
         run: flutter test
 
+      # ★★ 必须关掉 Impeller ★★
+      #
+      # 2026-10-18 用户在**另一台电脑**上装好后启动：进程活着、内存正常、**窗口全白** ✗
+      # 日志里唯一可疑的一行：
+      #   [IMPORTANT:...embedder_surface_gl_impeller.cc(126)]
+      #     Using the Impeller rendering backend (OpenGLESSDF).
+      #
+      # ⇒ 新版 Flutter 在 Windows 上默认启用 **Impeller** ✗
+      #   它在某些显卡 / 驱动组合下会渲染不出任何东西 ⇒ **白屏** ✓
+      #   （我这台机器 Impeller 正常，所以复现不出来 ✗ 但那台明显不行）
+      #
+      # ⇒ 构建时显式关闭，回到稳定的 **Skia** 渲染器 ✓
+      #   代价：新渲染器的性能优势用不上 ✗（可现在稳定优先 ✓）
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --no-enable-impeller
 
       # ★ 出**安装程序**（.exe），不是压缩包 —— 用户要求双击即装 ✓
       #
