@@ -25,6 +25,7 @@ import '../../utils/shortcuts.dart';
 import '../../utils/utils.dart';
 import '../../components/m3e_progress.dart';
 import '../../pages/collection/collection_pick_sheet.dart';
+import '../../logic/model/collection/collection.dart';
 
 // ignore: constant_identifier_names
 enum FeedMenuItem {
@@ -192,11 +193,17 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                 },
                 // ★ 详情页底栏的「收藏」「转发」（列表卡不传这两个，行为不变）
                 //   对齐 Android `item_feed_article_action.xml`
-                onFavorite: () => showCollectionPickSheet(
-                  feedId: _id,
-                  onAction: (action) =>
-                      _feedController.onCollectionAction(action),
-                ),
+                onFavorite: () async {
+                  CollectionAction? result;
+                  await showCollectionPickSheet(
+                    feedId: _id,
+                    onAction: (action) {
+                      result = action; // 记下最后一次净结果
+                      _feedController.onCollectionAction(action); // 原有逻辑不变
+                    },
+                  );
+                  return result; // 面板关掉后交给卡片改数字/星标
+                },
                 // ★ 用户要求：分享一律**直接复制链接**，不弹系统分享面板。
                 //   （Android 原本是 `onShareFeed` 拉系统分享面板；
                 //     注意那也**不是转发动态**，forwardnum 不变）
@@ -236,11 +243,17 @@ class _FeedPageState extends State<FeedPage> with TickerProviderStateMixin {
                           }
                         },
                         isFeedArticle: true,
-                        onFavorite: () => showCollectionPickSheet(
-                          feedId: _id,
-                          onAction: (action) =>
-                              _feedController.onCollectionAction(action),
-                        ),
+                        onFavorite: () async {
+                          CollectionAction? result;
+                          await showCollectionPickSheet(
+                            feedId: _id,
+                            onAction: (action) {
+                              result = action;
+                              _feedController.onCollectionAction(action);
+                            },
+                          );
+                          return result;
+                        },
                         onForward: () => Utils.copyText(
                           Utils.getShareUri(_id, ShareType.feed).toString(),
                         ),

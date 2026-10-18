@@ -21,6 +21,7 @@ import '../../utils/extensions.dart';
 import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
+import '../../logic/model/collection/collection.dart';
 
 class FeedCard extends StatelessWidget {
   const FeedCard({
@@ -593,7 +594,10 @@ Widget bottomInfo(
   Function()? onLike, {
   bool isFeedArticle = false,
   // 「收藏」「转发」只有详情页会传（对齐 Android `item_feed_article_action.xml`）
-  Function()? onFavorite,
+  //
+  // ★ `onFavorite` 现在返回**面板关闭后的净结果**（可能 null）——
+  //   卡片据此就地改数字与星标（用户要求：UI 层 ±1，不重新拉列表 ✓）
+  Future<CollectionAction?> Function()? onFavorite,
   Function()? onForward,
 }) {
   // `Datum` 没生成 `favnum` / `forwardnum` 字段，`UserAction` 也只有 like/follow
@@ -660,13 +664,10 @@ Widget bottomInfo(
         // ── 以下两个只在详情页出现（列表卡不传 onFavorite / onForward）──
         // 对齐 Android `item_feed_article_action.xml` 的 favorite / forward
         if (onFavorite != null && favNum != null)
-          LikeButton(
+          _FavAction(
             value: favNum,
-            icon: isFav ? Icons.star : Icons.star_border,
-            isLike: isFav,
-            onClick: () {
-              if (GlobalData().isLogin) onFavorite!();
-            },
+            initialFav: isFav,
+            onOpen: onFavorite,
           ),
         if (onForward != null && forwardNum != null)
           LikeButton(
@@ -678,6 +679,69 @@ Widget bottomInfo(
       ],
     ),
   );
+}
+
+/// 收藏按钮（有状态）。
+///
+/// ## 为什么单独拆一个 StatefulWidget
+/// 卡片上的 `favnum` / `isFav` 是**从 `data.raw` 读的静态快照** ✗
+/// 面板里点了收藏也不会有任何东西让它重建 ✗
+/// ⇒ 只能自己持一份可变状态 ✓
+///
+/// ## 数据来源（严格遵循面板的设计）
+/// 面板的 `onAction` 已经给了**服务端返回的净结果**（`favnum` / `collect`）✓
+/// ⇒ 这里**不做本地加减** ✓ 只把服务端给的值填回去 ✓
+/// ⇒ 也**不重拉列表/详情** ✓（面板注释里说了重拉反而不准 ✗）
+///
+/// ## 为什么等 `onOpen()` 返回而不是用面板的 onAction
+/// `onOpen()` 返回的是「面板**关闭后**的最后一次净结果」✓
+/// 中途点了几次只会以最后一次为准 ✓ 而空白点击（没点任何夹）返回 null ⇒ 不动 ✓
+class _FavAction extends StatefulWidget {
+  const _FavAction({
+    required this.value,
+    required this.initialFav,
+    required this.onOpen,
+  });
+
+  final String value;
+  final bool initialFav;
+  final Future<CollectionAction?> Function() onOpen;
+
+  @override
+  State<_FavAction> createState() => _FavActionState();
+}
+
+class _FavActionState extends State<_FavAction> {
+  late String _value = widget.value;
+  late bool _fav = widget.initialFav;
+  bool _busy = false;
+
+  Future<void> _tap() async {
+    if (_busy) return;
+    if (!GlobalData().isLogin) {
+      SmartDialog.showToast('请先登录');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final r = await widget.onOpen();
+      if (!mounted || r == null) return;
+      setState(() {
+        _fav = r.collect == 1;
+        if (r.favnum != null) _value = r.favnum.toString();
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => LikeButton(
+        value: _value,
+        icon: _fav ? Icons.star : Icons.star_border,
+        isLike: _fav,
+        onClick: _tap,
+      );
 }
 
 // `stickTop` = 个人主页置顶 / 取消置顶（Android 菜单项 `R.id.stickTop`）
