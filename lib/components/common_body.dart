@@ -127,19 +127,60 @@ Widget buildBody(
 
       var bottomPadding = MediaQuery.of(Get.context!).padding.bottom;
 
-      /// 列表底部（加载更多 / 到底提示）。与原来一样的触发时机：
-      /// 一旦被构建就视作「翻到了底部」，去请求下一页。
+      /// 列表底部（加载更多 / 到底提示）。
+      ///
+      /// ## ⚠️ 这里**绝对不能**在 build 里发请求（2026-10-18 修）
+      /// 原来的写法是：
+      /// ```dart
+      /// if (!isEnd && !isLoading) onGetData(false);   // ✗ 在 build 里
+      /// ```
+      /// ⇒ 每次重建就再拉一页 ✗；列表越长 footer 越容易被提前构建 ✗
+      /// ⇒ 实际效果是**一路把所有分页都拉完** ✗
+      /// （消息中心实测：1 秒内发出 30+ 个分页请求 ✗）
+      ///
+      /// 现在翻页只由 [autoPage]（滚到底）触发 ✓
+      /// footer 只负责**显示状态**和「重试」✓
       Widget footer() {
-        if (!commonController.isEnd && !commonController.isLoading) {
-          commonController.setFooterState(LoadingState.loading());
-          commonController.onGetData(false);
-        }
         return Obx(
             () => footerWidget(commonController.footerState.value, () {
                   commonController.isEnd = false;
                   commonController.setFooterState(LoadingState.loading());
                   commonController.onGetData(false);
                 }));
+      }
+
+      /// 滚到接近底部时翻页（正常分页 ✓）
+      ///
+      /// `isLoading` 守卫会挡掉同一次滚动里重复触发 ✓
+      /// `isEnd` 是「没有更多了」✓ 不再请求 ✓
+      Widget autoPage(Widget child) {
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (commonController.isEnd || commonController.isLoading) {
+              return false;
+            }
+            // 距底部不足 240 逻辑像素 ⇒ 提前加载，滚动体验更顺 ✓
+            if (notification.metrics.extentAfter < 240) {
+              commonController.setFooterState(LoadingState.loading());
+              commonController.onGetData(false);
+            }
+            return false;
+          },
+          child: child,
+        );
+      }
+
+      // 首屏没铺满时（没有滚动事件 ✗）补**一页** ✓ 只补一次 ✗
+      if (!commonController.isEnd &&
+          !commonController.isLoading &&
+          !commonController.didInitialFill) {
+        commonController.didInitialFill = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!commonController.isEnd && !commonController.isLoading) {
+            commonController.setFooterState(LoadingState.loading());
+            commonController.onGetData(false);
+          }
+        });
       }
 
       Widget cell(int index) => itemCard(
@@ -168,7 +209,7 @@ Widget buildBody(
       // 回复楼中楼（isReply2Reply）保持单列 —— 那一层的 Android 实现用的是
       // `ReplyStaggerItemDecoration`，是另一套排法，不在这里改。
       if (!isReply2Reply && !Utils.isPortrait(Get.context!)) {
-        return CustomScrollView(
+        return autoPage(CustomScrollView(
           // ★ 在 `NestedScrollView` 里**不能**传自定义 controller ——
       //   `NestedScrollView` 靠它自己提供的 controller 与 body 联动，
       //   内层换成别的 controller 后联动就断 ⇒ 外层 `headerSliverBuilder`
@@ -199,10 +240,10 @@ Widget buildBody(
               ),
             ),
           ],
-        );
+        ));
       }
 
-      return ListView.separated(
+      return autoPage(ListView.separated(
         // ★ 在 `NestedScrollView` 里**不能**传自定义 controller ——
       //   `NestedScrollView` 靠它自己提供的 controller 与 body 联动，
       //   内层换成别的 controller 后联动就断 ⇒ 外层 `headerSliverBuilder`
@@ -235,7 +276,7 @@ Widget buildBody(
         separatorBuilder: (_, index) => isReply2Reply
             ? const Divider(height: 1)
             : const SizedBox(height: 10),
-      );
+      ));
   }
   return Container(
     height: 80,

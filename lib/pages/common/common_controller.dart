@@ -35,6 +35,13 @@ abstract class CommonController extends GetxController {
   /// 两次「加载更多」之间的最小间隔
   static const Duration _minPageGap = Duration(milliseconds: 350);
 
+  /// 首屏是否已经「补过一页」。
+  ///
+  /// 首屏一页可能不满一屏（比如被屏蔽项过滤掉一批 ✗），这时**没有任何滚动事件** ✗
+  /// ⇒ 需要一个一次性补页 ✓ 但**只能补一次** ✗
+  /// —— 否则又会变成「一路把所有页拉完」✗（这是 2026-10-18 修掉的问题 ✓）
+  bool didInitialFill = false;
+
   Rx<LoadingState> loadingState = LoadingState.loading().obs;
   Rx<LoadingState> footerState = LoadingState.empty().obs;
   GlobalKey<RefreshIndicatorState>? refreshKey;
@@ -105,6 +112,7 @@ abstract class CommonController extends GetxController {
   void onReset() {
     page = 1;
     isEnd = false;
+    didInitialFill = false;
     firstItem = null;
     lastItem = null;
     footerState.value = LoadingState.loading();
