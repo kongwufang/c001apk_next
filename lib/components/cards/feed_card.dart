@@ -55,7 +55,7 @@ class FeedCard extends StatelessWidget {
   /// 「收藏」——点开**多收藏夹选择面板**（对齐 Android `ItemListener.onFavoriteClick`）。
   ///
   /// 只有详情页传；列表卡不传（回到「底栏只有回复数 + 点赞数」的原样）。
-  final Function()? onFavorite;
+  final Future<CollectionAction?> Function()? onFavorite;
 
   /// 「转发」——**拉系统分享面板发链接**，不是转发动态。
   ///
