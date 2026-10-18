@@ -183,21 +183,63 @@ class _LoginPageState extends State<LoginPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('登录'),
+        // ★ 扫码登录放**第一个** ⇒ TabController 默认 initialIndex = 0
+        //   ⇒ 打开登录页就是扫码，**不用手动切 tab** ✓
+        //
+        //   为什么默认扫码：手机上登录后扫一下即可，**不用在电脑上输入密码** ✓
+        //   密码只经过手机 → 服务端，不落在桌面端的输入框 / 剪贴板 / 输入法里 ✓
+        //   （用户要求：「把桌面端的登录方式改为默认扫码登录，推荐用户使用扫码登录，更安全」）
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: '网页登录'),
             Tab(text: '扫码登录'),
+            Tab(text: '网页登录'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
+          _qrLoginPane(context),
           _webLoginPane(context),
-          QrLoginView(onLoggedIn: _onQrLoggedIn),
         ],
       ),
+    );
+  }
+
+  /// 「扫码登录」那一页 —— 默认页，顶部一条推荐说明。
+  Widget _qrLoginPane(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: cs.secondaryContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.verified_user_outlined,
+                  size: 18, color: cs.onSecondaryContainer),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '推荐使用扫码登录：密码只在手机与服务器之间传递，'
+                  '不在电脑上输入，更安全。',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSecondaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: QrLoginView(onLoggedIn: _onQrLoggedIn)),
+      ],
     );
   }
 

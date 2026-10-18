@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../constants/constants.dart';
@@ -179,6 +180,12 @@ class ApiInterceptor extends Interceptor {
       error: '${err.type.name}: ${err.message ?? ''}',
     );
     String url = err.requestOptions.uri.toString();
+    // ★ 诊断：任何请求失败都打一行到 stderr（Windows 上会写进日志文件 ✓）
+    //   有它才能定位「哪个接口挂了」✗ —— 否则只有一句 toast，看不出接口 ✗
+    debugPrint(
+      'HTTP FAIL | ${err.type.name} | ${err.requestOptions.method} $url'
+      ' | status=${err.response?.statusCode} | ${err.message ?? ''}',
+    );
     if (!url.contains('/v6/apk/download') &&
         !url.contains('/v6/message/showImage')) {
       SmartDialog.showToast(

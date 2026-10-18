@@ -94,10 +94,17 @@ class ApiError {
     final resp = e.response;
     // 有响应 ⇒ 优先用响应里的 message ✓（比「服务器异常」有用得多 ✓）
     if (resp != null) {
-      final title = titleFromBody(resp.data) ?? _titleForStatus(resp.statusCode);
+      final fromBody = titleFromBody(resp.data);
+      final title = fromBody ?? _titleForStatus(resp.statusCode);
       return ApiError(
         title: title,
-        detail: _detailFromBody(resp.data),
+        // ★ 403 且响应体是**空的** ⇒ 几乎都是「请求被中转节点拦掉」：
+        //   实测直连 api.coolapk.com 返回 200，走本地代理（Clash 7890）
+        //   则**所有接口**都 403 且 body 为空 ✗
+        //   ⇒ 这条提示比「登录已过期」准得多 ✓
+        detail: fromBody == null && resp.statusCode == 403
+            ? '如果你开了代理 / VPN / 加速器（包括 Clash 的 TUN 模式），请关掉后重试'
+            : _detailFromBody(resp.data),
         statusCode: resp.statusCode,
         path: e.requestOptions.uri.toString(),
         rawBody: _snippet(resp.data),

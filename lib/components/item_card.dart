@@ -14,6 +14,7 @@ import '../components/cards/icon_scroll_card.dart';
 import '../components/cards/image_square_scroll_card.dart';
 import '../components/cards/image_text_scroll_card.dart';
 import '../components/cards/like_card.dart';
+import '../components/cards/like_source_card.dart';
 import '../components/cards/message_card.dart';
 import '../components/cards/notification_card.dart';
 import '../components/cards/pear_goods_card.dart';
@@ -133,6 +134,19 @@ Widget itemCard(
           return genericCard(data);
       }
     case 'feed':
+      // ★ 我的赞（`/v6/user/likeList`）：只有 `likeTime`（我赞的时间）、
+      //   **没有** `likeUserInfo`（谁赞的）—— 因为赞的人就是自己 ✓
+      //   ⇒ 用紧凑的「来源」卡（对齐 app ✓ 用户要求），而不是完整动态大卡
+      //   我收到的赞（`feedLikeList`）有 likeUserInfo ⇒ 走下面的 LikeCard ✓
+      //   （`feedLikeList` 的 entityType 实测就是 `feed` ✗ 不是 `feed_reply`，
+      //    所以这两支必须挂在 `feed` 上）
+      if (data.likeUserInfo != null) {
+        // 我收到的赞：有 likeUserInfo（谁赞的）⇒ 「XX 赞了你的动态」卡 ✓
+        return LikeCard(data: data);
+      }
+      if (data.likeTime != null) {
+        return LikeSourceCard(data: data);
+      }
       return buildFeedCard();
     case 'feed_reply':
       if (data.likeUserInfo != null) {
