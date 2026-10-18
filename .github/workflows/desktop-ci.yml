@@ -40,9 +40,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ★ 钉住 Flutter 版本 —— 修「装好后启动窗口全白」
+      #
+      # 现场：用户另一台电脑装完启动 ⇒ 进程活着、内存正常、**窗口全白** ✗
+      # 日志里唯一可疑的一行：
+      #   [IMPORTANT:...embedder_surface_gl_impeller.cc(126)]
+      #     Using the Impeller rendering backend (OpenGLESSDF).
+      #
+      # ⇒ **Flutter 3.29 起 Impeller 在 Windows 上成为默认** ✗
+      #   它在部分显卡/驱动组合下渲染不出东西 ⇒ 白屏 ✓
+      #
+      # ⇒ 已验证「关不掉」✗（四种方式全无效，因为开关是**构建时**写死的）：
+      #   flutter build windows --no-enable-impeller   → CI 报 "Could not find an option"
+      #   exe --no-enable-impeller                     → 仍用 Impeller
+      #   exe --enable-impeller=false                  → 仍用 Impeller
+      #   exe --disable-impeller                       → 仍用 Impeller
+      #   FLUTTER_IMPELLER=false / 0（环境变量）        → 仍用 Impeller
+      #
+      # ⇒ 只能钉版本：**3.27.x 在 Windows 上还是 Skia** ✓
+      #   而代码用的 `withValues(alpha:)` 正是 3.27 引入的 ✓ ⇒ 两边都满足 ✓
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.27.4
           channel: stable
           cache: true
 
@@ -88,7 +108,7 @@ jobs:
       # ⇒ 构建时显式关闭，回到稳定的 **Skia** 渲染器 ✓
       #   代价：新渲染器的性能优势用不上 ✗（可现在稳定优先 ✓）
       - name: Build Windows release
-        run: flutter build windows --release --no-enable-impeller
+        run: flutter build windows --release
 
       # ★ 出**安装程序**（.exe），不是压缩包 —— 用户要求双击即装 ✓
       #
