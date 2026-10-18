@@ -35,8 +35,16 @@ class SzlmHint {
   static DateTime? _lastShownAt;
   static const Duration _cooldown = Duration(seconds: 60);
 
+  /// HTTP 567 = 酷安的风控页（整页 HTML）✓
+  ///
+  /// 实测：把 `X-App-Device` 里的 szlmId 换成**随机串**之后，
+  /// 连首页都会返回 `HTTP 567` + 一整个 HTML 错误页 ✗
+  /// （比「200 + JSON 文案」那种严重得多 ✓）
+  static const int blockedStatusCode = 567;
+
   /// 这条错误文案是不是「szlmId 失效」类 ✓
-  static bool matches(String? message) {
+  static bool matches(String? message, {int? statusCode}) {
+    if (statusCode == blockedStatusCode) return true;
     if (message == null || message.isEmpty) return false;
     for (final m in markers) {
       if (message.contains(m)) return true;
@@ -48,8 +56,8 @@ class SzlmHint {
   ///
   /// ⚠️ 调用方在**请求层**（`network_repo.dart`）—— 那里拿不到 BuildContext ✗
   /// 所以用 `Get.dialog`（GetX 的全局导航器 ✓ 不需要 context ✓）
-  static void maybeNotify(String? message) {
-    if (!matches(message)) return;
+  static void maybeNotify(String? message, {int? statusCode}) {
+    if (!matches(message, statusCode: statusCode)) return;
     final now = DateTime.now();
     if (_lastShownAt != null && now.difference(_lastShownAt!) < _cooldown) {
       return;
@@ -64,7 +72,8 @@ class SzlmHint {
         content: const SingleChildScrollView(
           child: Text(
             '服务器拒绝了这次请求：\n\n'
-            '「评论接口异常」/「当前访问需要验证码」/「版本存在异常」\n\n'
+            '「评论接口异常」/「当前访问需要验证码」/「版本存在异常」，'
+            '或者整个页面直接打不开（HTTP 567）。\n\n'
             '这些都是**设备标识（数字联盟 ID / DUID）失效**时的固定提示 —— '
             '它不一定是账号问题，重新取一次号通常就能恢复。\n\n'
             '去「设置 → 高级 → 获取数字联盟 ID」点一次，按提示完成人机验证即可（App 端同样如此）。',

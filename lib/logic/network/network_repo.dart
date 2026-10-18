@@ -809,7 +809,8 @@ class NetworkRepo {
     if (err is DioException) {
       final api = ApiError.fromDio(err);
       // 异常路径也可能带出「评论接口异常」这类文案 ✓（服务器偶尔用非 200 回）
-      SzlmHint.maybeNotify(api.title);
+      // ★ 还要看状态码：szlmId 是随机串时首页直接 HTTP 567（整页 HTML 风控）✗
+      SzlmHint.maybeNotify(api.title, statusCode: api.statusCode);
       return apiErrorToMessage(api); // 标题 + 状态码/路径 ✓
     }
     final s = err.toString();
