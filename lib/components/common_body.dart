@@ -7,18 +7,20 @@ import '../components/item_card.dart';
 import '../logic/model/feed/datum.dart';
 import '../logic/repo/spam_config_repo.dart';
 import '../logic/state/loading_state.dart';
+import 'error_view.dart';
 import '../pages/common/common_controller.dart';
 import '../utils/utils.dart';
 import 'm3e_progress.dart';
 
+/// 整页占位（空 / 错误）。
+///
+/// 原来是「一块可点的 Text」✗ —— 用户原话：
+/// 「什么都不显示，就一个刷新按钮，这肯定不行」
+/// ⇒ 现在统一走 [ErrorView] ✓：图标 + 主文案 + 状态码/路径 + [复制详情] [重试] ✓
 Widget _bodyState(String text, Function() onTap) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(10.0),
-      child: Text(text),
-    ),
+  return ErrorView(
+    message: text,
+    onRetry: () => onTap(),
   );
 }
 

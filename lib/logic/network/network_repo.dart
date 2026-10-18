@@ -12,6 +12,7 @@ import '../../logic/state/loading_state.dart';
 import '../../utils/extensions.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
+import '../../components/error_view.dart';
 import 'api_error.dart';
 
 class NetworkRepo {
@@ -784,7 +785,7 @@ class NetworkRepo {
   /// - 其它异常   ⇒ `toString()` 但去掉 `Exception: ` 前缀 ✓
   static String _errText(Object err) {
     if (err is DioException) {
-      return ApiError.fromDio(err).title;
+      return apiErrorToMessage(ApiError.fromDio(err)); // 标题 + 状态码/路径 ✓
     }
     final s = err.toString();
     return s.startsWith('Exception: ') ? s.substring(11) : s;
@@ -805,7 +806,8 @@ class NetworkRepo {
       }
     } else {
       // ★ 非 200 时**也要**从响应体里找 message ✓（原来只给状态码 ✗ 用户看不懂 ✗）
-      return LoadingState.error(ApiError.fromResponse(response).title);
+      return LoadingState.error(
+          apiErrorToMessage(ApiError.fromResponse(response)));
     }
   }
 
@@ -861,7 +863,8 @@ class NetworkRepo {
         }
       }
     } else {
-      return LoadingState.error(ApiError.fromResponse(response).title);
+      return LoadingState.error(
+          apiErrorToMessage(ApiError.fromResponse(response)));
     }
   }
 }
