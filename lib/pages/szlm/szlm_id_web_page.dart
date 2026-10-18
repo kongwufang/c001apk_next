@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 import '../../utils/szlm_id_params.dart';
+import '../../utils/webview_env.dart';
 import '../../utils/storage_util.dart';
 
 /// 「获取数字联盟 ID」页 —— 内置 WebView 打开自建页面换取 DUID。
@@ -61,6 +62,15 @@ window.C001Bridge = {
             : null,
       ),
       body: InAppWebView(
+        // ★★ Windows 上**必须**传同一个 WebViewEnvironment（2026-10-18 修）
+        //
+        // 症状：一进「获取数字联盟 ID」页面就**打不开**（空白/失败）✗
+        // 原因：main() 里已经 `WebViewEnv.init()` 建了全局环境 ✓
+        //       但这里创建 WebView 时**没传**它 ✗
+        //       ⇒ flutter_inappwebview 的 Windows 实现建不出 WebView ✗
+        // 对照：`components/h5_tab.dart` 和 `pages/webview/webview_page.dart`
+        //       都是传了的 ✓ 只有这个页面漏了 ✗
+        webViewEnvironment: WebViewEnv.instance,
         initialSettings: InAppWebViewSettings(
           javaScriptEnabled: true,
           domStorageEnabled: true,

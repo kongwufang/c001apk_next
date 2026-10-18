@@ -39,29 +39,50 @@ class _MessagePageState extends State<MessagePage>
     with AutomaticKeepAliveClientMixin {
   final _controller = Get.put(MessageCenterController(), tag: 'messageCenter');
 
-  /// 宫格五个入口 —— 对齐 Android `MessageThirdAdapter` 的 5 项，
-  /// 顺序与 `NotificationType` 一致（AT / COMMENT / LIKE / FOLLOW / MESSAGE）。
-  static const _titles = ['@我的动态', '@我的评论', '我收到的赞', '好友关注', '私信'];
+  /// 宫格**七个**入口 —— 顺序、文案、配色逐项对齐 Android
+  /// `MessageThirdAdapter.messTitle` / `logoColorList`：
+  /// ```
+  /// @我的动态 / @我的评论 / 我收到的赞 / 好友关注 / 我的回复 / 私信 / 酷安小秘书
+  /// #2196f3    #00bcd4      #4caf50    #f44336    #e91e63    #ff9800  #9c27b0
+  /// ```
+  /// （2026-10-18 补齐：「我的回复」「酷安小秘书」之前漏了 ✗ 用户指出 ✓）
+  static const _titles = [
+    '@我的动态',
+    '@我的评论',
+    '我收到的赞',
+    '好友关注',
+    '我的回复',
+    '私信',
+    '酷安小秘书',
+  ];
   static const _types = [
     NotificationType.AT,
     NotificationType.COMMENT,
     NotificationType.LIKE,
     NotificationType.FOLLOW,
+    NotificationType.COMMENT_ME,
     NotificationType.MESSAGE,
+    NotificationType.SECRETARY,
   ];
   static const _icons = [
     Icons.alternate_email,
     Icons.chat_bubble_outline,
     Icons.thumb_up_alt_outlined,
     Icons.person_add_alt_1_outlined,
+    Icons.reply,
     Icons.mail_outline,
+    Icons.notifications_none,
   ];
+  /// 配色照 Android `logoColorList`（#2196f3 / #00bcd4 / #4caf50 / #f44336 /
+  /// #e91e63 / #ff9800 / #9c27b0）
   static const _colors = [
-    0xFF3B82F6,
-    0xFF10B981,
-    0xFFEF4444,
-    0xFF8B5CF6,
-    0xFFF59E0B,
+    0xFF2196F3,
+    0xFF00BCD4,
+    0xFF4CAF50,
+    0xFFF44336,
+    0xFFE91E63,
+    0xFFFF9800,
+    0xFF9C27B0,
   ];
 
   @override

@@ -29,8 +29,11 @@ import '../../pages/common/common_controller.dart';
 ///   没有这两样，`commentMe`（评论回复）这一类不会出现在汇总里，
 ///   红点也不会「看过就消」—— 记为待办，见台账。
 class MessageCenterController extends CommonController {
-  /// 五类未读的红点：@我 / @我的评论 / 我收到的赞 / 好友关注 / 私信
-  /// （与 `MessageController.thirdList` 同一口径，顺序也一致）
+  /// 七类未读的红点，顺序**必须**与 `message_page.dart` 的宫格一致 ✓
+  /// 对齐 Android `UnreadCounter.gridCategories`：
+  /// ```
+  /// atMe / atCommentMe / feedLike / contactsFollow / commentMe / message / secretary
+  /// ```
   final RxList<int?> badges = <int?>[].obs;
 
   /// 未读汇总的数据来源：分类 → 端点。
@@ -55,7 +58,12 @@ class MessageCenterController extends CommonController {
         data?.atcommentme,
         data?.feedlike,
         data?.contactsFollow,
+        // ★ 2026-10-18 补齐最后两类（宫格从 5 项扩到 7 项）
+        //   commentme = 「我的回复」的未读 ✓
+        //   notification = 「酷安小秘书」的未读 ✓（Android 也是读这一个 ✓）
+        data?.commentme,
         data?.message,
+        data?.notification,
       ];
     } catch (e) {
       debugPrint('MessageCenterController.refreshBadges: $e');
