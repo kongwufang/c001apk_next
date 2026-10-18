@@ -14,6 +14,7 @@ import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 import '../../components/error_view.dart';
 import 'api_error.dart';
+import '../../utils/szlm_hint.dart';
 import '../model/search_suggest.dart';
 
 class NetworkRepo {
@@ -806,7 +807,10 @@ class NetworkRepo {
   /// - 其它异常   ⇒ `toString()` 但去掉 `Exception: ` 前缀 ✓
   static String _errText(Object err) {
     if (err is DioException) {
-      return apiErrorToMessage(ApiError.fromDio(err)); // 标题 + 状态码/路径 ✓
+      final api = ApiError.fromDio(err);
+      // 异常路径也可能带出「评论接口异常」这类文案 ✓（服务器偶尔用非 200 回）
+      SzlmHint.maybeNotify(api.title);
+      return apiErrorToMessage(api); // 标题 + 状态码/路径 ✓
     }
     final s = err.toString();
     return s.startsWith('Exception: ') ? s.substring(11) : s;
@@ -817,6 +821,8 @@ class NetworkRepo {
     if (response.statusCode == HttpStatus.ok) {
       DataModel responseData = DataModel.fromJson(response.data);
       if (!responseData.message.isNullOrEmpty) {
+        // ★ 设备标识失效（szlmId 过期）会走到这里 ✓ 见 `utils/szlm_hint.dart`
+        SzlmHint.maybeNotify(responseData.message);
         return LoadingState.error(responseData.message!);
       } else {
         if (responseData.data != null) {
@@ -840,6 +846,7 @@ class NetworkRepo {
     if (response.statusCode == HttpStatus.ok) {
       DataListModel responseData = DataListModel.fromJson(response.data);
       if (!responseData.message.isNullOrEmpty) {
+        SzlmHint.maybeNotify(responseData.message);
         return LoadingState.error(responseData.message!);
       } else {
         if (!responseData.data.isNullOrEmpty) {
