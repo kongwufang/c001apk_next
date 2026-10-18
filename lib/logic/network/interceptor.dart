@@ -55,6 +55,44 @@ class ApiInterceptor extends Interceptor {
     return TokenUtils.getTokenV3(xAppDevice, versionCode: versionCode);
   }
 
+  /// 只在**第一个**请求打印一次完整头部 —— 排查「请求验证错误 / 403」用。
+  ///
+  /// 为什么要它：`X-Api-Version` / `X-App-Version` / `X-App-Code` /
+  /// `X-App-Device` / `User-Agent` 任一为空或不配套，服务端就回
+  /// **403 + 空响应体**（实测确认 ✓），而这种失败**看不出**是哪一项 ✗。
+  ///
+  /// ⚠️ 这些值在下面几个 getter 里是 `??=` **缓存**的 ✗ ——
+  ///   如果第一次请求发生在参数初始化之前，缓存就被空值**永久污染** ✗
+  ///   ⇒ 整个进程的所有请求都会 403 ✗（这行的输出就是用来验证这件事的）
+  static bool _headersLogged = false;
+
+  void _logHeadersOnce(Map<String, dynamic> h) {
+    if (_headersLogged) return;
+    _headersLogged = true;
+    String v(String k) {
+      final s = h[k]?.toString() ?? '';
+      if (s.isEmpty) return '(空)✗';
+      // 敏感项只留长度
+      if (k == 'X-App-Token' || k == 'Cookie') return '(len=${s.length})';
+      if (k == 'X-App-Device') {
+        return s.length <= 16 ? '(len=${s.length})' : '${s.substring(0, 12)}…(len=${s.length})';
+      }
+      return s;
+    }
+    debugPrint('HTTP HEADERS | '
+        'ApiVer=${v('X-Api-Version')} | '
+        'AppVer=${v('X-App-Version')} | '
+        'AppCode=${v('X-App-Code')} | '
+        'Supported=${v('X-App-Supported')} | '
+        'SdkInt=${v('X-Sdk-Int')} | '
+        'AppId=${v('X-App-Id')} | '
+        'Mode=${v('X-App-Mode')} | '
+        'Dev=${v('X-App-Device')} | '
+        'Token=${v('X-App-Token')} | '
+        'Cookie=${v('Cookie')} | '
+        'UA=${v('User-Agent')}');
+  }
+
   @override
   void onRequest(options, handler) async {
     // 记下起点，供 HttpLog 算耗时 ✓（关着开关也只是一个 Map 写入 ✓ 可忽略）
@@ -154,6 +192,7 @@ class ApiInterceptor extends Interceptor {
           : GlobalData().SESSID;
     }
 
+    _logHeadersOnce(options.headers);
     handler.next(options);
   }
 
