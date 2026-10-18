@@ -7,6 +7,7 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import '../../constants/constants.dart';
 import '../../utils/global_data.dart';
 import '../../utils/http_log.dart';
+import 'api_error.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/token_util.dart';
 
@@ -188,10 +189,22 @@ class ApiInterceptor extends Interceptor {
     );
     if (!url.contains('/v6/apk/download') &&
         !url.contains('/v6/message/showImage')) {
+      // ★ toast 也说人话 —— 原来固定「服务器异常，请稍后重试！」✗
+      //   现在优先用 ApiError（403+空响应体会带「关代理」提示 ✓）
+      final api = ApiError.fromDio(err);
+      final detail = api.detail;
+      final text = detail == null || detail.isEmpty
+          ? api.title
+          : '${api.title}（$detail）';
       SmartDialog.showToast(
-        await dioError(err),
+        text,
         displayType: SmartToastType.onlyRefresh,
       );
+      // dioError 仍保留：它有「正在使用移动流量 / wifi」这类网络状态文案 ✓
+      // 只在 ApiError 没给出更有用信息时才用 —— 这里只做兜底，不再覆盖 ✓
+      if (api.title.isEmpty) {
+        SmartDialog.showToast(await dioError(err));
+      }
     }
     super.onError(err, handler);
   }
