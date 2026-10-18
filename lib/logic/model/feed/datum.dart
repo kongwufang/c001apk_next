@@ -204,6 +204,19 @@ class Datum {
   List<Datum>? replyMeRows;
   // int? replyRowsCount;
   int? replyRowsMore;
+  /// 认证：`/v6/user/space` 等接口把这三个**挂在 data 根上**（不在 userInfo 里）✓
+  /// 1 = 有认证（头像右下角挂角标）
+  @JsonKey(name: 'verify_status')
+  int? verifyStatus;
+
+  /// 完整认证名，如「酷安认证: 酷安员工」—— 只在个人主页展示
+  @JsonKey(name: 'verify_title')
+  String? verifyTitle;
+
+  /// 角标图标名：v_green / v_yellow
+  @JsonKey(name: 'verify_icon')
+  String? verifyIcon;
+
   UserInfo? userInfo;
   UserInfo? fUserInfo;
   UserInfo? likeUserInfo;
@@ -414,6 +427,9 @@ class Datum {
     this.replyMeRows,
     // this.replyRowsCount,
     this.replyRowsMore,
+    this.verifyStatus,
+    this.verifyTitle,
+    this.verifyIcon,
     this.userInfo,
     this.fUserInfo,
     this.likeUserInfo,

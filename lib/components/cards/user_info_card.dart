@@ -11,6 +11,7 @@ import '../../utils/global_data.dart';
 import '../../utils/storage_util.dart';
 import '../../utils/utils.dart';
 import '../expandable_bio.dart';
+import '../verify_badge_view.dart';
 
 class UserInfoCard extends StatelessWidget {
   const UserInfoCard({
@@ -94,11 +95,19 @@ class UserInfoCard extends StatelessWidget {
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: clipNetworkImage(
-                    data.userAvatar ?? '',
-                    isAvatar: true,
-                    width: 76,
-                    height: 76,
+                  // ★ 头像右下角认证角标（对齐 Android `setVerifyBadge`）
+                  child: VerifyAvatar(
+                    uid: data.uid,
+                    status: data.verifyStatus,
+                    icon: data.verifyIcon,
+                    dotSize: 20,
+                    offset: 2,
+                    child: clipNetworkImage(
+                      data.userAvatar ?? '',
+                      isAvatar: true,
+                      width: 76,
+                      height: 76,
+                    ),
                   ),
                 ),
               ),
@@ -182,6 +191,13 @@ class UserInfoCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+        ),
+        // ★ 认证行（角标 + 文字）—— 只在个人主页出现 ✓（对齐 Android `setVerifyTitle`）
+        VerifyTitleRow(
+          uid: data.uid,
+          rawTitle: data.verifyTitle,
+          icon: data.verifyIcon,
+          status: data.verifyStatus,
         ),
         Padding(
           padding: const EdgeInsets.only(left: 20, top: 4),

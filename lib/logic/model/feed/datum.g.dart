@@ -151,6 +151,9 @@ Datum _$DatumFromJson(Map<String, dynamic> json) => Datum(
           .toList(),
       // replyRowsCount: (json['replyRowsCount'] as num?)?.toInt(),
       replyRowsMore: (json['replyRowsMore'] as num?)?.toInt(),
+      verifyStatus: (json['verify_status'] as num?)?.toInt(),
+      verifyTitle: json['verify_title'] as String?,
+      verifyIcon: json['verify_icon'] as String?,
       userInfo: json['userInfo'] == null
           ? null
           : UserInfo.fromJson(json['userInfo'] as Map<String, dynamic>),
@@ -358,6 +361,9 @@ Map<String, dynamic> _$DatumToJson(Datum instance) => <String, dynamic>{
       'replyMeRows': instance.replyMeRows,
       // 'replyRowsCount': instance.replyRowsCount,
       'replyRowsMore': instance.replyRowsMore,
+      'verify_status': instance.verifyStatus,
+      'verify_title': instance.verifyTitle,
+      'verify_icon': instance.verifyIcon,
       'userInfo': instance.userInfo,
       'fUserInfo': instance.fUserInfo,
       'likeUserInfo': instance.likeUserInfo,
