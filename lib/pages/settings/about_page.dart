@@ -51,7 +51,7 @@ class _AboutPageState extends State<AboutPage> {
   /// key 与 Android `AboutActivity.statsUrl` 里那份**完全一致** ✓
   /// （那个 key 本来就会随服务端 conf.php 下发，放在这里不会多泄露什么）
   static const String _statsUrl =
-      'https://service.houlangs.cn/c001apk/stats.php?key=87cf6dccca45ab5ce25530c567026109ea063f29';
+      'https://service.houlangs.cn/c001apk/stats.php';
 
   @override
   void initState() {
