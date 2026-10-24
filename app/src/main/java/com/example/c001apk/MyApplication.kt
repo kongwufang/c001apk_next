@@ -1,5 +1,6 @@
 package com.example.c001apk
 
+import com.example.c001apk.util.SyncLocationBootstrap
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
@@ -36,6 +37,11 @@ class MyApplication : Application() {
 
         // 每次进入应用读一次剪贴板：是酷安分享链接就弹「是否打开」
         ShareLinkPrompter.install(this)
+
+        // 数据保存位置（收藏/关注/黑名单）按登录态对齐一次（2026-10-25 ✓）
+        //   登录态没变 ⇒ 保持用户设置 ✓
+        //   登录态变了 ⇒ 三个开关都对齐成当前登录态 ✓（用户要求的「自动调整一次」）
+        SyncLocationBootstrap.applyIfLoginChanged()
 
         // 本机签名校验：装的不是官方包（且非 debug 包）就弹窗拒绝启动。
         // 与升级接口里那套云端签名核验各写一份、互不引用，见 SignatureGuard 的注释

@@ -198,6 +198,32 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
+        // ── 数据保存位置（2026-10-25 ✓）──
+        //   ⚠️ XML 里写了 persistent=false ⇒ 值由这里手动读写 PrefManager ✓
+        //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
+        //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
+        findPreference<MaterialSwitchPreference>("saveCollectionToCloud")?.apply {
+            isChecked = PrefManager.saveCollectionToCloud
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.saveCollectionToCloud = v as Boolean
+                true
+            }
+        }
+        findPreference<MaterialSwitchPreference>("saveFollowToCloud")?.apply {
+            isChecked = PrefManager.saveFollowToCloud
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.saveFollowToCloud = v as Boolean
+                true
+            }
+        }
+        findPreference<MaterialSwitchPreference>("saveBlackListToCloud")?.apply {
+            isChecked = PrefManager.saveBlackListToCloud
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.saveBlackListToCloud = v as Boolean
+                true
+            }
+        }
+
         findPreference<MaterialSwitchPreference>("followSystemAccent")?.setOnPreferenceChangeListener { _, _ ->
             activity?.recreate()
             true

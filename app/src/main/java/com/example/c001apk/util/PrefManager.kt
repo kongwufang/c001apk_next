@@ -56,6 +56,45 @@ object PrefManager {
         get() = pref.getBoolean("sidebar_hint_shown", false)
         set(value) = pref.edit().putBoolean("sidebar_hint_shown", value).apply()
 
+    // ── 数据保存位置（2026-10-25 ✓）──
+    //
+    // 收藏 / 关注 / 黑名单各自一个开关：
+    //   true  = 云端保存 ✓（需要登录 ✓）
+    //   false = 本地保存 ✓（不登录也能用 ✓）
+    //
+    // 默认值按登录态走 ✓（见 [SyncLocationBootstrap]）
+    // 用户手动改过之后就不再自动覆盖 ✓ ——
+    // 只有「登录态发生变化」时才会再自动调整一次 ✓
+
+    /** 收藏：true=云端 / false=本地 */
+    var saveCollectionToCloud: Boolean
+        get() = pref.getBoolean("save_collection_to_cloud", isLogin)
+        set(value) = pref.edit().putBoolean("save_collection_to_cloud", value).apply()
+
+    /** 关注：true=云端 / false=本地 */
+    var saveFollowToCloud: Boolean
+        get() = pref.getBoolean("save_follow_to_cloud", isLogin)
+        set(value) = pref.edit().putBoolean("save_follow_to_cloud", value).apply()
+
+    /** 黑名单（用户）：true=云端 / false=本地 */
+    var saveBlackListToCloud: Boolean
+        get() = pref.getBoolean("save_black_list_to_cloud", isLogin)
+        set(value) = pref.edit().putBoolean("save_black_list_to_cloud", value).apply()
+
+    /**
+     * 上一次「自动对齐」时的登录态
+     *
+     * -1 = 还没对齐过 ✓（首次启动 ⇒ 按当前登录态写一次 ✓）
+     *  0 = 上次对齐时**未登录** ✓
+     *  1 = 上次对齐时**已登录** ✓
+     *
+     * ⚠️ 用户手动拨开关时**不**改这个值 ✗
+     *   ⇒ 这样「有账号 ↔ 没账号」一旦发生 ✓ 就能靠它检测出来 ✓ 再自动对齐一次 ✓
+     */
+    var syncLocationLoginSnapshot: Int
+        get() = pref.getInt("sync_location_login_snapshot", -1)
+        set(value) = pref.edit().putInt("sync_location_login_snapshot", value).apply()
+
     var themeColor: String
         get() = pref.getString(PREF_THEME_COLOR, "MATERIAL_DEFAULT")!!
         set(value) = pref.edit().putString(PREF_THEME_COLOR, value).apply()

@@ -1,5 +1,6 @@
 package com.example.c001apk.logic.repository
 
+import com.example.c001apk.util.PrefManager
 import androidx.lifecycle.LiveData
 import com.example.c001apk.di.TopicBlackList
 import com.example.c001apk.di.UserBlackList
@@ -43,6 +44,14 @@ class BlackListRepo @Inject constructor(
      * 返回 false = 云端同步失败（本地仍会写入，保证离线也能屏蔽；但云端黑名单页看不到这一条）。
      */
     suspend fun saveUid(uid: String): Boolean {
+        // 本地模式（设置里关掉「黑名单=云端」）⇒ 完全不请求云端 ✓
+        //   返回 true = 本地已生效 ✓ 调用方不会报错 ✓
+        if (!PrefManager.saveBlackListToCloud) {
+            if (!userBlackListDao.isExist(uid)) {
+                userBlackListDao.insert(StringEntity(uid))
+            }
+            return true
+        }
         val synced = runCatching {
             networkRepo.addToBlackList(uid).first().getOrNull()?.data != null
         }.getOrDefault(false)
@@ -54,6 +63,11 @@ class BlackListRepo @Inject constructor(
 
     /** 移出黑名单：先同步云端（POST /v6/user/removeFromBlackList?uid=x），再删本地库 */
     suspend fun deleteUid(uid: String): Boolean {
+        // 本地模式 ⇒ 只删本地 ✓ 不请求云端 ✓
+        if (!PrefManager.saveBlackListToCloud) {
+            userBlackListDao.delete(uid)
+            return true
+        }
         val synced = runCatching {
             networkRepo.removeFromBlackList(uid).first().getOrNull()?.data != null
         }.getOrDefault(false)

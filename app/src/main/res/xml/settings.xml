@@ -84,6 +84,41 @@
 
         </PreferenceCategory>
 
+        <!--
+            数据保存位置（2026-10-25 ✓）
+
+            收藏 / 关注 / 黑名单各自选「云端」还是「本地」✓
+            默认按登录态走 ✓（见 SyncLocationBootstrap）
+            用户手动改过之后不再自动覆盖 ✓ 只有登录态变化时才再对齐一次 ✓
+
+            ⚠️ persistent=false：不走 Preference 自己的 SharedPreferences ✗
+               实际值存在 PrefManager 里 ✓ 由 SettingsPreferenceFragment 手动读写 ✓
+        -->
+        <PreferenceCategory android:title="@string/settings_save_location">
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_star"
+                android:key="saveCollectionToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_collection_summary"
+                android:title="@string/settings_save_collection" />
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_add"
+                android:key="saveFollowToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_follow_summary"
+                android:title="@string/settings_save_follow" />
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_user"
+                android:key="saveBlackListToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_blacklist_summary"
+                android:title="@string/settings_save_blacklist" />
+
+        </PreferenceCategory>
+
         <PreferenceCategory android:title="@string/settings_animation">
 
             <!--
