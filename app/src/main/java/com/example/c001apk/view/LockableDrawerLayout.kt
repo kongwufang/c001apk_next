@@ -113,6 +113,21 @@ class LockableDrawerLayout @JvmOverloads constructor(
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        // ★ 抽屉正在**展开**的动画期间（已露出但还没完全 open）⇒ 完全不拦截 ✓
+        //
+        //   用户要求：「侧边栏呼出时不必等动画放完，此时按钮也有效」
+        //
+        //   原因：`DrawerLayout` 在 `ViewDragHelper` **settling** 期间会
+        //   吞掉/取消子 View 的触摸 ✗ ⇒ 动画没走完时点按钮没反应 ✗
+        //   （`isDrawerVisible` = 抽屉露出了一点点 ✓ 包含整段展开动画 ✓）
+        //   （`!isDrawerOpen`   = 还没完全展开 ✓ 排除了「已开」的状态 ✓）
+        //
+        //   ⚠️ 完全展开后**不**走这条 ✗ ⇒ 那时仍然交给 super ✓
+        //      否则「拖动关闭」就失效了 ✗
+        if (isDrawerVisible(GravityCompat.START) && !isDrawerOpen(GravityCompat.START)) {
+            return false
+        }
+
         // 反射成功 ⇒ 完全交给 DrawerLayout 自己的 ViewDragHelper ✓ 跟手 ✓
         if (helperPatched) return super.onInterceptTouchEvent(ev)
 
