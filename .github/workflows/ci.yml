@@ -6,7 +6,8 @@ on:
     # main  = 发布线：每推一次（= 发一次正式版）版本号自动 +1，产物进 release-latest
     # debug = 测试线：版本号对齐 main（= 线上最高号，不涨号），产物进 debug-latest（prerelease）
     # update = 只放升级配置 json，不构建产物（见 Publish 步骤的排除条件）
-    branches: [ main, debug, update ]
+    # debug2 = 实验线（UI 大改等试验改动），产物进 debug2-latest ✓
+    branches: [ main, debug, debug2, update ]
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -186,6 +187,7 @@ jobs:
       # 每个分支把各自编译出来的发行版放到「自己固定位置」的 GitHub Release：
       #   main  → release-latest（正式版）
       #   debug → debug-latest（测试版，prerelease）
+      #   debug2 → debug2-latest（实验线，prerelease）✓
       # update 分支只放更新配置（json），不发布产物。
       - name: Publish to GitHub Releases
         if: success() && github.event_name == 'push' && github.ref_name != 'update'
@@ -194,8 +196,9 @@ jobs:
         run: |
           set -euo pipefail
           case "${GITHUB_REF_NAME}" in
-            main) TAG=release-latest; TITLE="正式版（main 自动构建）"; PRE=() ;;
-            *)    TAG=debug-latest;   TITLE="测试版（debug 自动构建）"; PRE=(--prerelease) ;;
+            main)   TAG=release-latest;   TITLE="正式版（main 自动构建）";     PRE=() ;;
+            debug2) TAG=debug2-latest;    TITLE="实验版（debug2 自动构建）";  PRE=(--prerelease) ;;
+            *)      TAG=debug-latest;     TITLE="测试版（debug 自动构建）";   PRE=(--prerelease) ;;
           esac
 
           # 只发布正式签名的发行包。debug 构建出的包与它同名（都叫 xxx-debug(版本号).apk），
