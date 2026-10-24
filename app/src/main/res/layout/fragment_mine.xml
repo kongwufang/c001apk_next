@@ -106,12 +106,27 @@
                         app:layout_constraintTop_toTopOf="parent"
                         tools:text="name" />
 
+                    <!--
+                        右上角图标的分界线（2026-10-24 修 ✓）
+
+                        ## 原来按百分比 0.75 ✗
+                        `layout_constraintGuide_percent="0.75"` 是**父宽的 75%** ✗
+                        全屏时没问题（给右侧两个图标留 25% ✓）
+                        但「我的」现在装进**侧边栏抽屉**（屏宽 85%）✗
+                        ⇒ 75% 那条线几乎压在头像后面的文字上 ✗
+                        ⇒ 用户名被截成「晚上...」✗
+                        ⇒ `Lv.1` 和 `132/27000` **重叠糊在一起** ✗
+
+                        ## 改成从右边固定留 100dp ✓
+                        右上角两个图标（账号 + 设置）各 48dp ⇒ 96dp 就够 ✓
+                        用固定值不随父宽缩放 ⇒ 全屏 / 抽屉 / 分屏都对 ✓
+                    -->
                     <androidx.constraintlayout.widget.Guideline
                         android:id="@+id/guideline"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        app:layout_constraintGuide_percent="0.75" />
+                        app:layout_constraintGuide_end="100dp" />
 
                     <TextView
                         android:id="@+id/level"
