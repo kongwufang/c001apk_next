@@ -179,8 +179,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
+            android:text="@{`发布于 ` + data.ipLocation + (data.readNum != null &amp;&amp; data.readNum > 0 ? ` · ` + data.readNum + `浏览` : ``) + (data.isModified == 1 ? ` · 已编辑` : ``)}"
             android:textColor="@android:color/darker_gray"
-            app:setFeedFooter="@{data}"
+            android:visibility="@{data.ipLocation == null || data.ipLocation.isEmpty ? View.GONE : View.VISIBLE}"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/forwarded" />
 

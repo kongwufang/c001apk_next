@@ -55,20 +55,6 @@ fun setExtraPic(imageView: ImageView, extraPic: String?) {
     }
 }
 
-/**
- * 底部信息行：「发布于广东 · 4571浏览 · 已编辑」
- *
- * ⚠️ 位置很重要 ✗ —— 一开始我把它放在**作者行下面**（头像/时间旁边）✗
- * 结果和「1天前 一加13」**重叠**了 ✗ 很难看 ✗
- * ⇒ 项目本来就有一行「发布于 广东」在**正文下方** ✓ 把它扩展掉最干净 ✓
- *
- * 数据来源（2026-10-24 抓包 + 接口确认 ✓）：
- * - 位置 ⇒ `ip_location` ✓
- * - 浏览 ⇒ **`readNum`** ✓（`viewnum` / `hitnum` 永远是 0 ✗ 别用）
- * - 已编辑 ⇒ `isModified == 1` ✓
- *
- * 三样都没有时整行隐藏 ✓（不留空白行 ✗）
- */
 @BindingAdapter("setFeedFooter")
 fun setFeedFooter(textView: TextView, data: HomeFeedResponse.Data?) {
     val sb = StringBuilder()
