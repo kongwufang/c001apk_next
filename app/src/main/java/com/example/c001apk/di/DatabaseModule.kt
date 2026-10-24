@@ -17,6 +17,10 @@ import com.example.c001apk.logic.database.RecentEmojiDatabase
 import com.example.c001apk.logic.database.SearchHistoryDatabase
 import com.example.c001apk.logic.database.TopicBlackListDatabase
 import com.example.c001apk.logic.database.UserBlackListDatabase
+import com.example.c001apk.logic.database.FollowUserDatabase
+import com.example.c001apk.logic.database.LocalCollectionDatabase
+import com.example.c001apk.logic.dao.LocalCollectionDao
+import com.example.c001apk.logic.dao.FollowUserDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -77,6 +81,40 @@ object DatabaseModule {
 
     @Singleton
     @Provides
+    @Provides
+    @Singleton
+    fun provideLocalCollectionDao(db: LocalCollectionDatabase): LocalCollectionDao {
+        return db.localCollectionDao()
+    }
+
+    /** 本机收藏库（2026-10-25 ✓）单独一颗 .db ✓ */
+    @Provides
+    @Singleton
+    fun provideLocalCollectionDatabase(@ApplicationContext context: Context): LocalCollectionDatabase {
+        return Room.databaseBuilder(
+            context,
+            LocalCollectionDatabase::class.java, "local_collection.db"
+        ).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFollowUserDao(db: FollowUserDatabase): FollowUserDao {
+        return db.followUserDao()
+    }
+
+    /** 本机关注关系库（2026-10-25 ✓）单独一颗 .db ✓ 不动别人的库 ⇒ 不用 migration ✓ */
+    @Provides
+    @Singleton
+    fun provideFollowUserDatabase(@ApplicationContext context: Context): FollowUserDatabase {
+        return Room.databaseBuilder(
+            context,
+            FollowUserDatabase::class.java, "follow_user.db"
+        ).build()
+    }
+
+    @Provides
+    @Singleton
     fun provideUserBlackListDatabase(@ApplicationContext context: Context): UserBlackListDatabase {
         return Room.databaseBuilder(
             context.applicationContext,

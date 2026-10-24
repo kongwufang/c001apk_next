@@ -1,5 +1,9 @@
 package com.example.c001apk.logic.repository
 
+import com.example.c001apk.logic.model.LikeReplyResponse
+import com.example.c001apk.logic.model.CollectionActionData
+import com.example.c001apk.logic.model.CollectionActionResponse
+import com.example.c001apk.util.PrefManager
 import com.example.c001apk.di.Api1Service
 import com.example.c001apk.di.Api1ServiceNoRedirect
 import com.example.c001apk.di.Api2Service
@@ -28,7 +32,9 @@ class NetworkRepo @Inject constructor(
     private val apiServiceNoRedirect: ApiService,
     @Api2Service
     private val api2Service: ApiService,
-) {
+            private val followRepo: FollowRepo,
+            private val localCollectionRepo: LocalCollectionRepo
+        ) {
 
     suspend fun getHomeFeed(
         page: Int,
@@ -218,14 +224,36 @@ class NetworkRepo @Inject constructor(
         Result.success(apiService.getCollectionList(uid, id, type, showDefault, page).await())
     }
 
-    /** 收藏：id=收藏夹 id；取消收藏：cancelId=收藏夹 id（见 HAR 实测） */
+    /**
+     * 收藏：id=收藏夹 id；取消收藏：cancelId=收藏夹 id（见 HAR 实测）
+     *
+     * ## 本地 / 云端分流（2026-10-25 ✓）
+     * 设置里关掉「收藏 = 云端」时：
+     * - **不请求云端** ✓
+     * - 写本机 [LocalCollectionRepo] ✓（记住收藏了哪一条 ✓）
+     * - 返回一个 `message = null` 的假响应 ✓ ⇒ 调用方走「成功」分支 ✓ UI 正常亮/灭 ✓
+     */
     suspend fun addToCollection(
         id: String,
         cancelId: String,
         targetId: String,
         type: String
     ) = fire {
-        Result.success(apiService.addToCollection(id, cancelId, targetId, type).await())
+        if (!PrefManager.saveCollectionToCloud) {
+            runCatching {
+                if (cancelId.isNotEmpty()) localCollectionRepo.uncollect(targetId)
+                else localCollectionRepo.collect(targetId)
+            }
+            Result.success(
+                CollectionActionResponse(
+                    data = CollectionActionData(favnum = null, collect = if (cancelId.isNotEmpty()) 0 else 1),
+                    status = null,
+                    message = null
+                )
+            )
+        } else {
+            Result.success(apiService.addToCollection(id, cancelId, targetId, type).await())
+        }
     }
 
     suspend fun createCollection(
@@ -355,8 +383,32 @@ class NetworkRepo @Inject constructor(
         Result.success(apiService.readMessage(ukey).await())
     }
 
+    /**
+     * 关注 / 取消关注
+     *
+     * ## 本地 / 云端分流（2026-10-25 ✓）
+     * 设置里关掉「关注 = 云端」时：
+     * - **不请求云端** ✓
+     * - 写本机 [FollowRepo] ✓
+     * - 返回 `message = null` 的假响应 ✓ ⇒ 调用方走成功分支 ✓ 按钮正常翻转 ✓
+     */
     suspend fun postFollowUnFollow(url: String, uid: String) = fire {
-        Result.success(apiService.postFollowUnFollow(url, uid).await())
+        if (!PrefManager.saveFollowToCloud) {
+            runCatching {
+                if (url.contains("unfollow")) followRepo.unfollow(uid) else followRepo.follow(uid)
+            }
+            Result.success(
+                LikeReplyResponse(
+                    data = "1",
+                    status = 0,
+                    error = 0,
+                    message = null,
+                    messageStatus = null
+                )
+            )
+        } else {
+            Result.success(apiService.postFollowUnFollow(url, uid).await())
+        }
     }
 
     suspend fun postCreateFeed(data: HashMap<String, String>) = fire {
