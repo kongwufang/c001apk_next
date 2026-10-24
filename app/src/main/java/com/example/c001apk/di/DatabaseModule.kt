@@ -81,8 +81,6 @@ object DatabaseModule {
 
     @Singleton
     @Provides
-    @Provides
-    @Singleton
     fun provideLocalCollectionDao(db: LocalCollectionDatabase): LocalCollectionDao {
         return db.localCollectionDao()
     }
