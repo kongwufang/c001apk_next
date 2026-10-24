@@ -11,14 +11,14 @@ data class CheckResponse(
 
     data class Data(
         val id: String?,
-        val status: Int,
+        val status: Int?,
         @SerializedName("message_status") val messageStatus: Int?,
-        val uid: String,
-        val username: String,
-        val token: String,
-        val refreshToken: String,
-        val userAvatar: String,
-        val notifyCount: NotifyCount,
+        val uid: String?,
+        val username: String?,
+        val token: String?,
+        val refreshToken: String?,
+        val userAvatar: String?,
+        val notifyCount: NotifyCount?,
     )
 
     data class NotifyCount(

@@ -84,6 +84,11 @@ object SzlmHint {
      */
     fun maybeShow(context: Context?, message: String?, statusCode: Int = 0) {
         if (!matches(message, statusCode)) return
+        maybeShowDialog(context, message)
+    }
+
+    /** 真正弹窗（节流在这里 ✓ 两个入口共用） */
+    private fun maybeShowDialog(context: Context?, message: String?) {
         val now = System.currentTimeMillis()
         if (now - lastShownAt < COOLDOWN_MS) return
         lastShownAt = now
@@ -110,6 +115,17 @@ object SzlmHint {
                     .show()
             }.onFailure { Log.w(TAG, "弹窗失败: $it") }
         }
+    }
+
+    /**
+     * **主动探测**判定过期时的入口（[SzlmMonitor] 用 ✓）
+     *
+     * 与 [maybeShow] 的区别：不要求 message 里出现特征文案 ✓
+     * —— 服务端已经判定过了，这里只负责**弹窗**（60 秒节流照旧 ✓）
+     */
+    fun notifyExpired(context: Context?, message: String?) {
+        Log.w(TAG, "主动探测判定过期：${(message ?: "").take(60)}")
+        maybeShowDialog(context, message)
     }
 
     /**

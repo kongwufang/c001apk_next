@@ -77,6 +77,10 @@ class MyApplication : Application() {
             override fun onActivityDestroyed(activity: android.app.Activity) {}
         })
 
+        // ★ 每 10 分钟探测一次数字联盟 ID 是否失效（自建端点替客户端打一次内容接口 ✓）
+        //   判定过期 ⇒ 复用 SzlmHint 的弹窗 + 一键去取号 ✓
+        com.example.c001apk.util.SzlmMonitor.start()
+
         // HTTP 请求日志的目录（设置 → 高级 里可开关 / 导出 / 清空 ✓）
         // 只是建一个目录 + 记下 context ✓ 开关关着时完全不写盘 ✓
         runCatching {
