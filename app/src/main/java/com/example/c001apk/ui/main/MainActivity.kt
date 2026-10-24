@@ -185,14 +185,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
         ActivityCollector.removeActivity(this)
     }
 
-    override fun onPause() {
-        super.onPause()
-        // 从抽屉里点进任何一个页面（收藏 / 设置 / 个人主页…）之后，
-        // 退回来时抽屉不该还开着 ✗ —— 而且这时 onPause 一定先触发 ✓
-        // 用 false = 不做关闭动画 ✓（用户已经在别的页面了，看不到 ✓）
-        binding.drawerLayout.closeDrawer(GravityCompat.START, false)
-    }
-
     override fun onResume() {
         super.onResume()
         if (!viewModel.isInit && isLogin) {
