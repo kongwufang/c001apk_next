@@ -8,6 +8,7 @@ import com.example.c001apk.logic.model.CollectionActionResponse
 import com.example.c001apk.logic.model.CollectionCheckCountResponse
 import com.example.c001apk.logic.model.CollectionDetailResponse
 import com.example.c001apk.logic.model.CollectionListResponse
+import com.example.c001apk.logic.model.ChangeFeedResponse
 import com.example.c001apk.logic.model.CollectionUploadResponse
 import com.example.c001apk.logic.model.CreateFeedResponse
 import com.example.c001apk.logic.model.SpamConfigResponse
@@ -487,7 +488,7 @@ interface ApiService {
         @Query("rid") rid: String = "",
         @Query("noticeId") noticeId: String = "",
         @Query("fromApi") fromApi: String = ""
-    ): Call<HomeFeedResponse>
+    ): Call<ChangeFeedResponse>
 
     /**
      * 提交编辑
@@ -509,7 +510,7 @@ interface ApiService {
     @FormUrlEncoded
     fun changeFeed(
         @FieldMap data: HashMap<String, String>
-    ): Call<HomeFeedResponse>
+    ): Call<ChangeFeedResponse>
 
     // 修改动态可见性。注意 id 与 publish_status 都必须放在表单 body 里，
     // 放到 query 上服务端只看到空 id → 返回 -1「动态id不能为空」。
