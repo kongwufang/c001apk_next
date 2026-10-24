@@ -32,9 +32,19 @@ import java.util.concurrent.TimeUnit
  * | duid 过期（换号前的旧值）| `message` / `data` = `评论接口异常` 或 `…(-419)` ✗ |
  * | duid 是随机串 / 已失效 | `data` 是**字符串** `当前访问需要验证码` ✗ |
  * | 被风控 | HTTP **567** ✗ |
- * | 其它（动态被删、网络错、限流 **403**）| 判**未知** ✓ **不提示**（绝不误报 ✗）|
+ * | **探测动态被删** | `你查看的内容不存在或已被删除` ⇒ 仍判**正常** ✓（见下）|
+ * | 其它（网络错、限流 **403**、代理页）| 判**未知** ✓ **不提示**（绝不误报 ✗）|
  *
- * ⚠️ 只认上面 4 条已知文案 ⇒ 别的错误一律当「未知」✓ 免得误弹 ✗
+ * ⚠️ 只认上面几条已知文案 ⇒ 别的错误一律当「未知」✓ 免得误弹 ✗
+ *
+ * ### 为什么「内容不存在」也算正常（2026-10-24 实测）
+ * \`\`\`
+ * 有效 duid + 不存在的 id → 你查看的内容不存在或已被删除
+ * 随机 duid + 不存在的 id → 当前访问需要验证码          ← ★ duid 校验**在 id 校验之前** ✓
+ * \`\`\`
+ * ⇒ 就算那条探测动态哪天被删了 ✓ 服务器也会**先**报 duid 错误 ✗
+ * ⇒ 所以看到「内容不存在」就说明 **duid 校验已通过** ✓
+ * ⇒ 探测**不会因为 id 失效而静默失效** ✓（这条是专门测出来的 ✓）
  *
  * ## 请求头
  * 直接复用 [AddCookiesInterceptor] ✓ —— 它会把 App 真实使用的
@@ -123,11 +133,10 @@ object SzlmMonitor {
         }
         Thread {
             runCatching {
-                val req = Request.Builder().url(PROBE_URL).get().build()
-                client.newCall(req).execute().use { resp ->
-                    val body = resp.body?.string().orEmpty()
-                    val v = judge(resp.code, body)
-                    Log.i(TAG, "探测 code=${resp.code} ok=${v.ok} expired=${v.expired} reason=${v.reason}")
+                val (code, body) = probeOnce()
+                run {
+                    val v = judge(code, body)
+                    Log.i(TAG, "探测 code=$code ok=${v.ok} expired=${v.expired} reason=${v.reason}")
                     if (v.expired) {
                         // ★ 复用已有的弹窗（60 秒节流 ✓ + [去重新取号] 按钮 ✓）
                         handler.post { SzlmHint.notifyExpired(AppContextHolder.context, v.reason) }
@@ -140,10 +149,23 @@ object SzlmMonitor {
         }.start()
     }
 
+    /** 打一次探测请求，返回 (状态码, body) */
+    private fun probeOnce(): Pair<Int, String> {
+        val req = Request.Builder().url(PROBE_URL).get().build()
+        return client.newCall(req).execute().use { resp ->
+            Pair(resp.code, resp.body?.string().orEmpty())
+        }
+    }
+
     /** 判据（见类注释的表 ✓） */
     private fun judge(code: Int, body: String): Verdict {
         if (code == BLOCKED_STATUS) {
-            return Verdict(ok = false, expired = true, reason = "HTTP 567（风控页）")
+            // 567 也可能是「IP 被风控」而不是 duid ✗ ⇒ 再打一次，两次都是 567 才认 ✗
+            val again = runCatching { probeOnce() }.getOrNull()
+            if (again != null && again.first == BLOCKED_STATUS) {
+                return Verdict(ok = false, expired = true, reason = "HTTP 567（连续两次风控页）")
+            }
+            return Verdict(ok = false, expired = false, reason = "HTTP 567（只出现一次，判未知）")
         }
         if (code != 200) {
             // 403 限流 / 5xx / 代理错误页… 一律「未知」⇒ 不提示 ✓
@@ -163,6 +185,11 @@ object SzlmMonitor {
             if (hay.contains(m)) {
                 return Verdict(ok = false, expired = true, reason = hay.trim().take(120))
             }
+        }
+        // ★ 探测动态被删 ⇒ duid 校验**已经通过**了（实测：duid 坏了会先报错 ✗ 轮不到 id 校验 ✓）
+        //   ⇒ 这算「duid 正常」✓ 否则 id 一死探测就永远 silent ✗
+        if (msg.contains("内容不存在") || msg.contains("已被删除")) {
+            return Verdict(ok = true, expired = false, reason = "探测动态不在了，但 duid 正常")
         }
         return Verdict(
             ok = false, expired = false,
