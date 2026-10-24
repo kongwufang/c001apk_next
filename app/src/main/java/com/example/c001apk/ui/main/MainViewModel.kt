@@ -59,23 +59,30 @@ class MainViewModel @Inject constructor(
                         response.body()?.let {
                             if (response.body()?.data?.token != null) {
                                 response.body()?.data?.let { login ->
-                                    CookieUtil.badge = login.notifyCount.unreadBadge
-                                    CookieUtil.atme = login.notifyCount.atme
-                                    CookieUtil.atcommentme = login.notifyCount.atcommentme
-                                    CookieUtil.feedlike = login.notifyCount.feedlike
-                                    CookieUtil.contacts_follow = login.notifyCount.contactsFollow
-                                    CookieUtil.message = login.notifyCount.message
-                                    CookieUtil.commentme = login.notifyCount.commentme
+                                    // ★ 下面每个字段都可能为 null ✗（Gson 绕过 Kotlin 空检查 ✓）
+                                    //   设备标识（duid）失效时，酷安会回「有 token 但缺 refreshToken」的响应 ✗
+                                    //   ⇒ 直接赋给 PrefManager（非空 String 的 setter ✗）会在进 setter 前抛 NPE ✗
+                                    //   ⇒ 2026-10-24 修：全部兜空 ✓（用户反馈「概率不高但一遇到 App 完全没法用」✗）
+                                    login.notifyCount?.let { nc ->
+                                        CookieUtil.badge = nc.unreadBadge
+                                        CookieUtil.atme = nc.atme
+                                        CookieUtil.atcommentme = nc.atcommentme
+                                        CookieUtil.feedlike = nc.feedlike
+                                        CookieUtil.contacts_follow = nc.contactsFollow
+                                        CookieUtil.message = nc.message
+                                        CookieUtil.commentme = nc.commentme
+                                    }
                                     PrefManager.isLogin = true
-                                    PrefManager.uid = login.uid
+                                    PrefManager.uid = login.uid ?: ""
                                     PrefManager.username =
                                         withContext(Dispatchers.IO) {
-                                            URLEncoder.encode(login.username, "UTF-8")
+                                            URLEncoder.encode(login.username ?: "", "UTF-8")
                                         }
-                                    PrefManager.token = login.token
+                                    PrefManager.token = login.token ?: ""
                                     // ★ 启动时换到的**第二凭据**，之后整个进程的业务请求优先用它
-                                    PrefManager.refreshToken = login.refreshToken
-                                    PrefManager.userAvatar = login.userAvatar
+                                    //   ⚠️ 设备标识失效时这里会是 null ✗ ⇒ 不能直接赋 ✗
+                                    PrefManager.refreshToken = login.refreshToken ?: ""
+                                    PrefManager.userAvatar = login.userAvatar ?: ""
                                 }
                             } else if (response.body()?.message == "登录信息有误") {
                                 PrefManager.isLogin = false
