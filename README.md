@@ -5,7 +5,7 @@ fake coolapk
 [![装机量](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=installs&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
 [![今日活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
 [![今日新增](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=new&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
-[![7天内活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active&v=20261024a7)](https://service.houlangs.cn/c001apk/stats.php)
+[![7天内活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active7&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
 
 ![装机量历史](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=chart&v=20261024a)
 
