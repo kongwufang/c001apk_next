@@ -45,6 +45,17 @@ object PrefManager {
         get() = pref.getBoolean("tab_order_headline_first", false)
         set(value) = pref.edit().putBoolean("tab_order_headline_first", value).apply()
 
+    /**
+     * 「侧边栏新手提示」已经弹过了（2026-10-25 ✓）
+     *
+     * 侧边栏入口就是个左上角的 ☰ ✗ 太隐蔽 ✗
+     * ⇒ 首次启动弹一次说明「点 ☰」+「向右滑」两种打开方式 ✓
+     * ⇒ 置位后不再弹 ✓（用户想再看只能清数据 ✗ 可接受 ✓）
+     */
+    var sidebarHintShown: Boolean
+        get() = pref.getBoolean("sidebar_hint_shown", false)
+        set(value) = pref.edit().putBoolean("sidebar_hint_shown", value).apply()
+
     var themeColor: String
         get() = pref.getString(PREF_THEME_COLOR, "MATERIAL_DEFAULT")!!
         set(value) = pref.edit().putString(PREF_THEME_COLOR, value).apply()

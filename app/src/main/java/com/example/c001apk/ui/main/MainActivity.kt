@@ -67,6 +67,42 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
 
         initMineDrawer()
 
+        // 首次启动：告诉用户侧边栏在哪（否则☰太隐蔽，用户找不到 ✗）
+        if (!PrefManager.sidebarHintShown) {
+            PrefManager.sidebarHintShown = true
+            binding.root.post { showSidebarHint() }
+        }
+    }
+
+    /**
+     * 「侧边栏在这里」新手提示（2026-10-25 ✓）
+     *
+     * 用一个**全屏 Dialog** 而不是往 DrawerLayout 里加 View ✗
+     *   —— DrawerLayout 的子 View 只能是「内容」或「抽屉」✗ 塞第三个会报错 ✗
+     *   ⇒ Dialog 是独立窗口 ✓ 零布局改动 ✓ 横竖屏都对 ✓
+     *
+     * 遮罩用 #B3000000（不是全黑）⇒ 底下的 ☰ 还看得见 ✓
+     * 点遮罩任意处 / 点「知道了」都能关 ✓
+     * 标记在**弹出前**就置位 ✓ ⇒ 中途被杀也不会下次又弹 ✓
+     */
+    private fun showSidebarHint() {
+        if (isFinishing || isDestroyed) return
+        runCatching {
+            val view = layoutInflater.inflate(R.layout.dialog_sidebar_hint, null)
+            val dialog = android.app.Dialog(this)
+            dialog.setContentView(view)
+            dialog.window?.apply {
+                setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+                setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            view.setOnClickListener { dialog.dismiss() }
+            view.findViewById<android.view.View>(R.id.hintConfirm)
+                .setOnClickListener { dialog.dismiss() }
+            dialog.show()
+        }
     }
 
     /**
