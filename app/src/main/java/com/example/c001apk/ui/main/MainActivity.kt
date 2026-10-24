@@ -86,8 +86,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
      * 关闭时再关掉 ✓ 不干扰首页自己的返回逻辑 ✓
      */
     private fun initMineDrawer() {
-        // 宽度 = 屏幕 85%
-        val w = (resources.displayMetrics.widthPixels * 0.85f).toInt()
+        // 宽度 = 屏幕 85%，但**封顶 420dp** ✓
+        //   ⚠️ 横屏/平板上 85% 会宽得离谱 ✗（横屏宽度本来就是竖屏的 2 倍多 ✗）
+        //   ⚠️ 竖屏 1080px 屏 ≈ 411dp ⇒ 85% ≈ 350dp < 420dp ⇒ 竖屏不受影响 ✓
+        val cap = (420 * resources.displayMetrics.density).toInt()
+        val w = minOf((resources.displayMetrics.widthPixels * 0.85f).toInt(), cap)
         binding.mineDrawer.layoutParams = binding.mineDrawer.layoutParams.apply { width = w }
 
         // 装 MineFragment（只在第一次）
@@ -168,6 +171,14 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
     override fun onDestroy() {
         super.onDestroy()
         ActivityCollector.removeActivity(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 从抽屉里点进任何一个页面（收藏 / 设置 / 个人主页…）之后，
+        // 退回来时抽屉不该还开着 ✗ —— 而且这时 onPause 一定先触发 ✓
+        // 用 false = 不做关闭动画 ✓（用户已经在别的页面了，看不到 ✓）
+        binding.drawerLayout.closeDrawer(GravityCompat.START, false)
     }
 
     override fun onResume() {

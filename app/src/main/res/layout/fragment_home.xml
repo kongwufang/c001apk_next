@@ -39,7 +39,7 @@
                 android:layout_marginStart="4dp"
                 android:background="?actionBarItemBackground"
                 android:contentDescription="@string/tab_mine"
-                android:padding="10dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_menu"
                 android:tooltipText="@string/tab_mine"
                 app:layout_constraintBottom_toBottomOf="parent"
