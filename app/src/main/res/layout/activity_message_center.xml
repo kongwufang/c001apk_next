@@ -57,6 +57,33 @@
                 android:layout_height="1px"
                 android:background="?attr/colorSurfaceVariant" />
 
+            <!--
+                刷新指示器（2026-10-24 加 ✓）
+
+                位置：7 个宫格按钮**下面**、消息列表**上面** ✓
+                ⇒ 相当于给下面的消息列表拉开一点距离，塞下这个转圈 ✓
+
+                样式照抄文章详情页的 followLoading
+                （item_feed_article_header.xml 的 CircularProgressIndicator ✓）
+
+                行为（见 MessageCenterActivity / ViewModel）：
+                - 先展示缓存 ✓ 这时转圈显示
+                - 拉完了：没有新消息 ⇒ 收起（invisible 但占位 ⇒ 列表不跳 ✓）
+                          有新消息  ⇒ 也收起，新消息由 DiffUtil 增量插入 ✓
+                用 invisible 而不是 gone ⇒ 收起时高度不变，列表不会上下跳 ✓
+            -->
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/refreshingIndicator"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="12dp"
+                android:indeterminate="true"
+                android:visibility="invisible"
+                app:indicatorSize="20dp"
+                app:trackCornerRadius="10dp" />
+
         </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

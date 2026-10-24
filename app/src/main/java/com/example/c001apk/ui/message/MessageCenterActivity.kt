@@ -51,7 +51,10 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
         initRefresh()
         initScroll()
 
-        if (isLogin) getData()
+        if (isLogin) {
+            showRefreshingIndicator()
+            getData()
+        }
     }
 
     private fun initView() {
@@ -103,12 +106,29 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
             footerAdapter.setLoadState(it)
             if (it !is FooterState.Loading) {
                 binding.swipeRefresh.isRefreshing = false
+                // 加载结束（成功或失败）都收起转圈 ✓
+                hideRefreshingIndicator()
             }
         }
 
         viewModel.messageData.observe(this) {
+            // ListAdapter + DiffUtil ⇒ 只动变化的行 ✓ 不会重置整个列表 ✓
             mAdapter.submitList(it)
+            hideRefreshingIndicator()
         }
+    }
+
+    /**
+     * 顶部那个转圈（7 个宫格下面、消息列表上面）
+     *
+     * 用 visible / invisible 而不是 gone ⇒ 收起时高度不变 ⇒ 列表不会上下跳 ✓
+     */
+    private fun showRefreshingIndicator() {
+        binding.refreshingIndicator.visibility = android.view.View.VISIBLE
+    }
+
+    private fun hideRefreshingIndicator() {
+        binding.refreshingIndicator.visibility = android.view.View.INVISIBLE
     }
 
     private fun initRefresh() {
@@ -124,6 +144,7 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
                 if (isLogin) {
                     if (!viewModel.isLoadMore) {
                         binding.swipeRefresh.isRefreshing = true
+                        showRefreshingIndicator()
                         getData()
                     }
                 } else
