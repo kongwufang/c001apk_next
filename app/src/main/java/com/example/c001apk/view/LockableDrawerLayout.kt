@@ -4,42 +4,52 @@ import android.content.Context
 import android.os.Build
 import android.util.AttributeSet
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.customview.widget.ViewDragHelper
+import androidx.drawerlayout.widget.DrawerLayout
 import kotlin.math.abs
 
 /**
- * 可以开关「全屏拖动拉抽屉」的 DrawerLayout（2026-10-25 ✓）
+ * 可以开关「跟手拖动拉抽屉」的 DrawerLayout（2026-10-25 ✓ 真机验证 ✓）
  *
- * ## 为什么要改 `ViewDragHelper` 的 `mEdgeSize`
- * 「我的」侧栏的拖动**必须跟手** ✓ —— 用户实测反馈：
+ * ## 核心：反射放开 `ViewDragHelper.mEdgeSize`
+ * `DrawerLayout` 自带的拖动**本来就是跟手的** ✓（`mLeftDragger` + `offsetLeftAndRight`）
+ * 唯一限制是「只在左边缘 20dp 内起手」✗
+ * ⇒ 把 `mEdgeSize` 改成**屏幕宽** ⇒ 任何位置都能起手，且**跟手** ✓
  *
- * > 「我感觉他的更容易被触发，应该是反馈比较完整，因为他滑动的同时侧边栏会
- * >   一点点伸出，而我们的是一瞬间飞到手指的位置，看起来就很别扭」
+ * 为什么不用「识别手势 + openDrawer()」✗ —— 那样手指才移 72dp 抽屉就全开了 ✗
+ * 用户原话：「我们的是一瞬间飞到手指的位置，看起来就很别扭」✗
  *
- * 一开始我是在 [onInterceptTouchEvent] 里识别一次手势然后 `openDrawer()` ✗
- * ⇒ 手指才移了 72dp，抽屉**已经全开** ✗ 而且手指还停在那儿 ⇒ 很别扭 ✗
+ * ## 双向手势分流（关键 ✗ 否则「切 tab」会失效）
+ * | 手势 | 期望行为 |
+ * |---|---|
+ * | **向右**拖 | 拉出侧边栏 ✓ |
+ * | **向左**拖 | 切到右边的 tab（`ViewPager2` 的活 ✓）|
  *
- * `DrawerLayout` 自己带的那套拖动**本来就是跟手的** ✓（`ViewDragHelper` +
- * `offsetLeftAndRight` ✓）——唯一的问题是它只在**左边缘 20dp** 内起手 ✗
+ * ⚠️ 但 `ViewDragHelper` 在 **ACTION_DOWN 那一刻**就记下「这次算不算边缘触摸」✗
+ *    那时还不知道用户要往哪边划 ✗
  *
- * ⇒ 反射把 `mLeftDragger.mEdgeSize` 改成**整个屏幕宽** ✓
- *   ⇒ 从屏幕**任何地方**横向拖动，抽屉都跟手伸出 ✓✓
- *   ⇒ 手感跟 rikkahub 的 `ModalNavigationDrawer`（`anchoredDraggable`）一致 ✓
+ * ⇒ 所以分两步：
+ * 1. **DOWN 时把 `mEdgeSize` 设成 0** ⇒ `DrawerLayout` 不会抢 ✓
+ *    `ViewPager2` 正常拿到 DOWN ✓ 向左滑照常切 tab ✓
+ * 2. 在 MOVE 里判断：**向右且明显横于竖向** ⇒ 这才是要拉抽屉 ✓
+ *    此时把 `mEdgeSize` 放回屏宽 ✓ **合成一个 ACTION_DOWN 吞给 super** ✓
+ *    ⇒ `ViewDragHelper` 从这个合成 DOWN 开始跟手 ✓
+ *    ⇒ 子 View 会被 `ViewGroup` 自动 CANCEL ✓ 不会两边都在滚 ✓
+ *
+ * ## 展开动画期间
+ * `isDrawerVisible && !isDrawerOpen`（正在展开 ✓）⇒ 完全不拦截 ✓
+ * ⇒ 按钮当场可点 ✓ 不用等动画走完 ✓
+ * （`DrawerLayout` 在 settling 期间会吞子 View 的触摸 ✗）
  *
  * ## 关掉时
- * `edgeSwipeEnabled = false` ⇒ `mEdgeSize` 设回 **0** ✓
- * ⇒ 完全不响应拖动 ✓ 但 `openDrawer()`（顶栏 ☰）照常 ✓
+ * `edgeSwipeEnabled = false` ⇒ `mEdgeSize` 一直 0 ✓ 拖动无效 ✓
+ * 但 `openDrawer()`（顶栏 ☰）照常 ✓
  *
  * ## 反射风险
- * `mLeftDragger` / `mEdgeSize` 从 API 21 到 35 都没改过名字 ✓
- * 但仍然 `runCatching` 兜底 ✓ —— 万一失败就退回「识别一次手势 + openDrawer」✓
- * （手感差一点 ✗ 但功能不会丢 ✓）
- *
- * ## 为什么只在「头条」tab 生效
- * 头条是**纵向**信息流 ✓ 横向手势不打架 ✓
- * 「关注 / 应用」等 tab 内部是 `ViewPager2` ✗ 会被抢 ✗
+ * `mLeftDragger` / `mEdgeSize` 从 API 21 到 35 名字没变过 ✓
+ * 仍然 `runCatching` 兜底 ✓ —— 失败就退回「识别手势 + openDrawer」（手感差但能用 ✓）
  */
 class LockableDrawerLayout @JvmOverloads constructor(
     context: Context,
@@ -47,29 +57,28 @@ class LockableDrawerLayout @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : DrawerLayout(context, attrs, defStyleAttr) {
 
-    /**
-     * 是否允许「横向拖动拉抽屉」
-     *
-     * `false` 只是**关掉拖动** ✓ 程序化的 [openDrawer] 依然有效 ✓
-     */
+    /** 是否允许「向右拖动拉抽屉」。`false` 只关拖动 ✓ [openDrawer] 照常 ✓ */
     var edgeSwipeEnabled: Boolean = true
         set(value) {
             if (field == value) return
             field = value
-            applyEdgeMode()
+            if (!value) setEdgeSize(0)
         }
 
-    /** 反射成功了没有（失败就退回手工识别 ✓） */
     private var helperPatched = false
     private var leftDragger: ViewDragHelper? = null
     private var edgeSizeField: java.lang.reflect.Field? = null
-    private var baseEdgeSize = 0
 
-    // ── 反射失败时的兜底：识别一次手势再开（跟不了手 ✗ 但能用 ✓）──
-    private val fallbackThreshold = (48 * resources.displayMetrics.density).toInt()
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
     private var downX = 0f
     private var downY = 0f
-    private var consumed = false
+
+    /** 本次手势已经判定为「向右拉抽屉」✓ 开始跟手了 */
+    private var dragging = false
+
+    /** 兜底路径（反射失败）用的阈值 */
+    private val fallbackThreshold = (48 * resources.displayMetrics.density).toInt()
 
     init {
         helperPatched = runCatching {
@@ -80,30 +89,19 @@ class LockableDrawerLayout @JvmOverloads constructor(
             ef.isAccessible = true
             leftDragger = helper
             edgeSizeField = ef
-            baseEdgeSize = ef.getInt(helper)
             true
         }.getOrDefault(false)
     }
 
-    /**
-     * 把 `mEdgeSize` 在「全屏」和「0」之间切
-     *
-     * `mEdgeSize` 是 `ViewDragHelper` 判断「这次触摸算不算从边缘开始」的距离 ✗
-     * 设成屏幕宽 ⇒ 任何位置都算边缘 ✓
-     */
-    private fun applyEdgeMode() {
+    private fun setEdgeSize(px: Int) {
         val helper = leftDragger ?: return
         val field = edgeSizeField ?: return
-        runCatching {
-            field.setInt(helper, if (edgeSwipeEnabled) maxOf(width, 1) else 0)
-        }
+        runCatching { field.setInt(helper, px) }
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
-        // 尺寸变了要重设一次（width 之前可能是 0 ✓）
-        applyEdgeMode()
-        // 顺手把左边一条窄缝从「系统返回手势」里抢出来（API 29+ ✓）
+        // 左边一条窄缝从「系统返回手势」里抢出来（API 29+ ✓）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             runCatching {
                 val w = (24 * resources.displayMetrics.density).toInt()
@@ -113,29 +111,65 @@ class LockableDrawerLayout @JvmOverloads constructor(
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        // ★ 抽屉正在**展开**的动画期间（已露出但还没完全 open）⇒ 完全不拦截 ✓
-        //
-        //   用户要求：「侧边栏呼出时不必等动画放完，此时按钮也有效」
-        //
-        //   原因：`DrawerLayout` 在 `ViewDragHelper` **settling** 期间会
-        //   吞掉/取消子 View 的触摸 ✗ ⇒ 动画没走完时点按钮没反应 ✗
-        //   （`isDrawerVisible` = 抽屉露出了一点点 ✓ 包含整段展开动画 ✓）
-        //   （`!isDrawerOpen`   = 还没完全展开 ✓ 排除了「已开」的状态 ✓）
-        //
-        //   ⚠️ 完全展开后**不**走这条 ✗ ⇒ 那时仍然交给 super ✓
-        //      否则「拖动关闭」就失效了 ✗
+        // ① 展开动画期间：完全不拦 ✓ 按钮当场可点 ✓
         if (isDrawerVisible(GravityCompat.START) && !isDrawerOpen(GravityCompat.START)) {
+            dragging = false
             return false
         }
 
-        // 反射成功 ⇒ 完全交给 DrawerLayout 自己的 ViewDragHelper ✓ 跟手 ✓
-        if (helperPatched) return super.onInterceptTouchEvent(ev)
-
-        // ── 兜底路径（反射失败）──
+        // ② 已经开着 / 关掉了拖动：交给 super（开着时 super 负责「拖动关闭」✓）
         if (isDrawerOpen(GravityCompat.START) || !edgeSwipeEnabled) {
-            consumed = false
+            dragging = false
             return super.onInterceptTouchEvent(ev)
         }
+
+        // ③ 反射失败：退回「识别手势 + openDrawer」
+        if (!helperPatched) return fallbackIntercept(ev)
+
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = ev.rawX
+                downY = ev.rawY
+                dragging = false
+                // ★ 先不让 DrawerLayout 抢 ⇒ ViewPager2 才能收到「向左滑切 tab」✓
+                setEdgeSize(0)
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!dragging) {
+                    val dx = ev.rawX - downX
+                    val dy = ev.rawY - downY
+                    // 向右 + 过 slop + 明显横于竖向 ⇒ 这是要拉抽屉 ✓
+                    if (dx > touchSlop && abs(dx) > abs(dy) * 1.5f) {
+                        dragging = true
+                        setEdgeSize(maxOf(width, 1))
+                        // 合成一个 DOWN 喂给 DrawerLayout ⇒ 它从这里开始跟手 ✓
+                        runCatching {
+                            val synth = MotionEvent.obtain(ev)
+                            synth.action = MotionEvent.ACTION_DOWN
+                            super.onInterceptTouchEvent(synth)
+                            synth.recycle()
+                        }
+                    }
+                }
+            }
+
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> {
+                dragging = false
+                // 手势结束（没拉抽屉）⇒ 恢复成「不可抢」，下次 DOWN 再关 ✓
+                if (!isDrawerVisible(GravityCompat.START)) setEdgeSize(0)
+            }
+        }
+
+        // 判定为拉抽屉之后 super 会返回 true（接管）✓ 否则 false（子 View 继续）✓
+        return super.onInterceptTouchEvent(ev)
+    }
+
+    // ── 反射失败时的兜底：跟不了手 ✗ 但能用 ✓ ──
+    private var consumed = false
+
+    private fun fallbackIntercept(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.rawX
