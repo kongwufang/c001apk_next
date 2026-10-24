@@ -55,6 +55,42 @@ fun setExtraPic(imageView: ImageView, extraPic: String?) {
     }
 }
 
+/**
+ * 「发布于广东 · 4571浏览 · 已编辑」
+ *
+ * 数据来源（2026-10-24 抓包 + 接口确认 ✓）：
+ * - 位置 ⇒ `ip_location` ✓
+ * - 浏览 ⇒ **`readNum`** ✓（`viewnum` / `hitnum` 永远是 0 ✗ 别用）
+ * - 已编辑 ⇒ `isModified == 1` ✓
+ *
+ * 三个都没有时整个 TextView 隐藏 ✓（不留空白行 ✗）
+ */
+@BindingAdapter("setFeedExtra")
+fun setFeedExtra(textView: TextView, data: HomeFeedResponse.Data?) {
+    val sb = StringBuilder()
+    val loc = data?.ipLocation?.trim().orEmpty()
+    if (loc.isNotEmpty()) sb.append("发布于").append(loc)
+
+    val read = data?.readNum ?: 0
+    if (read > 0) {
+        if (sb.isNotEmpty()) sb.append(" · ")
+        sb.append(
+            when {
+                read >= 10000 -> "%.1f万".format(read / 10000f).replace(".0万", "万")
+                else -> read.toString()
+            }
+        ).append("浏览")
+    }
+
+    if (data?.isModified == 1) {
+        if (sb.isNotEmpty()) sb.append(" · ")
+        sb.append("已编辑")
+    }
+
+    textView.text = sb.toString()
+    textView.visibility = if (sb.isEmpty()) View.GONE else View.VISIBLE
+}
+
 @BindingAdapter("setFollowText")
 fun setFollowText(textView: TextView, followAuthor: Int) {
     // 列表项不下发 followAuthor，详情回来前是"未知"：按钮先隐身，让 followLoading 的转圈顶上

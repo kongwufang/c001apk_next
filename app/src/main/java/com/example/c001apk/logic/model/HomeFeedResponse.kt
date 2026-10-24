@@ -52,6 +52,15 @@ data class HomeFeedResponse(
         @SerializedName("change_count") val changeCount: Int?,
         val isModified: Int?,
         @SerializedName("ip_location") val ipLocation: String?,
+        /**
+         * ★ 浏览量 —— 注意是**大写 N** 的 `readNum` ✓
+         *
+         * 坑：`viewnum` / `hitnum` 这两个字段**永远是 0** ✗（2026-10-24 实测）
+         * 真正的浏览数是 `readNum` ✓（动态 71916523 ⇒ 4571 ✓ 与官方 App 显示一致 ✓）
+         */
+        @SerializedName("readNum") val readNum: Int?,
+        /** 1 = 这条动态还能编辑 ✓（自己发的、未超时、未被锁 ✓）；0 / null = 不能 ✓ */
+        val enableModify: Int?,
         val isFeedAuthor: Int?,
         val topReplyRows: List<TotalReplyResponse.Data>?,
         // 卡片自带的附加数据（JSON 字符串）。服务端下发的是字符串，但为防某个接口下发对象/
