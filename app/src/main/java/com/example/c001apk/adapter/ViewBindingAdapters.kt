@@ -325,7 +325,16 @@ fun setCustomText(
                 textView.context,
                 customText,
                 textView.textSize,
-                null
+                null,
+                // ★ 给 markdown 表格用的可用宽度：拿得到实际宽度就用实际的 ✓
+                //   拿不到（首次 bind 还没布局）就按屏幕宽估一个 ✓
+                availWidth = run {
+                    val w = textView.width - textView.paddingStart - textView.paddingEnd
+                    if (w > 0) w else {
+                        val dm = textView.resources.displayMetrics
+                        (dm.widthPixels - (dm.density * 56).toInt()).coerceAtLeast(240)
+                    }
+                }
             )
         } else customText
 
