@@ -295,7 +295,7 @@ class FeedViewModel @AssistedInject constructor(
      *
      * 参数跟 `ArticlePublishActivity` 一致 ✓（`uploadDir=feed` ✓ 实测可用 ✓）
      */
-    fun prepareImageUpload(files: List<com.example.c001apk.logic.model.ArticleUploadFile>) {
+    fun prepareImageUpload(files: List<com.example.c001apk.ui.article.ArticleUploadFile>) {
         val form = HashMap<String, String>()
         form["uploadBucket"] = "image"
         form["uploadDir"] = "feed"

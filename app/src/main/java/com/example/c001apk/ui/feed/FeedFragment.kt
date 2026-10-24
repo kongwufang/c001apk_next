@@ -594,7 +594,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         val dims = ArrayList<String>()
         val types = ArrayList<String>()
         val md5s = ArrayList<ByteArray?>()
-        val files = ArrayList<com.example.c001apk.logic.model.ArticleUploadFile>()
+        val files = ArrayList<com.example.c001apk.ui.article.ArticleUploadFile>()
         useUris.forEachIndexed { i, uri ->
             // getImageDimensionsAndMD5 返回 Pair<Triple<宽,高,类型>?, ByteArray?> ✓
             val res = runCatching {
@@ -607,7 +607,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
             types.add(ctx.contentResolver.getType(uri) ?: tri?.third ?: "image/jpeg")
             md5s.add(md5)
             files.add(
-                com.example.c001apk.logic.model.ArticleUploadFile(
+                com.example.c001apk.ui.article.ArticleUploadFile(
                     name = "image_${System.currentTimeMillis()}_$i.jpg",
                     resolution = resolution,
                     md5 = md5?.toHex() ?: "",
