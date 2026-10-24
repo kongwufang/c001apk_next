@@ -2,12 +2,12 @@
 
 fake coolapk
 
-[![装机量](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=installs)](https://service.houlangs.cn/c001apk/stats.php)
-[![今日活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active)](https://service.houlangs.cn/c001apk/stats.php)
-[![今日新增](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=new)](https://service.houlangs.cn/c001apk/stats.php)
-[![7天内活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active7)](https://service.houlangs.cn/c001apk/stats.php)
+[![装机量](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=installs&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
+[![今日活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
+[![今日新增](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=new&v=20261024a)](https://service.houlangs.cn/c001apk/stats.php)
+[![7天内活跃](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=active&v=20261024a7)](https://service.houlangs.cn/c001apk/stats.php)
 
-![装机量历史](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=chart)
+![装机量历史](https://service.houlangs.cn/c001apk/stats.php?format=svg&metric=chart&v=20261024a)
 
 ## 下载 / 更新
 
