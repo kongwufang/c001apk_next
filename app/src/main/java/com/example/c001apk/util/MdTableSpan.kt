@@ -90,7 +90,11 @@ class MdTableSpan(
         val scale = avail.toFloat() / total
         var sum = 0
         for (i in 0 until n) {
-            out[i] = maxOf(minW, (natural[i] * scale).toInt())
+            // ★ 不能超过**自己的自然宽度** ✗
+            //   （2026-10-24 预览时发现：第 1 列只需 196px 却被 25% 的下限抬到 225px ✗
+            //     白占 29px 空间 ⇒ 长内容那列更挤 ✗）
+            val wanted = maxOf(minW, (natural[i] * scale).toInt())
+            out[i] = minOf(natural[i], wanted).coerceAtLeast(1)
             sum += out[i]
         }
         if (sum > avail) {
@@ -121,7 +125,11 @@ class MdTableSpan(
         builtTextSize = paint.textSize
         builtColor = paint.color
 
-        cellPaint.textSize = paint.textSize
+        // ★ 表格字号取正文的 0.85 倍
+        //   表格比正文略小是常规做法 ✓，而且能让长文件名**一行放下** ✓
+        //   （实测：正文 47px 时 38 字符文件名要 930px ✗ 超过可用 900 ✗
+        //     0.85 倍后约 790px ✓ 放得下 ✓ —— 2026-10-24 用同一算法渲染预览图验证过 ✓）
+        cellPaint.textSize = paint.textSize * TABLE_FONT_SCALE
         cellPaint.color = paint.color
         headerPaint.set(cellPaint)
         headerPaint.isFakeBoldText = true
@@ -229,6 +237,9 @@ class MdTableSpan(
     companion object {
         /** 每列最小占比（防止被压成 1 个字 ✗） */
         private const val MIN_RATIO = 0.25f
+
+        /** 表格字号相对正文的比例（略小一点，长内容更容易一行放下 ✓） */
+        private const val TABLE_FONT_SCALE = 0.85f
 
         /** 边框色：半透明灰（深浅色下都看得见 ✓） */
         private val BORDER_COLOR = Color.argb(70, 128, 128, 128)
