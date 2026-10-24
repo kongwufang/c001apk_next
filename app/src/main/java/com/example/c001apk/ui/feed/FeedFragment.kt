@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.feed
 
+import com.example.c001apk.util.ImageUtil.toHex
 import androidx.activity.result.PickVisualMediaRequest
 import com.example.c001apk.util.ImageUtil
 import android.widget.EditText
@@ -595,14 +596,15 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         val md5s = ArrayList<ByteArray?>()
         val files = ArrayList<com.example.c001apk.logic.model.ArticleUploadFile>()
         useUris.forEachIndexed { i, uri ->
+            // getImageDimensionsAndMD5 返回 Pair<Triple<宽,高,类型>?, ByteArray?> ✓
             val res = runCatching {
                 ImageUtil.getImageDimensionsAndMD5(ctx.contentResolver, uri)
             }.getOrNull()
-            val dim = res?.first
+            val tri = res?.first                       // Triple(宽, 高, mime?)
             val md5 = res?.second
-            val resolution = if (dim != null) "%dx%d".format(dim.width, dim.height) else "0x0"
+            val resolution = if (tri != null) "${tri.first}x${tri.second}" else "0x0"
             dims.add(resolution)
-            types.add(ctx.contentResolver.getType(uri) ?: "image/jpeg")
+            types.add(ctx.contentResolver.getType(uri) ?: tri?.third ?: "image/jpeg")
             md5s.add(md5)
             files.add(
                 com.example.c001apk.logic.model.ArticleUploadFile(
