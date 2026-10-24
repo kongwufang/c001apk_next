@@ -138,8 +138,22 @@ class LockableDrawerLayout @JvmOverloads constructor(
             return false
         }
 
-        // ② 已经开着 / 关掉了拖动：交给 super（开着时 super 负责「拖动关闭」✓）
-        if (isDrawerOpen(GravityCompat.START) || !edgeSwipeEnabled) {
+        // ② 抽屉**已经开着**：右侧那一窄条（没被抽屉盖住的部分）里的横向滑动
+        //    ⇒ 直接收起抽屉 ✓ 不要漏给下面的 ViewPager2 ✓
+        //
+        //    用户实测：「侧栏弹出时只遮挡了屏幕的一大半，有一小半没被遮挡，
+        //    此时在这一小半里从右到左滑，就会滑动下方的 tab 栏，非常容易误触」
+        //
+        //    原因：`DrawerLayout` 只在 scrim 区处理「点击关闭」✗
+        //    横向滑动它不管 ⇒ 事件落到下面的 ViewPager2 ⇒ tab 被翻掉 ✗
+        if (isDrawerOpen(GravityCompat.START)) {
+            if (handleScrimSwipe(ev)) return true
+            dragging = false
+            return super.onInterceptTouchEvent(ev)
+        }
+
+        // ③ 关掉了拖动：交给 super（☰ 的 openDrawer 照常 ✓）
+        if (!edgeSwipeEnabled) {
             dragging = false
             return super.onInterceptTouchEvent(ev)
         }
@@ -186,6 +200,66 @@ class LockableDrawerLayout @JvmOverloads constructor(
         // 判定为拉抽屉之后 super 会返回 true（接管）✓ 否则 false（子 View 继续）✓
         return super.onInterceptTouchEvent(ev)
     }
+
+    /**
+     * 抽屉开着时，处理「没被抽屉盖住的那一窄条」里的横向滑动（2026-10-25 ✓）
+     *
+     * 命中条件：
+     * - 起手位置 x **大于抽屉的右边缘**（= 落在 scrim 上 ✓ 不是点在抽屉里 ✓）
+     * - 横向位移超过 touchSlop 且明显大于竖向
+     *
+     * 命中就 [closeDrawer] 并把这次手势消费掉 ✓
+     *   ⇒ 不会再传给下面的 `ViewPager2` ⇒ tab 不会被误翻 ✓
+     *
+     * 点在抽屉**里面**时不算 ✓（那里要留给抽屉自己的列表滚动 ✓）
+     */
+    private fun handleScrimSwipe(ev: MotionEvent): Boolean {
+        val drawerRight = drawerRightEdge()
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                // 只有起手在 scrim 上才进入「准备识别」
+                scrimArmed = drawerRight > 0 && ev.rawX >= drawerRight
+                downX = ev.rawX
+                downY = ev.rawY
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!scrimArmed) return false
+                val dx = abs(ev.rawX - downX)
+                val dy = abs(ev.rawY - downY)
+                if (dx > touchSlop && dx > dy * 1.2f) {
+                    scrimArmed = false
+                    closeDrawer(GravityCompat.START)
+                    return true
+                }
+            }
+
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> scrimArmed = false
+        }
+        return false
+    }
+
+    /** 抽屉的右边缘（像素）。找不到（抽屉没露出）返回 0 */
+    private fun drawerRightEdge(): Int {
+        for (i in 0 until childCount) {
+            val c = getChildAt(i)
+            if (c.visibility != VISIBLE) continue
+            val lp = c.layoutParams as? LayoutParams ?: continue
+            val absGravity = GravityCompat.getAbsoluteGravity(
+                lp.gravity, androidx.core.view.ViewCompat.getLayoutDirection(this)
+            )
+            if (absGravity and GravityCompat.START == GravityCompat.START &&
+                c.left <= 1 && c.right in 1 until width
+            ) {
+                return c.right
+            }
+        }
+        return 0
+    }
+
+    /** 本次手势是否从 scrim（没被抽屉盖住的部分）起手 */
+    private var scrimArmed = false
 
     // ── 反射失败时的兜底：跟不了手 ✗ 但能用 ✓ ──
     private var consumed = false
