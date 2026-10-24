@@ -129,18 +129,6 @@
             app:layout_constraintStart_toEndOf="@id/pubDate"
             app:layout_constraintTop_toBottomOf="@id/uname" />
 
-        <!-- 发布于xxx · xxx浏览 · 已编辑（A 档新增 ✓ 数据来自 ipLocation / readNum / isModified） -->
-        <TextView
-            android:id="@+id/feedExtra"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:textColor="@android:color/darker_gray"
-            android:textSize="12sp"
-            app:layout_constraintStart_toEndOf="@id/avatar"
-            app:layout_constraintTop_toBottomOf="@id/pubDate"
-            app:setFeedExtra="@{data}" />
-
         <TextView
             android:id="@+id/privateBadge"
             android:layout_width="wrap_content"
@@ -191,9 +179,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="@{`发布于 ` + data.ipLocation}"
             android:textColor="@android:color/darker_gray"
-            android:visibility="@{data.ipLocation == null || data.ipLocation.isEmpty ? View.GONE : View.VISIBLE}"
+            app:setFeedFooter="@{data}"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/forwarded" />
 
