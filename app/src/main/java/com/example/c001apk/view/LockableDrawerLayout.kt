@@ -91,6 +91,20 @@ class LockableDrawerLayout @JvmOverloads constructor(
             edgeSizeField = ef
             true
         }.getOrDefault(false)
+
+        // ★ 动画结束/开始时的 mEdgeSize 切换 ✓
+        //   - 完全打开 ⇒ 放回屏宽 ✓ 「在抽屉上向左拖」才能关掉它 ✓
+        //   - 完全关闭 ⇒ 设成 0 ✓ 等下一次 DOWN 再按方向决定要不要放开 ✓
+        //   （不开这条的话：动画期间把它关成 0 之后就一直关着 ✗ 拖不动了 ✗）
+        addDrawerListener(object : SimpleDrawerListener() {
+            override fun onDrawerOpened(drawerView: android.view.View) {
+                setEdgeSize(maxOf(width, 1))
+            }
+
+            override fun onDrawerClosed(drawerView: android.view.View) {
+                setEdgeSize(0)
+            }
+        })
     }
 
     private fun setEdgeSize(px: Int) {
@@ -112,8 +126,15 @@ class LockableDrawerLayout @JvmOverloads constructor(
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         // ① 展开动画期间：完全不拦 ✓ 按钮当场可点 ✓
+        //
+        // ⚠️ 还必须把 mEdgeSize 关掉 ✗ —— 用户实测：「动画还在播放时点按钮，
+        //    有概率被识别成改变动画而不是按下按钮」
+        //    原因：拉抽屉时我们把 mEdgeSize 设成了「屏幕宽」✗
+        //    ⇒ 动画期间 ViewDragHelper 一看到 DOWN 就当「边缘触摸」capture 掉 ✗
+        //    ⇒ 点击被当成拖动 ✗
         if (isDrawerVisible(GravityCompat.START) && !isDrawerOpen(GravityCompat.START)) {
             dragging = false
+            setEdgeSize(0)
             return false
         }
 
