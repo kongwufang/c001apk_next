@@ -111,7 +111,7 @@
                 android:title="@string/settings_save_follow" />
 
             <rikka.material.preference.MaterialSwitchPreference
-                android:icon="@drawable/ic_user"
+                android:icon="@drawable/ic_mine_selector"
                 android:key="saveBlackListToCloud"
                 android:persistent="false"
                 android:summary="@string/settings_save_blacklist_summary"
