@@ -1,5 +1,7 @@
 package com.example.c001apk.ui.feed
 
+import androidx.activity.result.PickVisualMediaRequest
+import com.example.c001apk.util.ImageUtil
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.lifecycle.Observer
@@ -521,6 +523,42 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         viewModel.editDetail.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let { showEditDialog(it) }
         }
+        // 上传凭证回来 ⇒ 调 ossUpload 真正上传 ⇒ 成功后把 URL 追加进 editRemainPics ✓
+        viewModel.uploadPrepared.observe(viewLifecycleOwner) { event ->
+            val data = event.getContentIfNotHandledOrReturnNull() ?: return@observe
+            val uris = editPendingUris
+            if (uris.isEmpty()) return@observe
+            val ctx = context ?: return@observe
+            val types = editPendingTypes
+            val md5s = editPendingMd5
+            val expect = uris.size
+            var done = 0
+            // 真正的上传（项目里现成的 ossUpload ✓ suspend ✓）
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                com.example.c001apk.util.ossUpload(
+                    ctx.applicationContext, data, uris, types, md5s,
+                    iOnSuccess = { index ->
+                        val name = data.fileInfo.getOrNull(index)?.uploadFileName
+                        if (!name.isNullOrEmpty()) {
+                            requireActivity().runOnUiThread {
+                                editRemainPics.add("http://image.coolapk.com/" + name)
+                                editRefreshPics?.invoke()
+                            }
+                        }
+                        done++
+                        if (done >= expect) {
+                            requireActivity().runOnUiThread {
+                                ctx.makeToast("图片上传完成")
+                            }
+                        }
+                    },
+                    iOnFailure = {
+                        requireActivity().runOnUiThread { ctx.makeToast("图片上传失败") }
+                    },
+                    closeDialog = { }
+                )
+            }
+        }
         viewModel.editResult.observe(viewLifecycleOwner) { event ->
             if (event.getContentIfNotHandledOrReturnNull() == true) {
                 requireContext().makeToast("修改成功")
@@ -529,26 +567,78 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
     }
 
+    // ── 编辑对话框的状态（提到字段，因为选图会跳到别的 Activity ✓）──
+
+    private var editPicRow: LinearLayout? = null
+    private var editPicHint: TextView? = null
+    /** 对话框里重建缩略图行的回调（上传成功要调它 ✓ 因为选图会跳走 ✓） */
+    private var editRefreshPics: (() -> Unit)? = null
+    private val editRemainPics = mutableListOf<String>()
+    private var editPendingUris: List<android.net.Uri> = emptyList()
+    private var editPendingTypes: List<String> = emptyList()
+    private var editPendingMd5: List<ByteArray?> = emptyList()
+
+    private val pickEditImages = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(9)
+    ) { uris ->
+        if (uris.isNullOrEmpty()) return@registerForActivityResult
+        val ctx = context ?: return@registerForActivityResult
+        val room = 9 - editRemainPics.size
+        if (room <= 0) {
+            ctx.makeToast("最多 9 张图片")
+            return@registerForActivityResult
+        }
+        val useUris = uris.take(room)
+        // 算尺寸 + md5（照 ArticlePublishActivity ✓）
+        val dims = ArrayList<String>()
+        val types = ArrayList<String>()
+        val md5s = ArrayList<ByteArray?>()
+        val files = ArrayList<com.example.c001apk.logic.model.ArticleUploadFile>()
+        useUris.forEachIndexed { i, uri ->
+            val res = runCatching {
+                ImageUtil.getImageDimensionsAndMD5(ctx.contentResolver, uri)
+            }.getOrNull()
+            val dim = res?.first
+            val md5 = res?.second
+            val resolution = if (dim != null) "%dx%d".format(dim.width, dim.height) else "0x0"
+            dims.add(resolution)
+            types.add(ctx.contentResolver.getType(uri) ?: "image/jpeg")
+            md5s.add(md5)
+            files.add(
+                com.example.c001apk.logic.model.ArticleUploadFile(
+                    name = "image_${System.currentTimeMillis()}_$i.jpg",
+                    resolution = resolution,
+                    md5 = md5?.toHex() ?: "",
+                    hdr = 0
+                )
+            )
+        }
+        editPendingUris = useUris
+        editPendingTypes = types
+        editPendingMd5 = md5s
+        viewModel.prepareImageUpload(files)
+    }
+
     /**
-     * 编辑对话框（正文 / 标题）
+     * 编辑对话框（正文 / 标题 / 图片）
      *
      * ## 接口依据（2026-10-24 全部实测 ✓）
      * - 动态：`type=feed` + `message` = **纯文本**
-     * - 图文：`type=`**`feedArticle`** + `message` = **块数组** `[{"type":"text","message":"…"}]`
-     *   （发布用 `type=feed` + `is_html_article=1` ✗ 和编辑不一样 ✗）
-     *
-     * ## 本轮范围
-     * 只改**正文**和**标题** ✓ 图片编辑下一轮（要接 OSS 上传 ✓ 链路已单独验证过 ✓）
+     * - 图文：`type=`**`feedArticle`** + `message` = **块数组**
+     * - 图片：`pic` = 逗号分隔 URL ✓（只带剩下的 ⇒ 被去掉的就是删除 ✓）
+     * - 上传：`ossUploadPrepare` → OSS PUT → `http://image.coolapk.com/<uploadFileName>` ✓
      */
     private fun showEditDialog(data: HomeFeedResponse.Data) {
         val isArticle = data.isHtmlArticle == 1
         val ctx = requireContext()
+        val d = ctx.resources.displayMetrics.density
 
         val container = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            val pad = (ctx.resources.displayMetrics.density * 16).toInt()
+            val pad = (d * 16).toInt()
             setPadding(pad, pad, pad, 0)
         }
+
         val titleEdit = if (isArticle) EditText(ctx).apply {
             setText(data.messageTitle.orEmpty())
             hint = "标题"
@@ -557,11 +647,89 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         val bodyEdit = EditText(ctx).apply {
             setText(data.message.orEmpty())
             hint = "正文"
-            minLines = 8
+            minLines = 6
             gravity = android.view.Gravity.TOP or android.view.Gravity.START
         }
         titleEdit?.let { container.addView(it) }
         container.addView(bodyEdit)
+
+        // ── 图片区：删除(×) + 上传(+) ──
+        editRemainPics.clear()
+        editRemainPics.addAll(data.picArr ?: emptyList())
+
+        val picHint = TextView(ctx).apply {
+            textSize = 12f
+            setTextColor(0xFF888888.toInt())
+        }
+        val picRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        editPicRow = picRow
+        editPicHint = picHint
+
+        fun refreshPics() {
+            picRow.removeAllViews()
+            val size = (d * 84).toInt()
+            val gap = (d * 8).toInt()
+
+            editRemainPics.forEachIndexed { idx, url ->
+                val cell = android.widget.FrameLayout(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = gap }
+                }
+                val iv = android.widget.ImageView(ctx).apply {
+                    layoutParams = android.widget.FrameLayout.LayoutParams(size, size)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                    setBackgroundColor(0x22000000)
+                }
+                ImageUtil.showIMG(iv, url)
+                val del = TextView(ctx).apply {
+                    text = "×"
+                    textSize = 15f
+                    setTextColor(0xFFFFFFFF.toInt())
+                    setBackgroundColor(0xCC000000.toInt())
+                    gravity = android.view.Gravity.CENTER
+                    val b = (d * 22).toInt()
+                    layoutParams = android.widget.FrameLayout.LayoutParams(b, b).apply {
+                        gravity = android.view.Gravity.END or android.view.Gravity.TOP
+                    }
+                    setOnClickListener {
+                        editRemainPics.removeAt(idx)
+                        refreshPics()
+                    }
+                }
+                cell.addView(iv)
+                cell.addView(del)
+                picRow.addView(cell)
+            }
+
+            // 上传按钮（+）
+            val add = TextView(ctx).apply {
+                text = "＋"
+                textSize = 26f
+                setTextColor(0xFF888888.toInt())
+                gravity = android.view.Gravity.CENTER
+                setBackgroundColor(0x11000000)
+                layoutParams = LinearLayout.LayoutParams(size, size)
+                setOnClickListener {
+                    runCatching {
+                        pickEditImages.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    }.onFailure { ctx.makeToast("无法打开相册") }
+                }
+            }
+            picRow.addView(add)
+
+            picHint.text = "图片 ${editRemainPics.size}/9 · 点 × 删除 · 点 ＋ 加图"
+        }
+        editRefreshPics = { refreshPics() }
+        refreshPics()
+
+        container.addView(picHint)
+        container.addView(android.widget.HorizontalScrollView(ctx).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(picRow)
+        })
 
         MaterialAlertDialogBuilder(ctx)
             .setTitle(if (isArticle) "编辑图文" else "编辑动态")
@@ -569,7 +737,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
             .setPositiveButton("保存") { _, _ ->
                 val body = bodyEdit.text?.toString().orEmpty()
                 if (body.isBlank()) {
-                    requireContext().makeToast("正文不能为空")
+                    ctx.makeToast("正文不能为空")
                     return@setPositiveButton
                 }
                 val form = HashMap<String, String>()
@@ -577,7 +745,6 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                 form["status"] = "1"
                 form["publish_status"] = (data.publishStatus ?: 0).toString()
                 if (isArticle) {
-                    // ★ 图文：type=feedArticle + 块数组 ✓
                     form["type"] = "feedArticle"
                     form["is_html_article"] = "1"
                     form["message_title"] = titleEdit?.text?.toString().orEmpty()
@@ -585,16 +752,14 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                         .put(JSONObject().put("type", "text").put("message", body))
                         .toString()
                 } else {
-                    // ★ 动态：type=feed + 纯文本 ✓
                     form["type"] = "feed"
                     form["is_html_article"] = "0"
                     form["message_title"] = ""
                     form["message"] = body
                 }
-                // 图片原样带回 ✓（本轮不改图 ✗ 但**必须回传** ✗ 否则会被清空 ✗）
-                form["pic"] = (data.picArr ?: emptyList()).joinToString(",")
+                // 图片：只回传**剩下**的（被 × 掉的就不带 ⇒ 服务端删除 ✓ 空串 = 清空 ✓）
+                form["pic"] = editRemainPics.joinToString(",")
                 form["message_cover"] = data.messageCover.orEmpty()
-                // 其余参数全部用默认值 ✓（照 changeFeed 的完整参数表 ✓）
                 form["location"] = ""
                 form["long_location"] = ""
                 form["latitude"] = "0.0"

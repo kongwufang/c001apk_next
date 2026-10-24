@@ -287,6 +287,36 @@ class FeedViewModel @AssistedInject constructor(
     /** 提交编辑的结果：true = 成功 ✓ */
     val editResult = MutableLiveData<Event<Boolean>>()
 
+    /** OSS 上传凭证（拿到后由 Fragment 调 ossUpload ✓） */
+    val uploadPrepared = MutableLiveData<Event<com.example.c001apk.logic.model.OSSUploadPrepareResponse.Data?>>()
+
+    /**
+     * 申请图片上传凭证
+     *
+     * 参数跟 `ArticlePublishActivity` 一致 ✓（`uploadDir=feed` ✓ 实测可用 ✓）
+     */
+    fun prepareImageUpload(files: List<com.example.c001apk.logic.model.ArticleUploadFile>) {
+        val form = HashMap<String, String>()
+        form["uploadBucket"] = "image"
+        form["uploadDir"] = "feed"
+        form["is_anonymous"] = "0"
+        form["uploadFileList"] = com.google.gson.Gson().toJson(files)
+        form["toUid"] = ""
+        form["feed_type"] = "feed"
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.postOSSUploadPrepare(form)
+                .collect { result ->
+                    val response = result.getOrNull()
+                    if (response?.data != null) {
+                        uploadPrepared.postValue(Event(response.data))
+                    } else {
+                        toastText.postValue(Event(response?.message ?: "上传准备失败"))
+                        uploadPrepared.postValue(Event(null))
+                    }
+                }
+        }
+    }
+
     /** 拉编辑页数据（点「编辑」时调 ✓） */
     fun loadEditDetail() {
         viewModelScope.launch(Dispatchers.IO) {
