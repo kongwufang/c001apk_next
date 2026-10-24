@@ -30,11 +30,23 @@ class HomeViewModel @Inject constructor(
     /** 首页工具栏消息入口的未读角标数字，0 表示不显示 */
     val unreadCount = MutableLiveData<Int>()
 
+    /**
+     * 默认 tab 顺序（2026-10-25 调整 ✓）
+     *
+     * 用户要求：「把关注和应用移动到头条右边，这样头条这个 tab 就在最左边」
+     *
+     * ⚠️ 为什么头条必须在最左
+     *   侧边栏抽屉的「左边缘右滑」只在头条 tab 生效（见 HomeFragment）——
+     *   头条是**纵向**信息流，没有横向手势 ✓ 可以安全地抢
+     *   而「关注 / 应用」等 tab 内部是 ViewPager2，横向滑动会打架 ✗
+     *
+     * 存储用的是 [HomeMenu.position]（Dao 里 `ORDER BY position ASC` ✓）
+     */
     val defaultList by lazy {
         listOf(
-            HomeMenu(0, "关注", true),
-            HomeMenu(1, "应用", true),
-            HomeMenu(2, "头条", true),
+            HomeMenu(0, "头条", true),
+            HomeMenu(1, "关注", true),
+            HomeMenu(2, "应用", true),
             HomeMenu(3, "热榜", true),
             HomeMenu(4, "话题", true),
             HomeMenu(5, "数码", true),
@@ -45,6 +57,19 @@ class HomeViewModel @Inject constructor(
     fun initTab() {
         viewModelScope.launch(Dispatchers.IO) {
             homeMenuRepo.insertList(defaultList)
+        }
+    }
+
+    /**
+     * 只写库、**不**触发重启（2026-10-25 ✓）
+     *
+     * 给「头条挪到最左」的一次性迁移用：
+     * [updateTab] 会 postValue(restart = true) ⇒ 整个首页重启 ⇒ 白闪一下 ✗
+     * 迁移只改 position ⇒ 当前 tabList 已经在内存里了 ⇒ 直接写库就行 ✓
+     */
+    fun saveTabOrder(menuList: List<HomeMenu>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            homeMenuRepo.updateList(menuList)
         }
     }
 

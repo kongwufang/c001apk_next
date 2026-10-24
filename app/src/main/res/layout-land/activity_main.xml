@@ -16,7 +16,7 @@
          Configurations for activity_main.xml must agree on the root element's ID.
        所以竖屏（layout/）和横屏（layout-land/）必须用同一个根 ✓
 -->
-<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.example.c001apk.view.LockableDrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
@@ -39,4 +39,4 @@
         android:clipToOutline="true"
         android:elevation="16dp" />
 
-</androidx.drawerlayout.widget.DrawerLayout>
+</com.example.c001apk.view.LockableDrawerLayout>

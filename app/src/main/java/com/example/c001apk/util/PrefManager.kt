@@ -32,6 +32,19 @@ object PrefManager {
         get() = pref.getBoolean(PREF_FOLLOW_SYSTEM_ACCENT, true)
         set(value) = pref.edit().putBoolean(PREF_FOLLOW_SYSTEM_ACCENT, value).apply()
 
+    /**
+     * 「头条挪到最左」的一次性迁移标记（2026-10-25 ✓）
+     *
+     * 改 [com.example.c001apk.ui.home.HomeViewModel.defaultList] 只影响**新装** ✗
+     * 老用户 Room 里已经存了「关注/应用/头条…」✗ ⇒ 要迁移一次 ✓
+     *
+     * ⚠️ 必须有这个标记 ✗ —— 否则用户在「设置 → 外观 → 编辑Tab」里
+     * 把头条挪走之后，下次进首页又会被强行挪回来 ✗
+     */
+    var tabOrderHeadlineFirst: Boolean
+        get() = pref.getBoolean("tab_order_headline_first", false)
+        set(value) = pref.edit().putBoolean("tab_order_headline_first", value).apply()
+
     var themeColor: String
         get() = pref.getString(PREF_THEME_COLOR, "MATERIAL_DEFAULT")!!
         set(value) = pref.edit().putString(PREF_THEME_COLOR, value).apply()

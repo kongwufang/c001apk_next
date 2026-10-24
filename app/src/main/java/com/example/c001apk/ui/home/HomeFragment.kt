@@ -41,6 +41,12 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: Tab) {
                 viewModel.position = tab.position
+                // 左边缘右滑拉抽屉只在「头条」这个 tab 生效（2026-10-25 ✓）
+                //   ⚠️ 别的 tab 内部是 ViewPager2，横向手势会打架 ✗
+                //   头条是纵向信息流，没有横向手势 ⇒ 可以安全地抢 ✓
+                (activity as? MainActivity)?.setDrawerEdgeSwipeEnabled(
+                    tab.text?.toString() == "头条"
+                )
             }
 
             override fun onTabUnselected(tab: Tab?) {}
@@ -59,7 +65,21 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
             if (tabList.isEmpty()) {
                 viewModel.initTab()
             } else {
-                val enableList = tabList.filter {
+                // ── 一次性迁移：把「头条」挪到最左（2026-10-25 ✓）──
+                //   改 defaultList 只影响新装 ✗ 老用户 Room 里存的是旧顺序 ✗
+                var list = tabList
+                if (!PrefManager.tabOrderHeadlineFirst) {
+                    PrefManager.tabOrderHeadlineFirst = true
+                    val migrated = list
+                        .sortedBy { if (it.title == "头条") -1 else it.position }
+                        .mapIndexed { index, menu -> menu.copy(position = index) }
+                    if (migrated != list) {
+                        viewModel.saveTabOrder(migrated)
+                        list = migrated
+                    }
+                }
+
+                val enableList = list.filter {
                     it.isEnable
                 }.map {
                     it.title

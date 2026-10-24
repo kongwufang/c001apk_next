@@ -121,6 +121,18 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
     }
 
     /**
+     * 开关「左边缘右滑拉抽屉」（2026-10-25 ✓）
+     *
+     * 只有首页 tab 是「头条」时才开 ✓
+     *   - 头条是纵向信息流 ⇒ 没有横向手势 ⇒ 抢边缘滑动不打架 ✓
+     *   - 「关注 / 应用」等 tab 内部是 ViewPager2 ✗ 会被抢手势 ✗
+     * 关掉手势时 ☰ 按钮依然能开抽屉 ✓（见 [com.example.c001apk.view.LockableDrawerLayout]）
+     */
+    fun setDrawerEdgeSwipeEnabled(enabled: Boolean) {
+        binding.drawerLayout.edgeSwipeEnabled = enabled
+    }
+
+    /**
      * 启动时的自更新检查（只看正式版，Beta 通道已去掉）。
      *
      * 自建接口一次响应里还有关于页按钮那段，跟这里共用 60 秒缓存，不会重复请求。
