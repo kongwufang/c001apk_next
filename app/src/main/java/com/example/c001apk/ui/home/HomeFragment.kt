@@ -83,6 +83,11 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
     }
 
     private fun initButton() {
+        // 「我的」侧边栏（2026-10-24 UI 大改 ✓）
+        binding.mine.setOnClickListener {
+            (activity as? MainActivity)?.openMineDrawer()
+        }
+
         binding.search.setOnClickListener {
             IntentUtil.startActivity<SearchActivity>(requireContext()) {
             }

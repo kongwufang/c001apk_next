@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,6 +34,8 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
             binding.offlineLayout.setOnClickListener(this)
             binding.equipmentLayout.setOnClickListener(this)
             binding.historyLayout.setOnClickListener(this)
+            // 第 9 格占位：不需要登录也点得动（只是弹个 Toast ✓）
+            binding.comingSoonLayout.setOnClickListener(this)
             if (PrefManager.isLogin) {
                 binding.followLayout.setOnClickListener(this)
                 binding.favLayout.setOnClickListener(this)
@@ -85,6 +88,15 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     IntentUtil.startActivity<HistoryActivity>(itemView.context) {
                         putExtra("type", "browse")
                     }
+
+                // 第 9 格占位（2026-10-24 从 4x2 改成 3x3，多出来的一格）
+                // 用户要求「先挂敬请期待」⇒ 点了给个友好提示，不做别的 ✓
+                R.id.comingSoonLayout ->
+                    Toast.makeText(
+                        itemView.context,
+                        itemView.context.getString(R.string.coming_soon),
+                        Toast.LENGTH_SHORT
+                    ).show()
 
                 // 我的装备：直接进入装备页；「修改/编辑装备」按钮放在该页右上角
                 R.id.equipmentLayout ->
