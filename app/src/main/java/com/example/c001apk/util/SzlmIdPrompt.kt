@@ -94,6 +94,9 @@ object SzlmIdPrompt {
         PrefManager.szlmIdConfigured = id.isNotEmpty()
         PrefManager.szlmIdNoticed = true
         rebuildDeviceString()
+        // 换了 duid 立刻验一次 ✓（不用等 8 秒的首次定时器 ✓）
+        // 新 duid 无效 ⇒ 立刻弹「可能已失效」⇒ 用户当场就知道这次换的号不行 ✓
+        runCatching { SzlmMonitor.checkNow() }
     }
 
     /**

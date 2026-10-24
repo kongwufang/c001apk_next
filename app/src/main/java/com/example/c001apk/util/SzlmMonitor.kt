@@ -84,7 +84,15 @@ object SzlmMonitor {
 
     private const val BLOCKED_STATUS = 567
     private const val INTERVAL_MS = 10 * 60 * 1000L
-    private const val FIRST_DELAY_MS = 60 * 1000L
+
+    /**
+     * 首次探测延迟
+     *
+     * 原来是 60 秒 ✗ —— 用户实测「等 40 多秒才弹，太久了」✗
+     * 探测跑在**后台线程** ✓ 不占启动时间 ✓ ⇒ 改成 8 秒 ✓
+     * （另外 [SzlmIdPrompt.save] 里换了 duid 会直接 `checkNow()` ✓ 不用等 ✓）
+     */
+    private const val FIRST_DELAY_MS = 8 * 1000L
     private const val ID_CACHE_MS = 60 * 60 * 1000L
 
     private val handler = Handler(Looper.getMainLooper())
