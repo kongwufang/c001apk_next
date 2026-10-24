@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.util.MessageCenterCacheStore
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
@@ -71,6 +72,9 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
         }
 
         mAdapter = MessageCenterAdapter(ItemClickListener())
+        // ★ 先把上次的缓存显示出来 ✓ 不用盯着空白等网络 ✓
+        //   之后 messageData 回来时 submitList(新列表) ⇒ DiffUtil 增量插入 ✓
+        runCatching { mAdapter.submitList(MessageCenterCacheStore.load()) }
         footerAdapter = FooterAdapter(ReloadListener())
         mLayoutManager = LinearLayoutManager(this)
         binding.recyclerView.apply {
@@ -113,7 +117,10 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
 
         viewModel.messageData.observe(this) {
             // ListAdapter + DiffUtil ⇒ 只动变化的行 ✓ 不会重置整个列表 ✓
+            //   ⇒ 有新消息时新的那几条会「挤」出来 ✓ 老的不动 ✓
             mAdapter.submitList(it)
+            // 写缓存 ✓（空列表不覆盖旧缓存 ✓ 见 store 里的注释）
+            runCatching { MessageCenterCacheStore.save(it) }
             hideRefreshingIndicator()
         }
     }
