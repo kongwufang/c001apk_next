@@ -2,12 +2,12 @@
 
 fake coolapk
 
-[![装机量](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dinstalls%26v%3D20261024b)](https://service.houlangs.cn/c001apk/stats.php)
-[![今日活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive%26v%3D20261024b)](https://service.houlangs.cn/c001apk/stats.php)
-[![今日新增](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dnew%26v%3D20261024b)](https://service.houlangs.cn/c001apk/stats.php)
-[![7天内活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive7%26v%3D20261024b)](https://service.houlangs.cn/c001apk/stats.php)
+[![装机量](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dinstalls%26v%3D20261024c)](https://service.houlangs.cn/c001apk/stats.php)
+[![今日活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive%26v%3D20261024c)](https://service.houlangs.cn/c001apk/stats.php)
+[![今日新增](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dnew%26v%3D20261024c)](https://service.houlangs.cn/c001apk/stats.php)
+[![7天内活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive7%26v%3D20261024c)](https://service.houlangs.cn/c001apk/stats.php)
 
-![装机量历史](https://service.houlangs.cn/c001apk/stats.php?format=png&metric=chart&v=20261024b)
+![30天内活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive30%26v%3D20261024c)
 
 ## 下载 / 更新
 
@@ -15,7 +15,7 @@ fake coolapk
 
 App 内「设置 → 关于」可检查更新：更新检查走自建接口，支持多线路下载。
 
-上面的徽章与曲线来自[自建统计页](https://service.houlangs.cn/c001apk/stats.php)，30 分钟刷新一次。
+上面的数据来自[自建统计页](https://service.houlangs.cn/c001apk/stats.php)，30 分钟刷新一次。
 
 统计按**匿名设备标识**计，与账号无关：
 
