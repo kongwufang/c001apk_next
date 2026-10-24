@@ -202,6 +202,18 @@ class LockableDrawerLayout @JvmOverloads constructor(
     }
 
     /**
+     * ⚠️ 关键：`DrawerLayout` 在 scrim 上**按下就会 intercept** ✓
+     *   （为了实现「点空白处关闭抽屉」✓）
+     *   ⇒ 一旦它 intercept 了，后续的 MOVE **不会**再走 [onInterceptTouchEvent] ✗
+     *   ⇒ 只在 intercept 里判断滑动是**永远等不到**的 ✗
+     *   ⇒ 所以这里也要判一次 ✓（DOWN 的坐标已经在 intercept 里记过了 ✓）
+     */
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (isDrawerOpen(GravityCompat.START) && handleScrimSwipe(ev)) return true
+        return super.onTouchEvent(ev)
+    }
+
+    /**
      * 抽屉开着时，处理「没被抽屉盖住的那一窄条」里的横向滑动（2026-10-25 ✓）
      *
      * 命中条件：
