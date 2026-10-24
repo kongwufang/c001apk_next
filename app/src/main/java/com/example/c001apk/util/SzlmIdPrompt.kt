@@ -1,5 +1,6 @@
 package com.example.c001apk.util
 
+import com.example.c001apk.util.DeviceCode
 import android.app.Activity
 import android.content.Intent
 import android.view.LayoutInflater
@@ -96,16 +97,38 @@ object SzlmIdPrompt {
     }
 
     /**
-     * szlmId 与机型是两件独立的事：这里只重建设备串本身，既不写机型字段，
-     * 也不碰 [PrefManager.customFingerprint] —— 换 ID 不该把用户设过的机型冲掉。
+     * 把新的 szlmId 写进**设备串的首字段** ✓
      *
-     * 自定义过机型时必须就地重造，否则 [TokenDeviceUtils.getLastingDeviceCode]
-     * 会直接返回旧串，首字段还停在旧 szlmId；其余情况留给它在下次请求时按
-     * 「上报真实机型」开关重建（两条分支都用新 szlmId 算值，必然与旧串不同）。
+     * ## 为什么必须在这里做
+     * szlmId 是 `X-App-Device` 的**第一个分号字段** ✓，业务请求和 duid 探测用的
+     * 都是 `PrefManager.xAppDevice` **不是** `SZLMID` ✗
+     * ⇒ 只改 `SZLMID` 不改设备串 ⇒ **换号等于没换** ✗：
+     *   探测打出去的还是旧的有效 duid ⇒ 永远判「正常」⇒ 用户以为监测失灵 ✗
+     *   （2026-10-24 用户实测：手动填随机值保存后，杀进程重启也没提示 ✓ 就是这个原因）
+     *
+     * ## 为什么只改首字段
+     * szlmId 与机型是两件独立的事 ✓ —— 只替换 `parts[0]`，
+     * 机型 / MAC / 尾字段一律保留 ✓，也不碰 [PrefManager.customFingerprint] ✓
+     * （跟 [TokenDeviceUtils.migrateSzlmId] 的做法一致 ✓）
+     *
+     * ## 为什么不再按 customFingerprint 分支
+     * 原来只在 `customFingerprint == true` 时重造 ✗，打算把其余情况
+     * 交给 `getLastingDeviceCode()` 的「上报真实机型」分支 ✗ —— 但那条分支
+     * 只在 `xAppDevice != detectRealDevice().deviceCode` 时才重建 ✗
+     * 而真实机型的设备串**不含新 szlmId** ⇒ 永远相等 ⇒ 永远不重建 ✗
+     *
+     * 解不出结构（用户手填的畸形串）就原样不动 ✓，不反复重试 ✓
      */
     private fun rebuildDeviceString() {
-        if (PrefManager.customFingerprint) {
-            PrefManager.xAppDevice = TokenDeviceUtils.getDeviceCode(false)
+        runCatching {
+            val cur = PrefManager.xAppDevice
+            if (cur.isEmpty()) return
+            val parts = DeviceCode.decode(cur).split(";").toMutableList()
+            if (parts.isEmpty()) return
+            parts[0] = PrefManager.SZLMID
+            PrefManager.xAppDevice = DeviceCode.encode(parts.joinToString(";"))
+        }.onFailure {
+            android.util.Log.w("SzlmIdPrompt", "重建设备串首字段失败，保持原值", it)
         }
     }
 }
