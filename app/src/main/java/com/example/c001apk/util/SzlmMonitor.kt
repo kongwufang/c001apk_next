@@ -1,55 +1,82 @@
 package com.example.c001apk.util
 
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * 数字联盟 ID（duid / szlmId）**主动过期监测** —— 客户端侧。
+ * 数字联盟 ID（duid / szlmId）**主动过期监测** —— 客户端侧，**本地直连酷安判断**。
  *
  * ## 为什么要它
- * duid 失效时酷安**仍回 HTTP 200**，错误藏在 `data` / `message` 里（`评论接口异常` /
- * `当前访问需要验证码` / `…(-419)`）。用户要等到点开某条动态才发现打不开，
- * 而且文案完全不提示「该去重新取号」。
+ * duid 失效时酷安**仍回 HTTP 200** ✗，错误藏在 JSON 的 `data` / `message` 里：
+ * `评论接口异常` / `当前访问需要验证码` / `检测到当前版本存在异常…(-419)`
+ * ⇒ 用户要等到点开某条动态才发现打不开，而且文案完全不提示「该去重新取号」✗
  *
- * ⇒ 每 10 分钟把 duid 报给自建端点，让它**替客户端**打一次内容接口：
- *   - `expired=true`  ⇒ 立刻弹「可能数字联盟 ID 已失效」+ 一键去取号（复用 [SzlmHint] ✓）
- *   - 网络失败 / 服务端异常 ⇒ 静默（不打扰用户 ✓，绝不能因为探测失败误报 ✗）
+ * ## 为什么不走自建服务器（2026-10-24 改）
+ * 早先版本是「每 10 分钟把 duid 报给 `szlmid/check.php`，让服务器替客户端打一次」。
+ * 实测放弃这条路 ✗：
+ *  - 服务器出口 IP 打多了会被酷安**风控成 403** ✗（当天就遇到 ✓ 客户端就永远收不到「过期」✗）
+ *  - 多一跳网络、多一个可能挂的环节 ✗
+ *  - 其实**客户端自己就能判** ✓（判据稳定 ✓ 见下表）
  *
- * ## 服务端
- * `POST https://service.houlangs.cn/c001apk/szlmid/check.php`
- * ```
- * duid=<SZLMID>&device=<X-App-Device>&code=<versionCode>
- * → {"code":0,"data":{"ok":bool,"expired":bool,"reason":"…","cached":bool}}
- * ```
- * 服务端有 10 分钟缓存 + 每 IP 每小时 40 次限流 ✓
+ * ## 判据（2026-10-18 / 10-24 两次实测）
+ * 只打一个**固定接口**：`GET https://api.coolapk.com/v6/feed/detail?id=74345950`
+ *
+ * | 情况 | 响应 |
+ * |---|---|
+ * | duid 正常 | `data` 是**对象** ✓ |
+ * | duid 过期（换号前的旧值）| `message` / `data` = `评论接口异常` 或 `…(-419)` ✗ |
+ * | duid 是随机串 / 已失效 | `data` 是**字符串** `当前访问需要验证码` ✗ |
+ * | 被风控 | HTTP **567** ✗ |
+ * | 其它（动态被删、网络错、限流 **403**）| 判**未知** ✓ **不提示**（绝不误报 ✗）|
+ *
+ * ⚠️ 只认上面 4 条已知文案 ⇒ 别的错误一律当「未知」✓ 免得误弹 ✗
+ *
+ * ## 请求头
+ * 直接复用 [AddCookiesInterceptor] ✓ —— 它会把 App 真实使用的
+ * `X-App-Device` / `X-App-Token`(v3) / `X-App-Code` / `Cookie(uid/username/token)` 全拼好 ✓
+ * ⇒ 这条探测请求与业务请求**完全同源** ✓ 服务端看到的身份一致 ✓
  *
  * ## 约定
- * - **只在主线程之外**发请求 ✓（OkHttp 同步调用放在后台线程 ✓）
- * - 未登录 / 没有 duid / 没有设备串 ⇒ 直接跳过 ✓（不报错 ✗）
- * - 全程**不上传任何账号信息** ✓ 只有 duid + 设备串 + versionCode
+ * - 启动后 60 秒第一次，之后每 10 分钟一次 ✓
+ * - 后台线程发请求 ✓，判定过期 ⇒ [SzlmHint.notifyExpired] 弹窗 + 一键去取号 ✓
+ * - 任何异常都**静默** ✓（探测失败绝不打扰用户 ✗）
+ * - duid 为空 / 未登录 ⇒ 跳过 ✓
  */
 object SzlmMonitor {
 
     private const val TAG = "SzlmMonitor"
-    private const val URL = "https://service.houlangs.cn/c001apk/szlmid/check.php"
 
-    /** 10 分钟一轮 ✓（服务端缓存也是 10 分钟，正好错开 ✓） */
+    /** 固定探测接口（`feed/detail` 最敏感：duid 一坏就拒 ✗） */
+    private const val PROBE_URL = "https://api.coolapk.com/v6/feed/detail?id=74345950"
+
+    /** 已知的「duid 失效」文案（只认这几条 ✓ 别的当未知 ✗） */
+    private val MARKERS = listOf(
+        "评论接口异常",
+        "当前访问需要验证码",
+        "检测到当前版本存在异常",
+        "(-419)",
+    )
+
+    /** HTTP 567 = 酷安的风控页（整页 HTML ✗） */
+    private const val BLOCKED_STATUS = 567
+
     private const val INTERVAL_MS = 10 * 60 * 1000L
-
-    /** 启动后先延迟一会儿再打第一次 ✓（别和启动时的其它请求抢带宽）*/
     private const val FIRST_DELAY_MS = 60 * 1000L
 
     private val handler = Handler(Looper.getMainLooper())
 
+    /**
+     * ★ 复用 App 自己的头 ✓
+     * [AddCookiesInterceptor] 会按业务请求的方式把 device / token / cookie 全拼上 ✓
+     */
     private val client by lazy {
         OkHttpClient.Builder()
+            .addInterceptor(AddCookiesInterceptor)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
@@ -72,72 +99,38 @@ object SzlmMonitor {
         started = true
         handler.removeCallbacks(tick)
         handler.postDelayed(tick, FIRST_DELAY_MS)
-        Log.i(TAG, "已启动：每 ${INTERVAL_MS / 60000} 分钟探测一次 duid")
+        Log.i(TAG, "已启动：每 ${INTERVAL_MS / 60000} 分钟本地探测一次 duid（直连酷安）")
     }
 
-    /** 取当前安装包的 versionCode（不依赖 BuildConfig ✓） */
-    private fun appVersionCode(ctx: Context?): Long {
-        if (ctx == null) return 0L
-        return runCatching {
-            val pm = ctx.packageManager
-            val info = pm.getPackageInfo(ctx.packageName, 0)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                info.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                info.versionCode.toLong()
-            }
-        }.getOrDefault(0L)
-    }
-
-    /** 手动触发一次（调试 / 用户点「立即检查」时用 ✓） */
+    /** 手动触发一次（调试用 ✓） */
     fun checkNow() {
         handler.removeCallbacks(tick)
         checkOnce()
         if (started) handler.postDelayed(tick, INTERVAL_MS)
     }
 
+    /** 判定结果 */
+    private data class Verdict(val ok: Boolean, val expired: Boolean, val reason: String)
+
     private fun checkOnce() {
-        val duid = PrefManager.SZLMID
-        val device = PrefManager.xAppDevice
-        if (duid.isEmpty() || device.isEmpty()) {
-            Log.d(TAG, "跳过：duid 或设备串为空")
+        if (PrefManager.SZLMID.isEmpty()) {
+            Log.d(TAG, "跳过：duid 为空")
             return
         }
-        val code = appVersionCode(AppContextHolder.context)
-        // 后台线程发请求 ✓ 主线程只负责弹窗
+        if (!PrefManager.isLogin) {
+            Log.d(TAG, "跳过：未登录（没凭据 ⇒ 探测一定被拒 ⇒ 没意义 ✗）")
+            return
+        }
         Thread {
             runCatching {
-                val body = FormBody.Builder()
-                    .add("duid", duid)
-                    .add("device", device)
-                    .add("code", code.toString())
-                    .build()
-                val req = Request.Builder()
-                    .url(URL)
-                    .post(body)
-                    .header("User-Agent", "c001apk-android/${appVersionCode(AppContextHolder.context)}")
-                    .build()
+                val req = Request.Builder().url(PROBE_URL).get().build()
                 client.newCall(req).execute().use { resp ->
-                    val text = resp.body?.string().orEmpty()
-                    if (!resp.isSuccessful) {
-                        Log.w(TAG, "探测失败 HTTP ${resp.code}")
-                        return@use
-                    }
-                    val data = JSONObject(text).optJSONObject("data")
-                    if (data == null) {
-                        Log.w(TAG, "探测返回缺 data：${text.take(120)}")
-                        return@use
-                    }
-                    val expired = data.optBoolean("expired", false)
-                    val reason = data.optString("reason", "")
-                    val cached = data.optBoolean("cached", false)
-                    Log.i(TAG, "探测结果 expired=$expired cached=$cached reason=$reason")
-                    if (expired) {
-                        // ★ 复用已有的弹窗（含 60 秒节流 ✓ 和「去重新取号」按钮 ✓）
-                        handler.post {
-                            SzlmHint.notifyExpired(AppContextHolder.context, reason)
-                        }
+                    val body = resp.body?.string().orEmpty()
+                    val v = judge(resp.code, body)
+                    Log.i(TAG, "探测 code=${resp.code} ok=${v.ok} expired=${v.expired} reason=${v.reason}")
+                    if (v.expired) {
+                        // ★ 复用已有的弹窗（60 秒节流 ✓ + [去重新取号] 按钮 ✓）
+                        handler.post { SzlmHint.notifyExpired(AppContextHolder.context, v.reason) }
                     }
                 }
             }.onFailure {
@@ -145,5 +138,35 @@ object SzlmMonitor {
                 Log.w(TAG, "探测异常：${it.javaClass.simpleName}: ${it.message}")
             }
         }.start()
+    }
+
+    /** 判据（见类注释的表 ✓） */
+    private fun judge(code: Int, body: String): Verdict {
+        if (code == BLOCKED_STATUS) {
+            return Verdict(ok = false, expired = true, reason = "HTTP 567（风控页）")
+        }
+        if (code != 200) {
+            // 403 限流 / 5xx / 代理错误页… 一律「未知」⇒ 不提示 ✓
+            return Verdict(ok = false, expired = false, reason = "HTTP $code（未知，不提示）")
+        }
+        val json = runCatching { JSONObject(body) }.getOrNull()
+            ?: return Verdict(false, false, "响应不是 JSON（未知，不提示）")
+        val data = json.opt("data")
+        val msg = json.optString("message", "")
+
+        // data 是对象 ⇒ 正常 ✓
+        if (data is JSONObject) {
+            return Verdict(ok = true, expired = false, reason = "")
+        }
+        val hay = (if (data is String) data else "") + "\n" + msg
+        for (m in MARKERS) {
+            if (hay.contains(m)) {
+                return Verdict(ok = false, expired = true, reason = hay.trim().take(120))
+            }
+        }
+        return Verdict(
+            ok = false, expired = false,
+            reason = "未知响应（data=${data?.javaClass?.simpleName ?: "null"}）⇒ 不提示"
+        )
     }
 }
