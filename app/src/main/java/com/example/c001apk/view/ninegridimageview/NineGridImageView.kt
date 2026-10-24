@@ -26,6 +26,7 @@ SOFTWARE.
 
 
 import android.content.Context
+import android.view.Gravity
 import android.util.AttributeSet
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -213,11 +214,20 @@ class NineGridImageView @JvmOverloads constructor(
                     val imageLp = ImageUtil.getImageLp(replace)
                     imgWidth = imageLp.first
                     imgHeight = imageLp.second
-                    if (replace.endsWith("gif") || imgHeight > imgWidth * 22f / 9f) {
-                        setBadge(
-                            if (replace.endsWith("gif")) "GIF"
-                            else "长图"
-                        )
+                    // 角标优先级：GIF > HDR > 长图 ✓
+                    // - GIF：动图 ✓
+                    // - HDR：`ImageUtil` 收到的 URL 里带 `-uhdr` 标记 ✓
+                    //   （酷安接口**没有** hdr 字段 ✗，只能在图片 URL 里认 ✓
+                    //    2026-10-24 实测：普通图 10 张、HDR 图 7 张，判据干净 ✓）
+                    //   ⇒ HDR 优先于「长图」✗ —— HDR 照片往往也是长图比例 ✗ 会顶掉 HDR 角标 ✓
+                    // - 长图：高宽比 > 22:9 ✓
+                    val isGif = replace.endsWith("gif")
+                    val isHdr = replace.contains("-uhdr", ignoreCase = true)
+                    val isLongPic = imgHeight > imgWidth * 22f / 9f
+                    when {
+                        isGif -> setBadge("GIF")
+                        isHdr -> setBadge("HDR", Gravity.START or Gravity.TOP)
+                        isLongPic -> setBadge("长图")
                     }
                 }
                 addView(imageView, generateDefaultLayoutParams())
