@@ -1,19 +1,19 @@
 {
-  "versionName": "V1.0.6",
-  "versionCode": 10006,
-  "changelog": "V1.0.6 · 正式版\n\n【可诊断性】\n- 出错时显示服务端返回的**真实原因**，不再只有一句「加载失败」\n- 40 处列表 / 详情页的固定错误文案换成真实错误信息\n- 新增「记录 HTTP 请求日志」（设置 → 高级，**默认关闭**）\n  全局记录请求方法 / 地址 / 状态码 / 耗时 / 响应体（前 2KB）\n  敏感字段（token、Cookie、设备标识等）在本机脱敏，只保留长度\n  可导出成文件（不需要存储权限）、可一键清空；按天存放，2MB 滚动，保留 7 天\n\n【消息中心】\n- 显示**全部**消息，不再「读完就消失」\n- 宫格补齐「我的回复」「酷安小秘书」，共 7 项，配色对齐官方\n\n【数字联盟 ID 失效可自救】\n- 命中「评论接口异常 / 当前访问需要验证码 / 版本异常(-419) / HTTP 567」时\n  自动弹窗说明原因，并可直接跳转到取号页；完成人机验证后自动恢复\n\n【其它】\n- 若干稳定性修复",
+  "versionName": "V1.0.7",
+  "versionCode": 10007,
+  "changelog": "V1.0.7 · 正式版（紧急修复）\n\n【紧急修复】\n- 修复 V1.0.6 偶发「启动即崩溃」的问题\n  当登录态异常（例如数字联盟 ID 失效）时，服务端返回的登录信息会缺少字段，\n  旧版会直接把空值写进配置并抛异常，导致 App 停在崩溃页、完全无法使用\n  现在所有字段都做了兜底，不会再因此崩溃\n\n【数字联盟 ID 过期自动提醒】\n- 新增：每 10 分钟自动检查一次设备标识是否已失效\n  检查由 App 本地直连酷安完成，不经过自建服务器\n  （服务器出口 IP 频繁请求会被风控，反而会漏报）\n- 探测目标用**你自己主页的第一条动态**，不依赖任何写死的帖子\n- 一旦判定失效，直接弹出「可能数字联盟 ID 已失效」并给出「去重新取号」按钮\n  不用再等到点开某条动态、看到「评论接口异常」才发现问题\n- 判定保守：只认已知的几条失效文案；网络错误、限流、其它异常一律不打扰\n\n【其它】\n- 「装机量统计」入口不再携带密钥（统计页现已公开可访问）",
   "download": [
     {
       "name": "高速下载",
-      "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next-V1.0.6-release.10006.apk"
+      "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next-V1.0.7-release.10007.apk"
     },
     {
       "name": "线路一（GitHub 直链）",
-      "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.6-release.10006.apk"
+      "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.7-release.10007.apk"
     },
     {
       "name": "线路二（发行版页面）",
-      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.6"
+      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.7"
     }
   ]
 }
