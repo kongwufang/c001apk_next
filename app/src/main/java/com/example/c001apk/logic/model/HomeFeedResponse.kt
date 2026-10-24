@@ -61,6 +61,8 @@ data class HomeFeedResponse(
         @SerializedName("readNum") val readNum: Int?,
         /** 1 = 这条动态还能编辑 ✓（自己发的、未超时、未被锁 ✓）；0 / null = 不能 ✓ */
         val enableModify: Int?,
+        /** 1 = 图文（`is_html_article=1` ✓）；0 = 普通动态 ✓ */
+        @SerializedName("is_html_article") val isHtmlArticle: Int?,
         val isFeedAuthor: Int?,
         val topReplyRows: List<TotalReplyResponse.Data>?,
         // 卡片自带的附加数据（JSON 字符串）。服务端下发的是字符串，但为防某个接口下发对象/

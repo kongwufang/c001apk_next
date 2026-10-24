@@ -279,6 +279,50 @@ class FeedViewModel @AssistedInject constructor(
     /** 详情回填后通知 Fragment 换掉首屏列表（adapter 持有的是旧 list 引用） */
     val feedDataUpdateState = MutableLiveData<Event<Boolean>>()
 
+    // ── 编辑（2026-10-24 接口全部实测 ✓）──────────────────────────────
+
+    /** 编辑页拉到的数据（`message` 是**纯文本** ✓） */
+    val editDetail = MutableLiveData<Event<HomeFeedResponse.Data?>>()
+
+    /** 提交编辑的结果：true = 成功 ✓ */
+    val editResult = MutableLiveData<Event<Boolean>>()
+
+    /** 拉编辑页数据（点「编辑」时调 ✓） */
+    fun loadEditDetail() {
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.changeDetail(id)
+                .collect { result ->
+                    val response = result.getOrNull()
+                    if (response?.data != null) {
+                        editDetail.postValue(Event(response.data))
+                    } else {
+                        toastText.postValue(Event(response?.message ?: "读取编辑数据失败"))
+                        editDetail.postValue(Event(null))
+                    }
+                }
+        }
+    }
+
+    /**
+     * 提交编辑
+     *
+     * @param form 已经组装好的表单（见 [com.example.c001apk.ui.feed.FeedFragment] 里的拼装逻辑 ✓）
+     */
+    fun submitEdit(form: HashMap<String, String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.changeFeed(form)
+                .collect { result ->
+                    val response = result.getOrNull()
+                    if (response?.data != null) {
+                        editResult.postValue(Event(true))
+                    } else {
+                        toastText.postValue(Event(response?.message ?: "修改失败"))
+                        editResult.postValue(Event(false))
+                    }
+                }
+        }
+    }
+
     fun fetchFeedData() {
         if (isOffline) {
             viewModelScope.launch(Dispatchers.IO) { loadOffline() }

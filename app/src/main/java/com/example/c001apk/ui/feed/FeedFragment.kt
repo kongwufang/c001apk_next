@@ -1,5 +1,11 @@
 package com.example.c001apk.ui.feed
 
+import android.widget.EditText
+import android.widget.LinearLayout
+import androidx.lifecycle.Observer
+import com.example.c001apk.logic.model.HomeFeedResponse
+import org.json.JSONArray
+import org.json.JSONObject
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
 import android.content.Intent
@@ -440,6 +446,14 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
             // 举报要联网、可见性要回写服务端，离线缓存里都做不了
             menu.findItem(R.id.report).isVisible = PrefManager.isLogin && !viewModel.isOffline
             menu.findItem(R.id.showQuestion).isVisible = viewModel.feedType == "answer"
+            // 编辑：只有「自己发的」且「服务端说还能编辑」才显示 ✓
+            //   enableModify = 1（自己发的、未超时、未被锁 ✓）
+            //   isFeedAuthor = 1（是作者 ✓）
+            menu.findItem(R.id.editFeed).isVisible = run {
+                if (!PrefManager.isLogin || viewModel.isOffline) return@run false
+                val d = viewModel.feedDataList?.firstOrNull { it.id == viewModel.id } ?: return@run false
+                d.enableModify == 1 && (d.isFeedAuthor == 1 || d.uid == PrefManager.uid)
+            }
 
             setOnMenuItemClickListener {
                 when (it.itemId) {
@@ -476,6 +490,10 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                         )
                     }
 
+                    R.id.editFeed -> {
+                        viewModel.loadEditDetail()
+                    }
+
                     R.id.publishStatus -> {
                         showPublishStatusDialog(
                             requireContext(),
@@ -498,6 +516,122 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                 return@setOnMenuItemClickListener true
             }
         }
+
+        // 编辑：拉到数据就弹框 ✓ 提交成功后刷新详情 ✓
+        viewModel.editDetail.observe(viewLifecycleOwner) { event ->
+            event.getContentIfNotHandledOrReturnNull()?.let { showEditDialog(it) }
+        }
+        viewModel.editResult.observe(viewLifecycleOwner) { event ->
+            if (event.getContentIfNotHandledOrReturnNull() == true) {
+                requireContext().makeToast("修改成功")
+                viewModel.fetchFeedData()
+            }
+        }
+    }
+
+    /**
+     * 编辑对话框（正文 / 标题）
+     *
+     * ## 接口依据（2026-10-24 全部实测 ✓）
+     * - 动态：`type=feed` + `message` = **纯文本**
+     * - 图文：`type=`**`feedArticle`** + `message` = **块数组** `[{"type":"text","message":"…"}]`
+     *   （发布用 `type=feed` + `is_html_article=1` ✗ 和编辑不一样 ✗）
+     *
+     * ## 本轮范围
+     * 只改**正文**和**标题** ✓ 图片编辑下一轮（要接 OSS 上传 ✓ 链路已单独验证过 ✓）
+     */
+    private fun showEditDialog(data: HomeFeedResponse.Data) {
+        val isArticle = data.isHtmlArticle == 1
+        val ctx = requireContext()
+
+        val container = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (ctx.resources.displayMetrics.density * 16).toInt()
+            setPadding(pad, pad, pad, 0)
+        }
+        val titleEdit = if (isArticle) EditText(ctx).apply {
+            setText(data.messageTitle.orEmpty())
+            hint = "标题"
+            maxLines = 1
+        } else null
+        val bodyEdit = EditText(ctx).apply {
+            setText(data.message.orEmpty())
+            hint = "正文"
+            minLines = 8
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        }
+        titleEdit?.let { container.addView(it) }
+        container.addView(bodyEdit)
+
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(if (isArticle) "编辑图文" else "编辑动态")
+            .setView(container)
+            .setPositiveButton("保存") { _, _ ->
+                val body = bodyEdit.text?.toString().orEmpty()
+                if (body.isBlank()) {
+                    requireContext().makeToast("正文不能为空")
+                    return@setPositiveButton
+                }
+                val form = HashMap<String, String>()
+                form["id"] = data.id.orEmpty()
+                form["status"] = "1"
+                form["publish_status"] = (data.publishStatus ?: 0).toString()
+                if (isArticle) {
+                    // ★ 图文：type=feedArticle + 块数组 ✓
+                    form["type"] = "feedArticle"
+                    form["is_html_article"] = "1"
+                    form["message_title"] = titleEdit?.text?.toString().orEmpty()
+                    form["message"] = JSONArray()
+                        .put(JSONObject().put("type", "text").put("message", body))
+                        .toString()
+                } else {
+                    // ★ 动态：type=feed + 纯文本 ✓
+                    form["type"] = "feed"
+                    form["is_html_article"] = "0"
+                    form["message_title"] = ""
+                    form["message"] = body
+                }
+                // 图片原样带回 ✓（本轮不改图 ✗ 但**必须回传** ✗ 否则会被清空 ✗）
+                form["pic"] = (data.picArr ?: emptyList()).joinToString(",")
+                form["message_cover"] = data.messageCover.orEmpty()
+                // 其余参数全部用默认值 ✓（照 changeFeed 的完整参数表 ✓）
+                form["location"] = ""
+                form["long_location"] = ""
+                form["latitude"] = "0.0"
+                form["longitude"] = "0.0"
+                form["media_url"] = ""
+                form["media_type"] = "0"
+                form["media_pic"] = ""
+                form["message_brief"] = ""
+                form["extra_title"] = ""
+                form["extra_url"] = ""
+                form["extra_key"] = ""
+                form["extra_pic"] = ""
+                form["extra_info"] = ""
+                form["original_type"] = "0"
+                form["is_editInDyh"] = "0"
+                form["forwardid"] = ""
+                form["fid"] = "0"
+                form["dyhId"] = "0"
+                form["targetType"] = ""
+                form["targetId"] = ""
+                form["productId"] = ""
+                form["province"] = ""
+                form["city_code"] = ""
+                form["location_city"] = ""
+                form["location_country"] = ""
+                form["disallow_reply"] = "0"
+                form["vote_score"] = "0"
+                form["replyWithForward"] = "0"
+                form["media_info"] = ""
+                form["insert_product_media"] = "0"
+                form["is_ks_doc"] = "0"
+                form["goods_list_id"] = ""
+
+                viewModel.submitEdit(form)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     /**

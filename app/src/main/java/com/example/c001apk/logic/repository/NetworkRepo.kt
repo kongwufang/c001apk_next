@@ -408,6 +408,16 @@ class NetworkRepo @Inject constructor(
         Result.success(apiService.postDelete(url, id).await())
     }
 
+    /** 读编辑页数据（预填 ✓ message 是纯文本 ✓） */
+    suspend fun changeDetail(id: String) = fire {
+        Result.success(apiService.changeDetail(id).await())
+    }
+
+    /** 提交编辑（动态 type=feed / 图文 type=feedArticle + 块数组 ✓） */
+    suspend fun changeFeed(data: HashMap<String, String>) = fire {
+        Result.success(apiService.changeFeed(data).await())
+    }
+
     suspend fun postPublishStatus(data: HashMap<String, String?>) = fire {
         Result.success(apiService.postPublishStatus(data).await())
     }
