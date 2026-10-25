@@ -1,6 +1,7 @@
 # c001apk_next
 
-fake coolapk
+所属fake coolapk下的项目
+本项目虽然不是酷安第三方app项目群中知名度最高的，但致力于做酷安第三方的基础设施，目前已为社区提供token_v3算法和数字联盟id安卓端自动获取解决方案，感谢大家的支持
 
 [![装机量](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dinstalls%26v%3D20261024d)](https://service.houlangs.cn/c001apk/stats.php)
 [![今日活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive%26v%3D20261024d)](https://service.houlangs.cn/c001apk/stats.php)
