@@ -212,7 +212,7 @@ object CardUi {
         m["subTabFeedCard1"] = Rule(layout = SUBTAB_BATTERY)
         m["subTabFeedCard2"] = Rule(layout = SUBTAB_SCORE)
         // 到手价（subTabFeedCard6）：extraData = {final_price, update_time, feed_id}
-        m["subTabFeedCard6"] = Rule(layout = STATS, official = SUBTAB_PRICE)
+        m["subTabFeedCard6"] = Rule(layout = SUBTAB_PRICE)
         m["subTabFeedCard3"] = Rule(layout = SUBTAB_SCORE)
         // 首页/发现页顶部那排分类入口：官方是一行居中的 pill 链接（走专属渲染），
         // 配成宫格会排成一堆方块

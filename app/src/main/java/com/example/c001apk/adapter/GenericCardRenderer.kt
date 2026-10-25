@@ -528,7 +528,7 @@ object GenericCardRenderer {
         root.addView(row2)
 
         // 整卡可点 => 跳 feed
-        val feedId = extra.optString("feed_id", "")
+        val feedId = extra?.optString("feed_id", "").orEmpty()
         if (feedId.isNotEmpty()) {
             root.isClickable = true
             root.isFocusable = true
@@ -1003,6 +1003,13 @@ object GenericCardRenderer {
      * 统一走 [JSONObject.optString] 再转，两种都能吃。字段不在就直接当没有 ——
      * 官方「暂无人分享」那套就是靠 `has(key)` / 值 > 0 判的，别把缺失当成 0。
      */
+    /** 同 [number]，取字符串（没有就返回 null ✓ 不改调用方语义 ✗） */
+    private fun JSONObject?.string(key: String): String? {
+        val obj = this ?: return null
+        if (!obj.has(key)) return null
+        return obj.optString(key).takeIf { it.isNotBlank() }
+    }
+
     private fun JSONObject?.number(key: String): Float? {
         val obj = this ?: return null
         if (!obj.has(key)) return null
