@@ -61,6 +61,18 @@ object GenericCardRenderer {
         val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
 
+        // 🔍 临时诊断日志（2026-10-25）：
+        //   用户反复反馈「话题页有一张卡片异常」，我猜了三轮都没猜中模板名 ✗
+        //   这里把**真实模板名 + 卡片标题 + 实体**打出来 ⇒ 一次定位 ✓
+        //   定位完就删 ✓（`adb logcat -s CardTpl`）
+        runCatching {
+            val t = data.title ?: data.description ?: data.subTitle ?: data.message
+            val ents = data.entities.orEmpty().joinToString(" | ") { e ->
+                "type=${e.entityType},name=${e.entityTypeName},title=${e.title},logo=${e.logo},pic=${e.pic}"
+            }
+            android.util.Log.d("CardTpl", "tpl=[$template] cardTitle=[$t] n=${data.entities?.size ?: 0} ents=[$ents]")
+        }
+
         // 骨架内边距按模板可变（见下面 renderTopContent），而 ViewHolder 是回收复用的，
         // 先复位成 XML 里的 12dp，免得用上一次的模板留下的值
         binding.content.setPadding(CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp)
