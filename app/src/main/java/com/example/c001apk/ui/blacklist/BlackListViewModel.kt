@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.blacklist
 
+import com.example.c001apk.util.PrefManager
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -29,7 +30,13 @@ class BlackListViewModel @AssistedInject constructor(
     val toastText = MutableLiveData<Event<String>>()
 
     /** type = "user" 走云端接口，其余（topic）仍是本地库 */
-    val isCloud: Boolean get() = type == "user"
+    /**
+     * 用户黑名单读云端还是读本机，由「设置 → 推荐流相关 → 黑名单（用户）」决定（2026-10-25 ✓）
+     *
+     * - 云端模式 ⇒ 拉服务端黑名单
+     * - 本地模式 ⇒ 读本机 `user_blacklist.db`（跟以前 topic 类型走同一套本地逻辑 ✓）
+     */
+    val isCloud: Boolean get() = type == "user" && PrefManager.saveBlackListToCloud
 
     // topic：本地
     val blackListLiveData: LiveData<List<StringEntity>> = when (type) {

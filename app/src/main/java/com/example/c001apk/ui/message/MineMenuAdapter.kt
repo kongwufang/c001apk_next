@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.blacklist.BlackListActivity
 import com.example.c001apk.ui.collection.LocalCollectionActivity
 import com.example.c001apk.ui.follow.LocalFollowActivity
 import android.widget.Toast
@@ -103,14 +104,13 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                         putExtra("type", "browse")
                     }
 
-                // 第 9 格占位（2026-10-24 从 4x2 改成 3x3，多出来的一格）
-                // 用户要求「先挂敬请期待」⇒ 点了给个友好提示，不做别的 ✓
+                // 第 9 格（2026-10-25 用户要求：从「敬请期待」换成**黑名单**）
+                //   跳 BlackListActivity(type=user) ⇒ 它内部按
+                //   PrefManager.saveBlackListToCloud 决定读云端还是读本机库 ✓
                 R.id.comingSoonLayout ->
-                    Toast.makeText(
-                        itemView.context,
-                        itemView.context.getString(R.string.coming_soon),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    IntentUtil.startActivity<BlackListActivity>(itemView.context) {
+                        putExtra("type", "user")
+                    }
 
                 // 我的装备：直接进入装备页；「修改/编辑装备」按钮放在该页右上角
                 R.id.equipmentLayout ->
