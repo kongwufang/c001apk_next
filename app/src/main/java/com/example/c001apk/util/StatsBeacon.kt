@@ -137,7 +137,9 @@ class StatsBeacon @Inject constructor(
         if (job?.isActive == true) return
         job = scope.launch {
             while (isActive) {
-                val wait = runCatching { beat() }.getOrDefault(DEFAULT_INTERVAL_SEC)
+                // ⚠️ 异常（beat() 自己抛了）也要退避 ✓ 不能用 DEFAULT_INTERVAL_SEC ✗
+                //   那是"正常但没配置"的兜底 ✓ 30 秒猛冲正是用户要防的情况 ✗
+                val wait = runCatching { beat() }.getOrDefault(FAIL_BACKOFF_SEC)
                 delay(wait.coerceIn(MIN_INTERVAL_SEC, MAX_INTERVAL_SEC) * 1000L)
             }
         }
