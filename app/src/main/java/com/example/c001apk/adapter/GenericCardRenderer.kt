@@ -70,7 +70,12 @@ object GenericCardRenderer {
             val ents = data.entities.orEmpty().joinToString(" | ") { e ->
                 "type=${e.entityType},name=${e.entityTypeName},title=${e.title},logo=${e.logo},pic=${e.pic}"
             }
-            android.util.Log.d("CardTpl", "tpl=[$template] cardTitle=[$t] n=${data.entities?.size ?: 0} ents=[$ents]")
+            // ⚠️ 用 System.err 而不是 Log.d ✗
+            //   debug 渠道走的是 release 变体 + minify ⇒ Log.d 会被 proguard 剥掉 ✗
+            //   （2026-10-25 实测：Log.d 一条都没有 ✗）
+            val msg = "CardTpl tpl=[$template] cardTitle=[$t] n=${data.entities?.size ?: 0} ents=[$ents]"
+            System.err.println(msg)
+            android.util.Log.e("CardTpl", msg)
         }
 
         // 骨架内边距按模板可变（见下面 renderTopContent），而 ViewHolder 是回收复用的，
