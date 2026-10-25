@@ -227,11 +227,65 @@ jobs:
             echo "| 构建时间 | $(date -u '+%Y-%m-%d %H:%M UTC') |"
           } > "$NOTES"
 
-          # 追加仓库内维护的功能清单（.github/release-notes.md），
-          # 让发行版页面始终带一份完整的功能说明，而不是只有自动构建信息
+          # ★ 2026-10-25 改：只生成本版本的改动，不再累积全量清单
+          #
+          # 用户反馈：「只写本版本的更新，不写前面的」
+          #   旧做法把 `.github/release-notes.md`（越来越长的全量功能清单）
+          #   每次追加 ✗ 结果页面长期停在「V1.0.5 · 本版更新」那种陈年内容 ✗
+          #
+          # 新做法：用【上一个版本 tag】到现在的 git log 自动生成
+          #   1. 每个正式版发布后打一个 `V1.0.8` 这样的 tag（发版流程的一步 ✓）
+          #   2. 这里取 `V*` 里最大的 tag 当区间起点 ✓
+          #   3. 按 feat / fix / perf 分组 ✓ 只列本次 ✓
+          #   4. `.github/release-notes.md` 变成**可选补充**（当版重点），
+          #      不写就不显示 ✓ 写了也只在最后 ✓ 不再是主体 ✗
+          PREV_TAG=$(git tag -l 'V[0-9]*' --sort=-v:refname | head -1 || true)
+          echo
+          echo "---"
+          echo
+          if [ -n "${PREV_TAG:-}" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+            CNT=$(git rev-list --count "$RANGE" 2>/dev/null || echo 0)
+            echo "## ${NAME} · 本版更新"
+            echo
+            echo "> 相对 **${PREV_TAG}** 的改动（${CNT} 个提交）"
+            echo
+            FEATS=$(git log "$RANGE" --no-merges --pretty='%s' | grep -E '^feat' || true)
+            if [ -n "$FEATS" ]; then
+              echo "### 新增"
+              echo
+              echo "$FEATS" | sed -E 's/^feat(\([^)]*\))?[:：][[:space:]]*/- /'
+              echo
+            fi
+            FIXES=$(git log "$RANGE" --no-merges --pretty='%s' | grep -E '^fix' || true)
+            if [ -n "$FIXES" ]; then
+              echo "### 修复"
+              echo
+              echo "$FIXES" | sed -E 's/^fix(\([^)]*\))?[:：][[:space:]]*/- /'
+              echo
+            fi
+            PERFS=$(git log "$RANGE" --no-merges --pretty='%s' | grep -E '^perf' || true)
+            if [ -n "$PERFS" ]; then
+              echo "### 优化"
+              echo
+              echo "$PERFS" | sed -E 's/^perf(\([^)]*\))?[:：][[:space:]]*/- /'
+              echo
+            fi
+            echo "<details><summary>全部提交（${CNT} 个）</summary>"
+            echo
+            git log "$RANGE" --no-merges --pretty='- %s（%h）'
+            echo
+            echo "</details>"
+          else
+            echo "> ⚠️ 没找到 \`V*\` 形式的版本 tag，只能列出最近 30 个提交"
+            echo "> 发版流程见 \`发版流程.md\`：发布后要 \`git tag V1.0.x && git push next --tags\`"
+            echo
+            git log -30 --no-merges --pretty='- %s（%h）'
+          fi
+          echo
+          # 可选：当版人工写的重点（维护者自己决定写不写 ✓ 不写就不显示 ✓）
           if [ -f .github/release-notes.md ]; then
             {
-              echo
               echo "---"
               echo
               cat .github/release-notes.md
