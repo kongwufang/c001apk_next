@@ -20,6 +20,7 @@ import com.example.c001apk.ui.base.BaseActivity
  * （哪怕只是 popBackStack），系统就不再播放预测性返回动画，右滑时页面不会跟手，
  * 与帖子详情等其它页面的返回手感就不一致了。
  */
+@dagger.hilt.android.AndroidEntryPoint
 class SettingsActivity : BaseActivity<ActivitySettingsBinding>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

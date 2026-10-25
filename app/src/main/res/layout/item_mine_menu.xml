@@ -318,7 +318,6 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:alpha="0.55"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:focusable="true"
@@ -330,8 +329,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_baseline_hourglass_bottom"
-                        app:tint="#9e9e9e"
+                        android:src="@drawable/ic_block"
                         tools:ignore="ContentDescription" />
 
                     <TextView
@@ -339,7 +337,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:maxLines="1"
-                        android:text="@string/coming_soon"
+                        android:text="@string/user_black_list"
                         android:textColor="?android:textColorSecondary"
                         android:textSize="12sp" />
 

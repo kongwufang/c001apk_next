@@ -15,6 +15,7 @@ import com.example.c001apk.ui.base.BaseActivity
  *
  * 所以这里**不要**注册 OnBackPressedCallback，返回一律交给系统。
  */
+@dagger.hilt.android.AndroidEntryPoint
 class SettingsDetailActivity : BaseActivity<ActivitySettingsBinding>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
