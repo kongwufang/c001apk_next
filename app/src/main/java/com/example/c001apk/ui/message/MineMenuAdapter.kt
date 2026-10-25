@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.follow.LocalFollowActivity
 import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
@@ -52,11 +53,17 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     }
 
                 R.id.followLayout ->
-                    if (PrefManager.isLogin)
+                    // 2026-10-25：「关注」存本地还是云端由设置决定 ✓
+                    //   云端 ⇒ 原来的 FFFListActivity（读服务端关注列表）
+                    //   本地 ⇒ LocalFollowActivity（读本机 uid，点进去再按 uid 拉内容）
+                    if (!PrefManager.saveFollowToCloud) {
+                        IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
+                    } else if (PrefManager.isLogin) {
                         IntentUtil.startActivity<FFFListActivity>(itemView.context) {
                             putExtra("type", "follow")
                             putExtra("uid", PrefManager.uid)
                         }
+                    }
 
                 R.id.favLayout ->
                     if (PrefManager.isLogin)

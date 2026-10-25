@@ -466,6 +466,10 @@
                 android:screenOrientation="portrait"
                 android:theme="@style/Theme.C001apk" />
         <activity
+            android:name=".ui.follow.LocalFollowActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.follow.FFFListActivity"
             android:exported="false" />
         <activity
