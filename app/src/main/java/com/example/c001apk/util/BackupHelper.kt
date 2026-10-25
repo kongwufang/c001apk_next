@@ -5,6 +5,11 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.example.c001apk.logic.dao.FollowUserDao
+import com.example.c001apk.logic.dao.HistoryFavoriteDao
+import com.example.c001apk.logic.dao.OfflineCacheDao
+import com.example.c001apk.logic.model.FeedEntity
+import com.example.c001apk.logic.model.OfflineFeedEntity
+import com.example.c001apk.di.BrowseHistory
 import com.example.c001apk.logic.dao.LocalCollectionDao
 import com.example.c001apk.logic.dao.LocalCollectionFolderDao
 import com.example.c001apk.logic.dao.StringEntityDao
@@ -48,6 +53,8 @@ class BackupHelper @Inject constructor(
     private val localCollectionDao: LocalCollectionDao,
     private val localCollectionFolderDao: LocalCollectionFolderDao,
     @UserBlackList private val userBlackListDao: StringEntityDao,
+    @BrowseHistory private val browseHistoryDao: HistoryFavoriteDao,
+    private val offlineCacheDao: OfflineCacheDao,
 ) {
 
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
@@ -62,6 +69,10 @@ class BackupHelper @Inject constructor(
         val collection: List<LocalCollectionEntity>? = null,
         val collectionFolders: List<LocalCollectionFolder>? = null,
         val userBlackList: List<StringEntity>? = null,
+        /** 浏览历史（本来是「本地缓存」的一部分 ✓）*/
+        val browseHistory: List<FeedEntity>? = null,
+        /** 离线缓存（正文/图片 url 都在里面 ✓ 图片本身不打包 ✗）*/
+        val offlineCache: List<OfflineFeedEntity>? = null,
     )
 
     /** 带类型标记的一个偏好值 */
@@ -86,6 +97,8 @@ class BackupHelper @Inject constructor(
             collection = localCollectionDao.loadAll(),
             collectionFolders = localCollectionFolderDao.loadAll(),
             userBlackList = userBlackListDao.loadAllList(),
+            browseHistory = browseHistoryDao.loadAllList(),
+            offlineCache = offlineCacheDao.loadAll(),
         )
         val json = gson.toJson(backup)
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toByteArray()) }
@@ -129,6 +142,8 @@ class BackupHelper @Inject constructor(
         backup.collectionFolders?.let { localCollectionFolderDao.insertList(it) }
         backup.collection?.let { localCollectionDao.insertList(it) }
         backup.userBlackList?.let { userBlackListDao.insertList(it) }
+        backup.browseHistory?.let { browseHistoryDao.insertList(it) }
+        backup.offlineCache?.let { offlineCacheDao.insertList(it) }
         Log.i(TAG, "导入成功")
         true
     }.getOrElse {
