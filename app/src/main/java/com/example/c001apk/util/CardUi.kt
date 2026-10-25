@@ -292,6 +292,10 @@ object CardUi {
             STATS -> return CardLayout(stats = true)
             SUBTAB_BATTERY -> return CardLayout(official = SUBTAB_BATTERY)
             SUBTAB_SCORE -> return CardLayout(official = SUBTAB_SCORE)
+            // 2026-10-25 补：到手价卡（subTabFeedCard6）也要走「照官方重画」
+            //   ⚠️ 之前只加了 m["subTabFeedCard6"] 映射 ✗ 忘了在这里分派 ✗
+            //   ⇒ official 一直 null ⇒ 掉回通用路径 ⇒ 界面显示卡片标题「子版块统计」✗
+            SUBTAB_PRICE -> return CardLayout(official = SUBTAB_PRICE)
             LINKS -> return CardLayout(official = LINKS)
             SECTION -> return CardLayout(official = SECTION)
             ICON_BUTTONS -> return CardLayout(official = ICON_BUTTONS)
