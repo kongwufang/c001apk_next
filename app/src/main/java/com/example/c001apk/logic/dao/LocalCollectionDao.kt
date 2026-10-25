@@ -13,6 +13,9 @@ interface LocalCollectionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: LocalCollectionEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertList(list: List<LocalCollectionEntity>)
+
     @Query("SELECT * FROM LocalCollectionEntity ORDER BY dateline DESC")
     suspend fun loadAll(): List<LocalCollectionEntity>
 

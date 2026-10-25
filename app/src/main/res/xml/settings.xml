@@ -221,6 +221,18 @@
         android:key="advanced"
         android:title="@string/settings_advanced">
 
+
+        <!-- 备份：导出 / 导入本机偏好与本地数据（2026-10-25 ✓） -->
+        <Preference
+            android:icon="@drawable/ic_archive"
+            android:key="exportBackup"
+            android:summary="把本机偏好、关注、收藏、黑名单导出成 json 文件"
+            android:title="导出备份" />
+        <Preference
+            android:icon="@drawable/ic_history"
+            android:key="importBackup"
+            android:summary="从 json 文件恢复（会覆盖同名数据）"
+            android:title="导入备份" />
         <!-- 默认开：不信任系统 CA，只用证书链固定公钥校验（关闭则回落到系统校验） -->
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="true"

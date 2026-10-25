@@ -95,6 +95,31 @@ object PrefManager {
         get() = pref.getInt("sync_location_login_snapshot", -1)
         set(value) = pref.edit().putInt("sync_location_login_snapshot", value).apply()
 
+    // ── 备份用：整份偏好的导出 / 还原（2026-10-25 ✓）──
+    //
+    // ⚠️ 不要用 [android.content.SharedPreferences.Editor.putAll] 直接倒回去 ✗
+    //   Gson 读 JSON 时数字都变成 Double ✗ ⇒ Int 会被写成 Float ✗
+    //   ⇒ 导出时带类型标记、导入时按类型还原 ✓（见 BackupHelper.Tagged）
+
+    /** 导出：整份偏好（原样，类型由 BackupHelper 标记） */
+    fun dumpAll(): Map<String, *> = pref.all
+
+    /** 还原：整份覆盖 ✓ 先清空 ✓ 免得旧键残留 */
+    fun restoreAll(values: Map<String, Any>) {
+        val editor = pref.edit().clear()
+        values.forEach { (k, v) ->
+            when (v) {
+                is Boolean -> editor.putBoolean(k, v)
+                is Int -> editor.putInt(k, v)
+                is Long -> editor.putLong(k, v)
+                is Float -> editor.putFloat(k, v)
+                is String -> editor.putString(k, v)
+                is Set<*> -> editor.putStringSet(k, v.map { it.toString() }.toSet())
+            }
+        }
+        editor.apply()
+    }
+
     var themeColor: String
         get() = pref.getString(PREF_THEME_COLOR, "MATERIAL_DEFAULT")!!
         set(value) = pref.edit().putString(PREF_THEME_COLOR, value).apply()

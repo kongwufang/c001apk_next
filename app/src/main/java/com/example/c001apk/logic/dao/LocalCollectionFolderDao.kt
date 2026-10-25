@@ -13,6 +13,9 @@ interface LocalCollectionFolderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(folder: LocalCollectionFolder)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertList(list: List<LocalCollectionFolder>)
+
     @Query("SELECT * FROM LocalCollectionFolder ORDER BY dateline ASC")
     suspend fun loadAll(): List<LocalCollectionFolder>
 
