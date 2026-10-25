@@ -62,7 +62,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         if (uri == null) return@registerForActivityResult
         viewLifecycleOwner.lifecycleScope.launch {
             val ok = runCatching { backupHelper.export(uri) }.getOrDefault(false)
-            requireContext().makeToast(if (ok) "已导出" else "导出失败")
+            android.widget.Toast.makeText(requireContext(), if (ok) "已导出" else "导出失败", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -73,7 +73,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         if (uri == null) return@registerForActivityResult
         viewLifecycleOwner.lifecycleScope.launch {
             val ok = runCatching { backupHelper.import(uri) }.getOrDefault(false)
-            requireContext().makeToast(if (ok) "已导入，建议重启应用" else "导入失败")
+            android.widget.Toast.makeText(requireContext(), if (ok) "已导入，建议重启应用" else "导入失败", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
