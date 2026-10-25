@@ -507,6 +507,49 @@ object GenericCardRenderer {
         )
         card.linksRow.removeAllViews()
 
+        // ★ 2026-10-25 修：**单条**时照官方画「一行式」✗ 不是胶囊 ✗
+        //
+        //   官方截图（用户提供，小米18 Pro Max 话题页「讨论」tab 顶部）：
+        //     ┌──────────────────────────────────────────────┐
+        //     │ [图标] 点评·系统   为这手机系统打个分吧    >  │
+        //     └──────────────────────────────────────────────┘
+        //       绿色     绿色标签        标题            箭头
+        //     整行浅绿底、占满宽度
+        //
+        //   原来这里按**桌面版网页**（`.discovery-pill-btn`）画成居中胶囊 ✗
+        //   => 实际效果是一个「机系统!」的小药丸 + 大片空白 ✗（用户截图指出异常 ✓）
+        //   => 单条时改走 renderTopContent 那套行布局（item_home_generic_card_top_content_row）
+        //      icons/tag/title/arrow 跟官方一一对应 ✓
+        //   多条时保留胶囊（那种场景桌面版那套是对的 ✓）
+        if (entities.size == 1) {
+            val row = ItemHomeGenericCardTopContentRowBinding.inflate(
+                LayoutInflater.from(context), card.linksRow, false
+            )
+            val entity = entities.first()
+            val logo: String? = entity.logo
+            row.icon.isVisible = !logo.isNullOrEmpty()
+            if (!logo.isNullOrEmpty()) ImageUtil.showIMG(row.icon, logo)
+            val tag: String? = entity.entityTypeName
+            row.tag.isVisible = !tag.isNullOrEmpty()
+            row.tag.text = tag
+            val title = pickEntity(entity, CardUi.chain(CardUi.DEFAULT_ITEM_TITLE, CardUi.DEFAULT_ITEM_TITLE))
+            row.title.isVisible = !title.isNullOrEmpty()
+            row.title.text = title
+            val url: String? = entity.url
+            if (!url.isNullOrEmpty()) {
+                row.root.isClickable = true
+                row.root.isFocusable = true
+                row.root.setOnClickListener { view -> listener.onOpenLink(view, url, title) }
+            }
+            // 官方那一行有浅色底（主题色 8% 左右），用主题色自己调，别写死绿 ✗
+            row.root.background = GradientDrawable().apply {
+                cornerRadius = 8.dp.toFloat()
+                setColor(withAlpha(binding.root, com.google.android.material.R.attr.colorPrimary, 0.08f))
+            }
+            card.linksRow.addView(row.root)
+            return card.root
+        }
+
         val fill = MaterialColors.getColor(
             binding.root, com.google.android.material.R.attr.colorSurfaceVariant
         )
@@ -771,6 +814,15 @@ object GenericCardRenderer {
     private fun compactNumber(value: Float): String =
         if (value == value.toLong().toFloat()) value.toLong().toString()
         else String.format(Locale.US, "%.1f", value)
+
+    /** 取主题色再叠一个 alpha（官方那种「主题色 8% 底」用它算 ✓ 别写死具体颜色 ✗） */
+    private fun withAlpha(view: View, attr: Int, alpha: Float): Int {
+        val c = MaterialColors.getColor(view, attr)
+        return Color.argb(
+            (alpha * 255).toInt().coerceIn(0, 255),
+            Color.red(c), Color.green(c), Color.blue(c)
+        )
+    }
 
     private fun isNight(context: android.content.Context): Boolean =
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
