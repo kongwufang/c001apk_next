@@ -61,22 +61,6 @@ object GenericCardRenderer {
         val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
 
-        // 🔍 临时诊断日志（2026-10-25）：
-        //   用户反复反馈「话题页有一张卡片异常」，我猜了三轮都没猜中模板名 ✗
-        //   这里把**真实模板名 + 卡片标题 + 实体**打出来 ⇒ 一次定位 ✓
-        //   定位完就删 ✓（`adb logcat -s CardTpl`）
-        runCatching {
-            val t = data.title ?: data.description ?: data.subTitle ?: data.message
-            val ents = data.entities.orEmpty().joinToString(" | ") { e ->
-                "type=${e.entityType},name=${e.entityTypeName},title=${e.title},logo=${e.logo},pic=${e.pic}"
-            }
-            // ⚠️ 用 System.err 而不是 Log.d ✗
-            //   debug 渠道走的是 release 变体 + minify ⇒ Log.d 会被 proguard 剥掉 ✗
-            //   （2026-10-25 实测：Log.d 一条都没有 ✗）
-            val msg = "CardTpl tpl=[$template] cardTitle=[$t] n=${data.entities?.size ?: 0} ents=[$ents]"
-            System.err.println(msg)
-            android.util.Log.e("CardTpl", msg)
-        }
 
         // 骨架内边距按模板可变（见下面 renderTopContent），而 ViewHolder 是回收复用的，
         // 先复位成 XML 里的 12dp，免得用上一次的模板留下的值
@@ -86,6 +70,22 @@ object GenericCardRenderer {
         // 照官方重画的卡片是直接 addView 进 content 的，而 ViewHolder 会回收复用，
         // 先把自己上一轮塞进去的那张摘掉，否则越叠越多
         binding.content.findViewWithTag<View>(OFFICIAL_TAG)?.let { binding.content.removeView(it) }
+
+        // 2026-10-25 修：imageScaleCard 是**一张整宽图片**卡，不是列表
+        //
+        //   证据（用户抓 HAR + 分析，2026-10-25）：
+        //   话题页「讨论」tab 顶部那张「点评·系统 / 为这手机系统打个分吧」，
+        //   entityTemplate = imageScaleCard，实体只有一个 url + pic：
+        //     entityType=imageScaleCard, title="", pic="...@1080x120.png", url="/t/HyperOS4"
+        //     extraDataArr: {"cardContainerRadius":4,"cardMarginLeft":9,"cardMarginRight":9}
+        //   卡片上的字**是画在图里的**，所以搜 json 永远找不到
+        //
+        //   而 CardUi 原来是 m["imageScaleCard"] = Rule(layout = LIST)
+        //   => 被当成"一个列表项"渲染 => 缩成一个小胶囊（用户多次反馈的异常）
+        if (template == IMAGE_SCALE_CARD) {
+            renderImageScaleCard(binding, entities, listener)
+            return
+        }
 
         // 置顶内容卡官方不是通用卡片，是话题/机型页专门写的一行式「置顶内容」，照官方单独画
         if (template == TOP_CONTENT) {
@@ -165,6 +165,91 @@ object GenericCardRenderer {
      * 卡片自身没有标题 / 说明 / 配图，也不是整卡可点 —— 要跳的目标在每条实体自己的 url 上
      * （这卡的实体 url 是 /t/xxx，卡片自己的 url 是 null）。
      */
+    /**
+     * imageScaleCard：一张**整宽**图片，点它跳实体自己的 url。
+     *
+     * 官方给的是 cardMarginLeft/Right = 9、cardContainerRadius = 4，
+     * 图片宽高比从 url 里那句 @1080x120 解析（解析不出来按 9:1 兜底）。
+     * 卡片自身 title/summary/stats 一律收起 —— 这卡的正文全在图里。
+     */
+    private fun renderImageScaleCard(
+        binding: ItemHomeGenericCardBinding,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener,
+    ) {
+        binding.title.isVisible = false
+        binding.summary.isVisible = false
+        binding.hero.isVisible = false
+        binding.stats.removeAllViews()
+        binding.stats.isVisible = false
+        binding.recyclerView.adapter = null
+        binding.recyclerView.isVisible = false
+        binding.topContent.isVisible = false
+        binding.topContent.removeAllViews()
+
+        val entity = entities.firstOrNull()
+        val image = entity?.pic?.takeIf { it.isNotBlank() }
+            ?: entity?.logo?.takeIf { it.isNotBlank() }
+        if (entity == null || image == null) {
+            binding.root.isVisible = false
+            return
+        }
+
+        binding.content.setPadding(0, 0, 0, 0)
+
+        val context = binding.root.context
+        val iv = ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_XY
+            ImageUtil.showIMG(this, image)
+        }
+
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0
+        ).apply {
+            leftMargin = 9.dp
+            rightMargin = 9.dp
+            topMargin = 9.dp
+            bottomMargin = 9.dp
+        }
+        iv.layoutParams = lp
+        iv.post {
+            val w = (binding.content.width - 18.dp).coerceAtLeast(1)
+            iv.layoutParams = (iv.layoutParams as LinearLayout.LayoutParams).apply {
+                height = (w * aspectOf(image)).toInt().coerceAtLeast(1)
+            }
+        }
+        iv.background = GradientDrawable().apply { cornerRadius = 4.dp.toFloat() }
+        iv.clipToOutline = true
+
+        val url: String? = entity.url
+        if (!url.isNullOrEmpty()) {
+            iv.isClickable = true
+            iv.isFocusable = true
+            iv.setOnClickListener { view -> listener.onOpenLink(view, url, "") }
+        }
+
+        binding.content.findViewWithTag<View>(OFFICIAL_TAG)?.let { binding.content.removeView(it) }
+        iv.tag = OFFICIAL_TAG
+        binding.content.addView(iv)
+
+        binding.root.isVisible = true
+        binding.root.isClickable = false
+        binding.root.isFocusable = false
+        binding.root.setOnClickListener(null)
+    }
+
+    /** 从图片 url 尾巴的 @1080x120 里算 高/宽 比；解析不出来按 9:1 兜底 */
+    private fun aspectOf(url: String): Float {
+        val at = url.lastIndexOf('@')
+        if (at < 0) return 1f / 9f
+        val spec = url.substring(at + 1).substringBefore('.').substringBefore('?')
+        val parts = spec.split('x')
+        if (parts.size != 2) return 1f / 9f
+        val w = parts[0].toFloatOrNull() ?: return 1f / 9f
+        val h = parts[1].toFloatOrNull() ?: return 1f / 9f
+        return if (w > 0f && h > 0f) h / w else 1f / 9f
+    }
+
     private fun renderTopContent(
         binding: ItemHomeGenericCardBinding,
         entities: List<HomeFeedResponse.Entities>,
@@ -890,6 +975,9 @@ object GenericCardRenderer {
 
     /** 官方单独画的置顶内容卡模板名（官方对应 NodeTopContentViewHolder） */
     private const val TOP_CONTENT = "topContent"
+
+    /** 整宽图片卡（话题/机型页的横幅，字画在图里 ✓ 见 renderImageScaleCard） */
+    private const val IMAGE_SCALE_CARD = "imageScaleCard"
 
     /** 照官方重画的卡片塞进 content 时打的标记，供复用前清理（见 render 开头） */
     private const val OFFICIAL_TAG = "officialCard"
