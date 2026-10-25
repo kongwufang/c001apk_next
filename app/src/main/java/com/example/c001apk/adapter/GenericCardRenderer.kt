@@ -544,7 +544,11 @@ object GenericCardRenderer {
             // 官方那一行有浅色底（主题色 8% 左右），用主题色自己调，别写死绿 ✗
             row.root.background = GradientDrawable().apply {
                 cornerRadius = 8.dp.toFloat()
-                setColor(withAlpha(binding.root, R.attr.colorPrimary, 0.08f))
+                // ⚠️ colorPrimary 在 R.attr / material.R.attr 里都取不到（编译不过 ✗）
+                //   ⇒ 用项目里**已验证存在**的 colorSurfaceVariant（其它卡片在用 ✓）
+                //   它是浅灰底，视觉上跟官方那个浅色高亮行接近 ✓
+                setColor(MaterialColors.getColor(binding.root,
+                    com.google.android.material.R.attr.colorSurfaceVariant))
             }
             card.linksRow.addView(row.root)
             return card.root
@@ -814,15 +818,6 @@ object GenericCardRenderer {
     private fun compactNumber(value: Float): String =
         if (value == value.toLong().toFloat()) value.toLong().toString()
         else String.format(Locale.US, "%.1f", value)
-
-    /** 取主题色再叠一个 alpha（官方那种「主题色 8% 底」用它算 ✓ 别写死具体颜色 ✗） */
-    private fun withAlpha(view: View, attr: Int, alpha: Float): Int {
-        val c = MaterialColors.getColor(view, attr)
-        return Color.argb(
-            (alpha * 255).toInt().coerceIn(0, 255),
-            Color.red(c), Color.green(c), Color.blue(c)
-        )
-    }
 
     private fun isNight(context: android.content.Context): Boolean =
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
