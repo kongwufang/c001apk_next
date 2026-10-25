@@ -70,7 +70,20 @@ object ImageUtil {
     private lateinit var imageCheckDir: File
 
     @SuppressLint("CheckResult")
-    fun showIMG(view: ImageView, url: String?, isCover: Boolean = false) {
+    /**
+     * @param onFail 加载失败时回调（2026-10-25 加 ✓ 默认 null ✓ 老调用方不受影响 ✓）
+     *
+     *   为什么加：通用卡片的实体图标如果 URL 挂了，Glide 只是**留一块空白** ✗
+     *   而 ImageView 本身还占着 56dp ✗ => 卡片看起来就是"空的"✗
+     *   （话题页那张「机系统!」卡片就是这么来的 ✓）
+     *   => 调用方可以在失败时把图标 `isVisible = false` ✓ 卡片自然收缩 ✓
+     */
+    fun showIMG(
+        view: ImageView,
+        url: String?,
+        isCover: Boolean = false,
+        onFail: (() -> Unit)? = null,
+    ) {
         if (!url.isNullOrEmpty()) {
             // 离线存档的图是本机文件（见 UrlUtil.LOCAL_IMAGE_SCHEME）：交给 Glide 的 File
             // 加载器。不能喂 GlideUrl —— 那一路是 OkHttp，只认 http(s)，见 file:// 直接抛
@@ -101,6 +114,29 @@ object ImageUtil {
                 .transition(withCrossFade())
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .skipMemoryCache(false)
+                .apply {
+                    if (onFail != null) {
+                        addListener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
+                            override fun onLoadFailed(
+                                e: com.bumptech.glide.load.engine.GlideException?,
+                                model: Any?,
+                                target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
+                                isFirstResource: Boolean,
+                            ): Boolean {
+                                onFail()
+                                return false
+                            }
+
+                            override fun onResourceReady(
+                                resource: android.graphics.drawable.Drawable,
+                                model: Any,
+                                target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                                dataSource: com.bumptech.glide.load.DataSource,
+                                isFirstResource: Boolean,
+                            ): Boolean = false
+                        })
+                    }
+                }
                 .into(view)
         }
     }

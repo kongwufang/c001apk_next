@@ -928,7 +928,10 @@ class GenericCardEntityAdapter(
 
         binding.icon.isVisible = image != null
         if (image != null) {
-            ImageUtil.showIMG(binding.icon, image)
+            // ⚠️ 2026-10-25：图挂了要把图标**藏掉** ✗ 否则留一块 56dp 空白 ✗
+            //   话题页那张「机系统!」空卡片就是这么来的：
+            //   图片 URL 加载失败 => ImageView 还是 true => 84px 空白 + 一行截断文字 ✗
+            ImageUtil.showIMG(binding.icon, image, onFail = { binding.icon.isVisible = false })
             binding.icon.layoutParams = binding.icon.layoutParams.apply {
                 width = when {
                     cover && horizontal -> WIDE_ITEM_WIDTH.dp
