@@ -14,6 +14,10 @@ interface OfflineCacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(data: OfflineFeedEntity)
 
+    /** 备份还原用：批量灌回去 ✓（按 fid REPLACE ✓ 重复导入不会炸 ✓）*/
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertList(list: List<OfflineFeedEntity>)
+
     /**
      * 列表页直接订这个：存 / 删都会自己推一次，不用手动刷新。
      *

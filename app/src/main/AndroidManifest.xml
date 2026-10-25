@@ -420,6 +420,10 @@
             android:name=".ui.coolpic.CoolPicActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.collection.LocalCollectionActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.collection.CollectionActivity"
             android:exported="false" />
         <activity
@@ -465,6 +469,10 @@
                 android:exported="false"
                 android:screenOrientation="portrait"
                 android:theme="@style/Theme.C001apk" />
+        <activity
+            android:name=".ui.follow.LocalFollowActivity"
+            android:exported="false" />
+
         <activity
             android:name=".ui.follow.FFFListActivity"
             android:exported="false" />

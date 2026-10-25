@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    首次启动的侧边栏新手提示（2026-10-25 ✓）
+
+    ## 为什么要这个
+    需求原文：「写个新手教程，在 app 首次打开的时候提示让用户知道如何打开侧边栏，
+              不然过于隐蔽用户可能找不到」
+
+    侧边栏入口就是个左上角的 ☰ ✗ 确实隐蔽 ✗
+    ⇒ 首次启动弹一次，说明「点 ☰」和「向右滑」两种打开方式 ✓
+
+    ## 设计取舍
+    - **不用全黑遮罩** ✗ 用 #B3000000 ⇒ 底下的 ☰ 还能看见 ✓
+    - **不做精确对准** ✗（☰ 在 HomeFragment 里，MainActivity 拿不到它的坐标 ✗）
+      ⇒ 改成「↑ 就在左上角」+ 卡片贴在左上角（marginTop 88dp，正好在 ☰ 下方）✓
+      ⇒ 这样横屏 / 竖屏 / 各种状态栏高度都不怕 ✗ 不会指错 ✓
+    - 点遮罩任意处也能关 ✓（flag 已置位，不会反复弹 ✓）
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#B3000000"
+    android:clickable="true"
+    android:focusable="true">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="88dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- 箭头行：告诉用户往上看 ✓ -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="☰  ↑  就在左上角"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="侧边栏在这里"
+                android:textColor="?android:textColorPrimary"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="3dp"
+                android:text="头像、动态/关注/粉丝、收藏、历史、设置都在里面。\n\n两种打开方式：\n· 点左上角的 ☰ 按钮\n· 或者从屏幕任意位置向右滑"
+                android:textColor="?android:textColorSecondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/hintConfirm"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginTop="8dp"
+                android:text="知道了" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

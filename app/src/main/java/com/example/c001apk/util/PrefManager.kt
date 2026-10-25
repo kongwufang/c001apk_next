@@ -32,6 +32,94 @@ object PrefManager {
         get() = pref.getBoolean(PREF_FOLLOW_SYSTEM_ACCENT, true)
         set(value) = pref.edit().putBoolean(PREF_FOLLOW_SYSTEM_ACCENT, value).apply()
 
+    /**
+     * 「头条挪到最左」的一次性迁移标记（2026-10-25 ✓）
+     *
+     * 改 [com.example.c001apk.ui.home.HomeViewModel.defaultList] 只影响**新装** ✗
+     * 老用户 Room 里已经存了「关注/应用/头条…」✗ ⇒ 要迁移一次 ✓
+     *
+     * ⚠️ 必须有这个标记 ✗ —— 否则用户在「设置 → 外观 → 编辑Tab」里
+     * 把头条挪走之后，下次进首页又会被强行挪回来 ✗
+     */
+    var tabOrderHeadlineFirst: Boolean
+        get() = pref.getBoolean("tab_order_headline_first", false)
+        set(value) = pref.edit().putBoolean("tab_order_headline_first", value).apply()
+
+    /**
+     * 「侧边栏新手提示」已经弹过了（2026-10-25 ✓）
+     *
+     * 侧边栏入口就是个左上角的 ☰ ✗ 太隐蔽 ✗
+     * ⇒ 首次启动弹一次说明「点 ☰」+「向右滑」两种打开方式 ✓
+     * ⇒ 置位后不再弹 ✓（用户想再看只能清数据 ✗ 可接受 ✓）
+     */
+    var sidebarHintShown: Boolean
+        get() = pref.getBoolean("sidebar_hint_shown", false)
+        set(value) = pref.edit().putBoolean("sidebar_hint_shown", value).apply()
+
+    // ── 数据保存位置（2026-10-25 ✓）──
+    //
+    // 收藏 / 关注 / 黑名单各自一个开关：
+    //   true  = 云端保存 ✓（需要登录 ✓）
+    //   false = 本地保存 ✓（不登录也能用 ✓）
+    //
+    // 默认值按登录态走 ✓（见 [SyncLocationBootstrap]）
+    // 用户手动改过之后就不再自动覆盖 ✓ ——
+    // 只有「登录态发生变化」时才会再自动调整一次 ✓
+
+    /** 收藏：true=云端 / false=本地 */
+    var saveCollectionToCloud: Boolean
+        get() = pref.getBoolean("save_collection_to_cloud", isLogin)
+        set(value) = pref.edit().putBoolean("save_collection_to_cloud", value).apply()
+
+    /** 关注：true=云端 / false=本地 */
+    var saveFollowToCloud: Boolean
+        get() = pref.getBoolean("save_follow_to_cloud", isLogin)
+        set(value) = pref.edit().putBoolean("save_follow_to_cloud", value).apply()
+
+    /** 黑名单（用户）：true=云端 / false=本地 */
+    var saveBlackListToCloud: Boolean
+        get() = pref.getBoolean("save_black_list_to_cloud", isLogin)
+        set(value) = pref.edit().putBoolean("save_black_list_to_cloud", value).apply()
+
+    /**
+     * 上一次「自动对齐」时的登录态
+     *
+     * -1 = 还没对齐过 ✓（首次启动 ⇒ 按当前登录态写一次 ✓）
+     *  0 = 上次对齐时**未登录** ✓
+     *  1 = 上次对齐时**已登录** ✓
+     *
+     * ⚠️ 用户手动拨开关时**不**改这个值 ✗
+     *   ⇒ 这样「有账号 ↔ 没账号」一旦发生 ✓ 就能靠它检测出来 ✓ 再自动对齐一次 ✓
+     */
+    var syncLocationLoginSnapshot: Int
+        get() = pref.getInt("sync_location_login_snapshot", -1)
+        set(value) = pref.edit().putInt("sync_location_login_snapshot", value).apply()
+
+    // ── 备份用：整份偏好的导出 / 还原（2026-10-25 ✓）──
+    //
+    // ⚠️ 不要用 [android.content.SharedPreferences.Editor.putAll] 直接倒回去 ✗
+    //   Gson 读 JSON 时数字都变成 Double ✗ ⇒ Int 会被写成 Float ✗
+    //   ⇒ 导出时带类型标记、导入时按类型还原 ✓（见 BackupHelper.Tagged）
+
+    /** 导出：整份偏好（原样，类型由 BackupHelper 标记） */
+    fun dumpAll(): Map<String, *> = pref.all
+
+    /** 还原：整份覆盖 ✓ 先清空 ✓ 免得旧键残留 */
+    fun restoreAll(values: Map<String, Any>) {
+        val editor = pref.edit().clear()
+        values.forEach { (k, v) ->
+            when (v) {
+                is Boolean -> editor.putBoolean(k, v)
+                is Int -> editor.putInt(k, v)
+                is Long -> editor.putLong(k, v)
+                is Float -> editor.putFloat(k, v)
+                is String -> editor.putString(k, v)
+                is Set<*> -> editor.putStringSet(k, v.map { it.toString() }.toSet())
+            }
+        }
+        editor.apply()
+    }
+
     var themeColor: String
         get() = pref.getString(PREF_THEME_COLOR, "MATERIAL_DEFAULT")!!
         set(value) = pref.edit().putString(PREF_THEME_COLOR, value).apply()

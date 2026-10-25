@@ -46,6 +46,13 @@ class HistoryActivity : BaseActivity<ActivityHistoryBinding>() {
         setSupportActionBar(binding.toolBar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        // ⚠️ 只调 setDisplayHomeAsUpEnabled(true) 只是**画出**箭头 ✗
+        //    点击要由 onOptionsItemSelected 处理 ✗
+        //    而 BaseActivity 和本类都没处理 ⇒ 点了完全没反应 ✗
+        //    （2026-10-25 用户反馈「历史记录里面那个左上角返回按钮无效」）
+        // ⇒ 直接给 toolbar 挂导航点击，跟其它页面保持一致 ✓
+        binding.toolBar.setNavigationOnClickListener { finish() }
+
         initView()
 
         viewModel.historyList.observe(this) { list ->

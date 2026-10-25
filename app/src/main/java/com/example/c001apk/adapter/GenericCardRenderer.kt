@@ -61,6 +61,7 @@ object GenericCardRenderer {
         val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
 
+
         // 骨架内边距按模板可变（见下面 renderTopContent），而 ViewHolder 是回收复用的，
         // 先复位成 XML 里的 12dp，免得用上一次的模板留下的值
         binding.content.setPadding(CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp, CARD_PADDING.dp)
@@ -69,6 +70,22 @@ object GenericCardRenderer {
         // 照官方重画的卡片是直接 addView 进 content 的，而 ViewHolder 会回收复用，
         // 先把自己上一轮塞进去的那张摘掉，否则越叠越多
         binding.content.findViewWithTag<View>(OFFICIAL_TAG)?.let { binding.content.removeView(it) }
+
+        // 2026-10-25 修：imageScaleCard 是**一张整宽图片**卡，不是列表
+        //
+        //   证据（用户抓 HAR + 分析，2026-10-25）：
+        //   话题页「讨论」tab 顶部那张「点评·系统 / 为这手机系统打个分吧」，
+        //   entityTemplate = imageScaleCard，实体只有一个 url + pic：
+        //     entityType=imageScaleCard, title="", pic="...@1080x120.png", url="/t/HyperOS4"
+        //     extraDataArr: {"cardContainerRadius":4,"cardMarginLeft":9,"cardMarginRight":9}
+        //   卡片上的字**是画在图里的**，所以搜 json 永远找不到
+        //
+        //   而 CardUi 原来是 m["imageScaleCard"] = Rule(layout = LIST)
+        //   => 被当成"一个列表项"渲染 => 缩成一个小胶囊（用户多次反馈的异常）
+        if (template == IMAGE_SCALE_CARD) {
+            renderImageScaleCard(binding, entities, listener)
+            return
+        }
 
         // 置顶内容卡官方不是通用卡片，是话题/机型页专门写的一行式「置顶内容」，照官方单独画
         if (template == TOP_CONTENT) {
@@ -148,6 +165,91 @@ object GenericCardRenderer {
      * 卡片自身没有标题 / 说明 / 配图，也不是整卡可点 —— 要跳的目标在每条实体自己的 url 上
      * （这卡的实体 url 是 /t/xxx，卡片自己的 url 是 null）。
      */
+    /**
+     * imageScaleCard：一张**整宽**图片，点它跳实体自己的 url。
+     *
+     * 官方给的是 cardMarginLeft/Right = 9、cardContainerRadius = 4，
+     * 图片宽高比从 url 里那句 @1080x120 解析（解析不出来按 9:1 兜底）。
+     * 卡片自身 title/summary/stats 一律收起 —— 这卡的正文全在图里。
+     */
+    private fun renderImageScaleCard(
+        binding: ItemHomeGenericCardBinding,
+        entities: List<HomeFeedResponse.Entities>,
+        listener: ItemListener,
+    ) {
+        binding.title.isVisible = false
+        binding.summary.isVisible = false
+        binding.hero.isVisible = false
+        binding.stats.removeAllViews()
+        binding.stats.isVisible = false
+        binding.recyclerView.adapter = null
+        binding.recyclerView.isVisible = false
+        binding.topContent.isVisible = false
+        binding.topContent.removeAllViews()
+
+        val entity = entities.firstOrNull()
+        val image = entity?.pic?.takeIf { it.isNotBlank() }
+            ?: entity?.logo?.takeIf { it.isNotBlank() }
+        if (entity == null || image == null) {
+            binding.root.isVisible = false
+            return
+        }
+
+        binding.content.setPadding(0, 0, 0, 0)
+
+        val context = binding.root.context
+        val iv = ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_XY
+            ImageUtil.showIMG(this, image)
+        }
+
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0
+        ).apply {
+            leftMargin = 9.dp
+            rightMargin = 9.dp
+            topMargin = 9.dp
+            bottomMargin = 9.dp
+        }
+        iv.layoutParams = lp
+        iv.post {
+            val w = (binding.content.width - 18.dp).coerceAtLeast(1)
+            iv.layoutParams = (iv.layoutParams as LinearLayout.LayoutParams).apply {
+                height = (w * aspectOf(image)).toInt().coerceAtLeast(1)
+            }
+        }
+        iv.background = GradientDrawable().apply { cornerRadius = 4.dp.toFloat() }
+        iv.clipToOutline = true
+
+        val url: String? = entity.url
+        if (!url.isNullOrEmpty()) {
+            iv.isClickable = true
+            iv.isFocusable = true
+            iv.setOnClickListener { view -> listener.onOpenLink(view, url, "") }
+        }
+
+        binding.content.findViewWithTag<View>(OFFICIAL_TAG)?.let { binding.content.removeView(it) }
+        iv.tag = OFFICIAL_TAG
+        binding.content.addView(iv)
+
+        binding.root.isVisible = true
+        binding.root.isClickable = false
+        binding.root.isFocusable = false
+        binding.root.setOnClickListener(null)
+    }
+
+    /** 从图片 url 尾巴的 @1080x120 里算 高/宽 比；解析不出来按 9:1 兜底 */
+    private fun aspectOf(url: String): Float {
+        val at = url.lastIndexOf('@')
+        if (at < 0) return 1f / 9f
+        val spec = url.substring(at + 1).substringBefore('.').substringBefore('?')
+        val parts = spec.split('x')
+        if (parts.size != 2) return 1f / 9f
+        val w = parts[0].toFloatOrNull() ?: return 1f / 9f
+        val h = parts[1].toFloatOrNull() ?: return 1f / 9f
+        return if (w > 0f && h > 0f) h / w else 1f / 9f
+    }
+
     private fun renderTopContent(
         binding: ItemHomeGenericCardBinding,
         entities: List<HomeFeedResponse.Entities>,
@@ -281,6 +383,7 @@ object GenericCardRenderer {
         val extra = parseExtra(data.extraData)
         val cardView = when (official) {
             CardUi.SUBTAB_BATTERY -> bindBatteryCard(binding, extra)
+            CardUi.SUBTAB_PRICE -> bindPriceCard(binding, extra, listener)
             CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
             CardUi.LINKS -> bindLinksCard(binding, entities, listener)
             CardUi.SECTION -> bindSectionCard(binding, template, data)
@@ -345,6 +448,98 @@ object GenericCardRenderer {
             card.batterySlider.setHours(hours)
         }
         return card.root
+    }
+
+    /**
+     * 到手价卡（subTabFeedCard6），照官方排：
+     *
+     * ```
+     * ┌──────────────────────────────────────────────┐
+     * │ ¥ 到手价              发布时间：2026-10-5 19:30 │
+     * │                                              │
+     * │ 当前最低价 ¥1400                              │
+     * └──────────────────────────────────────────────┘
+     * ```
+     *
+     * 数据全在 `extraData`：`final_price` / `update_time` / `feed_id`
+     * （实测样本：`{"final_price":"1400.00","update_time":"2026-10-05 19:30","feed_id":74179229}`）
+     *
+     * 口径：
+     *   · 价格按整数显示（`1400.00` -> `1400`），带小数才保留一位
+     *   · 整卡可点 => 跳那条 feed（feed_id）
+     */
+    private fun bindPriceCard(
+        binding: ItemHomeGenericCardBinding,
+        extra: JSONObject?,
+        listener: ItemListener,
+    ): View {
+        val context = binding.root.context
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16.dp, 14.dp, 16.dp, 16.dp)
+        }
+
+        val accent = 0xFFF57C00.toInt()   // 官方的橙色
+        val muted = GRAY
+
+        // 第一行：左「¥ 到手价」，右「发布时间：…」
+        val row1 = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        row1.addView(TextView(context).apply {
+            text = "\u00A5 到手价"
+            textSize = 15f
+            setTextColor(accent)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val time = extra.string("update_time")
+        row1.addView(TextView(context).apply {
+            text = if (time.isNullOrEmpty()) "" else "发布时间\uFF1A" + time
+            textSize = 12f
+            setTextColor(muted)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        })
+        root.addView(row1)
+
+        // 第二行：「当前最低价」 小字 + 「¥1400」 大字
+        val row2 = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+            setPadding(0, 14.dp, 0, 0)
+        }
+        row2.addView(TextView(context).apply {
+            text = "当前最低价"
+            textSize = 14f
+            setTextColor(muted)
+        })
+        val price = extra.number("final_price")
+        row2.addView(TextView(context).apply {
+            text = if (price == null || price <= 0f) "暂无" else
+                "\u00A5" + (if (price == price.toLong().toFloat()) price.toLong().toString()
+                else String.format(Locale.US, "%.1f", price))
+            textSize = if (price != null && price > 0f) 26f else 16f
+            setTextColor(if (price != null && price > 0f) 0xFF202124.toInt() else muted)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(8.dp, 0, 0, 0)
+        })
+        root.addView(row2)
+
+        // 整卡可点 => 跳 feed
+        val feedId = extra?.optString("feed_id", "").orEmpty()
+        if (feedId.isNotEmpty()) {
+            root.isClickable = true
+            root.isFocusable = true
+            root.setOnClickListener { view ->
+                // 只给 id，别的参数留空（跳 FeedActivity 只需要 id ✓）
+                listener.onViewFeed(
+                    view, feedId, null, null, null, null, null, null, null, null
+                )
+            }
+        }
+        return root
     }
 
     /**
@@ -506,6 +701,53 @@ object GenericCardRenderer {
             LayoutInflater.from(context), binding.content, false
         )
         card.linksRow.removeAllViews()
+
+        // ★ 2026-10-25 修：**单条**时照官方画「一行式」✗ 不是胶囊 ✗
+        //
+        //   官方截图（用户提供，小米18 Pro Max 话题页「讨论」tab 顶部）：
+        //     ┌──────────────────────────────────────────────┐
+        //     │ [图标] 点评·系统   为这手机系统打个分吧    >  │
+        //     └──────────────────────────────────────────────┘
+        //       绿色     绿色标签        标题            箭头
+        //     整行浅绿底、占满宽度
+        //
+        //   原来这里按**桌面版网页**（`.discovery-pill-btn`）画成居中胶囊 ✗
+        //   => 实际效果是一个「机系统!」的小药丸 + 大片空白 ✗（用户截图指出异常 ✓）
+        //   => 单条时改走 renderTopContent 那套行布局（item_home_generic_card_top_content_row）
+        //      icons/tag/title/arrow 跟官方一一对应 ✓
+        //   多条时保留胶囊（那种场景桌面版那套是对的 ✓）
+        if (entities.size == 1) {
+            val row = ItemHomeGenericCardTopContentRowBinding.inflate(
+                LayoutInflater.from(context), card.linksRow, false
+            )
+            val entity = entities.first()
+            val logo: String? = entity.logo
+            row.icon.isVisible = !logo.isNullOrEmpty()
+            if (!logo.isNullOrEmpty()) ImageUtil.showIMG(row.icon, logo)
+            val tag: String? = entity.entityTypeName
+            row.tag.isVisible = !tag.isNullOrEmpty()
+            row.tag.text = tag
+            val title = pickEntity(entity, CardUi.chain(CardUi.DEFAULT_ITEM_TITLE, CardUi.DEFAULT_ITEM_TITLE))
+            row.title.isVisible = !title.isNullOrEmpty()
+            row.title.text = title
+            val url: String? = entity.url
+            if (!url.isNullOrEmpty()) {
+                row.root.isClickable = true
+                row.root.isFocusable = true
+                row.root.setOnClickListener { view -> listener.onOpenLink(view, url, title) }
+            }
+            // 官方那一行有浅色底（主题色 8% 左右），用主题色自己调，别写死绿 ✗
+            row.root.background = GradientDrawable().apply {
+                cornerRadius = 8.dp.toFloat()
+                // ⚠️ colorPrimary 在 R.attr / material.R.attr 里都取不到（编译不过 ✗）
+                //   ⇒ 用项目里**已验证存在**的 colorSurfaceVariant（其它卡片在用 ✓）
+                //   它是浅灰底，视觉上跟官方那个浅色高亮行接近 ✓
+                setColor(MaterialColors.getColor(binding.root,
+                    com.google.android.material.R.attr.colorSurfaceVariant))
+            }
+            card.linksRow.addView(row.root)
+            return card.root
+        }
 
         val fill = MaterialColors.getColor(
             binding.root, com.google.android.material.R.attr.colorSurfaceVariant
@@ -761,6 +1003,13 @@ object GenericCardRenderer {
      * 统一走 [JSONObject.optString] 再转，两种都能吃。字段不在就直接当没有 ——
      * 官方「暂无人分享」那套就是靠 `has(key)` / 值 > 0 判的，别把缺失当成 0。
      */
+    /** 同 [number]，取字符串（没有就返回 null ✓ 不改调用方语义 ✗） */
+    private fun JSONObject?.string(key: String): String? {
+        val obj = this ?: return null
+        if (!obj.has(key)) return null
+        return obj.optString(key).takeIf { it.isNotBlank() }
+    }
+
     private fun JSONObject?.number(key: String): Float? {
         val obj = this ?: return null
         if (!obj.has(key)) return null
@@ -826,6 +1075,9 @@ object GenericCardRenderer {
 
     /** 官方单独画的置顶内容卡模板名（官方对应 NodeTopContentViewHolder） */
     private const val TOP_CONTENT = "topContent"
+
+    /** 整宽图片卡（话题/机型页的横幅，字画在图里 ✓ 见 renderImageScaleCard） */
+    private const val IMAGE_SCALE_CARD = "imageScaleCard"
 
     /** 照官方重画的卡片塞进 content 时打的标记，供复用前清理（见 render 开头） */
     private const val OFFICIAL_TAG = "officialCard"
@@ -928,7 +1180,10 @@ class GenericCardEntityAdapter(
 
         binding.icon.isVisible = image != null
         if (image != null) {
-            ImageUtil.showIMG(binding.icon, image)
+            // ⚠️ 2026-10-25：图挂了要把图标**藏掉** ✗ 否则留一块 56dp 空白 ✗
+            //   话题页那张「机系统!」空卡片就是这么来的：
+            //   图片 URL 加载失败 => ImageView 还是 true => 84px 空白 + 一行截断文字 ✗
+            ImageUtil.showIMG(binding.icon, image, onFail = { binding.icon.isVisible = false })
             binding.icon.layoutParams = binding.icon.layoutParams.apply {
                 width = when {
                     cover && horizontal -> WIDE_ITEM_WIDTH.dp

@@ -279,6 +279,80 @@ class FeedViewModel @AssistedInject constructor(
     /** 详情回填后通知 Fragment 换掉首屏列表（adapter 持有的是旧 list 引用） */
     val feedDataUpdateState = MutableLiveData<Event<Boolean>>()
 
+    // ── 编辑（2026-10-24 接口全部实测 ✓）──────────────────────────────
+
+    /** 编辑页拉到的数据（`message` 是**纯文本** ✓） */
+    val editDetail = MutableLiveData<Event<HomeFeedResponse.Data?>>()
+
+    /** 提交编辑的结果：true = 成功 ✓ */
+    val editResult = MutableLiveData<Event<Boolean>>()
+
+    /** OSS 上传凭证（拿到后由 Fragment 调 ossUpload ✓） */
+    val uploadPrepared = MutableLiveData<Event<com.example.c001apk.logic.model.OSSUploadPrepareResponse.Data?>>()
+
+    /**
+     * 申请图片上传凭证
+     *
+     * 参数跟 `ArticlePublishActivity` 一致 ✓（`uploadDir=feed` ✓ 实测可用 ✓）
+     */
+    fun prepareImageUpload(files: List<com.example.c001apk.ui.article.ArticleUploadFile>) {
+        val form = HashMap<String, String>()
+        form["uploadBucket"] = "image"
+        form["uploadDir"] = "feed"
+        form["is_anonymous"] = "0"
+        form["uploadFileList"] = com.google.gson.Gson().toJson(files)
+        form["toUid"] = ""
+        form["feed_type"] = "feed"
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.postOSSUploadPrepare(form)
+                .collect { result ->
+                    val response = result.getOrNull()
+                    if (response?.data != null) {
+                        uploadPrepared.postValue(Event(response.data))
+                    } else {
+                        toastText.postValue(Event(response?.message ?: "上传准备失败"))
+                        uploadPrepared.postValue(Event(null))
+                    }
+                }
+        }
+    }
+
+    /** 拉编辑页数据（点「编辑」时调 ✓） */
+    fun loadEditDetail() {
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.changeDetail(id)
+                .collect { result ->
+                    val response = result.getOrNull()
+                    if (response?.data != null) {
+                        editDetail.postValue(Event(response.data))
+                    } else {
+                        toastText.postValue(Event(response?.message ?: "读取编辑数据失败"))
+                        editDetail.postValue(Event(null))
+                    }
+                }
+        }
+    }
+
+    /**
+     * 提交编辑
+     *
+     * @param form 已经组装好的表单（见 [com.example.c001apk.ui.feed.FeedFragment] 里的拼装逻辑 ✓）
+     */
+    fun submitEdit(form: HashMap<String, String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.changeFeed(form)
+                .collect { result ->
+                    val response = result.getOrNull()
+                    if (response?.data != null) {
+                        editResult.postValue(Event(true))
+                    } else {
+                        toastText.postValue(Event(response?.message ?: "修改失败"))
+                        editResult.postValue(Event(false))
+                    }
+                }
+        }
+    }
+
     fun fetchFeedData() {
         if (isOffline) {
             viewModelScope.launch(Dispatchers.IO) { loadOffline() }

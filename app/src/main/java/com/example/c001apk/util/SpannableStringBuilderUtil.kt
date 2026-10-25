@@ -32,6 +32,11 @@ object SpannableStringBuilderUtil {
         text: String,
         size: Float,
         imgList: List<String>?,
+        /**
+         * 正文**可用宽度**（px）。`> 0` 时 markdown 表格由 [MdTableSpan] 接管 ✓
+         * （按内容分配列宽；`<= 0` 保持原样交给 Markwon 的 TablePlugin ✓）
+         */
+        availWidth: Int = 0,
         // 注意：新参数一律加在这两个之前。showMoreReply 必须留在最后，
         // FeedReplyAdapter 是用尾随 lambda 调它的（尾随 lambda 只会绑到最后一个参数上）。
         linkAsChip: Boolean = false,
@@ -41,7 +46,7 @@ object SpannableStringBuilderUtil {
         val src = text.replace(PLACEHOLDER, "")
         val mess: Spanned =
             if (MarkdownUtils.isMarkdown(src))
-                MarkdownUtils.parse(mContext, src)
+                MarkdownUtils.parse(mContext, src, availWidth)
             else
                 Html.fromHtml(
                     src.replace("\n", "<br/>"),

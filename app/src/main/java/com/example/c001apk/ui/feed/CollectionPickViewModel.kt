@@ -1,5 +1,7 @@
 package com.example.c001apk.ui.feed
 
+import com.example.c001apk.util.PrefManager
+import com.example.c001apk.logic.repository.LocalCollectionRepo
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -34,7 +36,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class CollectionPickViewModel @Inject constructor(
-    private val networkRepo: NetworkRepo
+    private val networkRepo: NetworkRepo,
+    private val localCollectionRepo: LocalCollectionRepo
 ) : ViewModel() {
 
     val list = MutableLiveData<List<CollectionData>>()
@@ -53,6 +56,38 @@ class CollectionPickViewModel @Inject constructor(
     fun load(feedId: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             loading.postValue(true)
+            // ── 本地模式：从本机收藏夹表构造列表（2026-10-25 ✓）──
+            //    用户要求：「开启了收藏夹本地保存之后，去保存显示的还是云端的收藏夹，
+            //    所以需要一个本地收藏夹栏目，然后可以添加收藏夹，收藏夹是保存在本地的」
+            if (!PrefManager.saveCollectionToCloud) {
+                val items = runCatching {
+                    localCollectionRepo.loadAllFolders().map { f ->
+                        CollectionData(
+                            id = f.id,
+                            uid = null,
+                            username = null,
+                            // 用户要求：「弹出来的窗口如果是本地收藏夹，后面带一个括号本地」
+                            title = (if (f.title.isEmpty()) "默认收藏夹" else f.title) + "（本地）",
+                            description = null,
+                            cover_pic = null,
+                            is_open = null,
+                            is_open_title = null,
+                            item_num = localCollectionRepo.countInFolder(f.id),
+                            follow_num = null,
+                            type = null,
+                            url = null,
+                            entityType = null,
+                            entityId = null,
+                            isBeCollected = if (!feedId.isNullOrEmpty() &&
+                                localCollectionRepo.isCollectedIn(feedId, f.id)
+                            ) 1 else 0
+                        )
+                    }
+                }.getOrDefault(emptyList())
+                list.postValue(items)
+                loading.postValue(false)
+                return@launch
+            }
             val data = runCatching {
                 networkRepo.getCollectionList("", feedId.orEmpty(), "feed", 1, 1)
                     .firstOrNull()?.getOrNull()?.data
@@ -114,6 +149,21 @@ class CollectionPickViewModel @Inject constructor(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             loading.postValue(true)
+            // ── 本地模式：直接建一个本机收藏夹（2026-10-25 ✓）──
+            //    封面 / 简介 / 公开状态都忽略 ✗ 本地夹就只有「名字」✓
+            if (!PrefManager.saveCollectionToCloud) {
+                val newId = "local_" + System.currentTimeMillis()
+                runCatching { localCollectionRepo.createFolder(newId, title) }
+                if (!feedId.isNullOrEmpty()) {
+                    runCatching { localCollectionRepo.collect(feedId, newId) }
+                    actionState.postValue(
+                        CollectionAction(collectionId = newId, favnum = null, collect = 1)
+                    )
+                }
+                toastText.postValue(Event("已创建「\${title}」"))
+                loading.postValue(false)
+                return@launch
+            }
             val uploaded = upload(coverUri, resolver)
             val pic = uploaded.orEmpty()
             val result = runCatching {

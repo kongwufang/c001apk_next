@@ -1,5 +1,6 @@
 package com.example.c001apk.logic.dao
 
+import androidx.room.OnConflictStrategy
 import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
@@ -13,6 +14,9 @@ interface HistoryFavoriteDao {
 
     @Insert
     suspend fun insert(data: FeedEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertList(list: List<FeedEntity>)
 
     @Query("SELECT * FROM FeedEntity ORDER BY id DESC")
     suspend fun loadAllList(): List<FeedEntity>

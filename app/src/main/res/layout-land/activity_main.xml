@@ -1,29 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    主界面 · 横屏变体（2026-10-24 UI 大改 ✓）
+
+    ## 改动前
+    ConstraintLayout + ViewPager2 + **NavigationRailView**（横屏用侧边导航条）
+    ⇒ 底栏在横屏是「导航条」形态 ✓ 但同样是「我的」的一个入口 ✗
+
+    ## 改动后
+    跟竖屏完全一致的 DrawerLayout + ViewPager2(1 页) + FragmentContainerView
+    ⇒ 横屏也用抽屉 ✓ 导航条删掉 ✓
+
+    ⚠️ **根元素必须是 drawerLayout 且 id 一致** ✗
+       DataBinding 对同名布局的不同变体要求「根元素 id 一致」✗
+       这条约束是 `d72f21e0` 那次编译失败的原因：
+         Configurations for activity_main.xml must agree on the root element's ID.
+       所以竖屏（layout/）和横屏（layout-land/）必须用同一个根 ✓
+-->
+<com.example.c001apk.view.LockableDrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- ══ 内容区 ══ -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/bottomNav"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="horizontal" />
 
-    <com.google.android.material.navigationrail.NavigationRailView
-        android:id="@+id/bottomNav"
-        android:layout_width="wrap_content"
+    <!-- ══ 抽屉区 ══ 宽度由 MainActivity.initMineDrawer() 算（横屏会封顶 420dp ✓）-->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/mineDrawer"
+        android:layout_width="340dp"
         android:layout_height="match_parent"
-        app:fitsSystemWindowsInsets="start|top|bottom"
-        app:labelVisibilityMode="selected"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:menu="@menu/nav_menu"
-        app:menuGravity="top" />
+        android:layout_gravity="start"
+        android:background="@drawable/bg_drawer"
+        android:clipToOutline="true"
+        android:elevation="16dp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</com.example.c001apk.view.LockableDrawerLayout>

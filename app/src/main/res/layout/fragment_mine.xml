@@ -94,6 +94,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="14dp"
+                        android:layout_marginEnd="8dp"
                         android:ellipsize="end"
                         android:lines="1"
                         android:maxLines="1"
@@ -101,17 +102,32 @@
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:visibility="@{isLogin ? View.VISIBLE : View.INVISIBLE}"
-                        app:layout_constraintEnd_toEndOf="@id/guideline"
+                        app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@+id/avatar"
                         app:layout_constraintTop_toTopOf="parent"
                         tools:text="name" />
 
-                    <androidx.constraintlayout.widget.Guideline
-                        android:id="@+id/guideline"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        app:layout_constraintGuide_percent="0.75" />
+                    <!--
+                        ⚠️ 这里原来有一条 Guideline（`@id/guideline`），2026-10-24 已**删掉** ✗
+
+                        ## 踩了两次坑，记下来
+                        头像卡片 `profileLayout` 是塞在 **MaterialToolbar** 里的 ✗
+                        ⇒ **Toolbar 自己已经给菜单图标（账号 + 设置）预留了宽度** ✓
+
+                        第一次：`layout_constraintGuide_percent="0.75"`
+                          75% 只是 Toolbar **内容区**的 75% ✗ ⇒ 又白留一次
+                          ⇒ 抽屉里窄了 ⇒ 用户名被截成「晚上...」✗
+                          ⇒ exp（只有 End 约束）浮在 guideline ⇒ 和 level 重叠 ✗
+
+                        第二次：`layout_constraintGuide_end="100dp"`
+                          **再**扣 100dp ✗ ⇒ 双重预留 ⇒ 名字宽度算成**负数**
+                          ⇒ 0 宽 ⇒ **用户名整个消失** ✗
+                          ⇒ exp 停在「内容区宽 − 100dp」⇒ 还是压着 level ✗
+
+                        ## 结论
+                        **什么都不用留** ✓ Toolbar 已经处理过了 ⇒
+                        name / exp / progress 的 End 直接 `parent` ✓ 只加 8dp 边距 ✓
+                    -->
 
                     <TextView
                         android:id="@+id/level"
@@ -131,10 +147,11 @@
                         android:id="@+id/exp"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
                         android:textColor="?android:textColorSecondary"
                         android:textSize="10sp"
                         android:visibility="@{isLogin ? View.VISIBLE : View.INVISIBLE}"
-                        app:layout_constraintEnd_toEndOf="@id/guideline"
+                        app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="@id/level"
                         tools:ignore="NestedWeights"
                         tools:text="500/1000" />
@@ -157,9 +174,10 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="14dp"
                         android:layout_marginTop="6dp"
+                        android:layout_marginEnd="8dp"
                         android:visibility="@{isLogin ? View.VISIBLE : View.INVISIBLE}"
                         app:indicatorTrackGapSize="0dp"
-                        app:layout_constraintEnd_toEndOf="@id/guideline"
+                        app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toEndOf="@id/avatar"
                         app:layout_constraintTop_toBottomOf="@id/level"
                         app:trackCornerRadius="20dp"

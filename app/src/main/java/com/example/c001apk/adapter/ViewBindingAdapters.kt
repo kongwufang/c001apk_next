@@ -55,6 +55,32 @@ fun setExtraPic(imageView: ImageView, extraPic: String?) {
     }
 }
 
+@BindingAdapter("setFeedFooter")
+fun setFeedFooter(textView: TextView, data: HomeFeedResponse.Data?) {
+    val sb = StringBuilder()
+    val loc = data?.ipLocation?.trim().orEmpty()
+    if (loc.isNotEmpty()) sb.append("发布于 ").append(loc)
+
+    val read = data?.readNum ?: 0
+    if (read > 0) {
+        if (sb.isNotEmpty()) sb.append(" · ")
+        sb.append(
+            when {
+                read >= 10000 -> "%.1f万".format(read / 10000f).replace(".0万", "万")
+                else -> read.toString()
+            }
+        ).append("浏览")
+    }
+
+    if (data?.isModified == 1) {
+        if (sb.isNotEmpty()) sb.append(" · ")
+        sb.append("已编辑")
+    }
+
+    textView.text = sb.toString()
+    textView.visibility = if (sb.isEmpty()) View.GONE else View.VISIBLE
+}
+
 @BindingAdapter("setFollowText")
 fun setFollowText(textView: TextView, followAuthor: Int) {
     // 列表项不下发 followAuthor，详情回来前是"未知"：按钮先隐身，让 followLoading 的转圈顶上
@@ -325,7 +351,16 @@ fun setCustomText(
                 textView.context,
                 customText,
                 textView.textSize,
-                null
+                null,
+                // ★ 给 markdown 表格用的可用宽度：拿得到实际宽度就用实际的 ✓
+                //   拿不到（首次 bind 还没布局）就按屏幕宽估一个 ✓
+                availWidth = run {
+                    val w = textView.width - textView.paddingStart - textView.paddingEnd
+                    if (w > 0) w else {
+                        val dm = textView.resources.displayMetrics
+                        (dm.widthPixels - (dm.density * 56).toInt()).coerceAtLeast(240)
+                    }
+                }
             )
         } else customText
 

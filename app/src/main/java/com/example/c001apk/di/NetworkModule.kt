@@ -1,5 +1,6 @@
 package com.example.c001apk.di
 
+import com.example.c001apk.logic.network.LenientGson
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.logic.network.ApiService
 import com.example.c001apk.util.AddCookiesInterceptor
@@ -64,7 +65,7 @@ object NetworkModule {
     fun provideApi1ServiceRetrofit(@Api1Service okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl(API_BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
             .client(okHttpClient)
             .build()
     }
@@ -75,7 +76,7 @@ object NetworkModule {
     fun provideApi1ServiceNoRetrofit(@Api1ServiceNoRedirect okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl(API_BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
             .client(okHttpClient)
             .build()
     }
@@ -86,7 +87,7 @@ object NetworkModule {
     fun provideApi2ServiceRetrofit(@Api1Service okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl(API2_BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
             .client(okHttpClient)
             .build()
     }

@@ -27,6 +27,13 @@
         android:showAsAction="never"
         android:title="@string/copyLink" />
 
+    <!-- 编辑：默认隐藏，仅当 enableModify == 1 且是自己发的 才由 FeedFragment 打开 -->
+    <item
+        android:id="@+id/editFeed"
+        android:showAsAction="never"
+        android:title="编辑"
+        android:visible="false" />
+
     <!-- 默认隐藏，仅在自己的动态详情页由 FeedFragment 打开 -->
     <item
         android:id="@+id/publishStatus"

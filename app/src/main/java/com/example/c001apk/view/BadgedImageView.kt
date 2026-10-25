@@ -29,7 +29,15 @@ class BadgedImageView(context: Context) : ShapeableImageView(context) {
     private var badgeGravity: Int = Gravity.END or Gravity.BOTTOM
     private var badgePadding: Int = 4.dp
 
-    fun setBadge(text: String) {
+    /**
+     * 加一个角标
+     *
+     * @param text    角标文字（`GIF` / `长图` / `HDR` …）
+     * @param gravity 位置，默认**右下** ✓（GIF / 长图一直是这样 ✓）
+     *                HDR 用 `Gravity.START or Gravity.TOP`（左上 ✓ 与官方 App 一致 ✓）
+     */
+    fun setBadge(text: String, gravity: Int = Gravity.END or Gravity.BOTTOM) {
+        badgeGravity = gravity
         badge = BadgeDrawable(context, text)
         badgeBoundsSet = false
         invalidate()

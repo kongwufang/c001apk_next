@@ -69,6 +69,7 @@
     <string name="reply">回复</string>
     <string name="publish">发布</string>
     <string name="loginWeb">网页登录</string>
+    <string name="coming_soon">敬请期待</string>
     <string name="myDevice">我的装备</string>
     <string name="editDevice">编辑装备</string>
     <string name="spam_shield_word">关键字屏蔽</string>
@@ -303,4 +304,11 @@
     <string name="szlm_hint_title">可能数字联盟 ID 已失效</string>
     <string name="szlm_hint_message">服务器拒绝了这次请求（「评论接口异常」/「当前访问需要验证码」/「版本存在异常」）。\n\n这些都是**设备标识（数字联盟 ID / DUID）失效**时的固定提示 —— 不一定是账号问题，重新取一次号通常就能恢复。\n\n去「设置 → 高级 → 获取数字联盟 ID」点一次，按提示完成人机验证即可（桌面端同样如此）。</string>
     <string name="szlm_hint_action">去重新取号</string>
+    <string name="settings_save_location">数据保存位置</string>
+    <string name="settings_save_collection">收藏</string>
+    <string name="settings_save_collection_summary">开启=保存到云端账号；关闭=只保存在本机</string>
+    <string name="settings_save_follow">关注</string>
+    <string name="settings_save_follow_summary">开启=关注关系同步到云端账号；关闭=只保存在本机</string>
+    <string name="settings_save_blacklist">黑名单（用户）</string>
+    <string name="settings_save_blacklist_summary">开启=同步到云端账号；关闭=只在本机生效</string>
 </resources>

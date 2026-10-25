@@ -1,5 +1,6 @@
 package com.example.c001apk.logic.network
 
+import com.example.c001apk.logic.network.LenientGson
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.util.AddCookiesInterceptor
 import com.example.c001apk.util.RiskControlInterceptor
@@ -45,7 +46,7 @@ object ApiServiceCreator {
                     ServiceType.API2_SERVICE -> API2_BASE_URL
                 }
             )
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
             .client(getClient(serviceType, followRedirects))
             .build()
 

@@ -213,11 +213,20 @@ class NineGridImageView @JvmOverloads constructor(
                     val imageLp = ImageUtil.getImageLp(replace)
                     imgWidth = imageLp.first
                     imgHeight = imageLp.second
-                    if (replace.endsWith("gif") || imgHeight > imgWidth * 22f / 9f) {
-                        setBadge(
-                            if (replace.endsWith("gif")) "GIF"
-                            else "长图"
-                        )
+                    // 角标优先级：GIF > HDR > 长图 ✓（位置统一在**右下** ✓ 复用同一套机制 ✓）
+                    // - GIF：动图 ✓
+                    // - HDR：图片 URL 里带 `-uhdr` 标记 ✓
+                    //   （酷安接口**没有** hdr 字段 ✗，只能在图片 URL 里认 ✓
+                    //    2026-10-24 实测：普通图 10 张、HDR 图 7 张，判据干净 ✓）
+                    //   ⇒ HDR 优先于「长图」✗ —— HDR 照片往往是 3:4 竖图，会顶掉「长图」角标 ✓
+                    // - 长图：高宽比 > 22:9 ✓
+                    val isGif = replace.endsWith("gif")
+                    val isHdr = replace.contains("-uhdr", ignoreCase = true)
+                    val isLongPic = imgHeight > imgWidth * 22f / 9f
+                    when {
+                        isGif -> setBadge("GIF")
+                        isHdr -> setBadge("HDR")
+                        isLongPic -> setBadge("长图")
                     }
                 }
                 addView(imageView, generateDefaultLayoutParams())

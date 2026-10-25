@@ -1,5 +1,9 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.blacklist.BlackListActivity
+import com.example.c001apk.ui.collection.LocalCollectionActivity
+import com.example.c001apk.ui.follow.LocalFollowActivity
+import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -33,6 +37,8 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
             binding.offlineLayout.setOnClickListener(this)
             binding.equipmentLayout.setOnClickListener(this)
             binding.historyLayout.setOnClickListener(this)
+            // 第 9 格占位：不需要登录也点得动（只是弹个 Toast ✓）
+            binding.comingSoonLayout.setOnClickListener(this)
             if (PrefManager.isLogin) {
                 binding.followLayout.setOnClickListener(this)
                 binding.favLayout.setOnClickListener(this)
@@ -49,16 +55,28 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     }
 
                 R.id.followLayout ->
-                    if (PrefManager.isLogin)
+                    // 2026-10-25：「关注」存本地还是云端由设置决定 ✓
+                    //   云端 ⇒ 原来的 FFFListActivity（读服务端关注列表）
+                    //   本地 ⇒ LocalFollowActivity（读本机 uid，点进去再按 uid 拉内容）
+                    if (!PrefManager.saveFollowToCloud) {
+                        IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
+                    } else if (PrefManager.isLogin) {
                         IntentUtil.startActivity<FFFListActivity>(itemView.context) {
                             putExtra("type", "follow")
                             putExtra("uid", PrefManager.uid)
                         }
+                    }
 
                 R.id.favLayout ->
-                    if (PrefManager.isLogin)
+                    // 2026-10-25：「收藏」存本地还是云端由设置决定 ✓
+                    //   本地 ⇒ 本机收藏页（列本地收藏夹里的内容，点进去再拉）
+                    //   云端 ⇒ 原来的 CollectionActivity
+                    if (!PrefManager.saveCollectionToCloud) {
+                        IntentUtil.startActivity<LocalCollectionActivity>(itemView.context) {}
+                    } else if (PrefManager.isLogin) {
                         IntentUtil.startActivity<CollectionActivity>(itemView.context) {
                         }
+                    }
 
                 R.id.likeLayout ->
                     if (PrefManager.isLogin)
@@ -84,6 +102,14 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                 R.id.historyLayout ->
                     IntentUtil.startActivity<HistoryActivity>(itemView.context) {
                         putExtra("type", "browse")
+                    }
+
+                // 第 9 格（2026-10-25 用户要求：从「敬请期待」换成**黑名单**）
+                //   跳 BlackListActivity(type=user) ⇒ 它内部按
+                //   PrefManager.saveBlackListToCloud 决定读云端还是读本机库 ✓
+                R.id.comingSoonLayout ->
+                    IntentUtil.startActivity<BlackListActivity>(itemView.context) {
+                        putExtra("type", "user")
                     }
 
                 // 我的装备：直接进入装备页；「修改/编辑装备」按钮放在该页右上角

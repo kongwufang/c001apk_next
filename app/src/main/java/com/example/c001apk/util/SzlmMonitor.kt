@@ -61,7 +61,15 @@ object SzlmMonitor {
 
     private const val TAG = "SzlmMonitor"
 
-    /** 兜底探测目标（拿不到自己帖子时用 ✓ 这条就算被删也能判 ✓ 见上面「内容不存在」） */
+    /**
+     * 维护者（作者本人）的 uid —— 用户 2026-10-24 指定写死 ✓
+     *
+     * 用途：**本人主页没有动态** / **账号未登录** 时的兜底探测目标 ✓
+     * （登录的是别人 / 游客时，用这个 uid 一样能拿到一条稳定存在的动态 ✓）
+     */
+    private const val MAINTAINER_UID = "32864090"
+
+    /** 最后的兜底：固定 feed id（连维护者主页都拿不到时用 ✓ 见下面「内容不存在」的判定 ✓） */
     private const val FALLBACK_ID = "74345950"
 
     private const val API = "https://api.coolapk.com"
@@ -76,7 +84,15 @@ object SzlmMonitor {
 
     private const val BLOCKED_STATUS = 567
     private const val INTERVAL_MS = 10 * 60 * 1000L
-    private const val FIRST_DELAY_MS = 60 * 1000L
+
+    /**
+     * 首次探测延迟
+     *
+     * 原来是 60 秒 ✗ —— 用户实测「等 40 多秒才弹，太久了」✗
+     * 探测跑在**后台线程** ✓ 不占启动时间 ✓ ⇒ 改成 8 秒 ✓
+     * （另外 [SzlmIdPrompt.save] 里换了 duid 会直接 `checkNow()` ✓ 不用等 ✓）
+     */
+    private const val FIRST_DELAY_MS = 8 * 1000L
     private const val ID_CACHE_MS = 60 * 60 * 1000L
 
     private val handler = Handler(Looper.getMainLooper())
@@ -130,10 +146,8 @@ object SzlmMonitor {
             Log.d(TAG, "跳过：duid 为空")
             return
         }
-        if (!PrefManager.isLogin) {
-            Log.d(TAG, "跳过：未登录（没凭据 ⇒ 探测一定被拒 ⇒ 没意义 ✗）")
-            return
-        }
+        // ⚠️ 未登录**也继续** ✓ —— duid 在 X-App-Device 头里，不依赖登录态 ✓
+        //    （2026-10-24 用户要求加兜底：登录异常时也要能发现 duid 失效 ✓）
         Thread {
             runCatching {
                 val feedId = resolveFeedId()
@@ -158,25 +172,51 @@ object SzlmMonitor {
     }
 
     /**
-     * 解析探测目标：**自己主页的第一个帖子** ✓
-     * 拿不到就退到 [FALLBACK_ID] ✓
+     * 解析探测目标（三级兜底 ✓）
      *
-     * ⚠️ `/v6/user/feedList` 不受 duid 影响 ✓ ⇒ duid 坏了也能拿到 id ✓
+     * 1. **已登录** ⇒ 先试**本人主页**第一条动态 ✓
+     * 2. 本人主页**无动态** / **拿不到** / **未登录** ⇒ 用 [MAINTAINER_UID] 的维护者主页 ✓
+     * 3. 维护者主页也拿不到 ⇒ [FALLBACK_ID] ✓（固定 id，就算被删也能判 ✓）
+     *
+     * ⚠️ `/v6/user/feedList` **不受 duid 影响** ✓ ⇒ duid 坏了也照样拿得到 id ✓
+     *    这是整个探测方案成立的前提 ✓（2026-10-24 实测：有效/随机 duid 返回一模一样的列表 ✓）
+     *
+     * ⚠️ 未登录时也能探测 ✓：
+     *    请求带的是游客 `SESSID` ✓，但 **duid 在 `X-App-Device` 头里** ✓
+     *    ⇒ 判出来的「过期」依然可信 ✓（不是靠登录态判断 ✓）
      */
     private fun resolveFeedId(): String {
-        val uid = PrefManager.uid
-        if (uid.isEmpty()) return FALLBACK_ID
-        // 缓存命中（同 uid + 未过期）✓
+        // ① 已登录 ⇒ 本人主页
+        if (PrefManager.isLogin && PrefManager.uid.isNotEmpty()) {
+            val own = firstFeedId(PrefManager.uid)
+            if (own.isNotEmpty()) return own
+            Log.i(TAG, "本人主页没有动态，改用维护者主页兜底")
+        } else {
+            Log.i(TAG, "未登录，直接用维护者主页探测")
+        }
+        // ② 维护者主页兜底 ✓
+        val master = firstFeedId(MAINTAINER_UID)
+        if (master.isNotEmpty()) return master
+        Log.i(TAG, "维护者主页也拿不到，用固定 id 兜底")
+        // ③ 固定 id
+        return FALLBACK_ID
+    }
+
+    /**
+     * 取某个 uid 主页的**第一条动态 id**（带 1 小时缓存 ✓）
+     * @return 取不到返回空串
+     */
+    private fun firstFeedId(uid: String): String {
         if (cachedId.isNotEmpty() && cachedForUid == uid &&
             System.currentTimeMillis() - cachedAt < ID_CACHE_MS
         ) {
             return cachedId
         }
         val path = "/v6/user/feedList?uid=$uid&page=1&showAnonymous=0&isIncludeTop=1"
-        val (code, body) = runCatching { get(path) }.getOrNull() ?: return FALLBACK_ID
+        val (code, body) = runCatching { get(path) }.getOrNull() ?: return ""
         if (code != 200) {
-            Log.d(TAG, "取自己帖子列表失败 code=$code，用兜底 id")
-            return if (cachedId.isNotEmpty()) cachedId else FALLBACK_ID
+            Log.d(TAG, "取 uid=$uid 的帖子列表失败 code=$code")
+            return ""
         }
         val id = runCatching {
             val arr: JSONArray = JSONObject(body).optJSONArray("data") ?: return@runCatching ""
@@ -188,13 +228,13 @@ object SzlmMonitor {
             ""
         }.getOrDefault("")
         if (id.isEmpty()) {
-            Log.d(TAG, "自己没发过帖子 / 解析不到 id，用兜底 id")
-            return FALLBACK_ID
+            Log.d(TAG, "uid=$uid 没发过帖子 / 解析不到 id")
+            return ""
         }
         cachedId = id
         cachedAt = System.currentTimeMillis()
         cachedForUid = uid
-        Log.i(TAG, "探测目标 = 自己主页第一条动态 id=$id")
+        Log.i(TAG, "探测目标 = uid=$uid 主页第一条动态 id=$id")
         return id
     }
 

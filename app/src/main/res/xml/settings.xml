@@ -135,6 +135,41 @@
         android:key="recommendation"
         android:title="@string/settings_recommendation">
 
+        <!--
+            数据保存位置（2026-10-25 ✓ 用户要求放这儿，不放外观 ✗）
+
+            收藏 / 关注 / 黑名单各自选「云端」还是「本地」✓
+            默认按登录态走 ✓（见 SyncLocationBootstrap）
+            用户手动改过之后不再自动覆盖 ✓ 只有登录态变化时才再对齐一次 ✓
+
+            ⚠️ persistent=false：不走 Preference 自己的 SharedPreferences ✗
+               实际值存在 PrefManager 里 ✓ 由 SettingsPreferenceFragment 手动读写 ✓
+        -->
+        <PreferenceCategory android:title="@string/settings_save_location">
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_star"
+                android:key="saveCollectionToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_collection_summary"
+                android:title="@string/settings_save_collection" />
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_add"
+                android:key="saveFollowToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_follow_summary"
+                android:title="@string/settings_save_follow" />
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_mine_selector"
+                android:key="saveBlackListToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_blacklist_summary"
+                android:title="@string/settings_save_blacklist" />
+
+        </PreferenceCategory>
+
         <Preference
             android:icon="@drawable/ic_block"
             android:key="topicBlackList"
@@ -186,6 +221,18 @@
         android:key="advanced"
         android:title="@string/settings_advanced">
 
+
+        <!-- 备份：导出 / 导入本机偏好与本地数据（2026-10-25 ✓） -->
+        <Preference
+            android:icon="@drawable/ic_archive"
+            android:key="exportBackup"
+            android:summary="把本机偏好、关注、收藏、黑名单导出成 json 文件"
+            android:title="导出备份" />
+        <Preference
+            android:icon="@drawable/ic_history"
+            android:key="importBackup"
+            android:summary="从 json 文件恢复（会覆盖同名数据）"
+            android:title="导入备份" />
         <!-- 默认开：不信任系统 CA，只用证书链固定公钥校验（关闭则回落到系统校验） -->
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="true"

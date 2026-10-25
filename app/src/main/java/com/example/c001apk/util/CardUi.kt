@@ -34,6 +34,8 @@ object CardUi {
      * 官方是专门的 Compose 布局 BatteryLifeSummaryCard，摊成「名称 值」完全不像，所以这里
      * 不再走 [STATS] 兜底，改走专属渲染。渲染与尺寸见 [GenericCardRenderer] / `_rev/SUBTAB_CARDS_SPEC.md`。
      */
+    /** 到手价卡（subTabFeedCard6）：extraData 里是 final_price / update_time */
+    const val SUBTAB_PRICE = "subTabPrice"
     const val SUBTAB_BATTERY = "subtabBattery"
 
     /** 照官方重画的跑分卡（模板 `subTabFeedCard2`）：2x2 品牌渐变格，官方对应 ScoreGridCard */
@@ -209,6 +211,8 @@ object CardUi {
         // （见 GenericCardRenderer.renderSubTabBattery / renderSubTabScore）
         m["subTabFeedCard1"] = Rule(layout = SUBTAB_BATTERY)
         m["subTabFeedCard2"] = Rule(layout = SUBTAB_SCORE)
+        // 到手价（subTabFeedCard6）：extraData = {final_price, update_time, feed_id}
+        m["subTabFeedCard6"] = Rule(layout = SUBTAB_PRICE)
         m["subTabFeedCard3"] = Rule(layout = SUBTAB_SCORE)
         // 首页/发现页顶部那排分类入口：官方是一行居中的 pill 链接（走专属渲染），
         // 配成宫格会排成一堆方块
@@ -239,7 +243,7 @@ object CardUi {
 
         // 下面两条是实测过的例外，必须排在上面几个批量模板之后才不会被盖掉
         // 图片放大卡：实测是整宽大图 + 标题，按实体数推断会排成宫格
-        m["imageScaleCard"] = Rule(layout = LIST)
+        m["imageScaleCard"] = Rule(layout = LIST)   // 实际渲染被 GenericCardRenderer 的 IMAGE_SCALE_CARD 分支拦截 ✓
         // 数码首页那排商品横滚：实体里是 goods_pic / goods_promo_price，配成 tile 形状才排得出价格行
         m["iconLargeScrollCard"] = Rule(
             layout = HSCROLL,
@@ -252,7 +256,7 @@ object CardUi {
         )
 
         // 实测是 1080x240 的全宽横幅（不是横滚小图），竖排整宽才对
-        m["imageScaleCard"] = Rule(layout = LIST)
+        m["imageScaleCard"] = Rule(layout = LIST)   // 实际渲染被 GenericCardRenderer 的 IMAGE_SCALE_CARD 分支拦截 ✓
         m
     }
 
@@ -288,6 +292,10 @@ object CardUi {
             STATS -> return CardLayout(stats = true)
             SUBTAB_BATTERY -> return CardLayout(official = SUBTAB_BATTERY)
             SUBTAB_SCORE -> return CardLayout(official = SUBTAB_SCORE)
+            // 2026-10-25 补：到手价卡（subTabFeedCard6）也要走「照官方重画」
+            //   ⚠️ 之前只加了 m["subTabFeedCard6"] 映射 ✗ 忘了在这里分派 ✗
+            //   ⇒ official 一直 null ⇒ 掉回通用路径 ⇒ 界面显示卡片标题「子版块统计」✗
+            SUBTAB_PRICE -> return CardLayout(official = SUBTAB_PRICE)
             LINKS -> return CardLayout(official = LINKS)
             SECTION -> return CardLayout(official = SECTION)
             ICON_BUTTONS -> return CardLayout(official = ICON_BUTTONS)

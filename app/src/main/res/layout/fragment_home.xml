@@ -22,6 +22,30 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
+            <!--
+                「我的」入口（2026-10-24 UI 大改 ✓）
+
+                用户要求：「在首页搜索和消息按钮那一栏的最左边增加我的按钮」
+                ⇒ 位置就是 search / message 那一排的**最左边** ✓
+                ⇒ 点它拉出侧边栏抽屉（内容 = 原「我的」整页 ✓）
+
+                图标用 ic_menu（☰）✓ 跟 rikkahub 主页左上角一致 ✓
+            -->
+            <ImageView
+                android:id="@+id/mine"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="4dp"
+                android:background="?actionBarItemBackground"
+                android:contentDescription="@string/tab_mine"
+                android:padding="12dp"
+                android:src="@drawable/ic_menu"
+                android:tooltipText="@string/tab_mine"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tabLayout"
                 style="@style/Widget.Material3.TabLayout.OnSurface.Trans"
@@ -29,7 +53,7 @@
                 android:layout_height="wrap_content"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/search"
-                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintStart_toEndOf="@id/mine"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tabGravity="fill"
                 app:tabMinWidth="0dp"

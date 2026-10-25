@@ -2,6 +2,8 @@ package com.example.c001apk.util
 
 import android.content.Context
 import android.text.Spanned
+import android.text.SpannableStringBuilder
+import android.text.TextUtils
 import io.noties.markwon.Markwon
 import io.noties.markwon.core.CorePlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
@@ -240,6 +242,139 @@ object MarkdownUtils {
      * Markwon 的 LinkSpan 继承自 URLSpan，会被 SpannableStringBuilderUtil
      * 统一替换为 MyURLSpan，点击行为与普通正文链接一致。
      */
-    fun parse(context: Context, text: String): Spanned =
-        getMarkwon(context).toMarkdown(preprocess(text))
+    /**
+     * 解析 md 文本为 Spanned。
+     *
+     * @param availWidth 正文**可用宽度**（px）。
+     *   `> 0` 时由 [MdTableSpan] **接管表格渲染** ✓（按内容分配列宽）
+     *   `<= 0` 时表格仍交给 Markwon 的 TablePlugin ✓（其它页面行为不变 ✓）
+     */
+    fun parse(
+        context: Context,
+        text: String,
+        availWidth: Int = 0,
+    ): Spanned {
+        val tables = ArrayList<MdTable>()
+        var md = text
+        if (availWidth > 0) md = extractTables(md, tables)
+        val spanned = getMarkwon(context).toMarkdown(preprocess(md))
+        if (tables.isEmpty() || availWidth <= 0) return spanned
+        val pad = (context.resources.displayMetrics.density * 6f).toInt().coerceAtLeast(4)
+        return placeTables(spanned, tables, availWidth, pad)
+    }
+
+    // ---------------- 表格接管 ----------------
+
+    /** 表格占位符：U+FFFC（Object Replacement Character），Markwon 会原样当普通字符保留 ✓ */
+    private const val TABLE_PH = '\uFFFC'
+
+    /** 数据类：解析好的表格 */
+    private class MdTable(val header: List<String>, val body: List<List<String>>)
+
+    private val tableRowLine = Pattern.compile("(?m)^\\s*\\|.*\\|\\s*$")
+
+    private val tableSepLine =
+        Pattern.compile("^\\s*\\|\\s*:?-{1,}:?\\s*(\\|\\s*:?-{1,}:?\\s*)+\\|?\\s*$")
+
+    /**
+     * 把 markdown 表格块换成占位符。
+     *
+     * ⚠️ 必须在 [preprocess] **之前**做 ✗：
+     * preprocess 会解 HTML 实体、改写 `<a>` ⇒ 表格里的内容会被动 ✗
+     *
+     * 正常处理的表格（满足全部条件才算 ✓）：
+     * - 连续 `| … |` 行，≥ 3 行（表头 + 分隔 + 至少一行数据 ✓）
+     * - 第 2 行是分隔行（`|---|---|` 或 `|:--|--:|`）
+     * - 所有行列数一致
+     * ⚠️ ``` 围栏里的内容原样保留 ✗（代码块里可能正好有 md 表格示例 ✗）
+     */
+    private fun extractTables(text: String, out: MutableList<MdTable>): String {
+        if (!text.contains('|')) return text
+        val lines = text.split("\n")
+        val kept = ArrayList<String>(lines.size)
+        var i = 0
+        var inFence = false
+        while (i < lines.size) {
+            val line = lines[i]
+            if (line.trimStart().startsWith("```")) {
+                inFence = !inFence
+                kept.add(line)
+                i++
+                continue
+            }
+            if (inFence || !tableRowLine.matcher(line).matches()) {
+                kept.add(line)
+                i++
+                continue
+            }
+            var j = i
+            while (j < lines.size && tableRowLine.matcher(lines[j]).matches()) j++
+            val block = lines.subList(i, j)
+            val t = runCatching { parseTableBlock(block) }.getOrNull()
+            if (t != null) {
+                kept.add(TABLE_PH.toString())
+                out.add(t)
+            } else {
+                kept.addAll(block)          // 解析不了 ⇒ 原样留给 Markwon ✓
+            }
+            i = j
+        }
+        return kept.joinToString("\n")
+    }
+
+    /** @return 解析好的表格；不是合法表格返回 null */
+    private fun parseTableBlock(block: List<String>): MdTable? {
+        if (block.size < 3) return null
+        val header = splitCells(block[0]) ?: return null
+        if (header.isEmpty()) return null
+        if (!tableSepLine.matcher(block[1]).matches()) return null
+        val body = ArrayList<List<String>>(block.size - 2)
+        for (k in 2 until block.size) {
+            val cells = splitCells(block[k]) ?: return null
+            if (cells.size != header.size) return null
+            body.add(cells)
+        }
+        if (body.isEmpty()) return null
+        return MdTable(header.map { plainCell(it) }, body.map { row -> row.map { plainCell(it) } })
+    }
+
+    /** `| a | b |` → ["a","b"]；不以 `|` 开头返回 null */
+    private fun splitCells(line: String): List<String>? {
+        var t = line.trim()
+        if (!t.startsWith("|")) return null
+        t = t.substring(1)
+        if (t.endsWith("|") && !t.endsWith("\\|")) t = t.dropLast(1)
+        return t.split("|").map { it.trim() }
+    }
+
+    /** 单元格里的简单行内 markdown 剥成纯文本（表格里不做富文本 ✗） */
+    private fun plainCell(src: String): String {
+        var v = decodeEntities(src)
+        v = Regex("\\*\\*(.+?)\\*\\*").replace(v) { it.groupValues[1] }
+        v = Regex("~~(.+?)~~").replace(v) { it.groupValues[1] }
+        v = Regex("`([^`]*)`").replace(v) { it.groupValues[1] }
+        v = Regex("\\[([^\\]]*)]\\([^)]*\\)").replace(v) { it.groupValues[1] }
+        return v.trim()
+    }
+
+    /** 渲染完把占位符替换成 [MdTableSpan] ✓ */
+    private fun placeTables(
+        spanned: Spanned,
+        tables: List<MdTable>,
+        availWidth: Int,
+        padPx: Int,
+    ): Spanned {
+        val sb = if (spanned is SpannableStringBuilder) spanned else SpannableStringBuilder(spanned)
+        var from = 0
+        for (t in tables) {
+            val pos = TextUtils.indexOf(sb, TABLE_PH, from)
+            if (pos < 0) break
+            sb.setSpan(
+                MdTableSpan(t.header, t.body, availWidth, padPx),
+                pos, pos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            from = pos + 1
+        }
+        return sb
+    }
 }

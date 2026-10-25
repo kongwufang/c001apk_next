@@ -8,6 +8,7 @@ import com.example.c001apk.logic.model.CollectionActionResponse
 import com.example.c001apk.logic.model.CollectionCheckCountResponse
 import com.example.c001apk.logic.model.CollectionDetailResponse
 import com.example.c001apk.logic.model.CollectionListResponse
+import com.example.c001apk.logic.model.ChangeFeedResponse
 import com.example.c001apk.logic.model.CollectionUploadResponse
 import com.example.c001apk.logic.model.CreateFeedResponse
 import com.example.c001apk.logic.model.SpamConfigResponse
@@ -471,6 +472,45 @@ interface ApiService {
         @Url url: String,
         @Query("id") id: String,
     ): Call<LikeReplyResponse>
+
+    // ── 动态 / 图文 编辑（2026-10-24 抓包 + 实测验证 ✓）──
+
+    /**
+     * 读「编辑页」数据（预填用 ✓）
+     *
+     * ⚠️ 它返回的 `message` 是**纯文本** ✓（不是块数组 ✓ 这点和 `changeFeed` 不一样 ✗）
+     *
+     * 实测（`id=74575147` 图文 / `74579570` 动态）：134 个字段 ✓
+     */
+    @GET("/v6/feed/changeDetail")
+    fun changeDetail(
+        @Query("id") id: String,
+        @Query("rid") rid: String = "",
+        @Query("noticeId") noticeId: String = "",
+        @Query("fromApi") fromApi: String = ""
+    ): Call<ChangeFeedResponse>
+
+    /**
+     * 提交编辑
+     *
+     * ## 参数差异（实测）
+     * | 类型 | `type` | `message` |
+     * |---|---|---|
+     * | 动态 | `feed` | **纯文本** |
+     * | 图文 | **`feedArticle`** | **块数组** `[{"type":"text","message":"…"}]` |
+     *
+     * ⚠️ **发布**时图文用 `type=feed` + `is_html_article=1` ✗ 与**编辑**不同 ✗
+     *
+     * ## 改图（实测通过 ✓）
+     * - `pic` = `"url1,url2"`（逗号分隔 ✓ 传空串 = 删光 ✓）
+     * - `message_cover` = 封面 URL（图文 ✓）
+     * - URL 必须是 `image.coolapk.com` 上的（本地图片要先走 `ossUploadPrepare` + OSS 上传 ✓）
+     */
+    @POST("/v6/feed/changeFeed")
+    @FormUrlEncoded
+    fun changeFeed(
+        @FieldMap data: HashMap<String, String>
+    ): Call<ChangeFeedResponse>
 
     // 修改动态可见性。注意 id 与 publish_status 都必须放在表单 body 里，
     // 放到 query 上服务端只看到空 id → 返回 -1「动态id不能为空」。

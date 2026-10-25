@@ -1,5 +1,8 @@
 package com.example.c001apk.ui.message
 
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.async
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -160,14 +163,29 @@ class MessageCenterViewModel @Inject constructor(
         }
     }
 
-    /** 池子不够就继续按分类拉，直到够 [need] 条或所有分类都拉完 */
+    /**
+     * 池子不够就继续按分类拉，直到够 [need] 条或所有分类都拉完
+     *
+     * ## 2026-10-24 改成**并发**
+     * 原来是 `pending.forEach { fetchPage(it) }` ✗ ——
+     * `fetchPage` 是 suspend，forEach 里就是**一个个等** ✗
+     * ⇒ 5 个分类 = 5 次 RTT 相加 ✗ ⇒ 用户反馈「消息中心加载延迟比较长」✗
+     *
+     * 现在每个分类一个 `async`，一轮并发 ✓
+     * ⚠️ 每个分类有自己的 `SourceState`（page / lastItem / fetched）✓
+     *    ⇒ 同一分类只会被一个协程改 ✓ 不会打架 ✓
+     * ⚠️ 只有 `pool` 是共享的 ✗ ⇒ [fetchPage] 里加锁 ✓
+     */
     private suspend fun ensurePool(need: Int) {
         while (pool.size < need) {
             val pending = sources.keys.filter { category ->
                 states[category]?.let { it.fetched < it.target && !it.end } == true
             }
             if (pending.isEmpty()) return
-            pending.forEach { fetchPage(it) }
+            // ★ 并发：每个分类一个 async ✓
+            coroutineScope {
+                pending.map { category -> async { fetchPage(category) } }.awaitAll()
+            }
         }
     }
 
@@ -193,8 +211,11 @@ class MessageCenterViewModel @Inject constructor(
                 return@forEach
             }
             state.fetched++
-            if (isUnreadCandidate(category, item))
-                pool.add(MessageCenterAdapter.Item(category, item))
+            if (isUnreadCandidate(category, item)) {
+                // 并发拉取后多个协程会同时往 pool 里塞 ✓ 要加锁 ✓
+                val e = MessageCenterAdapter.Item(category, item)
+                synchronized(pool) { pool.add(e) }
+            }
         }
 
         if (state.fetched >= state.target) state.end = true

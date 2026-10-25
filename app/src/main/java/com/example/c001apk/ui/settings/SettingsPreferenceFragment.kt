@@ -1,5 +1,7 @@
 package com.example.c001apk.ui.settings
 
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -47,7 +49,34 @@ import kotlin.system.exitProcess
 import com.example.c001apk.util.HttpLog
 import java.util.Locale
 
+@dagger.hilt.android.AndroidEntryPoint
 class SettingsPreferenceFragment : PreferenceFragmentCompat() {
+
+    @javax.inject.Inject
+    lateinit var backupHelper: com.example.c001apk.util.BackupHelper
+
+    /** 导出：让用户选一个位置写 json ✓ */
+    private val exportLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        viewLifecycleOwner.lifecycleScope.launch {
+            val ok = runCatching { backupHelper.export(uri) }.getOrDefault(false)
+            android.widget.Toast.makeText(requireContext(), if (ok) "已导出" else "导出失败", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** 导入：让用户选一个 json ✓ */
+    private val importLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        viewLifecycleOwner.lifecycleScope.launch {
+            val ok = runCatching { backupHelper.import(uri) }.getOrDefault(false)
+            android.widget.Toast.makeText(requireContext(), if (ok) "已导入，建议重启应用" else "导入失败", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     /** 待写出的导出内容（等用户选完保存位置再写 ✓） */
     private var pendingExport: Pair<String, String>? = null
@@ -198,6 +227,32 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
+        // ── 数据保存位置（2026-10-25 ✓）──
+        //   ⚠️ XML 里写了 persistent=false ⇒ 值由这里手动读写 PrefManager ✓
+        //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
+        //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
+        findPreference<MaterialSwitchPreference>("saveCollectionToCloud")?.apply {
+            isChecked = PrefManager.saveCollectionToCloud
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.saveCollectionToCloud = v as Boolean
+                true
+            }
+        }
+        findPreference<MaterialSwitchPreference>("saveFollowToCloud")?.apply {
+            isChecked = PrefManager.saveFollowToCloud
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.saveFollowToCloud = v as Boolean
+                true
+            }
+        }
+        findPreference<MaterialSwitchPreference>("saveBlackListToCloud")?.apply {
+            isChecked = PrefManager.saveBlackListToCloud
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.saveBlackListToCloud = v as Boolean
+                true
+            }
+        }
+
         findPreference<MaterialSwitchPreference>("followSystemAccent")?.setOnPreferenceChangeListener { _, _ ->
             activity?.recreate()
             true
@@ -231,6 +286,16 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         // 「数字联盟ID」：与启动时同一个知情同意窗（同意则自动获取，不同意则手动填入）
         findPreference<Preference>("szlmId")?.setOnPreferenceClickListener {
             activity?.let { SzlmIdPrompt.showConsent(it) }
+            true
+        }
+
+        // 备份：导出 / 导入（2026-10-25 ✓）
+        findPreference<Preference>("exportBackup")?.setOnPreferenceClickListener {
+            exportLauncher.launch("c001apk_backup_" + System.currentTimeMillis() + ".json")
+            true
+        }
+        findPreference<Preference>("importBackup")?.setOnPreferenceClickListener {
+            importLauncher.launch(arrayOf("application/json"))
             true
         }
 

@@ -1,22 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    主界面（2026-10-24 UI 大改 ✓）
+
+    ## 改了什么
+    用户要求：「去除底栏，在首页搜索和消息按钮那一栏的最左边增加我的按钮，
+              把我的菜单彻底移动到侧边栏」
+
+    原来：CoordinatorLayout + ViewPager2(2 页) + BottomNavigationView
+    现在：DrawerLayout  + ViewPager2(1 页) + FragmentContainerView(装 MineFragment)
+
+    ✅ 底栏删掉 ✓ 首页占满全屏 ✓
+    ✅ 「我的」不再是页面 ✓ 变成抽屉 ✓
+    ✅ 抽屉里装的就是原 MineFragment（头像卡片 / 三段式 / 宫格 / 右上角设置全都在 ✓）
+
+    ## 抽屉宽度
+    XML 里给个 340dp 兜底 ✓ 实际宽度由 MainActivity.initMineDrawer() 按屏幕 85% 算 ✓
+    （项目没有 percentlayout 依赖 ✗ 所以只能代码里算 ✓）
+-->
+<com.example.c001apk.view.LockableDrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- ══ 内容区 ══ -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:labelVisibilityMode="selected"
-        app:layout_anchor="@id/viewPager"
-        app:layout_anchorGravity="bottom"
-        app:menu="@menu/nav_menu" />
+    <!-- ══ 抽屉区：整块「我的」 ══ -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/mineDrawer"
+        android:layout_width="340dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@drawable/bg_drawer"
+        android:clipToOutline="true"
+        android:elevation="16dp" />
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</com.example.c001apk.view.LockableDrawerLayout>

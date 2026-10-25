@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.follow.LocalFollowActivity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -55,9 +56,16 @@ class MessageFirstAdapter : RecyclerView.Adapter<MessageFirstAdapter.FirstViewHo
                     }
 
                 R.id.followLayout ->
-                    IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                        putExtra("uid", PrefManager.uid)
-                        putExtra("type", "follow")
+                    // 2026-10-25：「关注」存本地还是云端由设置决定 ✓
+                    //   本地 ⇒ 本机关注页（跟侧边栏 / 九宫格那个入口保持一致 ✓）
+                    //   云端 ⇒ 原来的 FFFListActivity type=follow
+                    if (!PrefManager.saveFollowToCloud) {
+                        IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
+                    } else {
+                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
+                            putExtra("uid", PrefManager.uid)
+                            putExtra("type", "follow")
+                        }
                     }
 
                 R.id.fansLayout ->
