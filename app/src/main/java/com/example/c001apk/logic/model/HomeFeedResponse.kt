@@ -512,7 +512,7 @@ class LenientStringAdapter : JsonDeserializer<String?> {
 class DataListAdapter : JsonDeserializer<List<HomeFeedResponse.Data>?> {
 
     /** 不带本次注册的 Gson；实例线程安全，共用一个 */
-    private val plain = Gson()
+    private val plain = com.example.c001apk.logic.network.LenientGson.gson
 
     override fun deserialize(
         json: JsonElement,
@@ -542,7 +542,7 @@ class DataListAdapter : JsonDeserializer<List<HomeFeedResponse.Data>?> {
  */
 class EntitiesListAdapter : JsonDeserializer<MutableList<HomeFeedResponse.Entities>?> {
 
-    private val plain = Gson()
+    private val plain = com.example.c001apk.logic.network.LenientGson.gson
 
     override fun deserialize(
         json: JsonElement,
