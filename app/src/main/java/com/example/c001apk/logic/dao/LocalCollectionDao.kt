@@ -25,6 +25,14 @@ interface LocalCollectionDao {
     @Query("DELETE FROM LocalCollectionEntity WHERE targetId = :id")
     suspend fun delete(id: String)
 
+    /** 某个本地夹里有多少条 ✓ */
+    @Query("SELECT COUNT(*) FROM LocalCollectionEntity WHERE folderId = :folderId")
+    suspend fun countInFolder(folderId: String): Int
+
+    /** 删掉某个本地夹里的所有条目 ✓（删除收藏夹时一起清 ✓） */
+    @Query("DELETE FROM LocalCollectionEntity WHERE folderId = :folderId")
+    suspend fun deleteByFolder(folderId: String)
+
     @Query("DELETE FROM LocalCollectionEntity")
     suspend fun deleteAll()
 }

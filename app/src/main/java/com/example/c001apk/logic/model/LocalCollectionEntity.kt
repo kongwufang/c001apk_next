@@ -19,5 +19,13 @@ import androidx.room.PrimaryKey
 data class LocalCollectionEntity(
     @PrimaryKey(autoGenerate = false)
     var targetId: String,
+    /**
+     * 属于哪个本地收藏夹（[LocalCollectionFolder.id]）
+     *
+     * 同一条内容**可以同时在多个本地夹里** ✓ 但主键只有 targetId ✗
+     * ⇒ 这里只记「最后一次放进的那个夹」✓
+     *   （本地夹只是方便归类 ✓ 不追求跟云端一样的多夹语义 ✓）
+     */
+    var folderId: String = LocalCollectionFolder.DEFAULT_ID,
     var dateline: Long = System.currentTimeMillis()
 )

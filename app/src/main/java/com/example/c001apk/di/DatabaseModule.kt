@@ -20,6 +20,7 @@ import com.example.c001apk.logic.database.UserBlackListDatabase
 import com.example.c001apk.logic.database.FollowUserDatabase
 import com.example.c001apk.logic.database.LocalCollectionDatabase
 import com.example.c001apk.logic.dao.LocalCollectionDao
+import com.example.c001apk.logic.dao.LocalCollectionFolderDao
 import com.example.c001apk.logic.dao.FollowUserDao
 import dagger.Module
 import dagger.Provides
@@ -85,6 +86,12 @@ object DatabaseModule {
         return db.localCollectionDao()
     }
 
+    @Provides
+    @Singleton
+    fun provideLocalCollectionFolderDao(db: LocalCollectionDatabase): LocalCollectionFolderDao {
+        return db.localCollectionFolderDao()
+    }
+
     /** 本机收藏库（2026-10-25 ✓）单独一颗 .db ✓ */
     @Provides
     @Singleton
@@ -92,7 +99,10 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             LocalCollectionDatabase::class.java, "local_collection.db"
-        ).build()
+        )
+            // 这颗库还没进正式版 ✓ 加列直接重建就够 ✓ 不值得写 migration
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides
