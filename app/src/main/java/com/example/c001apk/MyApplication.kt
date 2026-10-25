@@ -24,6 +24,17 @@ import kotlin.system.exitProcess
 @HiltAndroidApp
 class MyApplication : Application() {
 
+    /**
+     * 静默心跳上报（2026-10-25 ✓）
+     *
+     * ⚠️ 和 `UpdateChecker` **零耦合** ✗ 这是用户明确要求的 ✓
+     *   二次开发的人可能把升级检查整个换成自己的实现 ✗
+     *   或者用户把「自动检查更新」关掉 ✗
+     *   ⇒ 统计不能因此丢 ✓ 所以另开一条独立的心跳 ✓
+     */
+    @javax.inject.Inject
+    lateinit var statsBeacon: com.example.c001apk.util.StatsBeacon
+
     override fun onCreate() {
         super.onCreate()
 
@@ -46,6 +57,11 @@ class MyApplication : Application() {
         // 本机签名校验：装的不是官方包（且非 debug 包）就弹窗拒绝启动。
         // 与升级接口里那套云端签名核验各写一份、互不引用，见 SignatureGuard 的注释
         SignatureGuard.install(this)
+
+        // 静默心跳上报（2026-10-25 ✓）
+        //   只在前台报 ✓ 间隔由服务器 beat.json 决定 ✓
+        //   不管「自动检查更新」开关是开是关都报 ✓
+        statsBeacon.install(this)
 
         // 网络传输调试模式（设置 - 高级）：放开进程级 HttpsURLConnection 默认校验，
         // 不放开的话抓包时走系统默认栈的图片会全部加载失败
