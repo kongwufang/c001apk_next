@@ -383,6 +383,7 @@ object GenericCardRenderer {
         val extra = parseExtra(data.extraData)
         val cardView = when (official) {
             CardUi.SUBTAB_BATTERY -> bindBatteryCard(binding, extra)
+            CardUi.SUBTAB_PRICE -> bindPriceCard(binding, extra, listener)
             CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
             CardUi.LINKS -> bindLinksCard(binding, entities, listener)
             CardUi.SECTION -> bindSectionCard(binding, template, data)
@@ -447,6 +448,98 @@ object GenericCardRenderer {
             card.batterySlider.setHours(hours)
         }
         return card.root
+    }
+
+    /**
+     * 到手价卡（subTabFeedCard6），照官方排：
+     *
+     * ```
+     * ┌──────────────────────────────────────────────┐
+     * │ ¥ 到手价              发布时间：2026-10-5 19:30 │
+     * │                                              │
+     * │ 当前最低价 ¥1400                              │
+     * └──────────────────────────────────────────────┘
+     * ```
+     *
+     * 数据全在 `extraData`：`final_price` / `update_time` / `feed_id`
+     * （实测样本：`{"final_price":"1400.00","update_time":"2026-10-05 19:30","feed_id":74179229}`）
+     *
+     * 口径：
+     *   · 价格按整数显示（`1400.00` -> `1400`），带小数才保留一位
+     *   · 整卡可点 => 跳那条 feed（feed_id）
+     */
+    private fun bindPriceCard(
+        binding: ItemHomeGenericCardBinding,
+        extra: JSONObject?,
+        listener: ItemListener,
+    ): View {
+        val context = binding.root.context
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16.dp, 14.dp, 16.dp, 16.dp)
+        }
+
+        val accent = 0xFFF57C00.toInt()   // 官方的橙色
+        val muted = GRAY
+
+        // 第一行：左「¥ 到手价」，右「发布时间：…」
+        val row1 = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        row1.addView(TextView(context).apply {
+            text = "\u00A5 到手价"
+            textSize = 15f
+            setTextColor(accent)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val time = extra.string("update_time")
+        row1.addView(TextView(context).apply {
+            text = if (time.isNullOrEmpty()) "" else "发布时间\uFF1A" + time
+            textSize = 12f
+            setTextColor(muted)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        })
+        root.addView(row1)
+
+        // 第二行：「当前最低价」 小字 + 「¥1400」 大字
+        val row2 = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+            setPadding(0, 14.dp, 0, 0)
+        }
+        row2.addView(TextView(context).apply {
+            text = "当前最低价"
+            textSize = 14f
+            setTextColor(muted)
+        })
+        val price = extra.number("final_price")
+        row2.addView(TextView(context).apply {
+            text = if (price == null || price <= 0f) "暂无" else
+                "\u00A5" + (if (price == price.toLong().toFloat()) price.toLong().toString()
+                else String.format(Locale.US, "%.1f", price))
+            textSize = if (price != null && price > 0f) 26f else 16f
+            setTextColor(if (price != null && price > 0f) 0xFF202124.toInt() else muted)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(8.dp, 0, 0, 0)
+        })
+        root.addView(row2)
+
+        // 整卡可点 => 跳 feed
+        val feedId = extra.optString("feed_id", "")
+        if (feedId.isNotEmpty()) {
+            root.isClickable = true
+            root.isFocusable = true
+            root.setOnClickListener { view ->
+                // 只给 id，别的参数留空（跳 FeedActivity 只需要 id ✓）
+                listener.onViewFeed(
+                    view, feedId, null, null, null, null, null, null, null, null
+                )
+            }
+        }
+        return root
     }
 
     /**

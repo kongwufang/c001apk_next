@@ -34,6 +34,8 @@ object CardUi {
      * 官方是专门的 Compose 布局 BatteryLifeSummaryCard，摊成「名称 值」完全不像，所以这里
      * 不再走 [STATS] 兜底，改走专属渲染。渲染与尺寸见 [GenericCardRenderer] / `_rev/SUBTAB_CARDS_SPEC.md`。
      */
+    /** 到手价卡（subTabFeedCard6）：extraData 里是 final_price / update_time */
+    const val SUBTAB_PRICE = "subTabPrice"
     const val SUBTAB_BATTERY = "subtabBattery"
 
     /** 照官方重画的跑分卡（模板 `subTabFeedCard2`）：2x2 品牌渐变格，官方对应 ScoreGridCard */
@@ -209,6 +211,8 @@ object CardUi {
         // （见 GenericCardRenderer.renderSubTabBattery / renderSubTabScore）
         m["subTabFeedCard1"] = Rule(layout = SUBTAB_BATTERY)
         m["subTabFeedCard2"] = Rule(layout = SUBTAB_SCORE)
+        // 到手价（subTabFeedCard6）：extraData = {final_price, update_time, feed_id}
+        m["subTabFeedCard6"] = Rule(layout = STATS, official = SUBTAB_PRICE)
         m["subTabFeedCard3"] = Rule(layout = SUBTAB_SCORE)
         // 首页/发现页顶部那排分类入口：官方是一行居中的 pill 链接（走专属渲染），
         // 配成宫格会排成一堆方块
