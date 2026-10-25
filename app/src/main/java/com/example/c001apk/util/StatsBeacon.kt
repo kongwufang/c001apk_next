@@ -68,8 +68,24 @@ class StatsBeacon @Inject constructor(
         /** 服务端新接口（独立于升级接口 ✓） */
         private const val URL = "https://service.houlangs.cn/c001apk/heartbeat/"
 
-        /** 拿不到服务器 interval 时的兜底（秒） */
-        private const val DEFAULT_INTERVAL_SEC = 60
+        /** 拿不到服务器 interval 时的兜底（秒）—— 跟 beat.json 现在的 30 秒对齐 ✓ */
+        private const val DEFAULT_INTERVAL_SEC = 30
+
+        /**
+         * **请求失败后的退避**（秒 = 30 分钟）✓ 2026-10-25 用户要求
+         *
+         * > 「心跳要是收不到服务器端的响应的时候就停止30分钟，
+         * >   防止用户太多我服务器扛不住又没办法下发更长的时间间隔」
+         *
+         * 为什么需要：正常情况下「报多勤」是**服务器说**的（返回 interval ✓）
+         * ⇒ 但服务器一旦被打挂 / 超时 / 500，它**没法下发**任何间隔 ✗
+         * ⇒ 客户端如果还按 30 秒猛冲，只会把服务器压得更死 ✗
+         * ⇒ 所以**收不到响应就自己退避 30 分钟** ✓ 让服务器缓过来 ✓
+         *
+         * ⚠️ 只对「失败」生效 ✗
+         *   成功拿到 interval（哪怕 30 秒）照常按服务器说的来 ✓
+         */
+        private const val FAIL_BACKOFF_SEC = 30 * 60
 
         /** 兜底夹紧：别让服务器手滑写 0 把客户端打成 DDoS ✗ */
         private const val MIN_INTERVAL_SEC = 30
@@ -143,17 +159,25 @@ class StatsBeacon @Inject constructor(
         if (now - lastBeatAt < 1000L) return DEFAULT_INTERVAL_SEC
         lastBeatAt = now
 
-        val request = runCatching { buildRequest() }.getOrNull() ?: return DEFAULT_INTERVAL_SEC
+        // 下面任何一步失败（建请求 / 网络 / 非 2xx / 解析）都退避 30 分钟 ✓
+        //   别用 DEFAULT_INTERVAL_SEC ✗ 那是"正常但没拿到配置"的兜底 ✗
+        //   服务器都不回话了，还按 30 秒冲就是雪上加霜 ✗
+        val request = runCatching { buildRequest() }.getOrNull()
+            ?: return FAIL_BACKOFF_SEC
         val body = runCatching {
             client.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@use null
                 resp.body?.string()
             }
-        }.getOrNull() ?: return DEFAULT_INTERVAL_SEC
+        }.getOrNull() ?: return FAIL_BACKOFF_SEC
 
-        return runCatching {
+        val interval = runCatching {
             JSONObject(body).optInt("interval", DEFAULT_INTERVAL_SEC)
         }.getOrDefault(DEFAULT_INTERVAL_SEC)
+
+        // 服务器给的 interval 如果明显不合理（<=0 / 过大），也别当真的用 ✗ 走退避 ✓
+        if (interval < MIN_INTERVAL_SEC || interval > MAX_INTERVAL_SEC) return FAIL_BACKOFF_SEC
+        return interval
     }
 
     private fun buildRequest(): Request {
