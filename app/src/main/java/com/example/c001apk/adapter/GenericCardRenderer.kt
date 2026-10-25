@@ -544,7 +544,7 @@ object GenericCardRenderer {
             // 官方那一行有浅色底（主题色 8% 左右），用主题色自己调，别写死绿 ✗
             row.root.background = GradientDrawable().apply {
                 cornerRadius = 8.dp.toFloat()
-                setColor(withAlpha(binding.root, com.google.android.material.R.attr.colorPrimary, 0.08f))
+                setColor(withAlpha(binding.root, R.attr.colorPrimary, 0.08f))
             }
             card.linksRow.addView(row.root)
             return card.root
