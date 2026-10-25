@@ -420,6 +420,10 @@
             android:name=".ui.coolpic.CoolPicActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.collection.LocalCollectionActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.collection.CollectionActivity"
             android:exported="false" />
         <activity

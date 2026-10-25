@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.collection.LocalCollectionActivity
 import com.example.c001apk.ui.follow.LocalFollowActivity
 import android.widget.Toast
 import android.view.LayoutInflater
@@ -66,9 +67,15 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     }
 
                 R.id.favLayout ->
-                    if (PrefManager.isLogin)
+                    // 2026-10-25：「收藏」存本地还是云端由设置决定 ✓
+                    //   本地 ⇒ 本机收藏页（列本地收藏夹里的内容，点进去再拉）
+                    //   云端 ⇒ 原来的 CollectionActivity
+                    if (!PrefManager.saveCollectionToCloud) {
+                        IntentUtil.startActivity<LocalCollectionActivity>(itemView.context) {}
+                    } else if (PrefManager.isLogin) {
                         IntentUtil.startActivity<CollectionActivity>(itemView.context) {
                         }
+                    }
 
                 R.id.likeLayout ->
                     if (PrefManager.isLogin)

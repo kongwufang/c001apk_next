@@ -66,7 +66,8 @@ class CollectionPickViewModel @Inject constructor(
                             id = f.id,
                             uid = null,
                             username = null,
-                            title = if (f.title.isEmpty()) "默认收藏夹" else f.title,
+                            // 用户要求：「弹出来的窗口如果是本地收藏夹，后面带一个括号本地」
+                            title = (if (f.title.isEmpty()) "默认收藏夹" else f.title) + "（本地）",
                             description = null,
                             cover_pic = null,
                             is_open = null,
