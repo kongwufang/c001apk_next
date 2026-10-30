@@ -267,15 +267,22 @@ jobs:
           name: mappings
           path: "app/build/outputs/mapping/release"
 
+      # ⚠️ debug 变体**只有 main 才构建**（2026-10-30）
+      # 为什么：debug 线发布的 `debug-latest` 用的是 **release 目录**的包 ✗
+      # （见下方 Publish 步骤：`for f in app/build/outputs/apk/release/*.apk`）
+      # ⇒ debug 线那个 assembleDebug 纯粹白跑 110 秒 ✗ 没人下载 ✗
+      # ⚠️ 反过来**不能**省掉 assembleRelease ✗ —— 它就是测试包本身 ✓
+      # （debug 变体不开混淆 ✗ 混砂 bug 只能靠 release 变体测 ✓）
       - name: Build debug
         id: buildDebug
+        if: github.ref_name == 'main'
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug 2>&1 | tee gradle-debug.log
           echo "debugName=$(ls app/build/outputs/apk/debug/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
       - name: Upload debug
-        if: success()
+        if: success() && github.ref_name == 'main'
         uses: actions/upload-artifact@v4
         with:
           name: debug-${{ steps.buildDebug.outputs.debugName }}
