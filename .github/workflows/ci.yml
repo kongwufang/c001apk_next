@@ -83,16 +83,17 @@ jobs:
           fi
 
       # 注意：不要钉死补丁号（如 v4.0.2），GitHub 会把废弃的旧版本直接判失败
-      - name: Cache Gradle Dependencies
-        uses: actions/cache@v4
+      # ★ 用 setup-gradle 一并管 **依赖缓存 + 构建缓存** ✓
+      # 原来手写的 actions/cache 明确排除了 `build-cache-*` ✗
+      # 而 gradle.properties 也没开 org.gradle.caching ✗
+      # ⇒ 编译产物从来没被复用，每次 `Build release` 都要从零跑 R8（实测 357 秒）✗
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            !~/.gradle/caches/build-cache-*
-          key: gradle-deps-core-${{ hashFiles('**/build.gradle.kts', '**/build.gradle', '**/libs.versions.toml') }}
-          restore-keys: |
-            gradle-deps
+          # 构建缓存：把 task 输出也存下来 ✓（默认只存依赖）
+          cache-read-only: false
+          # 缓存里塞太多历史条目会变慢，限制一下
+          gradle-home-cache-cleanup: true
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
