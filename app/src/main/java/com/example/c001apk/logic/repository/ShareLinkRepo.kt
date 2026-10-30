@@ -1,6 +1,7 @@
 package com.example.c001apk.logic.repository
 
 import android.util.Log
+import com.example.c001apk.constant.Constants
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.SharePostHtml
 import kotlinx.coroutines.Dispatchers
@@ -113,6 +114,46 @@ class ShareLinkRepo @Inject constructor() {
     }
 
     /**
+     * 现下帖子里的图（本地缓存里没有时用）。
+     *
+     * ⚠️ 两个必须：
+     * ① `User-Agent` 必须是**酷安客户端的 UA** —— 普通 UA / 空 UA 会被 CDN 挡成 567 ✗
+     * ② **不能带 Referer** —— 酷安 CDN 对任何带 Referer 的请求一律 567 ✗
+     *    OkHttp 默认不发 Referer ✓ 所以这里什么都别加 ✓
+     *
+     * 失败就跳过那一张 ✓ 不阻断整个分享 ✓
+     */
+    private fun downloadPics(urls: List<String>): List<File> {
+        if (urls.isEmpty()) return emptyList()
+        val dir = File(System.getProperty("java.io.tmpdir") ?: "/tmp")
+        val out = ArrayList<File>()
+        for ((i, u) in urls.filter { it.isNotBlank() }.take(MAX_IMAGES).withIndex()) {
+            try {
+                val url = if (u.startsWith("http://")) u.replaceFirst("http://", "https://") else u
+                val req = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", Constants.USER_AGENT)
+                    .build()
+                client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        Log.w(TAG, "下图失败 ${resp.code}: ${u.take(60)}")
+                        return@use
+                    }
+                    val bytes = resp.body?.bytes() ?: return@use
+                    if (bytes.size !in 1024..MAX_IMAGE_BYTES) return@use
+                    val f = File(dir, "share_img_${System.nanoTime()}_$i")
+                    f.writeBytes(bytes)
+                    out.add(f)
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "下图异常: ${e.message}")
+            }
+        }
+        Log.i(TAG, "现下图片 ${out.size}/${urls.size} 张")
+        return out
+    }
+
+    /**
      * 上传分享。
      *
      * @param localImages 已经下载到本地缓存目录的图片（离线缓存那边现成的 ✓）
@@ -126,10 +167,17 @@ class ShareLinkRepo @Inject constructor() {
             val fid = data.id?.takeIf { it.isNotBlank() }
                 ?: return@withContext kotlin.Result.failure(IllegalArgumentException("没有帖子 id"))
 
-            // ① 挑图：优先用本地已缓存的文件 ✓ 没有就跳过（不强求）
-            val imgs = localImages
+            // ① 挑图：优先用本地已缓存的文件 ✓
+            var imgs = localImages
                 .filter { it.isFile && it.length() in 1..MAX_IMAGE_BYTES.toLong() }
                 .take(MAX_IMAGES)
+
+            // ② 本地没有（帖子没缓存过）⇒ **现从酷安下** ✓
+            //    不这么做的话，分享出去的页面就没图 ✗（用户 2026-10-30 报的就是这个）
+            //    实测：带酷安 UA 直连 214ms/张 ✓ 但**绝不能带 Referer**（CDN 会回 567 ✗）
+            if (imgs.isEmpty()) {
+                imgs = downloadPics(data.picArr.orEmpty())
+            }
 
             // ② 生成 HTML（图片数 = 实际要传的张数 ✓）
             val html = SharePostHtml.build(data, imgs.size)
