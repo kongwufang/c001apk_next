@@ -42,7 +42,8 @@ data class ChatItem(
     val key: String
         get() = localId
             ?: data.entityId?.takeIf { it.isNotBlank() }
-            ?: data.id.takeIf { it.isNotBlank() }
+            // ⚠️ `id` 运行时可能是 null（messageEmpty 条目）⇒ orEmpty() 兜住，别 NPE
+            ?: data.id.orEmpty().takeIf { it.isNotBlank() }
             ?: "${data.dateline}-${data.fromuid}-${data.message}"
 
     val isSending: Boolean get() = state == STATE_SENDING

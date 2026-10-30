@@ -150,10 +150,17 @@ class MessageDetailViewModel @Inject constructor(
                     return@collect
                 }
                 // 服务端返回的顺序不保证，按时间升序排一遍（跟桌面版一致），最后滚到底就是最新一条
+                // ⚠️ `id` 可能是 null —— `/v6/message/chat` 里的 messageEmpty 条目就是
+                //   `"id": null` ✗（模型声明成非空 String，Gson 照样塞 null 进去 ✓）
+                //   写 `it.id.isBlank()` 会 NPE：StringsKt → CharSequence.length() ✗
+                //   ⇒ 一律走 `.orEmpty()` 兜住 ✓
                 val server = feed.data.orEmpty()
-                    .filter { it.id.isBlank() || it.id !in claimedIds }   // 已认领的别再插一遍 ✓
+                    .filter { it.id.orEmpty().isBlank() || it.id.orEmpty() !in claimedIds }
                     .sortedBy { it.dateline }
-                    .map { ChatItem(it) }
+                    // 统一归一化：Gson 会把这些**声明成非空**的 String 字段填成 null ✗
+                    // （`messageEmpty` 条目没有 message / id，`messageExt` 可能没有 fromuid）
+                    // ⇒ 渲染层（LinkTextView / 气泡判定）都会撞 null ✗ 这里一次性兜住 ✓
+                    .map { ChatItem(it.normalized()) }
                 val pending = pendingItems()
                 items.clear()
                 items.addAll(server)
@@ -259,13 +266,13 @@ class MessageDetailViewModel @Inject constructor(
                     // 服务端可能在 data 里回真实消息（官方签名是 Result<List<Entity>>），
                     // 有就采用它的 id/dateline；没有（data 为空或形状不对）也不影响：
                     // 本地那条直接标成已发送，后续轮询按 claimedIds 去重 ✓
-                    val confirmed = feed?.data.orEmpty().lastOrNull { it.id.isNotBlank() }
+                    val confirmed = feed?.data.orEmpty().lastOrNull { it.id.orEmpty().isNotBlank() }
                     if (confirmed != null) {
-                        claimedIds.add(confirmed.id)
+                        claimedIds.add(confirmed.id.orEmpty())
                         items[idx] = items[idx].withData(
                             items[idx].data.copy(
-                                id = confirmed.id,
-                                entityId = confirmed.entityId ?: confirmed.id,
+                                id = confirmed.id.orEmpty(),
+                                entityId = confirmed.entityId ?: confirmed.id.orEmpty(),
                                 dateline = confirmed.dateline.takeIf { it > 0 }
                                     ?: items[idx].data.dateline
                             )
@@ -360,3 +367,26 @@ class MessageDetailViewModel @Inject constructor(
     }
 
 }
+
+/**
+ * 把服务端下发的 [MessageResponse.Data] 归一化成「所有文本字段都非 null」。
+ *
+ * 为什么需要：模型里这些字段声明成非空 `String` ✗ 但 **Gson 反射填值不走构造器** ✓
+ * 服务端没下发（或显式给 null）时，运行时就是 null ✗
+ * 实测 `/v6/message/chat` 的 `messageEmpty` 条目 `id` / `message` 都是 null ✓
+ * ⇒ 直接拿去渲染会 NPE（`CharSequence.length()` on null）✗
+ */
+private fun MessageResponse.Data.normalized(): MessageResponse.Data = copy(
+    id = id.orEmpty(),
+    entityType = entityType.orEmpty(),
+    message = message.orEmpty(),
+    fromuid = fromuid.orEmpty(),
+    uid = uid.orEmpty(),
+    title = title.orEmpty(),
+    username = username.orEmpty(),
+    fromusername = fromusername.orEmpty(),
+    fromUserAvatar = fromUserAvatar.orEmpty(),
+    userAvatar = userAvatar.orEmpty(),
+    entityId = entityId?.takeIf { it.isNotBlank() },
+    messagePic = messagePic?.takeIf { it.isNotBlank() }
+)

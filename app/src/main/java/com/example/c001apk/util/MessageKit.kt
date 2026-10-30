@@ -144,7 +144,8 @@ object MessageKit {
     @JvmStatic
     fun picId(data: MessageResponse.Data?): String {
         if (data == null) return ""
-        return data.id.ifEmpty { data.entityId.orEmpty() }
+        // ⚠️ `id` 运行时可能是 null（messageEmpty / 乐观消息）⇒ orEmpty() 兜住
+        return data.id.orEmpty().ifEmpty { data.entityId.orEmpty() }
     }
 
     /** 会话项是不是小秘书 */
