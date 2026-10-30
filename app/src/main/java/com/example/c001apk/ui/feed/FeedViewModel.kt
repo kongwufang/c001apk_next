@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.c001apk.util.ApiError
-import com.example.c001apk.util.Event
 import com.example.c001apk.logic.repository.ShareLinkRepo
 
 @HiltViewModel(assistedFactory = FeedViewModel.Factory::class)
