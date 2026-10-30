@@ -135,6 +135,7 @@
                     SpannableStringBuilderUtil（HTML / Markdown / [表情] / 链接可点）。
                 -->
                 <com.example.c001apk.view.LinkTextView
+                    android:id="@+id/textLeft"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:clickable="true"
@@ -238,6 +239,7 @@
 
                 <!-- 正文用 LinkTextView，理由见上面左侧气泡的注释 -->
                 <com.example.c001apk.view.LinkTextView
+                    android:id="@+id/textRight"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:clickable="true"

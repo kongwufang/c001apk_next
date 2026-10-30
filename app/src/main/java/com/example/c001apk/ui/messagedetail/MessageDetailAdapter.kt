@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
@@ -89,10 +90,15 @@ class MessageDetailAdapter(
                 if (item.isFailed) onRetry(item)
             }
 
-            // 长按整条 ⇒ 复制正文（2026-10-30 用户要求）
+            // 长按 ⇒ 复制正文（2026-10-30 用户要求）
+            //
+            // ⚠️ 必须挂在**正文 LinkTextView 自己**身上，不能只挂 itemView ✗
+            //   气泡正文是 LinkTextView（clickable + 自己的 MovementMethod）⇒
+            //   触摸事件先被它消费掉，父容器 itemView 的 onLongClick 永远不触发 ✗
+            //   （实测：只在 itemView 上挂时，长按毫无反应 ✓）
             // 正文是 HTML ⇒ 走 MessageKit.copyText 降级成纯文本 ✓
             // 纯图片消息没有文字 ⇒ 提示一下，别静默无反应 ✗
-            itemView.setOnLongClickListener {
+            val copyLongClick = View.OnLongClickListener {
                 val text = MessageKit.copyText(data)
                 if (text.isBlank()) {
                     Toast.makeText(itemView.context, "这条没有可复制的文字", Toast.LENGTH_SHORT).show()
@@ -104,6 +110,9 @@ class MessageDetailAdapter(
                 }
                 true
             }
+            binding.textLeft.setOnLongClickListener(copyLongClick)
+            binding.textRight.setOnLongClickListener(copyLongClick)
+            itemView.setOnLongClickListener(copyLongClick)
 
             // 点**对方头像** ⇒ 跳他的主页 ✓（2026-10-30 用户要求）
             // 列表项会被复用 ⇒ 每次 bind 都重设一遍，别让旧监听留着 ✓
