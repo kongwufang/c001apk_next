@@ -148,10 +148,6 @@
             <certificates src="@raw/cacert_115" />
             <certificates src="@raw/cacert_116" />
             <certificates src="@raw/cacert_117" />
-            <certificates src="@raw/cacert_118" />
-            <certificates src="@raw/cacert_119" />
-            <certificates src="@raw/cacert_120" />
-            <certificates src="@raw/cacert_121" />
         </trust-anchors>
     </base-config>
 </network-security-config>
