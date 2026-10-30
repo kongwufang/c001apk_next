@@ -87,6 +87,69 @@ jobs:
       # 线上 10003），装不上线上正式版。
       #   main  → 基线 +1（本次要发的正式版），构建完由 Commit bumped version 写回基线；
       #   其它  → 直接用 main 的基线，不涨号、不写回，测试包与线上正式版同号可来回覆盖。
+      # ══════════════════════════════════════════════════════════════════
+      # 发版锁（2026-10-28 用户要求）
+      #
+      #   「给 main 分支增加一个安全锁，定义一个 .vision 结尾的文件，
+      #     只有这个文件被更新并推送时，主线才会开动 ci 升级」
+      #
+      # 规则：
+      #   main   ⇒ 本次推送**必须改动过** `release.vision` 才发版 ✓
+      #            没改 ⇒ 照常编译（验证能过）✓ 但**不涨版本号、不发布、不打 tag** ✗
+      #   debug  ⇒ 不受影响 ✓（测试线本来就不发版）
+      #   update ⇒ 不受影响 ✓（只发 json）
+      #
+      # 放行的三种情况：
+      #   1. 本次推送 diff 里有 `*.vision` ✓
+      #   2. 首次推送 / force push（before 是全 0）⇒ 没有可比的基线，放行 ✓
+      #   3. 手动触发 workflow_dispatch ⇒ 显式意图，放行 ✓
+      #
+      # 注意：`paths-ignore` 里**不要**加 `*.vision` ✗ 否则只改它反而触发不了 ✓
+      # ══════════════════════════════════════════════════════════════════
+      - name: Release lock (.vision gate)
+        id: lock
+        run: |
+          set -euo pipefail
+          BRANCH="${GITHUB_REF_NAME}"
+          BEFORE="${{ github.event.before }}"
+          SHA="${{ github.sha }}"
+
+          if [ "$BRANCH" != "main" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::分支 $BRANCH 不受发版锁影响 ⇒ 放行"
+            exit 0
+          fi
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::手动触发 ⇒ 放行"
+            exit 0
+          fi
+
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::首次推送 / force push（无基线可比较）⇒ 放行"
+            exit 0
+          fi
+
+          # 拿到 before 这个提交（fetch-depth: 0 一般有；没有就按 SHA 浅取）
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null || true
+          fi
+
+          CHANGED=$(git diff --name-only "$BEFORE" "$SHA" 2>/dev/null || true)
+          echo "本次推送改动的文件（$(echo "$CHANGED" | grep -c . || true) 个）："
+          echo "$CHANGED" | sed 's/^/  /'
+
+          if echo "$CHANGED" | grep -qE '\.vision$'; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::✅ 本次推送改动了 *.vision ⇒ 发版"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::⛔ 本次推送没有改动 *.vision ⇒ **不发版**（照常编译，但不涨号/不发布/不打 tag）"
+            echo "::notice::要发版请改一行 release.vision 再一起推"
+          fi
+
       - name: Resolve version
         id: ver
         run: |
@@ -112,11 +175,17 @@ jobs:
           fi
           echo "版本号来源：main=${MAIN_NAME}(${MAIN_CODE}) 本分支=${LOCAL_NAME}(${LOCAL_CODE}) → 基线 ${BASE_NAME}(${BASE_CODE})"
 
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+          # ★ 2026-10-28 发版锁：main 分支只有改过 *.vision 才涨号 ✓
+          if [ "${GITHUB_REF_NAME}" = "main" ] && [ "${{ steps.lock.outputs.go }}" = "true" ]; then
             BASE=${BASE_NAME#V}
             NAME="V${BASE%.*}.$(( ${BASE##*.} + 1 ))"
             CODE=$(( BASE_CODE + 1 ))
             echo "::notice::正式版：${BASE_NAME}（${BASE_CODE}）→ 本次发布 ${NAME}（${CODE}）"
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            # 发版锁没开 ⇒ 沿用线上最高号 ✓ 不涨、不写回、不发布 ✗
+            NAME=$BASE_NAME
+            CODE=$BASE_CODE
+            echo "::notice::⛔ 发版锁未开 ⇒ 只编译验证，沿用 ${NAME}（${CODE}），不涨号、不发布"
           else
             NAME=$BASE_NAME
             CODE=$BASE_CODE
@@ -188,7 +257,11 @@ jobs:
       #   debug → debug-latest（测试版，prerelease）
       # update 分支只放更新配置（json），不发布产物。
       - name: Publish to GitHub Releases
-        if: success() && github.event_name == 'push' && github.ref_name != 'update'
+        # ★ 2026-10-28 发版锁：main 分支没改 *.vision 就不发布 ✗
+        #   （debug 线不受影响 ✓ 它本来就只发 prerelease ✓）
+        if: |
+          success() && github.event_name == 'push' && github.ref_name != 'update'
+          && (github.ref_name != 'main' || steps.lock.outputs.go == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -331,7 +404,8 @@ jobs:
       # 工作区里的 version.properties 在 Resolve version 已经改成新号了，这里只是把它提交掉。
       # GITHUB_TOKEN 的推送本身不会再触发 workflow，再加 [skip ci] 双保险。
       - name: Commit bumped version
-        if: success() && github.ref_name == 'main'
+        # 只有真的涨了号才写回 ✗（发版锁没开时号没变，不该 commit）
+        if: success() && github.ref_name == 'main' && steps.lock.outputs.go == 'true'
         run: |
           set -euo pipefail
           sed -i "s/^VERSION_NAME=.*/VERSION_NAME=${{ steps.ver.outputs.name }}/" version.properties
@@ -353,7 +427,7 @@ jobs:
       # 位置在 Commit bumped version 之后，保证 tag 指向的提交
       # 已经包含版本号写回，与历史上 V1.0.4 的指向方式一致。
       - name: Create version tag
-        if: success() && github.ref_name == 'main'
+        if: success() && github.ref_name == 'main' && steps.lock.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
