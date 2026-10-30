@@ -329,7 +329,7 @@ jobs:
           if [ -n "${PREV_TAG:-}" ]; then
             RANGE="${PREV_TAG}..HEAD"
             CNT=$(git rev-list --count "$RANGE" 2>/dev/null || echo 0)
-            echo "## ${NAME} · 本版更新"
+            echo "## ${VERSION} · 本版更新"
             echo
             echo "> 相对 **${PREV_TAG}** 的改动（${CNT} 个提交）"
             echo
