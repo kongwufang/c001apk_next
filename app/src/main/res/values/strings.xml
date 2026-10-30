@@ -310,7 +310,8 @@
     <string name="settings_save_follow">关注</string>
     <string name="settings_save_follow_summary">开启=关注关系同步到云端账号；关闭=只保存在本机</string>
     <string name="settings_save_blacklist">黑名单（用户）</string>
-    <string name="settings_save_blacklist_summary">开启=同步到云端账号；关闭=只在本机生效    <!-- 单帖「第三方链接分享」（Issue #18）-->
+    <string name="settings_save_blacklist_summary">开启=同步到云端账号；关闭=只在本机生效</string>
+    <!-- 单帖「第三方链接分享」（Issue #18） -->
     <string name="share_link_confirm_title">通过第三方链接分享</string>
     <string name="share_link_confirm_message">会生成一个网页链接，别人打开就能看到这篇帖子（含图片）。\n即使原帖被删除，链接里的内容也还在。</string>
     <string name="share_link_confirm_ok">生成链接</string>
@@ -319,4 +320,4 @@
     <string name="share_link_failed">生成失败：%1$s</string>
     <string name="share_link_copied">链接已复制</string>
     <string name="share_link_offline_hint">离线缓存会自动把帖子备份到云端</string>
-</string>
+</resources>
