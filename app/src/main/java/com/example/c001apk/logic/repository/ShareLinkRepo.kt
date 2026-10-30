@@ -64,6 +64,8 @@ class ShareLinkRepo @Inject constructor() {
      */
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
+            .addInterceptor(com.example.c001apk.util.ServerCookieStore.interceptor())
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)

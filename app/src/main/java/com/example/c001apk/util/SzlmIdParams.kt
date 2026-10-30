@@ -58,6 +58,12 @@ object SzlmIdParams {
                 put("deviceinfo", deviceInfoJson(ctx))
                 put("appinfo", appInfoJson(ctx))
                 put("signature", signature(ctx))
+                // ★ 2026-10-31 用户要求：取号时把 uid / ssaid 也上报
+                //   「不应该靠 IP 回溯匹配，而是在取号的时候上报 uid 和 ssaid，来方便统计」
+                //   ⚠️ uid 放在**顶层**而不是 deviceinfo 里 ✗
+                //      deviceinfo 是服务端做指纹派生的原文 ✓ 加字段会换新 DUID、白耗额度 ✗
+                put("uid", PrefManager.userRandomId)
+                put("ssaid", realSsaid(ctx))
             }.toString()
         }
     }
@@ -72,11 +78,21 @@ object SzlmIdParams {
      *
      * SSAID（`Settings.Secure.ANDROID_ID`）只用于让服务端唯一认出这台设备。
      */
+    /**
+     * 本机真实 SSAID（`Settings.Secure.ANDROID_ID`）。
+     *
+     * 两处都用它：
+     * ① `deviceinfo.ssaid` —— 服务端做指纹派生（原文稳定 ✓）
+     * ② 取号上报的顶层 `ssaid` —— 2026-10-31 用户要求
+     *    「不应该靠 IP 回溯匹配，而是在取号的时候上报 uid 和 ssaid，来方便统计」
+     */
+    fun realSsaid(ctx: Context): String = runCatching {
+        Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
+    }.getOrNull().orEmpty()
+
     private fun deviceInfoJson(ctx: Context): String {
         val d = TokenDeviceUtils.detectRealDevice()
-        val ssaid = runCatching {
-            Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
-        }.getOrNull().orEmpty()
+        val ssaid = realSsaid(ctx)
         // 手拼而非 JSONObject：服务端按原文比对，键顺序必须固定
         return buildString {
             append('{')

@@ -453,4 +453,19 @@ object PrefManager {
     fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         pref.unregisterOnSharedPreferenceChangeListener(listener)
     }
+    /**
+     * 服务器通过 `Set-Cookie` 下发的 cookie（`name=value; name2=value2`）。
+     *
+     * 用户 2026-10-31 要求：
+     * 「这里面所有请求我服务器的接口，我服务器都可以返回 setcookies 指令，
+     *   收到后下一次上报的时候在所有地方带上这个」
+     *
+     * ⇒ 由 [ServerCookieStore] 读写 ✓ 只发给 `*.houlangs.cn` ✓（绝不发给酷安 ✗）
+     */
+    var serverCookies: String
+        get() = pref.getString("server_cookies", "").orEmpty()
+        set(value) {
+            pref.edit().putString("server_cookies", value).apply()
+        }
+
 }

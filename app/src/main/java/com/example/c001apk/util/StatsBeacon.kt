@@ -103,6 +103,8 @@ class StatsBeacon @Inject constructor(
 
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
+            .addInterceptor(ServerCookieStore.interceptor())
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
