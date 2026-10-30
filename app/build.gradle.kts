@@ -144,9 +144,10 @@ android {
             versionNameSuffix = "-$channel"
             isMinifyEnabled = true
             isShrinkResources = true
-            // PNG 压缩（aapt2 crunch）在这个项目里很费时间（emoji 那几百张 PNG ✗）
-            // 关掉能省不少构建时间 ✓ 代价是 APK 略大 ✓（明确过：不追求体积优化 ✓）
-            isCrunchPngs = false
+            // ⚠️ 只有 **debug 测试线**关 PNG 压缩（aapt2 crunch 在 emoji 那几百张 PNG 上很费时间）
+            // **正式版（main）必须按原本路线编译** ⇒ 那边保持 crunch 开启 ✓
+            // （main 的 channel 是 "release"，见 ci.yml 的 Resolve channel）
+            isCrunchPngs = channel != "debug"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
