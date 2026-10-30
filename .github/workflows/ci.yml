@@ -2,11 +2,17 @@ name: CI
 
 on:
   workflow_dispatch:
+  # ★ 2026-10-28 发版锁（用户要求）：
+  #   main 分支**不再**直接触发本工作流 ✗
+  #   而是由 release.yml 触发 —— 它只监听「main + 改动 *.vision」
+  #   ⇒ 推 main 但没改 *.vision ⇒ **CI 根本不会启动** ✓（不是跑起来再不发布 ✗）
+  #   这样即使误推十几个文件到 main，也绝不会发新版 ✓
+  workflow_call:
   push:
-    # main  = 发布线：每推一次（= 发一次正式版）版本号自动 +1，产物进 release-latest
     # debug = 测试线：版本号对齐 main（= 线上最高号，不涨号），产物进 debug-latest（prerelease）
     # update = 只放升级配置 json，不构建产物（见 Publish 步骤的排除条件）
-    branches: [ main, debug, update ]
+    # main 的发布由 release.yml 负责 ✓
+    branches: [ debug, update ]
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -259,8 +265,12 @@ jobs:
       - name: Publish to GitHub Releases
         # ★ 2026-10-28 发版锁：main 分支没改 *.vision 就不发布 ✗
         #   （debug 线不受影响 ✓ 它本来就只发 prerelease ✓）
+        # ⚠️ 不能判 `github.event_name == 'push'` ✗
+        #   因为 release.yml 是用 workflow_call 调的 ⇒ event_name 是 `workflow_call` ✗
+        #   那样 main 的发版会被静默跳过 ✗（2026-10-28 差点踩）
+        #   ⇒ 改成只判分支 + 发版锁 ✓
         if: |
-          success() && github.event_name == 'push' && github.ref_name != 'update'
+          success() && github.ref_name != 'update'
           && (github.ref_name != 'main' || steps.lock.outputs.go == 'true')
         env:
           GH_TOKEN: ${{ github.token }}

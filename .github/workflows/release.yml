@@ -1,0 +1,52 @@
+name: Release
+
+# ============================================================================
+# 正式版发布 —— 带发版锁（2026-10-28 用户要求）
+#
+# 用户原话：
+#   「给 main 分支增加一个安全锁，定义一个 .vision 结尾的文件，
+#     只有这个文件被更新并推送时，主线才会开动 ci 升级」
+#   「如果这个文件没有推送改动，那么 ci 根本就不运行，来保证安全，
+#     防止主线被推了几个文件之后直接发新版了」
+#
+# ## 怎么做到「根本不运行」
+#
+# 靠**工作流级别的 paths 过滤** ✓（不是跑起来再判断 ✗）
+#
+#   on.push.branches: [main]
+#   on.push.paths:    ['**.vision']
+#
+# ⇒ 推 main 但 diff 里没有 `*.vision` ⇒ **GitHub 连这个 workflow 都不会启动** ✓
+# ⇒ Actions 页面里连一条 run 都不会有 ✓
+#
+# ## 那 main 的代码谁来编译
+#
+# 不编译 ✓（这是刻意的 —— 用户要的就是"别乱动"）
+# 代码质量由 **debug 线**保证 ✓：push debug ⇒ ci.yml 全量编译 + 签名校验 ✓
+# 要发版时：debug 验过 → 改 release.vision → 和代码一起推 main ✓
+#
+# ## 为什么要用 workflow_call 而不是复制一遍
+#
+# ci.yml 有 400+ 行 ✗ 复制一份维护两套必然跑偏 ✗
+# ⇒ release.yml 只做「触发 + 调用」✓ 真正的构建逻辑仍在 ci.yml ✓
+# ============================================================================
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      # 只要本次推送的改动里有任意一个 `.vision` 结尾的文件 ⇒ 启动 ✓
+      - '**.vision'
+
+  # 也允许手动发版（Actions 页面点 Run workflow）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # 调用 ci.yml（它已经声明了 `workflow_call:`）
+    uses: ./.github/workflows/ci.yml
+    # 把仓库的 Secrets 透传下去（签名密钥都在那边 ✓）
+    secrets: inherit
