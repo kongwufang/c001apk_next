@@ -118,6 +118,21 @@ class MessageDetailViewModel @Inject constructor(
     var ukey = ""
     var uid = ""
 
+    /**
+     * `/v6/message/chat` 的页码（从 1 开始）。
+     *
+     * 实测 `page` 参数**真的能翻页** ✓（2026-10-30，某个 22 条的会话：
+     * page=1 回 20 条最新的、page=2 回剩下 2 条、page=3 回空）
+     * —— 所以不用官方那套 `firstItem` / `lastItem` 游标 ✓ 页码简单够用 ✓
+     */
+    private var page = 1
+
+    /** 还有没有更早的：服务端返回空页就置 false，之后不再请求 ✓ */
+    private var hasMore = true
+
+    /** 正在翻页（防止滚动时连打）*/
+    private var loadingMore = false
+
     // ---------------------------------------------------------------- 列表发布
 
     /**
@@ -139,6 +154,10 @@ class MessageDetailViewModel @Inject constructor(
 
     /** 拉当前会话的历史记录。没有 ukey（还没说过话）时直接给空列表 */
     fun loadHistory() {
+        // 重新拉第一页 ⇒ 分页状态归零 ✓（往上翻过的那些会被丢弃 ✗ 可接受：
+        // loadHistory 只在进页面时调，轮询/发送都不调它 ✓）
+        page = 1
+        hasMore = true
         if (ukey.isEmpty()) {
             // 还没建会话：列表里只可能有「没发出去的本地消息」，保住它们 ✓
             // ⚠️ 必须先取再 clear —— 反过来取到的是空列表 ✗
@@ -180,6 +199,46 @@ class MessageDetailViewModel @Inject constructor(
                     items.addAll(pending)  // 未确认的永远在末尾 ✓
                 }
                 publish()
+            }
+        }
+    }
+
+    /**
+     * 往上翻页：加载更早的消息，**插到列表最前面** ✓
+     *
+     * 不整体重排（`.sortedBy`）——失败/发送中的本地消息 dateline 是"现在"，
+     * 重排会把它们塞到中间 ✗ 直接 `addAll(0, …)` 既能保证顺序又不动末尾 ✓
+     */
+    fun loadMore() {
+        if (loadingMore || !hasMore || ukey.isEmpty()) return
+        loadingMore = true
+        val next = page + 1
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                networkRepo.getChatHistory(ukey, next).collect { result ->
+                    val feed = result.getOrNull()
+                    if (feed == null || !feed.message.isNullOrEmpty()) return@collect
+                    val older = feed.data.orEmpty()
+                        .filter { it.id.orEmpty().isNotBlank() }
+                        .filter { it.id.orEmpty() !in claimedIds }
+                        .map { it.normalized() }
+                    if (older.isEmpty()) {
+                        hasMore = false
+                        return@collect
+                    }
+                    page = next
+                    val known = synchronized(items) { items.map { it.key }.toHashSet() }
+                    val add = older
+                        .filter { ChatItem(it).key !in known }
+                        .sortedBy { it.dateline }
+                    if (add.isNotEmpty()) {
+                        // 更早的插到前面；RecyclerView 会保住当前可见位置，不会跳 ✓
+                        synchronized(items) { items.addAll(0, add.map { ChatItem(it) }) }
+                        publish()
+                    }
+                }
+            } finally {
+                loadingMore = false
             }
         }
     }

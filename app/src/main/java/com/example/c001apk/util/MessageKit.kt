@@ -168,6 +168,24 @@ object MessageKit {
     }
 
     /**
+     * 长按复制用的纯文本。
+     *
+     * 服务端把私信正文当 **HTML** 下发 ✗（带链接的消息是
+     * `<a class="feed-link-url" href="…">查看链接</a>`）⇒ 直接复制会带一堆标签 ✗
+     * 这里降级成纯文本，并保留换行（复制出去的多行消息应该还是多行 ✓）。
+     *
+     * 纯图片消息返回空串 ⇒ 上层弹「这条没有可复制的文字」✓
+     */
+    @JvmStatic
+    fun copyText(data: MessageResponse.Data?): String {
+        if (data == null) return ""
+        val raw = data.message.orEmpty()
+        if (raw.isBlank()) return ""
+        return if (raw.indexOf('<') < 0) MarkdownUtils.decodeEntities(raw).trim()
+        else Html.fromHtml(raw, Html.FROM_HTML_MODE_COMPACT).toString().trim()
+    }
+
+    /**
      * HTML → 单行纯文本。没有 `<` 时只还原实体，避免把正文里正常的
      * `<` / `&` 当成标签吃掉。布局里这个 TextView 是 maxLines=1，换行压成空格。
      */

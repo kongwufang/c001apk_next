@@ -25,6 +25,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
@@ -67,9 +68,25 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             // 图片消息的地址要现问 showImage 换，只能在 ViewModel 里做（那边有作用域 + 缓存）
             loadPic = { id, onReady -> viewModel.loadMessagePic(id, onReady) },
             // 发送失败时点红色感叹号 ⇒ 问是否重发（2026-10-30 乐观发送）
-            onRetry = { item -> askResend(item) }
+            onRetry = { item -> askResend(item) },
+            // 图片气泡尺寸定下来后回调（见下方 stickToBottom 说明）
+            onPicSized = { if (stickToBottom) scrollToBottom() }
         )
     }
+
+    /**
+     * 是否"黏"在底部。
+     *
+     * 为什么需要：进页面时图片还在异步换签名地址 + 加载 ⇒ 气泡先是小占位 ✗
+     * 图片回来后气泡被撑到真实比例 ⇒ 上方内容整体变高 ⇒ 列表就不在底部了 ✗
+     * （用户 2026-10-30 报的就是这个）
+     *
+     * 策略：默认 true ✓
+     * · 用户手动往上滑 ⇒ 置 false（别抢人家的滚动 ✗）
+     * · 用户滑回底部 ⇒ 置 true
+     * · 只有 true 时，图片尺寸变化后才再贴一次底 ✓
+     */
+    private var stickToBottom = true
 
     /** 只读会话（酷安小秘书）：能看登录提醒 / 站内信，但不给输入框 */
     private var readOnly = false
@@ -145,6 +162,19 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
         // 标题直接在代码里给，跟项目里其它 Toolbar 页保持一致（别走 app:title 的 databinding）
         binding.toolBar.title = intent.getStringExtra("uname").orEmpty()
         binding.toolBar.setNavigationOnClickListener { finish() }
+
+        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                // 往上滑 ⇒ 别再强行黏底了 ✓
+                if (dy < 0) stickToBottom = false
+                // 已经贴到最底 ⇒ 恢复黏底 ✓
+                if (!rv.canScrollVertically(1)) stickToBottom = true
+                // 滑到**最顶上**且还能往上 ⇒ 翻更早的一页 ✓
+                if (dy < 0 && !rv.canScrollVertically(-1)) {
+                    viewModel.loadMore()
+                }
+            }
+        })
 
         binding.recyclerView.apply {
             // ⚠️ 必须 stackFromEnd = true（2026-10-30 用户要求「进页面自动滑到最底下」）
@@ -322,6 +352,12 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             }
             binding.emojiPanel.adapter?.notifyItemChanged(0)
         }
+    }
+
+    /** 滚到最底部（最后一条）*/
+    private fun scrollToBottom() {
+        val count = adapter.itemCount
+        if (count > 0) binding.recyclerView.scrollToPosition(count - 1)
     }
 
     private fun send() {

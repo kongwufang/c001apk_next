@@ -1,8 +1,12 @@
 package com.example.c001apk.ui.messagedetail
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -45,7 +49,15 @@ class MessageDetailAdapter(
      */
     private val loadPic: (id: String, onReady: (MessageKit.MessagePic?) -> Unit) -> Unit,
     /** 点红色感叹号：页面上弹「是否重新发送」 */
-    private val onRetry: (ChatItem) -> Unit = {}
+    private val onRetry: (ChatItem) -> Unit = {},
+    /**
+     * 气泡图片**尺寸确定之后**回调（见下方 bind 里的 pic 回调）。
+     *
+     * 为什么要这个：进入页面时图片还在异步换地址 + 加载 ⇒ 气泡先是小占位 ✗
+     * 图片回来把气泡撑大 ⇒ 上方内容整体变高 ⇒ 列表就不在底部了 ✗
+     * 页面收到这个回调后，只要用户没主动往上滑，就再贴一次底 ✓
+     */
+    private val onPicSized: () -> Unit = {}
 ) : ListAdapter<ChatItem, MessageDetailAdapter.ChatViewHolder>(ChatDiffCallback()) {
 
     class ChatViewHolder(
@@ -59,7 +71,8 @@ class MessageDetailAdapter(
             partnerAvatar: String,
             partnerUid: String,
             loadPic: (String, (MessageKit.MessagePic?) -> Unit) -> Unit,
-            onRetry: (ChatItem) -> Unit
+            onRetry: (ChatItem) -> Unit,
+            onPicSized: () -> Unit
         ) {
             val data = item.data
             binding.setVariable(BR.data, data)
@@ -74,6 +87,22 @@ class MessageDetailAdapter(
             // 失败时可以点感叹号重发；其它状态不挂点击（避免误触）
             binding.sendFailed.setOnClickListener {
                 if (item.isFailed) onRetry(item)
+            }
+
+            // 长按整条 ⇒ 复制正文（2026-10-30 用户要求）
+            // 正文是 HTML ⇒ 走 MessageKit.copyText 降级成纯文本 ✓
+            // 纯图片消息没有文字 ⇒ 提示一下，别静默无反应 ✗
+            itemView.setOnLongClickListener {
+                val text = MessageKit.copyText(data)
+                if (text.isBlank()) {
+                    Toast.makeText(itemView.context, "这条没有可复制的文字", Toast.LENGTH_SHORT).show()
+                } else {
+                    val cm = itemView.context
+                        .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("私信", text))
+                    Toast.makeText(itemView.context, "已复制", Toast.LENGTH_SHORT).show()
+                }
+                true
             }
 
             // 点**对方头像** ⇒ 跳他的主页 ✓（2026-10-30 用户要求）
@@ -137,6 +166,9 @@ class MessageDetailAdapter(
                     view.setOnClickListener {
                         ImageUtil.startChatBigImgViewSimple(view, pic.url)
                     }
+                    // 尺寸刚定下来 ⇒ 通知页面：如果用户还在底部，就再贴一次底 ✓
+                    // 必须 post：此刻 layoutParams 还没走完测量/布局 ✗
+                    binding.root.post { onPicSized() }
                 }
             }
         }
@@ -159,7 +191,8 @@ class MessageDetailAdapter(
             partnerAvatar,
             partnerUid,
             loadPic,
-            onRetry
+            onRetry,
+            onPicSized
         )
     }
 
