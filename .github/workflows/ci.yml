@@ -38,12 +38,34 @@ jobs:
       - name: Gradle wrapper validation
         uses: gradle/actions/wrapper-validation@v3
 
-      - name: set up JDK 17
+      # ⚠️ 不要再用 actions/setup-java 去**下载** JDK ✗
+      # 实测这一步每次要 **681 秒（11 分钟）**，比整个编译还久 ✗
+      # （distribution: adopt 更是早废弃的 AdoptOpenJDK，走的是慢镜像）
+      # ubuntu-latest 镜像本来就预装 Temurin 17，环境变量 JAVA_HOME_17_X64 ✓ 直接用
+      - name: Detect preinstalled JDK 17
+        id: jdk
+        run: |
+          if [ -n "${JAVA_HOME_17_X64:-}" ] && [ -x "$JAVA_HOME_17_X64/bin/java" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+            echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+            echo "用预装 JDK: $JAVA_HOME_17_X64"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "镜像里没有预装 JDK 17，走兜底下载"
+          fi
+
+      # 兜底：万一以后镜像不再预装，才去下（正常不会走到 ✓）
+      # 注意分布要写 temurin —— adopt 是废弃的 AdoptOpenJDK ✗
+      - name: set up JDK 17 (fallback)
+        if: steps.jdk.outputs.found != 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt'
-          cache: gradle
+          distribution: 'temurin'
+
+      - name: Show java version
+        run: java -version
 
       - name: Write key
         # 所有分支都用发行密钥签名，测试包可直接 adb install -r 覆盖安装
