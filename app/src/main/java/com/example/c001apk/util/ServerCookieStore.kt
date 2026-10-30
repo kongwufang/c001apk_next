@@ -62,6 +62,28 @@ object ServerCookieStore {
         return saved
     }
 
+    /**
+     * 从 JSON 响应体里取服务器下发的 `"ck":"<32hex>"`。
+     *
+     * ⚠️ 为什么要这个兜底（2026-10-31 实测）：
+     *   阿里云 CDN **会过滤 origin 的 `Set-Cookie`** ✗
+     *   打源站能拿到 `ck1=...` ✓ 走 CDN 就只剩 CDN 自己的 `acw_tc` ✗
+     *   但**响应体一定能透传** ✓ 自定义请求头也能 ✓
+     *   => 服务端把新签发的值同时注入响应体 `{"ck":"..."}` ✓
+     *      客户端读到就存成 `ck1` ✓ 之后用 `Cookie: ck1=...` 带回去 ✓
+     *      （请求方向的 Cookie 头 CDN 会透传 ✓ 已验证）
+     */
+    private val CK_BODY_RE = Regex("\"ck\"\\s*:\\s*\"([0-9a-fA-F]{8,64})\"")
+
+    private fun takeCkFromBody(body: String) {
+        if (body.isEmpty() || !body.contains("\"ck\"")) return
+        val m = CK_BODY_RE.find(body) ?: return
+        val v = m.groupValues[1]
+        if (v.isEmpty()) return
+        if (parse(current())["ck1"] == v) return      // 已经有了 ✓
+        onSetCookie("ck1=$v; Max-Age=31536000; Path=/")
+    }
+
     /** 清空（调试用） */
     @Synchronized
     fun clear() {
@@ -159,6 +181,12 @@ object ServerCookieStore {
             val sets = resp.headers("Set-Cookie")
             if (sets.isNotEmpty()) {
                 for (sc in sets) onSetCookie(sc)
+            }
+            // ③ 兜底：CDN 过滤了 Set-Cookie ✗ => 从响应体里取 `"ck":"..."` ✓
+            //    peekBody 是**非破坏性**的 ✓ 不会吃掉调用方的 body ✓
+            runCatching {
+                val peek = resp.peekBody(4096).string()
+                takeCkFromBody(peek)
             }
         }
         resp
