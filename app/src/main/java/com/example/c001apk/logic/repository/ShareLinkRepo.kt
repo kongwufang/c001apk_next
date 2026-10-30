@@ -148,7 +148,7 @@ class ShareLinkRepo @Inject constructor() {
                 .addFormDataPart("fid", fid)
                 .addFormDataPart("title", SharePostHtml.titleOf(data))
                 .addFormDataPart("author", data.username.orEmpty())
-                .addFormDataPart("html", html.toRequestBody(textType))
+                .addFormDataPart("html", null, html.toRequestBody(textType))   // ⚠️ 三参版：两参版要 String ✗
             imgs.forEachIndexed { i, f ->
                 builder.addFormDataPart(
                     "img$i", f.name,
