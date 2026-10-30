@@ -71,11 +71,12 @@ class FeedViewModel @AssistedInject constructor(
      * 缓存成功后 [OfflineCacheRepo] 会自动上云 ✓ 不用这里再管 ✓
      */
     fun saveOffline() {
-        val fid = feedDataList?.firstOrNull { it.id == id }?.fid
-            ?: feedDataList?.getOrNull(0)?.fid
-            ?: return
-        if (offlineCacheRepo.isSaving(fid)) return
-        offlineCacheRepo.saveAsync(fid)
+        // ⚠️ 缓存主键是**帖子 id**（不是 data.fid）✗
+        //    列表卡片那条路径传的就是 onFavoriteClick(data.id) ✓
+        //    （data.fid 很多帖子是 0 / 空串，拿它当主键会直接 return ⇒ 什么都不发生 ✗）
+        val key = id.takeIf { it.isNotBlank() } ?: return
+        if (offlineCacheRepo.isSaving(key)) return
+        offlineCacheRepo.saveAsync(key)
     }
 
     fun shareAsLink(data: HomeFeedResponse.Data) {
