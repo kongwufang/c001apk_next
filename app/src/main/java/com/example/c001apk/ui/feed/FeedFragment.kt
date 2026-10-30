@@ -254,6 +254,37 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
     }
 
+    /**
+     * 单帖「第三方链接分享」（Issue #18）
+     *
+     * 流程：
+     *   点分享 ⇒ 弹「是否通过第三方链接分享」
+     *     ⇒ 确认 ⇒ 生成（客户端渲染 HTML + 上传 123 冷 / OSS 热）
+     *       ⇒ 回来弹「链接已生成 [分享] [复制]」
+     *
+     * 两个入口共用：内容卡底栏的「转发」(+ [ItemListener.onShareFeed]) 和 ⋮ 菜单的「分享链接」
+     *
+     * ⚠️ 拿不到帖子数据（离线包里只有摘要等情况）就退回老做法：
+     *    直接分享酷安原帖地址 ✓ 至少不会点了没反应
+     */
+    private fun shareAsLink(id: String?) {
+        val target = id ?: viewModel.id
+        val data = viewModel.feedDataList?.firstOrNull { it.id == target }
+        val ctx = context ?: return
+        if (data == null) {
+            IntentUtil.shareText(ctx, "https://www.coolapk.com/feed/$target")
+            return
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.share_link_confirm_title)
+            .setMessage(R.string.share_link_confirm_message)
+            .setPositiveButton(R.string.share_link_confirm_ok) { _, _ ->
+                viewModel.shareAsLink(data)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun initObserve() {
         // ---------------- 单帖第三方分享 ----------------
         viewModel.shareLoading.observe(viewLifecycleOwner) { loading ->
@@ -488,6 +519,11 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
             setOnMenuItemClickListener {
                 when (it.itemId) {
+                    // 单帖第三方链接分享：复用 itemListener 里那套确认弹窗逻辑 ✓
+                    R.id.shareAsLink -> {
+                        shareAsLink(viewModel.id)
+                        true
+                    }
                     R.id.showQuestion -> {
                         viewModel.feedDataList?.getOrNull(0)?.fid?.let {
                             IntentUtil.startActivity<FeedActivity>(requireContext()) {
@@ -1029,32 +1065,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
             }.show(childFragmentManager, "collectionPick")
         }
 
-        /**
-         * 分享（Issue #18：本地分享 → 第三方链接）
-         *
-         * 流程按需求定：
-         *   点分享 ⇒ 弹「是否通过第三方链接分享」
-         *     ⇒ 确认 ⇒ 生成（客户端渲染 HTML + 上传 123/OSS）
-         *       ⇒ 回来弹「链接已生成 [分享] [复制]」
-         *
-         * ⚠️ 拿不到帖子数据（比如离线包里只有摘要）就退回原来那套：
-         *    直接分享酷安原帖地址 ✓ 至少不会点了没反应
-         */
         override fun onShareFeed(id: String?) {
-            val target = id ?: viewModel.id
-            val data = viewModel.feedDataList?.firstOrNull { it.id == target }
-            if (data == null) {
-                IntentUtil.shareText(requireContext(), "https://www.coolapk.com/feed/$target")
-                return
-            }
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.share_link_confirm_title)
-                .setMessage(R.string.share_link_confirm_message)
-                .setPositiveButton(R.string.share_link_confirm_ok) { _, _ ->
-                    viewModel.shareAsLink(data)
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+            // 内容卡底栏的「转发」也走同一套 ✓
+            shareAsLink(id)
         }
 
         override fun showTotalReply(

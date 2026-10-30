@@ -17,6 +17,14 @@
         tools:ignore="AlwaysShowAction" />
 
     <!-- 收藏 / 分享已挪到内容卡底栏（回复·点赞·收藏·转发），菜单里不再重复 -->
+    <!-- 单帖第三方链接分享（Issue #18）：
+         原来分享只在内容卡底栏的「转发」里 ✗ 详情页顶部看不到 ✗
+         ⇒ 菜单里也放一个 ✓ 离线缓存里照样能用（那正是这个功能的价值 ✓）-->
+    <item
+        android:id="@+id/shareAsLink"
+        android:showAsAction="never"
+        android:title="@string/share_link_menu" />
+
     <item
         android:id="@+id/report"
         android:showAsAction="never"
