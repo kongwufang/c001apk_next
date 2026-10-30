@@ -130,7 +130,15 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
         binding.toolBar.setNavigationOnClickListener { finish() }
 
         binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@MessageDetailActivity)
+            // ⚠️ 必须 stackFromEnd = true（2026-10-30 用户要求「进页面自动滑到最底下」）
+            // 普通 LinearLayoutManager 是从**顶部**开始布局的 ✗ 聊天记录一多，
+            // 首次进来会停在最早那条 ✗ 而 submitList 之后那句 scrollToPosition 又可能
+            // 赶在布局完成前跑掉（diff 是异步的）⇒ 于是停在顶上 ✗
+            // stackFromEnd 让列表**从底部开始**布局 ✓ 内容不满屏时也贴着输入框 ✓
+            // 新消息进来时自然就在最下面，不用额外滚 ✓
+            layoutManager = LinearLayoutManager(this@MessageDetailActivity).apply {
+                stackFromEnd = true
+            }
             adapter = this@MessageDetailActivity.adapter
         }
 

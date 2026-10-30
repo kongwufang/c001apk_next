@@ -9,7 +9,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.c001apk.BR
 import com.example.c001apk.databinding.ItemMessageChatBinding
+import com.example.c001apk.ui.user.UserActivity
 import com.example.c001apk.util.ImageUtil
+import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.MessageKit
 
 /**
@@ -72,6 +74,19 @@ class MessageDetailAdapter(
             // 失败时可以点感叹号重发；其它状态不挂点击（避免误触）
             binding.sendFailed.setOnClickListener {
                 if (item.isFailed) onRetry(item)
+            }
+
+            // 点**对方头像** ⇒ 跳他的主页 ✓（2026-10-30 用户要求）
+            // 列表项会被复用 ⇒ 每次 bind 都重设一遍，别让旧监听留着 ✓
+            // 优先用会话带进来的 partnerUid；万一为空，退回这条消息的 fromuid
+            // （自己发的那侧头像本来就 GONE，不会被点到 ✓）
+            binding.avatarLeft.setOnClickListener {
+                val target = partnerUid.takeIf { it.isNotBlank() }
+                    ?: data.fromuid.takeIf { it.isNotBlank() }
+                    ?: return@setOnClickListener
+                IntentUtil.startActivity<UserActivity>(binding.avatarLeft.context) {
+                    putExtra("id", target)
+                }
             }
 
             val view = if (isMe) binding.picRight else binding.picLeft
