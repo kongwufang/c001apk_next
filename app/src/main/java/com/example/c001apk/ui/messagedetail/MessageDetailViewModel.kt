@@ -19,6 +19,7 @@ import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -118,12 +119,20 @@ class MessageDetailViewModel @Inject constructor(
 
     // ---------------------------------------------------------------- 列表发布
 
+    /**
+     * 列表发布。
+     *
+     * ⚠️ 加锁是必须的：轮询（IO 协程）会往后追加、发送回调（另一个 IO 协程）会改状态、
+     * `loadHistory` 会整体替换 ✗ 三者可能**同时**动同一个 MutableList ⇒
+     * `toList()` / `filter` 在迭代途中被改就抛 `ConcurrentModificationException` ✗
+     */
     private fun publish() {
-        chatData.postValue(items.toList())
+        chatData.postValue(synchronized(items) { items.toList() })
     }
 
     /** 列表里当前所有「未确认」的项（发送中 / 失败），`loadHistory` 要保住它们 */
-    private fun pendingItems(): List<ChatItem> = items.filter { it.isPending }
+    private fun pendingItems(): List<ChatItem> =
+        synchronized(items) { items.filter { it.isPending } }
 
     // ---------------------------------------------------------------- 加载历史
 
@@ -133,8 +142,10 @@ class MessageDetailViewModel @Inject constructor(
             // 还没建会话：列表里只可能有「没发出去的本地消息」，保住它们 ✓
             // ⚠️ 必须先取再 clear —— 反过来取到的是空列表 ✗
             val pending = pendingItems()
-            items.clear()
-            items.addAll(pending)
+            synchronized(items) {
+                items.clear()
+                items.addAll(pending)
+            }
             publish()
             return
         }
@@ -162,9 +173,11 @@ class MessageDetailViewModel @Inject constructor(
                     // ⇒ 渲染层（LinkTextView / 气泡判定）都会撞 null ✗ 这里一次性兜住 ✓
                     .map { ChatItem(it.normalized()) }
                 val pending = pendingItems()
-                items.clear()
-                items.addAll(server)
-                items.addAll(pending)      // 未确认的永远在末尾 ✓
+                synchronized(items) {
+                    items.clear()
+                    items.addAll(server)
+                    items.addAll(pending)  // 未确认的永远在末尾 ✓
+                }
                 publish()
             }
         }
@@ -246,7 +259,7 @@ class MessageDetailViewModel @Inject constructor(
             toastText.postValue(Event("找不到对方用户"))
             return
         }
-        items.add(local)
+        synchronized(items) { items.add(local) }
         publish()
         doSend(local)
     }
@@ -257,7 +270,9 @@ class MessageDetailViewModel @Inject constructor(
         if (toUid.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             networkRepo.sendMessage(toUid, local.data.message, local.apiPic).collect { result ->
-                val idx = items.indexOfFirst { it.localId != null && it.localId == local.localId }
+                val idx = synchronized(items) {
+                    items.indexOfFirst { it.localId != null && it.localId == local.localId }
+                }
                 if (idx < 0) return@collect          // 用户已经退页面/列表被清空
                 val feed = result.getOrNull()
                 val ok = feed != null && feed.message.isNullOrEmpty()
@@ -267,22 +282,24 @@ class MessageDetailViewModel @Inject constructor(
                     // 有就采用它的 id/dateline；没有（data 为空或形状不对）也不影响：
                     // 本地那条直接标成已发送，后续轮询按 claimedIds 去重 ✓
                     val confirmed = feed?.data.orEmpty().lastOrNull { it.id.orEmpty().isNotBlank() }
-                    if (confirmed != null) {
-                        claimedIds.add(confirmed.id.orEmpty())
-                        items[idx] = items[idx].withData(
-                            items[idx].data.copy(
-                                id = confirmed.id.orEmpty(),
-                                entityId = confirmed.entityId ?: confirmed.id.orEmpty(),
-                                dateline = confirmed.dateline.takeIf { it > 0 }
-                                    ?: items[idx].data.dateline
+                    synchronized(items) {
+                        if (confirmed != null) {
+                            claimedIds.add(confirmed.id.orEmpty())
+                            items[idx] = items[idx].withData(
+                                items[idx].data.copy(
+                                    id = confirmed.id.orEmpty(),
+                                    entityId = confirmed.entityId ?: confirmed.id.orEmpty(),
+                                    dateline = confirmed.dateline.takeIf { it > 0 }
+                                        ?: items[idx].data.dateline
+                                )
                             )
-                        )
+                        }
+                        items[idx] = items[idx].withState(ChatItem.STATE_SENT)
                     }
-                    items[idx] = items[idx].withState(ChatItem.STATE_SENT)
                     // 第一条消息发出去后服务端才建会话，这时 ukey 还是空的，回头认领一次
                     if (ukey.isEmpty()) ukey = findUkeyByUid()
                 } else {
-                    items[idx] = items[idx].withState(ChatItem.STATE_FAILED)
+                    synchronized(items) { items[idx] = items[idx].withState(ChatItem.STATE_FAILED) }
                     feed?.message?.takeIf { it.isNotEmpty() }
                         ?.let { toastText.postValue(Event(it)) }
                 }
@@ -295,20 +312,23 @@ class MessageDetailViewModel @Inject constructor(
      * 点红色感叹号 ⇒ 重发同一条。内容不丢（还在列表里 ✓），只是状态回到「发送中」。
      */
     fun retrySend(item: ChatItem) {
-        val idx = items.indexOfFirst { it.localId != null && it.localId == item.localId }
-        if (idx < 0) return
-        if (!items[idx].isFailed) return
-        items[idx] = items[idx].withState(ChatItem.STATE_SENDING)
+        val target = synchronized(items) {
+            val idx = items.indexOfFirst { it.localId != null && it.localId == item.localId }
+            if (idx < 0 || !items[idx].isFailed) return
+            items[idx] = items[idx].withState(ChatItem.STATE_SENDING)
+            items[idx]
+        }
         publish()
-        doSend(items[idx])
+        doSend(target)
     }
 
     /** 把失败的本地消息删掉（弹窗里选「删除」时用） */
     fun discardFailed(item: ChatItem) {
-        val idx = items.indexOfFirst { it.localId != null && it.localId == item.localId }
-        if (idx < 0) return
-        if (!items[idx].isFailed) return
-        items.removeAt(idx)
+        synchronized(items) {
+            val idx = items.indexOfFirst { it.localId != null && it.localId == item.localId }
+            if (idx < 0 || !items[idx].isFailed) return
+            items.removeAt(idx)
+        }
         publish()
     }
 
@@ -341,6 +361,95 @@ class MessageDetailViewModel @Inject constructor(
             picUrlCache[id] = pic
             withContext(Dispatchers.Main) { onReady(pic) }
         }
+    }
+
+    // ---------------------------------------------------------------- 轮询收新消息
+
+    /**
+     * 轮询间隔。**这是自己定的**，不是从官方包里读出来的 ✗
+     *
+     * 官方用 `message/receive` 轮询（接口实测立即返回 ✗ 不是长轮询），
+     * 但它的间隔混在混淆代码里没挖到 ⇒ 取 8 秒：够快、也不算激进 ✓
+     * 请求量：8 秒 1 次 = 每小时 450 次/会话，单次响应约 1~2 KB ⇒ 很轻 ✓
+     */
+    private val pollIntervalMs = 8_000L
+
+    /** 出错后的退避（不无限连打，避免风控 ✗） */
+    private val pollBackoffMs = 20_000L
+
+    private var pollJob: Job? = null
+
+    /** 服务端明确说「无权查看」后就不再拉（见 [ApiService.receiveMessage] 的实测） */
+    private var pollForbidden = false
+
+    /**
+     * 开始轮询（页面可见时调用，见 MessageDetailActivity.onStart）。
+     *
+     * 逻辑：取**本地最后一条真实消息 id** → `message/receive?id=` → 过滤出新的 → 追加。
+     *
+     * ⚠️ 三个必须做的过滤（都是实测踩过的）：
+     * 1. `entityType == "message"` —— 返回里混着 `messageExt` 系统提示 ✗
+     * 2. `id` 非空 —— `messageEmpty` 条目没有 id ✗（还会导致 NPE，见 AF.52）
+     * 3. **按 key 去重** —— 接口语义是「>= id」，会把游标那条**本身也带回来** ✗；
+     *    另外 `claimedIds` 里的是自己刚发出去、已由发送回调处理过的 ✗
+     */
+    fun startPolling() {
+        if (pollJob?.isActive == true) return
+        if (pollForbidden) return
+        pollJob = viewModelScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val cursor = synchronized(items) {
+                    items.lastOrNull {
+                        !it.isPending &&
+                            it.data.entityType == "message" &&
+                            it.data.id.orEmpty().isNotBlank()
+                    }?.data?.id.orEmpty().orEmpty()
+                }
+                if (cursor.isBlank()) {
+                    // 还没有可比对的游标（列表空 / 对方一条都没发过）⇒ 等下一轮 ✓
+                    delay(pollIntervalMs)
+                    continue
+                }
+                val result = networkRepo.receiveMessage(cursor).first()
+                val feed = result.getOrNull()
+                if (feed == null) {
+                    delay(pollBackoffMs)      // 网络错 / 异常 ⇒ 退避 ✓
+                    continue
+                }
+                if (feed.status == -1) {
+                    // 「你无法查看该私信」——会话不可读，再拉也没用 ✗
+                    pollForbidden = true
+                    break
+                }
+                if (!feed.message.isNullOrEmpty()) {
+                    delay(pollBackoffMs)
+                    continue
+                }
+                val known = synchronized(items) { items.map { it.key }.toHashSet() }
+                val fresh = feed.data.orEmpty()
+                    .filter { it.entityType == "message" }
+                    .filter { it.id.orEmpty().isNotBlank() }
+                    .filter { it.id.orEmpty() !in claimedIds }
+                    .map { it.normalized() }
+                    .filter { ChatItem(it).key !in known }
+                if (fresh.isNotEmpty()) {
+                    synchronized(items) { items.addAll(fresh.map { ChatItem(it) }) }
+                    publish()
+                }
+                delay(pollIntervalMs)
+            }
+        }
+    }
+
+    /** 停止轮询（页面不可见时调用）。回到页面再 [startPolling] 就继续 ✓ */
+    fun stopPolling() {
+        pollJob?.cancel()
+        pollJob = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopPolling()
     }
 
     /** 把会话标记为已读（新会话没有 ukey，不用调） */

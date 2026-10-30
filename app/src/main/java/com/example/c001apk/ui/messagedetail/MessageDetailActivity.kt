@@ -115,6 +115,23 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
     }
 
     /**
+     * 页面可见 ⇒ 开始轮询收新消息（`/v6/message/receive`）。
+     *
+     * 用 onStart/onStop 而不是 onCreate/onDestroy：
+     * 切到后台就停 ✓ 回来立刻继续 ✓ 不会在后台白耗流量与电量 ✓
+     * （跟 MessageCenterActivity 用 onStop 的思路一致）
+     */
+    override fun onStart() {
+        super.onStart()
+        viewModel.startPolling()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.stopPolling()
+    }
+
+    /**
      * 选图。私信一次只发一张，所以用单选的 [ActivityResultContracts.PickVisualMedia]
      * （系统相册，不用申请读存储权限），跟回复页用同一套。
      */

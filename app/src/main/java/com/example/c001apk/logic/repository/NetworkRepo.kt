@@ -354,6 +354,11 @@ class NetworkRepo @Inject constructor(
         Result.success(apiService.getChatHistory(ukey, page).await())
     }
 
+    /** 收新消息（轮询）。`id` 传本地最后一条消息 id，语义是「>= id」，会带回它自己 ✗ ⇒ 调用方去重 ✓ */
+    suspend fun receiveMessage(id: String) = fire {
+        Result.success(apiService.receiveMessage(id).await())
+    }
+
     /**
      * 发私信（multipart）。文本 part 必须用 RequestBody，String 会被 Gson 加上引号。
      * `messagePic` 是图片消息在 OSS 上的对象名（`ossUploadPrepare` 返回的 uploadFileName，
