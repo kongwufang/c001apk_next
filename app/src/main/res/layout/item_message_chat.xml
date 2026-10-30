@@ -35,6 +35,17 @@
             name="partnerUid"
             type="String" />
 
+        <!--
+            发送状态（ChatItem.STATE_*）：
+              0 = 已发送（什么都不显示）
+              1 = 发送中（气泡左侧转圈）
+              2 = 发送失败（换成红色感叹号，点一下问是否重发）
+            ⚠️ 0/1/2 三个数字必须和 ChatItem 里的常量一致
+        -->
+        <variable
+            name="state"
+            type="int" />
+
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -167,6 +178,40 @@
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
+
+        <!--
+            发送中：气泡左侧的小转圈。
+            bubbleRight 的 layout_marginStart 是 48dp，这里正好有位置 ✓
+            android:indeterminateTint 用主题色，跟气泡一致
+        -->
+        <ProgressBar
+            android:id="@+id/sendProgress"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="6dp"
+            android:indeterminateTint="?attr/colorPrimary"
+            android:visibility="@{state == 1 &amp;&amp; isMe ? View.VISIBLE : View.GONE}"
+            app:layout_constraintBottom_toBottomOf="@id/bubbleRight"
+            app:layout_constraintEnd_toStartOf="@id/bubbleRight"
+            app:layout_constraintTop_toTopOf="@id/bubbleRight"
+            tools:visibility="gone" />
+
+        <!-- 发送失败：红色感叹号，adapter 给它挂点击（弹「是否重新发送」） -->
+        <ImageView
+            android:id="@+id/sendFailed"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="5dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="发送失败，点击重新发送"
+            android:src="@drawable/ic_chat_send_failed"
+            android:tint="?attr/colorError"
+            android:visibility="@{state == 2 &amp;&amp; isMe ? View.VISIBLE : View.GONE}"
+            app:layout_constraintBottom_toBottomOf="@id/bubbleRight"
+            app:layout_constraintEnd_toStartOf="@id/bubbleRight"
+            app:layout_constraintTop_toTopOf="@id/bubbleRight"
+            tools:visibility="gone" />
 
         <!-- 自己：气泡靠右 -->
         <com.google.android.material.card.MaterialCardView

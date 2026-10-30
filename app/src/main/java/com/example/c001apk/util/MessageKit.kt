@@ -124,6 +124,20 @@ object MessageKit {
     fun hasPic(data: MessageResponse.Data?): Boolean = !data?.messagePic.isNullOrEmpty()
 
     /**
+     * 这条消息的图片是不是**本地 uri**（乐观发送的临时消息）。
+     *
+     * 正常消息的 `message_pic` 是 OSS 对象名（`/message/2026/1006/x.png`），
+     * 要现问 `showImage` 换带 auth_key 的签名地址 ✗
+     * 而本地乐观消息的 `message_pic` 直接塞的是相册 uri（`content://…`）✓
+     * adapter 靠这个区分：本地 uri 直接交给 Glide，别去调 `showImage`（会 404）
+     */
+    @JvmStatic
+    fun isLocalPic(data: MessageResponse.Data?): Boolean {
+        val p = data?.messagePic ?: return false
+        return p.startsWith("content://") || p.startsWith("file://")
+    }
+
+    /**
      * 图片消息取原图要用消息 id（`/v6/message/showImage?id=`）。
      * `/v6/message/chat` 里 `id` 偶尔为空，退到 `entityId`（两者是同一个值）。
      */

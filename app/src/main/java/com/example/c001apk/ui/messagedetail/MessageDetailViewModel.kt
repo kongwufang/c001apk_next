@@ -14,6 +14,7 @@ import com.example.c001apk.logic.repository.RecentEmojiRepo
 import com.example.c001apk.util.Event
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.MessageKit
+import com.example.c001apk.util.PrefManager
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,6 +32,20 @@ import javax.inject.Inject
  * 1. 从会话列表点进来：已经有 ukey，直接拉历史；
  * 2. 从别人主页点「私信」进来：只有对方的 uid，**还没有会话**，此时列表是空的，
  *    发出第一条消息时服务端才隐式建立会话（`/v6/message/send?uid=`），发完再回头把 ukey 认领回来。
+ *
+ * ## 乐观发送（2026-10-30 改）
+ *
+ * 以前是「服务端确认后才上屏」✗ 点发送到看见自己那条要等一次网络往返
+ * （实测 0.3~1s，弱网更久），体感像卡住 ✗
+ *
+ * 现在：点发送 ⇒ **立刻**插入一条 [ChatItem.STATE_SENDING] 的本地消息 ✓
+ * 服务端成功 ⇒ 变 [ChatItem.STATE_SENT]（转圈消失）✓
+ * 失败 ⇒ 变 [ChatItem.STATE_FAILED]（红色感叹号，点一下问是否重发）✓
+ *
+ * 关键细节：
+ * - 本地消息的主键 [ChatItem.localId] **永远不变**，否则 DiffUtil 会当成删除+新增 ⇒ 闪一下 ✗
+ * - 成功后把服务端 id 记进 [claimedIds] ⇒ 后续 `loadHistory` / 轮询不会再把同一条插一遍 ✓
+ * - `loadHistory` 只覆盖「已确认」部分，**本地未确认的（发送中/失败）永远追加在末尾** ✓
  */
 @HiltViewModel
 class MessageDetailViewModel @Inject constructor(
@@ -39,8 +54,26 @@ class MessageDetailViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
-    val chatData = MutableLiveData<List<MessageResponse.Data>>()
+    /** 列表项 = 消息 + 发送状态（见 [ChatItem]） */
+    val chatData = MutableLiveData<List<ChatItem>>()
+
     val toastText = MutableLiveData<Event<String>>()
+
+    /**
+     * 内部可变副本。所有增删改都在这里做，改完 [publish] 一次性抛给 UI ✓
+     * （直接对 LiveData 反复 `value = value!!.toMutableList().also{...}` 会丢更新）
+     */
+    private val items = mutableListOf<ChatItem>()
+
+    /**
+     * 已被本地消息「认领」的服务端消息 id。
+     * 发送成功后服务端会返回真实消息，`loadHistory` 再拉一遍就会重复 ✗
+     * ⇒ 拉回来时把这些 id 过滤掉 ✓
+     */
+    private val claimedIds = HashSet<String>()
+
+    /** 当前登录 uid（本地乐观消息的 fromuid 必须是它，否则气泡跑到左边 ✗） */
+    private val myUid: String get() = PrefManager.uid
 
     /** 表情面板「最近」页的数据源，跟回复页共用同一张表 */
     val recentEmojiLiveData: LiveData<List<StringEntity>> = recentEmojiRepo.loadAllListLive()
@@ -83,10 +116,26 @@ class MessageDetailViewModel @Inject constructor(
     var ukey = ""
     var uid = ""
 
+    // ---------------------------------------------------------------- 列表发布
+
+    private fun publish() {
+        chatData.postValue(items.toList())
+    }
+
+    /** 列表里当前所有「未确认」的项（发送中 / 失败），`loadHistory` 要保住它们 */
+    private fun pendingItems(): List<ChatItem> = items.filter { it.isPending }
+
+    // ---------------------------------------------------------------- 加载历史
+
     /** 拉当前会话的历史记录。没有 ukey（还没说过话）时直接给空列表 */
     fun loadHistory() {
         if (ukey.isEmpty()) {
-            chatData.postValue(emptyList())
+            // 还没建会话：列表里只可能有「没发出去的本地消息」，保住它们 ✓
+            // ⚠️ 必须先取再 clear —— 反过来取到的是空列表 ✗
+            val pending = pendingItems()
+            items.clear()
+            items.addAll(pending)
+            publish()
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
@@ -101,15 +150,29 @@ class MessageDetailViewModel @Inject constructor(
                     return@collect
                 }
                 // 服务端返回的顺序不保证，按时间升序排一遍（跟桌面版一致），最后滚到底就是最新一条
-                chatData.postValue(feed.data.orEmpty().sortedBy { it.dateline })
+                val server = feed.data.orEmpty()
+                    .filter { it.id.isBlank() || it.id !in claimedIds }   // 已认领的别再插一遍 ✓
+                    .sortedBy { it.dateline }
+                    .map { ChatItem(it) }
+                val pending = pendingItems()
+                items.clear()
+                items.addAll(server)
+                items.addAll(pending)      // 未确认的永远在末尾 ✓
+                publish()
             }
         }
     }
 
+    // ---------------------------------------------------------------- 发送
+
+    /**
+     * 发文字。**立刻上屏**（转圈），再走网络。
+     * 服务端返回失败也只是把那条标成「发送失败」，不丢内容 ✓
+     */
     fun sendMessage(text: String) {
         val content = text.trim()
         if (content.isEmpty()) return
-        send(uid, content, "")
+        enqueue(ChatItem.local(myUid = myUid, text = content))
     }
 
     /**
@@ -154,26 +217,110 @@ class MessageDetailViewModel @Inject constructor(
      * 图片已经传到 OSS，把服务端给的 `uploadFileName` 发出去。
      * `message_pic` 要**带前导斜杠**：prepare 返回的是 `message/2026/1006/xxx.png`，
      * 抓包里发出去的是 `/message/2026/1006/xxx.png`。
+     *
+     * @param localUri 相册里的本地 uri（`content://…`）—— 只用于**立刻显示缩略图** ✓
      */
-    fun sendImageMessage(uploadFileName: String) {
+    fun sendImageMessage(uploadFileName: String, localUri: String = "") {
         if (uploadFileName.isEmpty()) return
-        send(uid, "", "/$uploadFileName")
+        val apiPic = "/$uploadFileName"
+        enqueue(
+            ChatItem.local(
+                myUid = myUid,
+                text = "",
+                localPic = localUri,
+                apiPic = apiPic
+            )
+        )
     }
+
+    /** 把一条本地消息塞进列表（转圈）并开始发送 */
+    private fun enqueue(local: ChatItem) {
+        if (uid.isEmpty()) {
+            toastText.postValue(Event("找不到对方用户"))
+            return
+        }
+        items.add(local)
+        publish()
+        doSend(local)
+    }
+
+    /** 真正的网络发送。成功/失败都只更新那一项的状态，**不重建列表** ✓ */
+    private fun doSend(local: ChatItem) {
+        val toUid = uid
+        if (toUid.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            networkRepo.sendMessage(toUid, local.data.message, local.apiPic).collect { result ->
+                val idx = items.indexOfFirst { it.localId != null && it.localId == local.localId }
+                if (idx < 0) return@collect          // 用户已经退页面/列表被清空
+                val feed = result.getOrNull()
+                val ok = feed != null && feed.message.isNullOrEmpty()
+
+                if (ok) {
+                    // 服务端可能在 data 里回真实消息（官方签名是 Result<List<Entity>>），
+                    // 有就采用它的 id/dateline；没有（data 为空或形状不对）也不影响：
+                    // 本地那条直接标成已发送，后续轮询按 claimedIds 去重 ✓
+                    val confirmed = feed?.data.orEmpty().lastOrNull { it.id.isNotBlank() }
+                    if (confirmed != null) {
+                        claimedIds.add(confirmed.id)
+                        items[idx] = items[idx].withData(
+                            items[idx].data.copy(
+                                id = confirmed.id,
+                                entityId = confirmed.entityId ?: confirmed.id,
+                                dateline = confirmed.dateline.takeIf { it > 0 }
+                                    ?: items[idx].data.dateline
+                            )
+                        )
+                    }
+                    items[idx] = items[idx].withState(ChatItem.STATE_SENT)
+                    // 第一条消息发出去后服务端才建会话，这时 ukey 还是空的，回头认领一次
+                    if (ukey.isEmpty()) ukey = findUkeyByUid()
+                } else {
+                    items[idx] = items[idx].withState(ChatItem.STATE_FAILED)
+                    feed?.message?.takeIf { it.isNotEmpty() }
+                        ?.let { toastText.postValue(Event(it)) }
+                }
+                publish()
+            }
+        }
+    }
+
+    /**
+     * 点红色感叹号 ⇒ 重发同一条。内容不丢（还在列表里 ✓），只是状态回到「发送中」。
+     */
+    fun retrySend(item: ChatItem) {
+        val idx = items.indexOfFirst { it.localId != null && it.localId == item.localId }
+        if (idx < 0) return
+        if (!items[idx].isFailed) return
+        items[idx] = items[idx].withState(ChatItem.STATE_SENDING)
+        publish()
+        doSend(items[idx])
+    }
+
+    /** 把失败的本地消息删掉（弹窗里选「删除」时用） */
+    fun discardFailed(item: ChatItem) {
+        val idx = items.indexOfFirst { it.localId != null && it.localId == item.localId }
+        if (idx < 0) return
+        if (!items[idx].isFailed) return
+        items.removeAt(idx)
+        publish()
+    }
+
+    // ---------------------------------------------------------------- 图片
 
     /**
      * 气泡里的图片地址。`message_pic` 只是 OSS 对象名，CDN 裸地址会被 auth_key 挡，
      * 得先问 `showImage` 拿 302 出来的签名地址。结果按消息 id 缓存，见 [picUrlCache]。
      *
      * 顺便量一下图片原始宽高（跟地址一起缓存）：气泡要按真实比例撑开，
-     * 不能再用写死的 180dp（见 [ImageUtil.chatImageSize]）。
+     * 不然横图竖图都按同一个占位尺寸显示，图片回来时列表会跳一下。
      */
     fun loadMessagePic(id: String, onReady: (MessageKit.MessagePic?) -> Unit) {
-        if (id.isEmpty()) {
-            onReady(null)
-            return
-        }
         picUrlCache[id]?.let {
             onReady(it)
+            return
+        }
+        if (id.isEmpty()) {
+            onReady(null)
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
@@ -186,29 +333,6 @@ class MessageDetailViewModel @Inject constructor(
             val pic = MessageKit.MessagePic(url, size?.first ?: 0, size?.second ?: 0)
             picUrlCache[id] = pic
             withContext(Dispatchers.Main) { onReady(pic) }
-        }
-    }
-
-    /** 发消息：文字走 [message]，图片走 [pic]（两者只有一个非空） */
-    private fun send(toUid: String, message: String, pic: String) {
-        if (toUid.isEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.sendMessage(toUid, message, pic).collect { result ->
-                val feed = result.getOrNull()
-                if (feed == null) {
-                    toastText.postValue(Event("发送失败"))
-                    return@collect
-                }
-                if (!feed.message.isNullOrEmpty()) {
-                    toastText.postValue(Event(feed.message.toString()))
-                    return@collect
-                }
-                // 第一条消息发出去后服务端才建会话，这时 ukey 还是空的，回头认领一次
-                if (ukey.isEmpty()) {
-                    ukey = findUkeyByUid()
-                }
-                loadHistory()
-            }
         }
     }
 

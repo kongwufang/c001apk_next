@@ -395,7 +395,10 @@ interface ApiService {
         @Part("message_pic") messagePic: RequestBody,
         @Part("message_extra") messageExtra: RequestBody,
         @Part("message_card") messageCard: RequestBody
-    ): Call<MessageResponse.ActionResponse>
+        // ★ 2026-10-30：官方签名是 `Result<List<Entity>>`（见 jadx defpackage/lk1.java），
+        //   不是 ActionResponse ✗ 改成 MessageResponse 才能拿到服务端回的真实消息 id，
+        //   乐观发送成功后就不用等下一次 loadHistory 才认识那条 ✓
+    ): Call<MessageResponse>
 
     /** 把某个私信会话标记为已读 */
     @GET("/v6/message/read")

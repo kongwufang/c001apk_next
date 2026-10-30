@@ -40,6 +40,7 @@ import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.dp
 import com.example.c001apk.util.ossUpload
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -64,7 +65,9 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             partnerAvatar = intent.getStringExtra("avatar").orEmpty(),
             partnerUid = intent.getStringExtra("uid").orEmpty(),
             // 图片消息的地址要现问 showImage 换，只能在 ViewModel 里做（那边有作用域 + 缓存）
-            loadPic = { id, onReady -> viewModel.loadMessagePic(id, onReady) }
+            loadPic = { id, onReady -> viewModel.loadMessagePic(id, onReady) },
+            // 发送失败时点红色感叹号 ⇒ 问是否重发（2026-10-30 乐观发送）
+            onRetry = { item -> askResend(item) }
         )
     }
 
@@ -253,8 +256,11 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
                         this@MessageDetailActivity, prepared, listOf(uri),
                         listOf(picType), listOf(picMd5),
                         iOnSuccess = {
+                            // 第二个参数是 **OSS 对象名**（接口要的），第三个是**本地 uri**
+                            // （乐观发送要立刻显示缩略图）—— 两者不能混 ✓
                             viewModel.sendImageMessage(
-                                prepared.fileInfo.firstOrNull()?.uploadFileName.orEmpty()
+                                prepared.fileInfo.firstOrNull()?.uploadFileName.orEmpty(),
+                                uri.toString()
                             )
                         },
                         iOnFailure = {
@@ -297,8 +303,31 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
         if (readOnly) return
         val text = binding.editText.text?.toString().orEmpty()
         if (text.isBlank()) return
+        // 立刻清空输入框：消息已经乐观上屏（转圈），不用等网络回来 ✓
         binding.editText.setText("")
         viewModel.sendMessage(text)
+    }
+
+    /**
+     * 发送失败后点红色感叹号 ⇒ 问是否重发。
+     *
+     * · 重发：走 [MessageDetailViewModel.retrySend]，内容不丢 ✓
+     * · 删除：只从本地列表移掉（服务端本来没收到 ✓），走 [MessageDetailViewModel.discardFailed]
+     */
+    private fun askResend(item: ChatItem) {
+        if (isFinishing || isDestroyed) return
+        val preview = when {
+            item.data.message.isNotBlank() -> "「" + item.data.message.take(24) + "…」"
+            MessageKit.hasPic(item.data) -> "[图片]"
+            else -> "这条消息"
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("发送失败")
+            .setMessage(preview + " 没有发送成功，是否重新发送？")
+            .setPositiveButton("重新发送") { _, _ -> viewModel.retrySend(item) }
+            .setNegativeButton("删除") { _, _ -> viewModel.discardFailed(item) }
+            .setNeutralButton("取消", null)
+            .show()
     }
 
     // ---------------- 表情面板（跟回复页同一套，只是键盘/面板切换是手动接的） ----------------
