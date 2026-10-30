@@ -20,6 +20,13 @@
     <!-- 单帖第三方链接分享（Issue #18）：
          原来分享只在内容卡底栏的「转发」里 ✗ 详情页顶部看不到 ✗
          ⇒ 菜单里也放一个 ✓ 离线缓存里照样能用（那正是这个功能的价值 ✓）-->
+    <!-- 离线缓存：详情页也能直接缓存（原来只能从列表卡片底栏进 ✗）
+         缓存成功后会自动上云 ✓ 见 OfflineCacheRepo.autoCloud -->
+    <item
+        android:id="@+id/offlineCache"
+        android:showAsAction="never"
+        android:title="@string/offline_cache_title" />
+
     <item
         android:id="@+id/shareAsLink"
         android:showAsAction="never"

@@ -321,4 +321,5 @@
     <string name="share_link_copied">链接已复制</string>
     <string name="share_link_offline_hint">离线缓存会自动把帖子备份到云端</string>
     <string name="share_link_menu">分享链接</string>
+    <string name="offline_cache_title">离线缓存</string>
 </resources>

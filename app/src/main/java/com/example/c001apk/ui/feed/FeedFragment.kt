@@ -524,6 +524,11 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                         shareAsLink(viewModel.id)
                         true
                     }
+                    R.id.offlineCache -> {
+                        viewModel.saveOffline()
+                        requireContext().makeToast("已开始离线缓存，完成后会自动上云")
+                        true
+                    }
                     R.id.showQuestion -> {
                         viewModel.feedDataList?.getOrNull(0)?.fid?.let {
                             IntentUtil.startActivity<FeedActivity>(requireContext()) {
