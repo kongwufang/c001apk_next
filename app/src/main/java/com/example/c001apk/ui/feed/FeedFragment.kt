@@ -255,6 +255,34 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
     }
 
     private fun initObserve() {
+        // ---------------- 单帖第三方分享 ----------------
+        viewModel.shareLoading.observe(viewLifecycleOwner) { loading ->
+            // 生成中给个不阻塞的提示（转几秒就完事，不弹进度框 ✗）
+            if (loading) requireContext().makeToast(getString(R.string.share_link_generating))
+        }
+        viewModel.shareResult.observe(viewLifecycleOwner) { event ->
+            val r = event.getContentIfNotHandledOrReturnNull() ?: return@observe
+            val ctx = context ?: return@observe
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle(R.string.share_link_ready)
+                .setMessage(r.url)
+                .setPositiveButton(R.string.share) { _, _ ->
+                    // 系统分享面板 ✓
+                    IntentUtil.shareText(ctx, r.url)
+                }
+                .setNegativeButton(R.string.copyText) { _, _ ->
+                    val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                        as android.content.ClipboardManager
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("分享链接", r.url))
+                    ctx.makeToast(getString(R.string.share_link_copied))
+                }
+                .show()
+        }
+        viewModel.shareError.observe(viewLifecycleOwner) { event ->
+            val msg = event.getContentIfNotHandledOrReturnNull() ?: return@observe
+            requireContext().makeToast(getString(R.string.share_link_failed, msg))
+        }
+
         viewModel.feedDataUpdateState.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
                 // 详情回来了：首屏那批是列表项直出的，adapter 还持有预览 list 的引用，必须换掉
@@ -1001,11 +1029,32 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
             }.show(childFragmentManager, "collectionPick")
         }
 
+        /**
+         * 分享（Issue #18：本地分享 → 第三方链接）
+         *
+         * 流程按需求定：
+         *   点分享 ⇒ 弹「是否通过第三方链接分享」
+         *     ⇒ 确认 ⇒ 生成（客户端渲染 HTML + 上传 123/OSS）
+         *       ⇒ 回来弹「链接已生成 [分享] [复制]」
+         *
+         * ⚠️ 拿不到帖子数据（比如离线包里只有摘要）就退回原来那套：
+         *    直接分享酷安原帖地址 ✓ 至少不会点了没反应
+         */
         override fun onShareFeed(id: String?) {
-            IntentUtil.shareText(
-                requireContext(),
-                "https://www.coolapk1s.com/feed/${id ?: viewModel.id}"
-            )
+            val target = id ?: viewModel.id
+            val data = viewModel.feedDataList?.firstOrNull { it.id == target }
+            if (data == null) {
+                IntentUtil.shareText(requireContext(), "https://www.coolapk.com/feed/$target")
+                return
+            }
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.share_link_confirm_title)
+                .setMessage(R.string.share_link_confirm_message)
+                .setPositiveButton(R.string.share_link_confirm_ok) { _, _ ->
+                    viewModel.shareAsLink(data)
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
         }
 
         override fun showTotalReply(
