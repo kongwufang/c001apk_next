@@ -27,7 +27,7 @@ abstract class BaseAdapter<T : ViewDataBinding> :
      * ⇒ 拉到一个分页 ⇒ 立刻把这一页的 feed id / 用户 uid 一次性发过去问 ✓
      *    （每类最多 100 个 ✓ 收到结果后 bind 时直接读缓存 ⇒ 不闪烁 ✓）
      */
-    override fun submitList(list: MutableList<HomeFeedResponse.Data>?) {
+    override fun submitList(list: List<HomeFeedResponse.Data>?) {
         super.submitList(list)
         if (list.isNullOrEmpty()) return
         runCatching {
