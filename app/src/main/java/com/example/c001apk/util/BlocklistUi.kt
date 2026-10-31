@@ -313,8 +313,8 @@ object BlocklistUi {
                 val pos = rtKey(kind, key)
                 reveal?.setOnClickListener {
                     revealed.add(pos)
-                    bar.isVisible = false
-                    reveal.isVisible = false
+                    bar?.isVisible = false
+                    it.isVisible = false
                 }
             }
         }
