@@ -327,10 +327,22 @@ object BlocklistUi {
      *    （View 的 mTop/mBottom 在下一次 layout 之前不会变 ✓）
      */
     private fun headerHeightOf(root: View): Int {
-        val pub = root.findViewById<View>(R.id.pubDate) ?: return 0
-        if (pub.bottom <= 0) return 0
-        val top = root.top
-        return (pub.bottom - top).coerceAtLeast(0)
+        val pub = root.findViewById<View>(R.id.pubDate) ?: run {
+            if (PROBE) android.util.Log.d(TAG, "headerHeight：找不到 pubDate")
+            return 0
+        }
+        // ⚠️ pubDate 是 blurContainer 的**直接子 View** ✓
+        //    ⇒ `pub.bottom` 本身就是「相对卡片顶部」的坐标 ✓
+        //    ✗ 不要再减 `root.top` —— 那是相对外层容器的 ✗ 一减就变 0 / 负数 ✓
+        val h = pub.bottom
+        if (PROBE) {
+            android.util.Log.d(
+                TAG,
+                "headerHeight pub.bottom=$h pub.top=${pub.top} pub.height=${pub.height} " +
+                    "vis=${pub.visibility} rootH=${root.height}"
+            )
+        }
+        return if (h > 0) h else 0
     }
 
     /** 锁死卡片高度（方案 B 的核心 ✓） */
