@@ -61,6 +61,17 @@ object Blocklist {
     /** id -> 过期时间 */
     private val expireAt = ConcurrentHashMap<String, Long>()
 
+    /**
+     * ★ 本会话内**已确认屏蔽**的 id。
+     *
+     * 为什么需要（2026-10-31 真机反馈：「被折叠之后滑下去再滑上来，它又展开了」）：
+     *   RecyclerView 滑出屏幕后 ViewHolder 会复用/重建 ✓ bind 里先 `restore()` 展开 ✓
+     *   然后查缓存 —— 如果之前那次请求失败过，我缓存了「未屏蔽 30 秒」✗
+     *   => 于是显示成展开 ✗ 要等 30 秒后才重新查再折叠 ✓
+     * ⇒ 现在：**一次判为屏蔽，本会话内一直屏蔽** ✓（失败不覆盖 ✓）
+     */
+    private val knownBlocked = ConcurrentHashMap.newKeySet<String>()
+
     /** 正在请求中的 id（防重复） */
     private val inflight = ConcurrentHashMap.newKeySet<String>()
 
@@ -93,6 +104,8 @@ object Blocklist {
     fun cached(kind: Kind, id: String?): Boolean? {
         if (id.isNullOrBlank()) return null
         val k = key(kind, id)
+        // 已确认屏蔽的，直接回 true ✓ 不看 TTL ✗（避免"滑回来就展开" ✗）
+        if (knownBlocked.contains(k)) return true
         val exp = expireAt[k] ?: return null
         if (System.currentTimeMillis() > exp) {
             verdict.remove(k)
@@ -190,6 +203,7 @@ object Blocklist {
                         val blocked = hit?.has(id) == true
                         verdict[k] = blocked
                         expireAt[k] = now + TTL_MS
+                        if (blocked) knownBlocked.add(k) else knownBlocked.remove(k)
                     }
                 }
                 Log.i(TAG, "批量查询完成: " +
@@ -201,6 +215,8 @@ object Blocklist {
             for ((kind, ids) in snapshot) {
                 for (id in ids) {
                     val k = key(kind, id)
+                    // ⚠️ 已确认屏蔽的**不要**被失败覆盖 ✗（否则滑回来就展开 ✗）
+                    if (knownBlocked.contains(k)) continue
                     verdict[k] = false
                     expireAt[k] = now + 30_000L
                 }
@@ -224,6 +240,7 @@ object Blocklist {
 
     /** 清空缓存（调试用 / 切换账号时） */
     fun clear() {
+        knownBlocked.clear()
         verdict.clear()
         expireAt.clear()
         inflight.clear()
