@@ -150,9 +150,9 @@ object Blocklist {
         if (kind == Kind.FEED && !feedTopics.isNullOrEmpty()) {
             pendingFeedTopics.putAll(feedTopics)
             if (pendingFeedTopics.size > 400) {
-                // 防无限增长 ✓ 只留最近的
-                val keep = pendingFeedTopics.keys.takeLast(200).toSet()
-                pendingFeedTopics.keys.retainAll(keep)
+                // 防无限增长 ✓ 简单粗暴：全清（下次页面会重新填 ✓）
+                pendingFeedTopics.clear()
+                pendingFeedTopics.putAll(feedTopics)
             }
         }
         if (!enabled()) return
