@@ -578,7 +578,9 @@ class AppAdapter(
             binding.listener = listener
             binding.title.text = data.title
             binding.hotNum.text = data.hotNumTxt?.let { "${it}热度" }
-            binding.commentNum.text = "${data.commentnumTxt}讨论"
+            // ⚠️ `commentnumTxt` 可能是 null ✗ 直接拼会显示 "null讨论" ✗
+            binding.commentNum.text =
+                "${data.commentnumTxt?.takeIf { it.isNotBlank() } ?: "0"}讨论"
             binding.blockedBanner.text = com.example.c001apk.util.Blocklist.cachedMsg(
                 com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id
             ) ?: itemView.context.getString(
@@ -1344,8 +1346,13 @@ class AppAdapter(
         //   ⇒ databinding 无从"放回来" ✓ 物理上不可能再展开 ✓
         //   ⚠️ 必须在所有模板判断**之前** ✓
         // ★ 话题：被屏蔽 ⇒ 专用话题卡片 ✓（保留 logo/名称/热度 ✓ 只多一条红带 ✓）
+        //   ⚠️ **必须**判 `entityType == "topic"` ✗
+        //      之前只判了 `isBlocked(TOPIC, id)` ✗
+        //      测试模式下所有 id 都算屏蔽 ⇒ **动态卡片被误判成话题** ✗
+        //      ⇒ 用话题布局渲染动态 ⇒ logo 为空显示灰块 ✗ + "null讨论" ✗
+        //      ⇒ 用户看到的就是「被屏蔽的用户不显示头像」✓（真正原因）
         val tid = item.id
-        if (tid != null
+        if (item.entityType == "topic" && tid != null
             && com.example.c001apk.util.Blocklist.isBlocked(
                 com.example.c001apk.util.Blocklist.Kind.TOPIC, tid)
             && !com.example.c001apk.util.BlocklistUi.isRevealed(
@@ -1355,7 +1362,7 @@ class AppAdapter(
         }
 
         val fid = item.id
-        if (fid != null
+        if ((item.entityType == "feed" || item.entityType.isNullOrEmpty()) && fid != null
             && com.example.c001apk.util.Blocklist.isBlocked(
                 com.example.c001apk.util.Blocklist.Kind.FEED, fid)
             && !com.example.c001apk.util.BlocklistUi.isRevealed(
