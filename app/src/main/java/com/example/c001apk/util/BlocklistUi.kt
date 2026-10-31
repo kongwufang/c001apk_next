@@ -73,6 +73,19 @@ object BlocklistUi {
     private val originVisibility = WeakHashMap<View, Int>()
 
     /**
+     * ★★ 2026-10-31 根治「红条在、正文回来」★★
+     *
+     * 证据：`app:pic` / `app:picArr` / `app:setHotReply` 这些 BindingAdapter
+     *      **只改 `isVisible`** ✓ **不碰 `layoutParams`** ✓（看过源码 ✓）
+     *      而且它们会在 `executePendingBindings()` + 图片异步加载后**再次**设成 VISIBLE ✗
+     *      ⇒ 只藏 `visibility` 一定会被覆盖 ✗
+     *
+     * ⇒ 同时把**高度锁成 0** ✓（databinding 改不到 ✓）
+     *   即使它把 visibility 设回 VISIBLE，高度 0 ⇒ 不占位 ⇒ 屏幕上就是折叠的 ✓
+     */
+    private val originHeight = WeakHashMap<View, Int>()
+
+    /**
      * ★ 性能缓存（2026-10-31 修「滑动卡顿」）
      *
      * 原来每次 `bind()` 都要**递归走三遍** View 树（restore + hideBody + post 里的 hideBody ✗）
@@ -267,6 +280,14 @@ object BlocklistUi {
             }
             if (v.visibility != View.GONE) hidden++
             v.visibility = View.GONE
+            // ★ 高度锁 0（databinding 改不到 ✓）—— 这才是真正的保险 ✓
+            v.layoutParams?.let { lp ->
+                if (!originHeight.containsKey(v)) originHeight[v] = lp.height
+                if (lp.height != 0) {
+                    lp.height = 0
+                    v.layoutParams = lp
+                }
+            }
         }
         if (PROBE) {
             // 打完再查一遍：如果还剩下可见的，说明**有东西在我们之后把它设回来了** ✗
@@ -299,6 +320,15 @@ object BlocklistUi {
                     //   ⇒ 卡片里出现一堆空白圆角框 ✗
                     //   => 没记录过就**不动它** ✓ 保持 XML 里的默认可见性 ✓
                     originVisibility[v]?.let { v.visibility = it }
+                    // 高度还原 ✓
+                    originHeight[v]?.let { h ->
+                        v.layoutParams?.let { lp ->
+                            if (lp.height != h) {
+                                lp.height = h
+                                v.layoutParams = lp
+                            }
+                        }
+                    }
                 }
             }
             Mode.BLUR -> {
