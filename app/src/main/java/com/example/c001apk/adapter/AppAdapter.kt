@@ -84,6 +84,55 @@ class AppAdapter(
         }
     }
 
+    /**
+     * 专用「被屏蔽卡片」的 viewType（2026-10-31）
+     * 负数 ✓ 不会和 `when` 里其它 case 撞车
+     */
+    const val TYPE_BLOCKED = -1001
+
+    /**
+     * 被屏蔽动态的 ViewHolder（用户提的终极方案）。
+     *
+     * ⚠️ 布局 `item_blocked_feed.xml` 里**故意没有任何正文 View** ✓
+     *   正文 / 图片 / 转发 / 热评 / 点赞评论栏 —— 一个都没有 ✓
+     *   ⇒ databinding 的 BindingAdapter 无从把它"放回来" ✓
+     *   ⇒ 从结构上根治「红条在、正文也回来了」✗（之前折腾很久的那个 bug）
+     *
+     * 「依然查看」⇒ 记 revealed + `notifyItemChanged` ⇒ 立刻换成正常卡片 ✓
+     */
+    class BlockedFeedViewHolder(
+        val binding: ItemBlockedFeedBinding,
+        val listener: ItemListener,
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+
+        override fun bind(data: HomeFeedResponse.Data) {
+            binding.data = data
+            binding.listener = listener
+            // ★ 红条文案由**服务器**决定 ✓（2026-10-31 用户要求）
+            binding.msg = com.example.c001apk.util.Blocklist.cachedMsg(
+                com.example.c001apk.util.Blocklist.Kind.FEED, data.id
+            )
+            // 头部信息（让用户知道这是谁发的 / 什么机器 / 在哪 ✓）
+            //   字段名核对过：`deviceTitle` / `deviceName` / `ipLocation` ✓
+            //   （没有 `recommend` / `lastupdateText` ✗ 别用）
+            val device = data.deviceTitle?.takeIf { it.isNotBlank() }
+                ?: data.deviceName?.takeIf { it.isNotBlank() }
+            val ip = data.ipLocation?.takeIf { it.isNotBlank() }
+            binding.subLine.text = listOfNotNull(device, ip).joinToString("  ")
+
+            binding.blockedReveal.setOnClickListener {
+                val id = data.id ?: return@setOnClickListener
+                com.example.c001apk.util.BlocklistUi.markRevealed(
+                    com.example.c001apk.util.Blocklist.Kind.FEED, id
+                )
+                val pos = bindingAdapterPosition
+                if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                    notifyItemChanged(pos)
+                }
+            }
+        }
+    }
+
     class FeedViewHolder(val binding: ItemHomeFeedBinding, val listener: ItemListener) :
         BaseViewHolder<ViewDataBinding>(binding) {
         var entityType: String = ""
@@ -138,12 +187,11 @@ class AppAdapter(
 
             // 公共黑名单（2026-10-31）：首页卡片也要模糊 ✓
             //   模糊作用于 blurContainer ✓ 横幅是它的兄弟 => 保持清晰 ✓
-            com.example.c001apk.util.BlocklistUi.bind(
-                binding.blurContainer, binding.blockedBar, binding.blockedBanner,
-                binding.blockedReveal,
-                com.example.c001apk.util.Blocklist.Kind.FEED, data.id,
-                mode = com.example.c001apk.util.BlocklistUi.Mode.FOLD
-            )
+            // ★ 2026-10-31 动态卡片**不再**做折叠 ✗
+            //   被屏蔽的动态由 `BlockedFeedViewHolder`（专用卡片 ✓）接管 ✓
+            //   那个布局里没有正文 View ⇒ 物理上不可能展开 ✓
+            //   （保留这段注释是为了说明：FOLD 模式在首页动态卡片上已经不用了 ✓
+            //     折叠/红条/还原那一整套只留给详情页 和 话题/用户卡片 ✓）
 
             binding.setVariable(BR.data, data)
             binding.setVariable(BR.listener, listener)
@@ -883,6 +931,13 @@ class AppAdapter(
     ): BaseViewHolder<ViewDataBinding> {
         return when (viewType) {
 
+            // ★ 被屏蔽专用卡片（2026-10-31）
+            TYPE_BLOCKED -> BlockedFeedViewHolder(
+                ItemBlockedFeedBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                ), listener
+            )
+
             0 -> {
                 ImageCarouselCardViewHolder(
                     ItemHomeImageCarouselCardBinding.inflate(
@@ -1204,6 +1259,21 @@ class AppAdapter(
 
     override fun getItemViewType(position: Int): Int {
         val item = currentList[position]
+
+        // ★★ 2026-10-31 专用「被屏蔽卡片」（用户提的终极方案）★★
+        //   命中公共黑名单 ⇒ 直接返回 TYPE_BLOCKED
+        //   ⇒ 用 item_blocked_feed.xml（**里面没有正文 View** ✓）
+        //   ⇒ databinding 无从"放回来" ✓ 物理上不可能再展开 ✓
+        //   ⚠️ 必须在所有模板判断**之前** ✓
+        val fid = item.id
+        if (fid != null
+            && com.example.c001apk.util.Blocklist.isBlocked(
+                com.example.c001apk.util.Blocklist.Kind.FEED, fid)
+            && !com.example.c001apk.util.BlocklistUi.isRevealed(
+                com.example.c001apk.util.Blocklist.Kind.FEED, fid)
+        ) {
+            return TYPE_BLOCKED
+        }
         // 版本历史（/v6/apk/downloadVersionList）的条目没有 entityType / entityId，只有 version* 字段。
         // entityType 虽然声明为非空 String，但 Gson 遇到缺失字段会塞 null，
         // 直接交给下面的 when 取 hashCode 会 NPE，所以先单独认出来（顺便兜住其它 null 情况）

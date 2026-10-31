@@ -508,6 +508,18 @@ object BlocklistUi {
 
     private fun rtKey(kind: Blocklist.Kind, id: String) = "${kind.name}|$id"
 
+    /** 该条是否已被用户点过「依然查看」（专用卡片要用 ✓） */
+    fun isRevealed(kind: Blocklist.Kind, id: String?): Boolean {
+        if (id.isNullOrBlank()) return false
+        return revealed.contains(rtKey(kind, id))
+    }
+
+    /** 标记「依然查看」（专用卡片点按钮时调 ✓） */
+    fun markRevealed(kind: Blocklist.Kind, id: String?) {
+        if (id.isNullOrBlank()) return
+        revealed.add(rtKey(kind, id))
+    }
+
     /** 清空「依然查看」记录（调试用）*/
     fun clearRevealed() = revealed.clear()
 }

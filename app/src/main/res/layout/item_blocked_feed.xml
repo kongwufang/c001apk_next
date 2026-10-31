@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    被公共黑名单屏蔽的动态卡片（2026-10-31）
+
+    用户提的终极方案：「定义一个卡片专门显示这个，就永远解决了展开的问题」
+
+    ⚠️ 这个布局里**故意不放任何正文 View** ✓
+       正文 (message / 图片 / 转发 / 热评 / 操作栏) 一个都没有 ✓
+       ⇒ databinding 的 BindingAdapter 无从把它"放回来" ✓
+       ⇒ 物理上不可能再出现「红条在、正文也回来了」✗
+
+    显示：作者头像 + 昵称 + 认证 + 来源 + 机型 + 时间 + 红条 + 「依然查看」
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+
+        <import type="android.view.View" />
+
+        <variable
+            name="data"
+            type="com.example.c001apk.logic.model.HomeFeedResponse.Data" />
+
+        <variable
+            name="listener"
+            type="com.example.c001apk.adapter.ItemListener" />
+
+        <variable
+            name="msg"
+            type="String" />
+    </data>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="6dp"
+        app:cardBackgroundColor="@color/home_card_background_color"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="12dp">
+
+            <!-- 作者头像（点头像/昵称仍可进用户主页 ✓ 只是不给看正文） -->
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/avatar"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:background="@color/cover"
+                android:onClick="@{(view) -> listener.onViewUser(view, data.userInfo.uid)}"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:setImage="@{data.userInfo.userAvatar}" />
+
+            <ImageView
+                android:id="@+id/verifyBadge"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="4dp"
+                app:layout_constraintBottom_toBottomOf="@id/avatar"
+                app:layout_constraintStart_toStartOf="@id/avatar"
+                app:verifyUserData="@{data}" />
+
+            <TextView
+                android:id="@+id/uname"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="12dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:onClick="@{(view) -> listener.onViewUser(view, data.userInfo.uid)}"
+                android:text="@{data.userInfo.username}"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/avatar"
+                app:layout_constraintTop_toTopOf="@id/avatar" />
+
+            <TextView
+                android:id="@+id/subLine"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="2dp"
+                android:layout_marginEnd="12dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/avatar"
+                app:layout_constraintTop_toBottomOf="@id/uname"
+                tools:text="来自最近常去  OPPO Find X8 Ultra" />
+
+            <!-- ★ 红条 -->
+            <TextView
+                android:id="@+id/blockedBanner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="#F2FFEBEE"
+                android:gravity="center_vertical|start"
+                android:paddingStart="12dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="10dp"
+                android:text="@{msg ?? @string/blocked_multi_report}"
+                android:textColor="#D32F2F"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/avatar" />
+
+            <TextView
+                android:id="@+id/blockedReveal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:paddingStart="12dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="10dp"
+                android:text="@string/blocked_reveal"
+                android:textColor="#1976D2"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@id/blockedBanner"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/blockedBanner" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+</layout>
