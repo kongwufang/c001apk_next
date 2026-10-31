@@ -8,6 +8,9 @@ import com.example.c001apk.logic.model.HomeFeedResponse
 abstract class BaseAdapter<T : ViewDataBinding> :
     ListAdapter<HomeFeedResponse.Data, BaseViewHolder<T>>(HomeFeedDiffCallback()) {
 
+    /** 每次 submitList 只做一次「批量结果回来后的刷新」✓ 避免 notify 风暴 ✗ */
+    private var refreshedOnce = false
+
     override fun onBindViewHolder(holder: BaseViewHolder<T>, position: Int) {
         holder.bind(currentList[position])
         holder.dataBinding.executePendingBindings()
@@ -29,6 +32,7 @@ abstract class BaseAdapter<T : ViewDataBinding> :
      */
     override fun submitList(list: List<HomeFeedResponse.Data>?) {
         super.submitList(list)
+        refreshedOnce = false
         if (list.isNullOrEmpty()) return
         runCatching {
             com.example.c001apk.util.Blocklist.prefetchPage(
@@ -43,13 +47,19 @@ abstract class BaseAdapter<T : ViewDataBinding> :
                     it.entityType == "topic" || it.ttitle?.isNotBlank() == true
                 }.mapNotNull { it.id },
             ) {
-                // ★★ 2026-10-31 关键 ★★
-                //   `getItemViewType` 是**同步**在布局时调用的 ✗
-                //   那一刻批量查询还没回来 ⇒ 缓存空 ⇒ 只能返回普通卡片 ✗
-                //   结果回来后如果**不通知** ⇒ 界面永远停在普通卡片 ✗（踩过：首页完全没红条）
-                //   ⇒ 刷新一遍 ✓（`getItemViewType` 会重新分流到 TYPE_BLOCKED ✓）
-                if (itemCount > 0) {
-                    notifyItemRangeChanged(0, itemCount)
+                // ★★ 2026-10-31 ★★
+                //   这里原本无条件 `notifyItemRangeChanged(0, itemCount)` ✗
+                //   ⇒ 在滚动 / 布局过程中整列表重建 ✗
+                //   ⇒ **话题列表的卡片内容全变空白**（真机截图证实 ✓ 关掉测试模式就正常 ✓）
+                //   ⇒ 去掉 ✗ 改成只在「首次学到新结论」时**轻量**通知一次 ✓
+                if (!refreshedOnce) {
+                    refreshedOnce = true
+                    if (itemCount > 0) {
+                        // post 出去 ✓ 避免在布局过程中同步 notify ✗
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            if (itemCount > 0) notifyItemRangeChanged(0, itemCount)
+                        }
+                    }
                 }
             }
         }
