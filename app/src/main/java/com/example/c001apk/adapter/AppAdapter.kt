@@ -378,66 +378,6 @@ class AppAdapter(
             }
         }
 
-        /**
-         * 组级红带。
-         *
-         * ⚠️ 只碰 `groupBlockedBar` 这一个**新建**的 TextView ✓
-         *    标题 / 横向列表 / 小卡 全都不动 ✓（布局里也没给它们绑 visibility ✓）
-         */
-        private fun bindGroupBlockedBar(data: HomeFeedResponse.Data) {
-            val bar = binding.groupBlockedBar
-            bar.isVisible = false
-            val entities = data.entities ?: return
-            if (!com.example.c001apk.util.Blocklist.enabled()) return
-
-            val ids = entities.mapNotNull { it.id }
-            if (ids.isEmpty()) return
-            val show = { blocked: Boolean ->
-                bar.isVisible = blocked
-                if (blocked) {
-                    // 文案取**第一个**命中项的服务器文案 ✓
-                    val msg = ids.firstNotNullOfOrNull {
-                        com.example.c001apk.util.Blocklist.cachedMsg(
-                            com.example.c001apk.util.Blocklist.Kind.FEED, it
-                        )
-                    }
-                    binding.groupBlockedText.text = msg ?: itemView.context.getString(
-                        com.example.c001apk.R.string.blocked_multi_report
-                    )
-                    // 只有右侧「依然查看」可点 ✓ 蓝字 ✓
-                    binding.groupBlockedReveal.setOnClickListener {
-                        // 「依然查看」：把这一组全部放行 ✓
-                        ids.forEach {
-                            com.example.c001apk.util.BlocklistUi.markRevealed(
-                                com.example.c001apk.util.Blocklist.Kind.FEED, it
-                            )
-                        }
-                        bar.isVisible = false
-                        binding.recyclerView.adapter?.notifyDataSetChanged()
-                    }
-                }
-            }
-            // 先看缓存里有没有命中 ✓
-            val anyCached = ids.any {
-                com.example.c001apk.util.Blocklist.cached(
-                    com.example.c001apk.util.Blocklist.Kind.FEED, it
-                ) == true
-            }
-            if (anyCached) {
-                show(true)
-            } else {
-                com.example.c001apk.util.Blocklist.prefetch(
-                    com.example.c001apk.util.Blocklist.Kind.FEED, ids
-                ) {
-                    show(ids.any {
-                        com.example.c001apk.util.Blocklist.isBlocked(
-                            com.example.c001apk.util.Blocklist.Kind.FEED, it
-                        )
-                    })
-                }
-            }
-        }
-
     }
 
     class IconMiniScrollCardViewHolder(
