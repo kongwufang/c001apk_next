@@ -98,6 +98,9 @@ object ReportAlliance {
      */
     private val anonClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            // ★ 酷安接口必须用它自己的头 ✓（X-App-Token / X-App-Device / X-App-Version …）
+            //   ⚠️ 绝不能塞自家后台的 `X-Client-*` 头 ✗（那是 service.houlangs.cn 的自定义头 ✗）
+            .addInterceptor(com.example.c001apk.util.AddCookiesInterceptorNoCookie)
             .cookieJar(okhttp3.CookieJar.NO_COOKIES)
             .let { SslVerify.apply(it) }
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -135,15 +138,11 @@ object ReportAlliance {
         if (feedId.isBlank()) return@runCatching emptyList<String>()
         val url = "https://api.coolapk.com/v6/feed/detail?id=" +
                 java.net.URLEncoder.encode(feedId, "UTF-8")
+        // ★ 头全部由 `AddCookiesInterceptorNoCookie` 加 ✓（酷安那套，不带 Cookie ✓）
+        //   ⚠️ 这里**一个头都不要自己加** ✗（尤其不能加自家后台的 X-Client-* ✗）
         val req = Request.Builder()
             .url(url)
             .get()
-            .header("X-Client-SSaid", PrefManager.ssaid)
-            .header("X-App-userrandomid", PrefManager.userRandomId)
-            .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
-            .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
-            .header("X-Client-Platform", "android")
-            .header("User-Agent", com.example.c001apk.constant.Constants.USER_AGENT)
             .build()
 
         anonClient.newCall(req).execute().use { resp ->

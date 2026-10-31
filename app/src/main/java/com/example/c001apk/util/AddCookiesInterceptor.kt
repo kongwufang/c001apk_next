@@ -57,3 +57,49 @@ object AddCookiesInterceptor : Interceptor {
         return chain.proceed(builder.build())
     }
 }
+
+
+/**
+ * ★ 2026-11-01 **不带 Cookie** 的酷安请求头（探测话题专用）
+ *
+ * 用户要求：「用无 cookie 的情况请求详情页避免污染用户的历史记录数据」
+ *
+ * 和 [AddCookiesInterceptor] 唯一的区别：**不加 `Cookie` 头** ✓
+ *   ⇒ 酷安收到的是匿名请求 ⇒ 不会记成「你看过这条」✓
+ *
+ * ⚠️ 其余头必须**完全一致** ✓（`X-App-Token` / `X-App-Version` / `X-App-Device` …）
+ *    少一个酷安就会拒绝（403 / 空 data）✗
+ * ⚠️ 也**绝不**能塞自家后台的 `X-Client-*` 头 ✗（那是我们 service.houlangs.cn 的自定义头 ✗）
+ */
+object AddCookiesInterceptorNoCookie : Interceptor {
+    @Throws(IOException::class)
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val builder: Request.Builder = chain.request().newBuilder()
+        val deviceCode = TokenDeviceUtils.getLastingDeviceCode()
+        val versionName = PrefManager.VERSION_NAME.ifEmpty { Constants.VERSION_NAME }
+        val versionCode = PrefManager.VERSION_CODE.ifEmpty { Constants.VERSION_CODE }
+        val token = deviceCode.getTokenV3(versionCode)
+        builder.apply {
+            addHeader("User-Agent", PrefManager.USER_AGENT.ifEmpty { Constants.USER_AGENT })
+            addHeader("X-Requested-With", REQUEST_WITH)
+            addHeader("X-Sdk-Int", PrefManager.SDK_INT)
+            addHeader("X-Sdk-Locale", LOCALE)
+            addHeader("X-App-Id", APP_ID)
+            addHeader("X-App-Token", token)
+            addHeader("X-App-Version", versionName)
+            addHeader("X-App-Code", versionCode)
+            addHeader("X-Api-Version", PrefManager.API_VERSION.ifEmpty { Constants.API_VERSION })
+            addHeader("X-App-Device", deviceCode)
+            addHeader("X-Dark-Mode", DARK_MODE)
+            addHeader("X-App-Channel", CHANNEL)
+            addHeader("X-App-Mode", MODE)
+            addHeader("X-App-Supported", versionCode)
+            addHeader(
+                "Referer",
+                "https://api.coolapk.com/?ref=CoolMarket/$versionName-$versionCode-$MODE"
+            )
+            // ★ 这里**没有** Cookie 头 ✓（这是唯一区别）
+        }
+        return chain.proceed(builder.build())
+    }
+}
