@@ -8,6 +8,19 @@ import com.example.c001apk.logic.model.HomeFeedResponse
 abstract class BaseAdapter<T : ViewDataBinding> :
     ListAdapter<HomeFeedResponse.Data, BaseViewHolder<T>>(HomeFeedDiffCallback()) {
 
+    /**
+     * 每次 submitList 只刷新一次（批量结果回来时）✓
+     *
+     * ⚠️ 为什么必须有：`getItemViewType` 是**同步**在布局时调用的 ✗
+     *    那一刻批量查询还没回来 ⇒ 缓存空 ⇒ 只能返回普通卡片 ✗
+     *    结果回来后**必须**让列表重算 viewType ✓ 否则专用卡片永远不出现 ✗
+     *
+     * ⚠️ 为什么早先删过：那时话题卡片是「内联加红条」✗
+     *    一次 notify 就会把话题卡片的内容刷成空白 ✗
+     *    现在话题走**专用卡片** ✓ 那个隐患已经不存在 ✓
+     */
+    private var refreshedOnce = false
+
     override fun onBindViewHolder(holder: BaseViewHolder<T>, position: Int) {
         holder.bind(currentList[position])
         holder.dataBinding.executePendingBindings()
@@ -29,6 +42,7 @@ abstract class BaseAdapter<T : ViewDataBinding> :
      */
     override fun submitList(list: List<HomeFeedResponse.Data>?) {
         super.submitList(list)
+        refreshedOnce = false
         if (list.isNullOrEmpty()) return
         runCatching {
             com.example.c001apk.util.Blocklist.prefetchPage(
@@ -43,14 +57,14 @@ abstract class BaseAdapter<T : ViewDataBinding> :
                     it.entityType == "topic" || it.ttitle?.isNotBlank() == true
                 }.mapNotNull { it.id },
             ) {
-                // ★★ 2026-10-31 最终版：**完全不 notify** ★★
-                //   试过 `notifyItemRangeChanged`（含 post 出去 / 只做一次）✗
-                //   都会让**话题列表的卡片内容变空白** ✗
-                //   （真机截图证实：关掉测试模式就正常 ✓ 一 notify 就空白 ✓）
-                //
-                //   ⇒ 不 notify ✗ 靠下一轮自然 bind 生效 ✓
-                //     · 缓存已经有结论 ⇒ 后续 `getItemViewType` 直接分流到专用卡片 ✓
-                //     · 列表本来就会随着滚动 / 刷新 rebind ✓ 不影响正确性 ✓
+                // ★ 批量结果回来 ⇒ post 出去刷新一次 ✓
+                //   `getItemViewType` 才会重新分流到专用卡片（TYPE_BLOCKED / TYPE_BLOCKED_TOPIC）✓
+                if (!refreshedOnce) {
+                    refreshedOnce = true
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        if (itemCount > 0) notifyItemRangeChanged(0, itemCount)
+                    }
+                }
             }
         }
     }
