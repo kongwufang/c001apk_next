@@ -1,0 +1,178 @@
+package com.example.c001apk.util
+
+import android.content.Context
+import android.util.Log
+import java.util.concurrent.TimeUnit
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * 「匿名举报联盟」—— 不使用酷安官方举报，走自建后端。
+ *
+ * 用户 2026-10-31 需求：
+ * > 「我打算做一个匿名举报功能，即不使用酷安的举报功能，在点赞、评论、收藏、转发那里
+ * >   增加一个举报选项，首次点击会跳出弹窗『如果你认为官方举报是滚木，可以加入我们的
+ * >   匿名举报联盟』用户同意后先保存他的偏好，并且在设置里增加一个开关 ... 可以随时控制」
+ *
+ * ## 三条底线
+ *
+ * ① **不告诉用户举报结果** ✗ —— 上传成功只提示「已提交」，不透露任何处置 ✓
+ * ② **不与被举报内容发生任何交互** ✗ —— 完全不调酷安的任何接口 ✓
+ *    （所以被举报人、酷安、以及任何人都不可能从官方渠道知道是谁举报的 ✓）
+ * ③ **只上报最小必要信息** ✓ —— 帖子/话题 ID + 原因 + 设备标识（用于反刷）
+ *
+ * ## 上报内容
+ *
+ * ```
+ * type      feed | topic
+ * id        帖子 ID / 话题 ID
+ * topic_id  所属话题（在话题页举报时带）
+ * reasons   原因编码，逗号分隔
+ * note      可选补充说明
+ * ```
+ *
+ * 设备标识由请求头带（`X-Client-SSaid` / `X-App-userrandomid` / …）✓
+ * cookie（`ck1`）由 [ServerCookieStore] 的拦截器自动附上 ✓
+ * —— 这样服务端能把「举报行为」和「风控记录」关联起来 ✓
+ */
+object ReportAlliance {
+
+    private const val TAG = "ReportAlliance"
+
+    /** 上报地址（与统计、分享同一个域 ✓ cookie 拦截器只对自家域生效 ✓） */
+    private const val ENDPOINT = "https://service.houlangs.cn/c001apk/report/create.php"
+
+    /**
+     * 举报原因（编码 => 文案）。与服务端 `$ALLOWED` 一一对应 ✓
+     * 顺序即用户给定的顺序 ✓
+     */
+    val REASONS: List<Pair<String, String>> = listOf(
+        "politics" to "涉及政治隐喻，传播领导人不实信息",
+        "violence" to "暴力、血腥、政治等敏感内容",
+        "privacy" to "泄露他人个人隐私",
+        "porn" to "色情、低俗内容",
+        "ad" to "小广告",
+        "flame" to "引战，带节奏",
+        "abuse" to "辱骂他人，恶意攻击",
+        "fake" to "发表虚假信息，制造传播谣言",
+        "vpn" to "违禁翻墙工具",
+        "fraud" to "发布商品信息与实际不符或存在欺诈行为",
+        "simcard" to "流量卡推广",
+        "netdisk" to "网盘推广",
+    )
+
+    /** 专属 OkHttp：只打自家域名 ✓ 必须挂 [ServerCookieStore]（要把 ck1 带回去 ✓） */
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .addInterceptor(ServerCookieStore.interceptor())
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
+
+    /** 是否已同意加入联盟（首次弹窗点「加入」后为 true） */
+    var joined: Boolean
+        get() = PrefManager.reportAllianceJoined
+        set(value) {
+            PrefManager.reportAllianceJoined = value
+        }
+
+    /**
+     * 联盟开关（设置 → 推荐流相关 ✓）。
+     *
+     * 默认**关闭** ✗ —— 必须用户先同意加入 ✓ 再手动开启 ✓
+     * 「同意后先保存他的偏好，并且在设置里增加一个开关」⇒ 加入时自动置为 true ✓
+     */
+    var enabled: Boolean
+        get() = joined && PrefManager.reportAllianceEnabled
+        set(value) {
+            PrefManager.reportAllianceEnabled = value
+        }
+
+    /**
+     * 提交一条举报。
+     *
+     * @param type    `feed` / `topic`
+     * @param id      帖子 ID 或话题 ID
+     * @param topicId 所属话题 ID（话题页举报时带自己的 ID；帖子页可为空）
+     * @param reasons 选中的原因编码
+     * @param note    补充说明（可空）
+     * @return 成功返回举报编号 `rid`；失败返回 null
+     */
+    fun submit(
+        type: String,
+        id: String,
+        topicId: String?,
+        reasons: List<String>,
+        note: String?,
+    ): String? {
+        if (!enabled) {
+            Log.w(TAG, "联盟开关未开启，忽略")
+            return null
+        }
+        if (reasons.isEmpty()) return null
+        return runCatching {
+            val body = JSONObject().apply {
+                put("type", type)
+                put("id", id)
+                if (!topicId.isNullOrBlank()) put("topic_id", topicId)
+                put("reasons", reasons.joinToString(","))
+                if (!note.isNullOrBlank()) put("note", note.take(500))
+            }.toString()
+
+            val req = Request.Builder()
+                .url(ENDPOINT)
+                .post(body.toRequestBody(JSON_TYPE))
+                .header("X-Client-SSaid", PrefManager.ssaid)
+                .header("X-App-userrandomid", PrefManager.userRandomId)
+                .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
+                .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
+                .header("X-Client-Platform", "android")
+                .header("User-Agent", com.example.c001apk.constant.Constants.USER_AGENT)
+                .build()
+
+            client.newCall(req).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) {
+                    Log.w(TAG, "上报失败 HTTP ${resp.code}: ${text.take(120)}")
+                    return@use null
+                }
+                val j = runCatching { JSONObject(text) }.getOrNull()
+                if (j?.optInt("status") == 1) {
+                    val rid = j.optString("rid", "")
+                    Log.i(TAG, "举报已提交 rid=$rid")
+                    return@use rid
+                }
+                Log.w(TAG, "上报被拒: ${text.take(120)}")
+                null
+            }
+        }.onFailure { Log.w(TAG, "上报异常: ${it.message}") }.getOrNull()
+    }
+
+    /** 调试用：把原因列表导出成 JSON 数组（客户端/服务端对齐检查） */
+    fun reasonsJson(): String = JSONArray().apply {
+        REASONS.forEach { (code, label) ->
+            put(JSONObject().apply {
+                put("code", code)
+                put("label", label)
+            })
+        }
+    }.toString()
+
+    /** 首次点击时是否还要弹「加入联盟」的确认框 */
+    fun needsJoinPrompt(): Boolean = !joined
+
+    /** 用户点了「加入」 */
+    fun join(ctx: Context) {
+        joined = true
+        enabled = true      // 加入即开启 ✓ 之后可在设置里随时关 ✓
+        Log.i(TAG, "已加入匿名举报联盟（package=${ctx.packageName}）")
+    }
+}

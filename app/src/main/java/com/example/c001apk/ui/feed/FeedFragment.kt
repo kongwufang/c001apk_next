@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.feed
 
+import com.example.c001apk.util.ReportAllianceDialog
 import com.example.c001apk.util.ImageUtil.toHex
 import androidx.activity.result.PickVisualMediaRequest
 import com.example.c001apk.util.ImageUtil
@@ -506,7 +507,8 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
             menu.findItem(R.id.showReply).isVisible = isPortrait
             // 举报要联网、可见性要回写服务端，离线缓存里都做不了
-            menu.findItem(R.id.report).isVisible = PrefManager.isLogin && !viewModel.isOffline
+            // 匿名举报不要求登录 ✓（联盟本身就是匿名通道 ✓）
+        menu.findItem(R.id.report).isVisible = !viewModel.isOffline
             menu.findItem(R.id.showQuestion).isVisible = viewModel.feedType == "answer"
             // 编辑：只有「自己发的」且「服务端说还能编辑」才显示 ✓
             //   enableModify = 1（自己发的、未超时、未被锁 ✓）
@@ -575,13 +577,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                         }
                     }
 
+                    // 匿名举报联盟（2026-10-31）：不再跳酷安的举报页 ✗
                     R.id.report -> {
-                        IntentUtil.startActivity<WebViewActivity>(requireContext()) {
-                            putExtra(
-                                "url",
-                                "https://m.coolapk.com/mp/do?c=feed&m=report&type=feed&id=${viewModel.id}"
-                            )
-                        }
+                        reportFeedAnonymously(viewModel.id)
                     }
 
                 }
@@ -941,7 +939,39 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         feedFixAdapter.setListType(viewModel.listType)
     }
 
+    /**
+     * 匿名举报入口（2026-10-31 用户需求）
+     *
+     * 「不使用酷安的举报功能 ... 首次点击会跳出弹窗 ...
+     *  用户同意后先保存他的偏好 ... 这个开关开启之后，用户在点击举报按钮，可填举报原因」
+     *
+     * ⚠️ 不跳酷安的任何页面 ✗ 完全走自建后端 ✓
+     */
+    private fun reportFeedAnonymously(feedId: String?) {
+        val id = feedId ?: viewModel.id
+        if (id.isBlank()) {
+            Toast.makeText(requireContext(), R.string.report_no_id, Toast.LENGTH_SHORT).show()
+            return
+        }
+        // 话题 ID：详情数据里没有现成字段 ✗ 留空 ✓
+        // （在话题页举报时才会带 topic_id ✓ 见 TopicFragment）
+        reportAnonymously("feed", id, null)
+    }
+
+    /** 统一的匿名举报流程：弹窗 → 选原因 → 上报 */
+    private fun reportAnonymously(type: String, id: String, topicId: String?) {
+        ReportAllianceDialog.start(requireActivity()) { reasons ->
+            ReportAllianceDialog.submit(requireActivity(), type, id, topicId, reasons)
+        }
+    }
+
     inner class ItemClickListener : ItemListener {
+
+        /** 底栏「举报」图标（2026-10-31）—— 详情页用 viewModel.id 更准 */
+        override fun onReportFeed(view: android.view.View, id: String?) {
+            reportFeedAnonymously(id)
+        }
+
         override fun onViewFeed(
             view: View,
             id: String?,
@@ -998,7 +1028,8 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                     // 删 / 举报 / 置顶都要联网回写，离线缓存里只留「查看回复」和「复制」
                     menu.findItem(R.id.delete).isVisible =
                         PrefManager.uid == uid && !viewModel.isOffline
-                    menu.findItem(R.id.report).isVisible = PrefManager.isLogin && !viewModel.isOffline
+                    // 匿名举报不要求登录 ✓（联盟本身就是匿名通道 ✓）
+        menu.findItem(R.id.report).isVisible = !viewModel.isOffline
                     // 置顶：只有帖主能操作，而且接口置顶的是「动态的回复」，
                     // 所以二级回复（rPosition 有效）不给这一项。标题按当前状态切换。
                     menu.findItem(R.id.stickTop)?.apply {
@@ -1155,13 +1186,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                     viewModel.feedReplyData.value = newList
                 }
 
+                // 匿名举报联盟（2026-10-31）：评论也走自建通道 ✓
                 R.id.report -> {
-                    IntentUtil.startActivity<WebViewActivity>(requireContext()) {
-                        putExtra(
-                            "url",
-                            "https://m.coolapk.com/mp/do?c=feed&m=report&type=feed_reply&id=$id"
-                        )
-                    }
+                    reportAnonymously("reply", id, null)
                 }
 
                 R.id.delete -> {

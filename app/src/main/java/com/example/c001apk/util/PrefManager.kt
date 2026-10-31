@@ -468,4 +468,26 @@ object PrefManager {
             pref.edit().putString("server_cookies", value).apply()
         }
 
+    /**
+     * 「匿名举报联盟」：用户是否已在首次弹窗里点过「加入」。
+     *
+     * 用户 2026-10-31 需求：「首次点击会跳出弹窗 ... 用户同意后先保存他的偏好」
+     */
+    var reportAllianceJoined: Boolean
+        get() = pref.getBoolean("report_alliance_joined", false)
+        set(value) {
+            pref.edit().putBoolean("report_alliance_joined", value).apply()
+        }
+
+    /**
+     * 「匿名举报联盟」开关（设置 → 推荐流相关 ✓）。
+     *
+     * 用户需求：「在设置里增加一个开关，放推荐流设置那里，可以随时控制」
+     */
+    var reportAllianceEnabled: Boolean
+        get() = pref.getBoolean("report_alliance_enabled", false)
+        set(value) {
+            pref.edit().putBoolean("report_alliance_enabled", value).apply()
+        }
+
 }

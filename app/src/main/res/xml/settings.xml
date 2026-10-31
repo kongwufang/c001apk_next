@@ -145,6 +145,18 @@
             ⚠️ persistent=false：不走 Preference 自己的 SharedPreferences ✗
                实际值存在 PrefManager 里 ✓ 由 SettingsPreferenceFragment 手动读写 ✓
         -->
+        <!-- 匿名举报联盟（2026-10-31 用户要求：放推荐流设置这里 ✓ 可随时控制 ✓） -->
+        <PreferenceCategory android:title="@string/settings_report_alliance">
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_report_flag"
+                android:key="reportAllianceEnabled"
+                android:persistent="false"
+                android:summary="@string/settings_report_alliance_on"
+                android:title="@string/settings_report_alliance" />
+
+        </PreferenceCategory>
+
         <PreferenceCategory android:title="@string/settings_save_location">
 
             <rikka.material.preference.MaterialSwitchPreference

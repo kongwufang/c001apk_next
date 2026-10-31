@@ -231,6 +231,24 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         //   ⚠️ XML 里写了 persistent=false ⇒ 值由这里手动读写 PrefManager ✓
         //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
         //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
+        // 匿名举报联盟开关（2026-10-31）
+        // ⚠️ 用户没同意加入过联盟时开关显示为关且不可点 ✗
+        //    必须先从任意「举报」入口点一次「加入」✓
+        findPreference<MaterialSwitchPreference>("reportAllianceEnabled")?.apply {
+            val joined = PrefManager.reportAllianceJoined
+            isChecked = joined && PrefManager.reportAllianceEnabled
+            isEnabled = joined
+            summary = if (joined) {
+                getString(R.string.settings_report_alliance_on)
+            } else {
+                getString(R.string.settings_report_alliance_off)
+            }
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.reportAllianceEnabled = v as Boolean
+                true
+            }
+        }
+
         findPreference<MaterialSwitchPreference>("saveCollectionToCloud")?.apply {
             isChecked = PrefManager.saveCollectionToCloud
             setOnPreferenceChangeListener { _, v ->

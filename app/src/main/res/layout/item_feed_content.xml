@@ -213,6 +213,21 @@
             app:layout_constraintTop_toBottomOf="@id/forwarded"
             app:setFavorite="@{data.isFavorited}" />
 
+        <!-- 匿名举报（2026-10-31）：放在点赞左边 ✓ 与「收藏/转发」同一排 -->
+        <TextView
+            android:id="@+id/report"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="10dp"
+            android:background="?attr/actionBarItemBackground"
+            android:contentDescription="@string/report"
+            android:onClick="@{(v) -> listener.onReportFeed(v, data.id)}"
+            android:textColor="@android:color/darker_gray"
+            app:icon="@{@drawable/ic_report_flag}"
+            app:layout_constraintEnd_toStartOf="@id/like"
+            app:layout_constraintTop_toBottomOf="@id/forwarded" />
+
         <TextView
             android:id="@+id/like"
             android:layout_width="wrap_content"

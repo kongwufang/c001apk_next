@@ -18,6 +18,7 @@ import com.example.c001apk.ui.feed.reply.ReplyActivity
 import com.example.c001apk.ui.home.IOnTabClickListener
 import com.example.c001apk.ui.others.WebViewFragment
 import com.example.c001apk.ui.search.SearchActivity
+import com.example.c001apk.util.ReportAllianceDialog
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.PrefManager
@@ -337,6 +338,20 @@ class TopicFragment : BasePagerFragment() {
                                 putExtra("pageParam", viewModel.id)
                                 putExtra("title", viewModel.title)
                             }
+                        }
+                    }
+
+                    // 匿名举报话题（2026-10-31 用户需求：放在右上角的更多菜单里 ✓）
+                    // 「如果填写就上报话题ID」=> id 和 topic_id 都传话题 ID ✓
+                    R.id.reportTopic -> {
+                        val tid = viewModel.id
+                        if (tid.isBlank()) {
+                            return@setOnMenuItemClickListener true
+                        }
+                        ReportAllianceDialog.start(requireActivity()) { reasons ->
+                            ReportAllianceDialog.submit(
+                                requireActivity(), "topic", tid, tid, reasons
+                            )
                         }
                     }
 

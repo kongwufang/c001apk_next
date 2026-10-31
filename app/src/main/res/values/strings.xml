@@ -322,4 +322,23 @@
     <string name="share_link_offline_hint">离线缓存会自动把帖子备份到云端</string>
     <string name="share_link_menu">分享链接</string>
     <string name="offline_cache_title">离线缓存</string>
+
+    <!-- ============ 匿名举报联盟（2026-10-31 用户需求）============ -->
+    <string name="report_alliance_join_title">加入匿名举报联盟</string>
+    <string name="report_alliance_join_message">如果你认为官方举报是滚木，可以加入我们的匿名举报联盟</string>
+    <string name="report_alliance_join">加入</string>
+    <string name="report_alliance_off_title">匿名举报已关闭</string>
+    <string name="report_alliance_off_message">你可以在「设置 - 推荐流相关」里随时打开。</string>
+    <string name="report_alliance_enable">打开</string>
+    <string name="report_reason_title">选择举报原因（可多选）</string>
+    <string name="report_submit">提交举报</string>
+    <string name="report_need_reason">请至少选择一个原因</string>
+    <string name="report_submitted">已提交，感谢你</string>
+    <string name="report_submit_failed">提交失败，稍后再试</string>
+    <string name="report_note_hint">补充说明（可选）</string>
+    <!-- 设置项 -->
+    <string name="settings_report_alliance">匿名举报联盟</string>
+    <string name="settings_report_alliance_on">开启：举报按钮走自建匿名通道（不上报给酷安）</string>
+    <string name="settings_report_alliance_off">关闭：举报按钮点击后提示如何重新开启</string>
+    <string name="report_no_id">这条内容缺少 ID，无法举报</string>
 </resources>
