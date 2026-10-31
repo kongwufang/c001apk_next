@@ -76,6 +76,19 @@ class UserPagerFragment : BasePagerFragment() {
         userBinding.listener = viewModel.ItemClickListener()
         userBinding.isSelf = isSelf
 
+        // ★ 2026-10-31 个人主页也查公共黑名单 ✓（用户要求）
+        //   ⚠️ 必须放在 initUser() 里 ✗ 不能放 initBar() ✗
+        //      initBar() 比 initUser() 先跑 ⇒ userBinding 还没初始化 ⇒ 崩 ✗（已踩过）
+        //   ⚠️ base_view_user.xml 的卡片根 id 是 **infoLayout**（不是 blurContainer ✗）
+        com.example.c001apk.util.BlocklistUi.bind(
+            userBinding.infoLayout, userBinding.blockedBar,
+            userBinding.blockedBanner, userBinding.blockedReveal,
+            com.example.c001apk.util.Blocklist.Kind.USER,
+            viewModel.uid,
+            com.example.c001apk.R.string.blocked_multi_report_user,
+            com.example.c001apk.util.BlocklistUi.Mode.BLUR
+        )
+
         // 自己的主页：按钮变成「编辑信息」；别人的主页：关注 / 已关注；未登录不显示
         userBinding.followBtn.isVisible = isSelf || PrefManager.isLogin
         userBinding.followBtn.setOnClickListener {
@@ -287,17 +300,6 @@ class UserPagerFragment : BasePagerFragment() {
 
             viewModel.checkMenuState()
 
-            // ★ 2026-10-31 个人主页也查公共黑名单 ✓（用户要求）
-            // ⚠️ base_view_user.xml 的卡片根 id 是 **infoLayout**（不是 blurContainer ✗）
-            //    binding 变量叫 userBinding（不是 binding ✗）
-            com.example.c001apk.util.BlocklistUi.bind(
-                userBinding.infoLayout, userBinding.blockedBar,
-                userBinding.blockedBanner, userBinding.blockedReveal,
-                com.example.c001apk.util.Blocklist.Kind.USER,
-                viewModel.uid,
-                com.example.c001apk.R.string.blocked_multi_report_user,
-                com.example.c001apk.util.BlocklistUi.Mode.BLUR
-            )
 
             setOnMenuItemClickListener {
                 when (it.itemId) {
