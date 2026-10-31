@@ -48,18 +48,39 @@
              ⚠️ 只隐藏封面和标题 ✓ 这两个 View 的 visibility **没有** databinding 绑定 ✓
                 所以不会被 BindingAdapter 设回来 ✓（踩过的坑不会重现）-->
         <TextView
+            android:id="@+id/blockedReveal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingStart="8dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp"
+            android:text="@string/blocked_reveal"
+            android:textColor="#1976D2"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/blockedBar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/blockedBar" />
+
+        <TextView
             android:id="@+id/blockedBar"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="#1A000000"
-            android:gravity="center"
-            android:paddingTop="24dp"
-            android:paddingBottom="24dp"
-            android:text="@string/blocked_placeholder"
-            android:textColor="#99FFFFFF"
+            android:background="#F2FFEBEE"
+            android:gravity="center_vertical|start"
+            android:paddingStart="10dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="10dp"
+            android:text="@string/blocked_multi_report"
+            android:textColor="#D32F2F"
             android:textSize="12sp"
+            android:textStyle="bold"
             android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/blockedReveal"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 

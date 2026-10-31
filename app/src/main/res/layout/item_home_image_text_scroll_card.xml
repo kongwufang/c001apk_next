@@ -40,61 +40,6 @@
                     android:scrollbars="none" />
 
             </com.example.c001apk.view.NestedScrollableHost>
-
-        
-            <!--
-                ★ 2026-10-31 优质图文：**整组一条**红带（用户微调）
-
-                ⚠️ 之前漏了约束 ⇒ 红带跑到 (0,0) **盖住了「优质图文」标题** ✗
-                ⚠️ 宽度不能 `match_parent` + margin ⇒ 用户反馈「红条过长」✗
-                   ⇒ 用 start/end 约束 + 左右 margin ✓ 和卡片内容对齐 ✓
-                ★ 右侧加「依然查看」**蓝字** ✓（用户要求：不要用灰字）
-            -->
-            <LinearLayout
-                android:id="@+id/groupBlockedBar"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:background="#F2FFEBEE"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingTop="10dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="10dp"
-                android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/groupList">
-
-                <TextView
-                    android:id="@+id/groupBlockedText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="2"
-                    android:text="@string/blocked_multi_report"
-                    android:textColor="#D32F2F"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/groupBlockedReveal"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:paddingStart="8dp"
-                    android:paddingTop="4dp"
-                    android:paddingEnd="8dp"
-                    android:paddingBottom="4dp"
-                    android:text="@string/blocked_reveal"
-                    android:textColor="#1976D2"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>

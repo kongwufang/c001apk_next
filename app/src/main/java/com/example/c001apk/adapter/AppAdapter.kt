@@ -371,10 +371,10 @@ class AppAdapter(
                         addItemDecoration(LinearItemDecoration1(10.dp))
                 }
 
-                // ★ 2026-10-31 优质图文：**整组一条**红带（用户微调）
-                //   只要有任意一张小卡命中黑名单 ⇒ 组下方显示一条红带 ✓
-                //   组内小卡各自只显示中性占位「已屏蔽」✓（不再每张一条粉色大红条 ✗）
-                bindGroupBlockedBar(data)
+                // ★ 2026-10-31 优质图文：**每张小卡各一条**红带（用户最终要求）
+                //   实现位置在 `ImageTextScrollCardAdapter.bind()` ✓
+                //   宽度 0dp + start/end 约束 ⇒ 正好等于**那张卡**的宽 ✓
+                //   ⚠️ 不要做成「整组通栏」✗ 那会比小卡宽 ⇒ 越界 ✗（踩过）
             }
         }
 

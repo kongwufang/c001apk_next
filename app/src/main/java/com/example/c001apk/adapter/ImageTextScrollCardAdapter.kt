@@ -38,7 +38,17 @@ class ImageTextScrollCardAdapter(
                 binding.imageTextScrollCard.isVisible = !blocked
                 binding.title.isVisible = !blocked
                 binding.blockedBar.isVisible = blocked
+                binding.blockedReveal.isVisible = blocked
                 if (blocked) {
+                    binding.blockedReveal.setOnClickListener {
+                        com.example.c001apk.util.BlocklistUi.markRevealed(
+                            com.example.c001apk.util.Blocklist.Kind.FEED, id
+                        )
+                        binding.imageTextScrollCard.isVisible = true
+                        binding.title.isVisible = true
+                        binding.blockedBar.isVisible = false
+                        binding.blockedReveal.isVisible = false
+                    }
                     binding.blockedBar.text =
                         com.example.c001apk.util.Blocklist.cachedMsg(
                             com.example.c001apk.util.Blocklist.Kind.FEED, id
