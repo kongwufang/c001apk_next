@@ -34,6 +34,14 @@ abstract class BaseAdapter<T : ViewDataBinding> :
             com.example.c001apk.util.Blocklist.prefetchPage(
                 feeds = list.mapNotNull { it.id },
                 users = list.mapNotNull { it.userInfo?.uid ?: it.uid },
+                // ★★ 2026-10-31 补上 **话题** ★★
+                //   之前只发 feeds + users ✗ ⇒ 话题 id 从来没问过服务器 ✗
+                //   ⇒ `cached(TOPIC, id)` 永远 null ⇒ 话题卡片永远不出红条 ✗（用户反馈）
+                //   话题实体：`entityType == "topic"` ✓ 也有混在别处的话题卡片
+                //   ⇒ 只要模板里出现话题就一起问 ✓（多问几个 id 很便宜 ✓）
+                topics = list.filter {
+                    it.entityType == "topic" || it.ttitle?.isNotBlank() == true
+                }.mapNotNull { it.id },
             ) {
                 // ★★ 2026-10-31 关键 ★★
                 //   `getItemViewType` 是**同步**在布局时调用的 ✗
