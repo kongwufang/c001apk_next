@@ -166,6 +166,8 @@ class UserPagerFragment : BasePagerFragment() {
                 bindMailBtn()
                 // 签名可能刚被编辑过，重新折叠一次
                 bindBio()
+                // ★ 2026-10-31 资料到手后再查黑名单 ✓（uid 这时才确定 ✓）
+                bindBlocklist()
             }
         }
 
