@@ -34,7 +34,16 @@ abstract class BaseAdapter<T : ViewDataBinding> :
             com.example.c001apk.util.Blocklist.prefetchPage(
                 feeds = list.mapNotNull { it.id },
                 users = list.mapNotNull { it.userInfo?.uid ?: it.uid },
-            )
+            ) {
+                // ★★ 2026-10-31 关键 ★★
+                //   `getItemViewType` 是**同步**在布局时调用的 ✗
+                //   那一刻批量查询还没回来 ⇒ 缓存空 ⇒ 只能返回普通卡片 ✗
+                //   结果回来后如果**不通知** ⇒ 界面永远停在普通卡片 ✗（踩过：首页完全没红条）
+                //   ⇒ 刷新一遍 ✓（`getItemViewType` 会重新分流到 TYPE_BLOCKED ✓）
+                if (itemCount > 0) {
+                    notifyItemRangeChanged(0, itemCount)
+                }
+            }
         }
     }
 
