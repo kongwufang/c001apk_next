@@ -119,10 +119,21 @@ object BlocklistUi {
 
         // ★ 状态没变 => 整个跳过 ✓（RecyclerView 滑回来时会反复 bind 同一项 ✗）
         //   这是修「滑动卡顿」最关键的一条 ✓
-        val wantBlocked = if (key.isEmpty() || !Blocklist.enabled()) {
-            false
-        } else {
-            Blocklist.cached(kind, key) == true
+        // ★★ 2026-10-31 探针找到的真根因 ★★
+        //   日志：
+        //     bind id=74741472 last=true cached=null
+        //     restore mode=FOLD（把正文放出来）      ← 先展开了 ✗
+        //     （242ms 后）
+        //     apply mode=FOLD                        ← 异步结果回来才折叠
+        //   ⇒ 「展开」不是折叠状态丢失 ✗ 是**缓存未知时先 restore 了** ✗
+        //     中间那 200+ms 就是用户看到的样子 ✓
+        //
+        //   修：未知（cached == null，批量查询还在路上 ✓）时
+        //       **沿用上一张卡片的状态**（乐观 ✓ 相邻卡片状态基本一致 ✓）
+        //       => want 与 last 相同 => 直接跳过 => 零闪烁 ✓
+        val wantBlocked = when {
+            key.isEmpty() || !Blocklist.enabled() -> false
+            else -> Blocklist.cached(kind, key) ?: (lastState[blurView] == true)
         }
         if (lastState[blurView] == wantBlocked && !revealed.contains(rtKey(kind, key))) {
             if (PROBE) android.util.Log.d(TAG, "  => 状态没变，跳过（want=$wantBlocked）")
