@@ -42,6 +42,14 @@ import java.util.WeakHashMap
  */
 object BlocklistUi {
 
+    /**
+     * ★ 探针 TAG（2026-10-31）
+     * `adb logcat -s BLPROBE` 就能看到每一次 bind / apply / restore 的完整决策链 ✓
+     * 排查「滑回来又展开」用 ✓ 稳定后可以删掉这一段 ✗
+     */
+    private const val TAG = "BLPROBE"
+    private const val PROBE = true
+
     /** 展示模式 */
     enum class Mode {
         /** 正文折叠（动态卡片 ✓ 保留作者信息）*/
@@ -99,6 +107,15 @@ object BlocklistUi {
         mode: Mode = Mode.BLUR,
     ) {
         val key = id?.trim().orEmpty()
+        if (PROBE) {
+            android.util.Log.d(
+                TAG,
+                "bind kind=$kind id=$key mode=$mode " +
+                    "last=${lastState[blurView]} cached=${Blocklist.cached(kind, key)} " +
+                    "enabled=${Blocklist.enabled()} revealed=${revealed.contains(rtKey(kind, key))} " +
+                    "barVisible=${bar.isVisible} bodies=${bodyOf(blurView).size}"
+            )
+        }
 
         // ★ 状态没变 => 整个跳过 ✓（RecyclerView 滑回来时会反复 bind 同一项 ✗）
         //   这是修「滑动卡顿」最关键的一条 ✓
@@ -108,6 +125,7 @@ object BlocklistUi {
             Blocklist.cached(kind, key) == true
         }
         if (lastState[blurView] == wantBlocked && !revealed.contains(rtKey(kind, key))) {
+            if (PROBE) android.util.Log.d(TAG, "  => 状态没变，跳过（want=$wantBlocked）")
             return          // 上一轮就是这个状态 ✓ 什么都不用做 ✓
         }
 
@@ -149,6 +167,7 @@ object BlocklistUi {
             bar.isVisible = known
             reveal?.isVisible = known
             lastState[blurView] = known
+            if (PROBE) android.util.Log.d(TAG, "  => 同步命中 known=$known")
             return
         }
         Blocklist.prefetch(kind, listOf(key)) {
@@ -164,11 +183,13 @@ object BlocklistUi {
             bar.isVisible = blocked
             reveal?.isVisible = blocked
             lastState[blurView] = blocked
+            if (PROBE) android.util.Log.d(TAG, "  => 异步返回 blocked=$blocked")
         }
     }
 
     /** 应用屏蔽效果 */
     private fun apply(root: View, mode: Mode) {
+        if (PROBE) android.util.Log.d(TAG, "apply mode=$mode")
         when (mode) {
             Mode.BANNER_ONLY -> Unit      // 只出红条 ✓ 不动内容 ✓
 
@@ -198,16 +219,28 @@ object BlocklistUi {
 
     /** 隐藏所有 `tag == "bl_body"` 的 View（记住原可见性 ✓） */
     private fun hideBody(root: View) {
+        var hidden = 0
         forEachBody(root) { v ->
             if (!originVisibility.containsKey(v)) {
                 originVisibility[v] = v.visibility
             }
+            if (v.visibility != View.GONE) hidden++
             v.visibility = View.GONE
+        }
+        if (PROBE) {
+            // 打完再查一遍：如果还剩下可见的，说明**有东西在我们之后把它设回来了** ✗
+            var stillVisible = 0
+            forEachBody(root) { v -> if (v.visibility != View.GONE) stillVisible++ }
+            android.util.Log.d(
+                TAG,
+                "hideBody 隐藏了 $hidden 个 / 仍可见 $stillVisible 个（total=${bodyOf(root).size}）"
+            )
         }
     }
 
     /** 还原 */
     private fun restore(root: View, mode: Mode) {
+        if (PROBE) android.util.Log.d(TAG, "restore mode=$mode（把正文放出来）")
         when (mode) {
             Mode.BANNER_ONLY -> Unit      // 什么都没动 ✓ 无需还原 ✓
 
