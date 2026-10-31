@@ -141,9 +141,10 @@ object Blocklist {
     fun prefetch(
         kind: Kind,
         ids: Collection<String?>,
-        onUpdated: (() -> Unit)? = null,
-        /** 「帖子 id → 话题 id」映射（只有 FEED 用 ✓ 云端据此判连坐 ✓）*/
+        /** ★ 「帖子 id → 话题 id」映射（只有 FEED 用 ✓ 云端据此判连坐 ✓）
+         *  ⚠️ 必须放在 `onUpdated` **之前** ✗ 否则尾随 lambda 会绑到这里 ✗（踩过） */
         feedTopics: Map<String, String>? = null,
+        onUpdated: (() -> Unit)? = null,
     ) {
         if (!enabled()) return
         val now = System.currentTimeMillis()
@@ -209,7 +210,7 @@ object Blocklist {
     ) {
         if (!enabled()) return
         // 每类最多塞 100 个（服务端上限 ✓）
-        feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, onUpdated, feedTopics) }
+        feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, feedTopics, onUpdated) }
         users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, onUpdated) }
         topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, onUpdated) }
     }
