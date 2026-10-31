@@ -9,24 +9,6 @@
     android:paddingTop="?attr/actionBarSize"
     android:paddingEnd="15dp"
     android:paddingBottom="10dp">
-    <!-- 话题详情页红带（2026-10-31 用户要求）
-         ⚠️ 只新建这一个 View ✓ **不碰**头部任何已有 View ✓
-            （话题卡片内联加红条会让 logo/名称消失 ✗ 那个坑已踩过）
-         ⚠️ 必须在 `bindHeader()` 里用代码控制可见性 ✓ 布局里默认 gone ✓ -->
-    <TextView
-        android:id="@+id/topicBlockedBanner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#F2FFEBEE"
-        android:gravity="center"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp"
-        android:text="@string/blocked_multi_report_topic"
-        android:textColor="#D32F2F"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
-
 
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/logo"

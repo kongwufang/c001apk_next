@@ -237,43 +237,6 @@ class TopicFragment : BasePagerFragment() {
             header.followNum?.takeIf { it.isNotEmpty() }?.let { "${it}人关注" }.orEmpty()
         headerBinding.followText.isVisible = headerBinding.followText.text.isNotEmpty()
         headerBinding.followRow.isVisible = avatars.isNotEmpty() || headerBinding.followText.isVisible
-        // ★ 2026-10-31 话题详情页红带（用户要求）
-        //   只控制这一个 TextView ✓ 不碰头部其它 View ✓
-        //   （话题卡片内联加红条会让 logo/名称消失 ✗ 那个坑踩过）
-        val topicId = viewModel.id
-        headerBinding.topicBlockedBanner.isVisible = false
-        if (!topicId.isNullOrBlank() &&
-            com.example.c001apk.util.Blocklist.enabled()
-        ) {
-            val showBand = { blocked: Boolean ->
-                headerBinding.topicBlockedBanner.isVisible = blocked
-                if (blocked) {
-                    headerBinding.topicBlockedBanner.text =
-                        com.example.c001apk.util.Blocklist.cachedMsg(
-                            com.example.c001apk.util.Blocklist.Kind.TOPIC, topicId
-                        ) ?: requireContext().getString(
-                            com.example.c001apk.R.string.blocked_multi_report_topic
-                        )
-                }
-            }
-            val known = com.example.c001apk.util.Blocklist.cached(
-                com.example.c001apk.util.Blocklist.Kind.TOPIC, topicId
-            )
-            if (known != null) {
-                showBand(known)
-            } else {
-                com.example.c001apk.util.Blocklist.prefetch(
-                    com.example.c001apk.util.Blocklist.Kind.TOPIC, listOf(topicId)
-                ) {
-                    showBand(
-                        com.example.c001apk.util.Blocklist.isBlocked(
-                            com.example.c001apk.util.Blocklist.Kind.TOPIC, topicId
-                        )
-                    )
-                }
-            }
-        }
-
 
         // 头部按钮初值（checkFollow 之后还会通过 followState 再刷一次）
         bindFollowBtn(viewModel.isFollow)
