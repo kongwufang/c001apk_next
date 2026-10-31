@@ -529,6 +529,39 @@ object PrefManager {
             pref.edit().putBoolean("cloud_card_assoc", value).apply()
         }
 
+    // ---------------------------------------------------------------- 自动上报预算
+    // ★ 2026-11-01 修「不停地上报话题」：
+    //   原来只按「每次调用最多 3 条」限流 ✗ 但调用方每次只传 1 条 ⇒ 等于没限 ✗
+    //   ⇒ 改成**全局预算**：每小时最多 3 条、每天最多 10 条 ✓
+
+    /** 本窗口内已自动上报条数 */
+    var autoReportCount: Int
+        get() = pref.getInt("auto_report_count", 0)
+        set(value) {
+            pref.edit().putInt("auto_report_count", value).apply()
+        }
+
+    /** 当前窗口起点（毫秒）*/
+    var autoReportWindowStart: Long
+        get() = pref.getLong("auto_report_window_start", 0L)
+        set(value) {
+            pref.edit().putLong("auto_report_window_start", value).apply()
+        }
+
+    /** 当天已自动上报条数（跨天清零 ✓）*/
+    var autoReportDayCount: Int
+        get() = pref.getInt("auto_report_day_count", 0)
+        set(value) {
+            pref.edit().putInt("auto_report_day_count", value).apply()
+        }
+
+    /** 当天日期（yyyyMMdd，用于跨天清零 ✓）*/
+    var autoReportDay: Int
+        get() = pref.getInt("auto_report_day", 0)
+        set(value) {
+            pref.edit().putInt("auto_report_day", value).apply()
+        }
+
     /** 云控配置上次拉取时间（0 = 从没拉过 ✓）*/
     var cloudGatesTs: Long
         get() = pref.getLong("cloud_gates_ts", 0L)

@@ -178,8 +178,38 @@ object Blocklist {
         if (!CloudGates.cardAssoc) return
         val todo = feedIds.filter { it.isNotBlank() && autoReported.add(it) }
         if (todo.isEmpty()) return
-        // 一次最多 3 条 ✓ 避免流量/功耗
-        todo.take(3).forEach { id ->
+
+        // ★★ 2026-11-01 修「不停地上报话题」★★
+        //   旧逻辑：`todo.take(3)` ✗ 但调用方每次只传 1 条 ⇒ 等于没限 ✗
+        //   测试模式下所有动态都算屏蔽 ⇒ 一屏 10 条 = 20 个请求 ✗（HAR 里看得到 ✓）
+        //
+        //   新逻辑：**全局预算**（不是每次调用限 ✓ 是滑动窗口 + 日上限 ✓）
+        //     · 每小时最多 3 条
+        //     · 每天最多 10 条
+        //   ⇒ 正常用户几乎无感 ✓ 刷屏场景也不会打爆 ✓
+        val now = System.currentTimeMillis()
+        val windowStart = PrefManager.autoReportWindowStart
+        if (now - windowStart > 60 * 60 * 1000L) {
+            PrefManager.autoReportWindowStart = now
+            PrefManager.autoReportCount = 0
+        }
+        val today = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
+            .format(java.util.Date(now)).toIntOrNull() ?: 0
+        if (PrefManager.autoReportDay != today) {
+            PrefManager.autoReportDay = today
+            PrefManager.autoReportDayCount = 0
+        }
+        val hourlyLeft = (3 - PrefManager.autoReportCount).coerceAtLeast(0)
+        val dailyLeft = (10 - PrefManager.autoReportDayCount).coerceAtLeast(0)
+        val allow = minOf(hourlyLeft, dailyLeft)
+        if (allow <= 0) {
+            Log.d(TAG, "自动上报已达上限（时 $hourlyLeft / 日 $dailyLeft），本次跳过")
+            return
+        }
+
+        todo.take(allow).forEach { id ->
+            PrefManager.autoReportCount += 1
+            PrefManager.autoReportDayCount += 1
             CoroutineScope(Dispatchers.IO).launch {
                 runCatching { ReportAlliance.autoReportWithTopics(id) }
             }
