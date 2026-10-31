@@ -42,14 +42,6 @@ import java.util.WeakHashMap
  */
 object BlocklistUi {
 
-    /**
-     * ★ 探针 TAG（2026-10-31）
-     * `adb logcat -s BLPROBE` 就能看到每一次 bind / apply / restore 的完整决策链 ✓
-     * 排查「滑回来又展开」用 ✓ 稳定后可以删掉这一段 ✗
-     */
-    private const val TAG = "BLPROBE"
-    private const val PROBE = true
-
     /** 展示模式 */
     enum class Mode {
         /** 正文折叠（动态卡片 ✓ 保留作者信息）*/
@@ -170,16 +162,6 @@ object BlocklistUi {
         mode: Mode = Mode.BLUR,
     ) {
         val key = id?.trim().orEmpty()
-        if (PROBE) {
-            android.util.Log.d(
-                TAG,
-                "bind kind=$kind id=$key mode=$mode " +
-                    "last=${lastState[blurView]} cached=${Blocklist.cached(kind, key)} " +
-                    "enabled=${Blocklist.enabled()} revealed=${revealed.contains(rtKey(kind, key))} " +
-                    "barVisible=${bar.isVisible} bodies=${bodyOf(blurView).size}"
-            )
-        }
-
         // ★ 状态没变 => 整个跳过 ✓（RecyclerView 滑回来时会反复 bind 同一项 ✗）
         //   这是修「滑动卡顿」最关键的一条 ✓
         // ★★ 2026-10-31 探针找到的真根因 ★★
@@ -199,7 +181,6 @@ object BlocklistUi {
             else -> Blocklist.cached(kind, key) ?: (lastState[blurView] == true)
         }
         if (lastState[blurView] == wantBlocked && !revealed.contains(rtKey(kind, key))) {
-            if (PROBE) android.util.Log.d(TAG, "  => 状态没变，跳过（want=$wantBlocked）")
             // ★★ 2026-10-31 关键：**不能盲目信任 lastState** ✗
             //   `lastState` 记的是「我上次想让它怎样」✓
             //   但正文的 visibility 是 databinding 的 BindingAdapter 管的 ✗
@@ -258,7 +239,6 @@ object BlocklistUi {
             bar.isVisible = known
             reveal?.isVisible = known
             lastState[blurView] = known
-            if (PROBE) android.util.Log.d(TAG, "  => 同步命中 known=$known")
             return
         }
         Blocklist.prefetch(kind, listOf(key)) {
@@ -274,7 +254,6 @@ object BlocklistUi {
             bar.isVisible = blocked
             reveal?.isVisible = blocked
             lastState[blurView] = blocked
-            if (PROBE) android.util.Log.d(TAG, "  => 异步返回 blocked=$blocked")
         }
     }
 
@@ -333,7 +312,6 @@ object BlocklistUi {
 
     /** 应用屏蔽效果 */
     private fun apply(root: View, mode: Mode) {
-        if (PROBE) android.util.Log.d(TAG, "apply mode=$mode")
         when (mode) {
             Mode.BANNER_ONLY -> Unit      // 只出红条 ✓ 不动内容 ✓
 
@@ -391,20 +369,12 @@ object BlocklistUi {
      */
     private fun headerHeightOf(root: View): Int {
         val pub = root.findViewById<View>(R.id.pubDate) ?: run {
-            if (PROBE) android.util.Log.d(TAG, "headerHeight：找不到 pubDate")
             return 0
         }
         // ⚠️ pubDate 是 blurContainer 的**直接子 View** ✓
         //    ⇒ `pub.bottom` 本身就是「相对卡片顶部」的坐标 ✓
         //    ✗ 不要再减 `root.top` —— 那是相对外层容器的 ✗ 一减就变 0 / 负数 ✓
         val h = pub.bottom
-        if (PROBE) {
-            android.util.Log.d(
-                TAG,
-                "headerHeight pub.bottom=$h pub.top=${pub.top} pub.height=${pub.height} " +
-                    "vis=${pub.visibility} rootH=${root.height}"
-            )
-        }
         return if (h > 0) h else 0
     }
 
@@ -424,7 +394,6 @@ object BlocklistUi {
             lp.height = h
             root.layoutParams = lp
         }
-        if (PROBE) android.util.Log.d(TAG, "lockHeight h=$h（原=${originLpHeight[root]}）")
     }
 
     /** 解锁 */
@@ -434,7 +403,6 @@ object BlocklistUi {
         if (lp.height != h) {
             lp.height = h
             root.layoutParams = lp
-            if (PROBE) android.util.Log.d(TAG, "unlockHeight 还原=${h}")
         }
     }
 
@@ -456,36 +424,10 @@ object BlocklistUi {
                 }
             }
         }
-        if (PROBE) {
-            var stillVisible = 0
-            forEachBody(root) { v -> if (v.visibility != View.GONE) stillVisible++ }
-            // ★ 把「仍然可见」的所有子孙的 **id 名** 打出来 ✓
-            //   这样就能知道到底哪些 View 没被我们藏 ✓（漏了哪些 id ✓）
-            val leftovers = ArrayList<String>()
-            fun walk(v: View) {
-                if (v is android.view.ViewGroup) {
-                    for (i in 0 until v.childCount) walk(v.getChildAt(i))
-                } else if (v.visibility == View.VISIBLE && v.height > 0 || v.visibility == View.VISIBLE) {
-                    val name = runCatching {
-                        v.resources.getResourceEntryName(v.id)
-                    }.getOrNull() ?: ("id=${v.id}")
-                    if (v.visibility == View.VISIBLE && v.width > 0) {
-                        leftovers.add(name + "(" + v.width + "x" + v.height + ")")
-                    }
-                }
-            }
-            walk(root)
-            android.util.Log.d(
-                TAG,
-                "hideBody 藏了 $hidden / 仍可见 $stillVisible（total=${bodyOf(root).size}）" +
-                    " VISIBLE=${leftovers.take(14)}"
-            )
-        }
     }
 
     /** 还原 */
     private fun restore(root: View, mode: Mode) {
-        if (PROBE) android.util.Log.d(TAG, "restore mode=$mode（把正文放出来）")
         when (mode) {
             Mode.BANNER_ONLY -> {
                 enforceListener.remove(root)?.let { root.removeOnLayoutChangeListener(it) }
