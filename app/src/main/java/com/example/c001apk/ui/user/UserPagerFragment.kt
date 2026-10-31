@@ -287,6 +287,18 @@ class UserPagerFragment : BasePagerFragment() {
 
             viewModel.checkMenuState()
 
+            // ★ 2026-10-31 个人主页也查公共黑名单 ✓（用户要求）
+            // ⚠️ base_view_user.xml 的卡片根 id 是 **infoLayout**（不是 blurContainer ✗）
+            //    binding 变量叫 userBinding（不是 binding ✗）
+            com.example.c001apk.util.BlocklistUi.bind(
+                userBinding.infoLayout, userBinding.blockedBar,
+                userBinding.blockedBanner, userBinding.blockedReveal,
+                com.example.c001apk.util.Blocklist.Kind.USER,
+                viewModel.uid,
+                com.example.c001apk.R.string.blocked_multi_report_user,
+                com.example.c001apk.util.BlocklistUi.Mode.BLUR
+            )
+
             setOnMenuItemClickListener {
                 when (it.itemId) {
                     R.id.check -> {
@@ -345,12 +357,26 @@ class UserPagerFragment : BasePagerFragment() {
                         )
                     }
 
+                    // ★ 2026-10-31：不再跳酷安举报页 ✗ 走匿名举报联盟 ✓
+                    //   被公共黑名单屏蔽的 => 变成「申诉」✓（用户要求）
                     R.id.report -> {
-                        IntentUtil.startActivity<WebViewActivity>(requireContext()) {
-                            putExtra(
-                                "url",
-                                "https://m.coolapk.com/mp/do?c=user&m=report&id=${viewModel.uid}"
+                        val uid = viewModel.uid
+                        if (uid.isBlank()) {
+                            return@setOnMenuItemClickListener true
+                        }
+                        if (com.example.c001apk.util.Blocklist.isBlocked(
+                                com.example.c001apk.util.Blocklist.Kind.USER, uid
                             )
+                        ) {
+                            com.example.c001apk.util.ReportAllianceDialog.appeal(
+                                requireActivity(), "appeal", uid
+                            )
+                        } else {
+                            com.example.c001apk.util.ReportAllianceDialog.start(requireActivity()) { reasons ->
+                                com.example.c001apk.util.ReportAllianceDialog.submit(
+                                    requireActivity(), "user", uid, null, reasons
+                                )
+                            }
                         }
                     }
                 }

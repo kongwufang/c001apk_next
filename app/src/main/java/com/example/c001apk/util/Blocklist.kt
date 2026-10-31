@@ -146,6 +146,36 @@ object Blocklist {
         scheduleFlush()
     }
 
+    /**
+     * ★ 分页级批量查询（2026-10-31 用户要求）
+     *
+     * >「我只要首页，搜索页及其他的分页，拉到一个分页的时候，把分页的**所有 ID 一次问服务器**，
+     * >  不用一个一个 ID 问效率很高」
+     *
+     * 用法：列表拿到一页数据后**调一次** ✓
+     * ```kotlin
+     * Blocklist.prefetchPage(
+     *     feeds  = list.mapNotNull { it.id },
+     *     users  = list.mapNotNull { it.userInfo?.uid },
+     *     topics = list.mapNotNull { it.ttitle },
+     * )
+     * ```
+     * 内部仍然走 [prefetch] 的攒批（250ms）✓ 三种类型会合并成**最多 3 个请求** ✓
+     * （服务端每类上限 100 项 ✓ 超出的部分下一批自动补 ✓）
+     */
+    fun prefetchPage(
+        feeds: Collection<String?>? = null,
+        users: Collection<String?>? = null,
+        topics: Collection<String?>? = null,
+        onUpdated: (() -> Unit)? = null,
+    ) {
+        if (!enabled()) return
+        // 每类最多塞 100 个（服务端上限 ✓）
+        feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, onUpdated) }
+        users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, onUpdated) }
+        topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, onUpdated) }
+    }
+
     private val pendingCallbacks = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 
     private fun scheduleFlush() {
