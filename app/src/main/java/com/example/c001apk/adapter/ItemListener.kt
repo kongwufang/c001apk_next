@@ -236,6 +236,16 @@ interface ItemListener {
         if (id.isNullOrBlank() || ctx !is Activity) {
             return
         }
+        // ★ 2026-10-31：被公共黑名单折叠的内容 => 点举报变成「申诉」✓
+        //   用户原话：「点进去之后如果再点击举报按钮，就是申诉功能，而不是举报功能了，
+        //             可以申诉误拉黑」
+        if (com.example.c001apk.util.Blocklist.isBlocked(
+                com.example.c001apk.util.Blocklist.Kind.FEED, id
+            )
+        ) {
+            com.example.c001apk.util.ReportAllianceDialog.appeal(ctx, "appeal", id)
+            return
+        }
         com.example.c001apk.util.ReportAllianceDialog.start(ctx) { reasons ->
             com.example.c001apk.util.ReportAllianceDialog.submit(ctx, "feed", id, null, reasons)
         }

@@ -107,6 +107,44 @@ object ReportAllianceDialog {
     }
 
     /**
+     * 申诉：被公共黑名单折叠的内容，点「举报」时改走这条 ✓
+     *
+     * 用户 2026-10-31：「点进去之后如果再点击举报按钮，就是申诉功能，而不是举报功能了，
+     *                   可以申诉误拉黑」
+     *
+     * ⚠️ 申诉不选原因 ✓ 只带一个可空说明 ✓ 服务端 `type=appeal` ✓
+     *    **不会**进黑名单聚合 ✓ 也**不触发连坐** ✓
+     */
+    fun appeal(
+        activity: Activity,
+        type: String,
+        id: String,
+        topicId: String? = null,
+    ) {
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.appeal_title)
+            .setMessage(R.string.appeal_message)
+            .setPositiveButton(R.string.appeal_submit) { _, _ ->
+                if (activity.isFinishing || activity.isDestroyed) return@setPositiveButton
+                CoroutineScope(Dispatchers.IO).launch {
+                    val rid = ReportAlliance.submit(type, id, topicId, emptyList(), null)
+                    withContext(Dispatchers.Main) {
+                        runCatching {
+                            Toast.makeText(
+                                activity,
+                                if (rid != null) R.string.appeal_submitted
+                                else R.string.report_submit_failed,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /**
      * 统一的上报 + 提示。
      *
      * ⚠️ 成功只提示「已提交」✓ **不透露任何处置结果** ✗

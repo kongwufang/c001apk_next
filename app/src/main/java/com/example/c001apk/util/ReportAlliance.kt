@@ -128,7 +128,8 @@ object ReportAlliance {
             Log.w(TAG, "联盟开关未开启，忽略")
             return null
         }
-        if (reasons.isEmpty()) return null
+        // 申诉（type=appeal）不需要原因 ✓ 举报才需要 ✓
+        if (reasons.isEmpty() && type != "appeal") return null
         return runCatching {
             val body = JSONObject().apply {
                 put("type", type)

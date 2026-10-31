@@ -346,4 +346,10 @@
     <string name="blocked_multi_report_user">该用户已被多人举报</string>
     <string name="blocked_multi_report_topic">该话题已被多人举报</string>
     <string name="blocked_reveal">依然查看</string>
+    <!-- 申诉（2026-10-31）：被拉黑的内容点举报 => 申诉 -->
+    <string name="appeal_title">申诉误拉黑</string>
+    <string name="appeal_message">该内容已被多人举报而折叠。如果你认为这是误判，可以提交申诉。</string>
+    <string name="appeal_submit">提交申诉</string>
+    <string name="appeal_submitted">申诉已提交，感谢你</string>
+    <string name="appeal_menu">申诉</string>
 </resources>

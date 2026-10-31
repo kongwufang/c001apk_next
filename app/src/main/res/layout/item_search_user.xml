@@ -26,9 +26,53 @@
     </data>
 
     <!-- 2026-10-31 公共黑名单：包一层，横幅不被模糊 ✓ -->
-    <FrameLayout
+    <!-- 2026-10-31：竖向 LinearLayout => 横幅在上、卡片在下，**不重叠** ✓
+         （原来用 FrameLayout 是覆盖式，会把作者行压住 ✗）-->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+<!-- 公共黑名单横幅条（2026-10-31）：文本 + 「依然查看」按钮 ✓
+         ⚠️ 必须是模糊目标的**兄弟**节点 ✓ 否则会被一起模糊掉 ✗ -->
+    <LinearLayout
+        android:id="@+id/blockedBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#F2FFEBEE"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/blockedBanner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/blocked_multi_report_user"
+            android:textColor="#D32F2F"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/blockedReveal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:text="@string/blocked_reveal"
+            android:textColor="#1976D2"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
 
     <com.google.android.material.card.MaterialCardView android:id="@+id/blurContainer"
         android:layout_width="match_parent"
@@ -134,47 +178,9 @@
     </com.google.android.material.card.MaterialCardView>
     
 
-    <!-- 公共黑名单横幅条（2026-10-31）：文本 + 「依然查看」按钮 ✓
-         ⚠️ 必须是模糊目标的**兄弟**节点 ✓ 否则会被一起模糊掉 ✗ -->
-    <LinearLayout
-        android:id="@+id/blockedBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:background="#F2FFEBEE"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="8dp"
-        android:visibility="gone">
+    
 
-        <TextView
-            android:id="@+id/blockedBanner"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/blocked_multi_report_user"
-            android:textColor="#D32F2F"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/blockedReveal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:paddingStart="10dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="4dp"
-            android:text="@string/blocked_reveal"
-            android:textColor="#1976D2"
-            android:textSize="13sp"
-            android:textStyle="bold" />
     </LinearLayout>
-    </FrameLayout>
 
 
 

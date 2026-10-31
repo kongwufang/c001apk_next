@@ -955,6 +955,14 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
         // 话题 ID：详情数据里没有现成字段 ✗ 留空 ✓
         // （在话题页举报时才会带 topic_id ✓ 见 TopicFragment）
+        // ★ 被拉黑的 => 申诉 ✓（用户 2026-10-31）
+        if (com.example.c001apk.util.Blocklist.isBlocked(
+                com.example.c001apk.util.Blocklist.Kind.FEED, id
+            )
+        ) {
+            com.example.c001apk.util.ReportAllianceDialog.appeal(requireActivity(), "appeal", id)
+            return
+        }
         reportAnonymously("feed", id, null)
     }
 
