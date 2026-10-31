@@ -1,0 +1,277 @@
+﻿name: Desktop CI
+
+# 桌面端（Windows）实验性构建线。
+#
+# 为什么单独一个 workflow：
+#   * 现有 ci.yml 只在 main/debug/update 上跑，且用 ubuntu-latest 出 Android APK；
+#   * 桌面端是独立 Gradle 构建（desktop/settings.gradle.kts），与 Android 工程隔离，
+#     根 settings.gradle.kts 未做任何改动，所以 Android CI 完全不受影响。
+#
+# 签名 / 完整性自校验所需的 Secrets（照 Android 端 SIGN_KEYSTORE_BASE64 那套做法）：
+#   DESKTOP_SIGN_KEY_BASE64    base64(ed25519_private.pem)   签「完整性清单」
+#   DESKTOP_CODESIGN_PFX_B64   base64(codesign.pfx)          签安装包 exe
+#   DESKTOP_CODESIGN_PFX_PWD   codesign.pfx 的密码
+#
+#   生成方式：python desktop/tools/make_desktop_keys.py
+#   未配置时构建仍成功，但程序会跳过完整性校验、安装包不签名。
+#
+# ⚠️ 注意：step 的 `if:` 里**不能**引用 secrets 上下文（GitHub 限制），
+#    所以这里统一用 `env:` 把 secret 传进步骤，在 shell 内判断。
+#
+# 触发：推 debug2 分支，或手动 workflow_dispatch。
+on:
+  workflow_dispatch:
+  push:
+    branches: [ debug2 ]
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: read
+
+env:
+  APP_IMAGE_DIR: desktop/app/build/compose/binaries/main/app/c001apk-desktop
+  PUBKEY_KT: desktop/core/src/main/kotlin/com/example/c001apk/desktop/core/security/IntegrityPublicKey.kt
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gradle wrapper validation
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          cache: gradle
+
+      - name: Show versions
+        working-directory: desktop
+        run: |
+          java -version
+          .\gradlew.bat --version
+
+      # 桌面端构建脚本（desktop/tools/*.py）依赖 cryptography 做 Ed25519 签名
+      - name: Install Python deps
+        shell: pwsh
+        run: |
+          python -m pip install --quiet --disable-pip-version-check "cryptography>=41"
+          python -c "import cryptography; print('cryptography', cryptography.__version__)"
+
+      # ─────────────── 注入发行公钥（必须在打包之前，公钥要编译进程序） ───────────────
+      - name: Embed integrity public key
+        shell: pwsh
+        env:
+          SIGN_KEY_B64: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_KEY_B64)) {
+            Write-Host "::warning::未配置 DESKTOP_SIGN_KEY_BASE64，跳过公钥注入（程序将跳过完整性校验）"
+            exit 0
+          }
+          $env:PYTHONIOENCODING = 'utf-8'
+          python desktop/tools/embed_public_key.py --key-b64 $env:SIGN_KEY_B64 --out-kt "${{ env.PUBKEY_KT }}"
+
+      # ─────────────── 编译与单测 ───────────────
+      - name: Compile core
+        working-directory: desktop
+        run: .\gradlew.bat :core:compileKotlin --stacktrace
+
+      # 离线测试：v3 签名黄金向量（12 个真机向量）+ 完整性校验逻辑
+      # 注意：-DrunLiveTests=true 才会真的打网络接口。
+      # 之前没传，所有 live 测试其实都在「跳过」状态 —— 绿灯但没有验证力。
+      - name: Run core tests
+        working-directory: desktop
+        run: .\gradlew.bat :core:test --stacktrace -DrunLiveTests=true
+
+      - name: Upload core test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-core-test-report
+          path: desktop/core/build/reports/tests/**
+          if-no-files-found: ignore
+
+      - name: Compile desktop app
+        working-directory: desktop
+        run: .\gradlew.bat :app:compileKotlin --stacktrace
+
+      # ─────────────── 打包 app-image ───────────────
+      # 任务名核对：Compose Desktop 1.6 用 createDistributable 生成 app-image
+      # （packageAppImage 不存在；packageDistributionForCurrentOS 会构建所有配置格式）
+      - name: Package app image
+        working-directory: desktop
+        run: .\gradlew.bat :app:createDistributable --stacktrace
+
+      # ─────────────── 轻量产物：只传 jar ───────────────
+      # 为什么要单独做一个：
+      #   完整 app-image 是 92 MB，而 GitHub Actions 产物下载实测只有
+      #   0.03~0.04 MB/s（直连与代理都一样慢）→ 下载一次要 40 分钟，
+      #   本地迭代验证根本跑不动。
+      #   而真正每次会变的只有几个 jar（内嵌 JRE 是不变的）。
+      #   所以这里把 jar 单独打一个小包，本地只需拉它再覆盖进已解压的
+      #   安装目录即可验证，下载量从 92 MB 降到几 MB。
+      - name: Upload jars only (fast local iteration)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-desktop-jars
+          # 覆盖全部可能产出 jar 的位置（compose 的 libs 目录 + 标准 build/libs）
+          # 只传**便携镜像里那一份**（内容哈希命名，如 app-<hash>.jar）。
+          # 不要再传 build/libs/*.jar（固定名 app.jar）—— 同一份类以两个名字
+          # 共存时，classloader 可能加载到旧的那个，导致「改了代码但界面不变」。
+          path: |
+            desktop/app/build/compose/binaries/main/app/c001apk-desktop/app/*.jar
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: List packaging tasks (on failure)
+        if: failure()
+        working-directory: desktop
+        run: .\gradlew.bat :app:tasks --all | Select-String -Pattern "package|distributable|runtime"
+
+      # jpackage 的真实错误只写在 log 文件里，失败时务必打出来
+      - name: Dump jpackage logs (on failure)
+        if: failure()
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          $root = "app\build\compose\logs"
+          if (Test-Path $root) {
+            Get-ChildItem $root -Recurse -File | ForEach-Object {
+              Write-Host "===== $($_.FullName) ====="
+              Get-Content $_.FullName -Raw
+            }
+          }
+          $tmp = "app\build\compose\tmp"
+          if (Test-Path $tmp) {
+            Get-ChildItem $tmp -File | ForEach-Object {
+              Write-Host "===== args: $($_.Name) ====="
+              Get-Content $_.FullName -Raw
+            }
+          }
+
+      # ─────────────── 生成并签名完整性清单（必须在上传便携版之前） ───────────────
+      # ⚠️ 两点经验（都实测踩过）：
+      #   1. 清单生成后若再有打包动作（packageExe），jpackage 会改写
+      #      app/.jpackage.xml 等元数据 → 哈希不符 → 自校验误报「被篡改」；
+      #      所以 portable artifact 的校验基准就是**此刻**的镜像。
+      #   2. 必须在上传 portable 之前生成，否则 artifact 里没有清单。
+      #   3. e 类构建期易变文件（.jpackage.xml、*.log）排除在清单之外。
+      - name: Generate integrity manifest
+        shell: pwsh
+        env:
+          SIGN_KEY_B64: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_KEY_B64)) {
+            Write-Host "::warning::未配置签名密钥，跳过清单生成（程序将跳过完整性校验）"
+            exit 0
+          }
+          $env:PYTHONIOENCODING = 'utf-8'
+          $keyPem = Join-Path $env:RUNNER_TEMP "ed25519_private.pem"
+          [IO.File]::WriteAllBytes($keyPem, [Convert]::FromBase64String(($env:SIGN_KEY_B64 -replace '\s','')))
+          python desktop/tools/make_integrity.py `
+            --app-dir "${{ env.APP_IMAGE_DIR }}" `
+            --key $keyPem `
+            --out-kt "${{ env.PUBKEY_KT }}" `
+            --exclude "app/.jpackage.xml" `
+            --exclude "*.log"
+
+      - name: Verify manifest before upload
+        shell: pwsh
+        env:
+          SIGN_KEY_B64: ${{ secrets.DESKTOP_SIGN_KEY_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_KEY_B64)) {
+            Write-Host "未配置签名密钥，跳过清单检查"
+            exit 0
+          }
+          $mf = Join-Path "${{ env.APP_IMAGE_DIR }}" "integrity.sig"
+          if (-not (Test-Path $mf)) { throw "清单未生成：$mf" }
+          Write-Host ("清单大小: {0:N1} KB" -f ((Get-Item $mf).Length / 1KB))
+          $listed = (Select-String -Path $mf -Pattern 'integrity\.sig' -AllMatches).Matches.Count
+          if ($listed -ne 0) { throw "清单不应把自己列入 entries" }
+          Write-Host "清单内容检查通过"
+
+      - name: Upload app image (portable)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-desktop-portable-windows
+          path: desktop/app/build/compose/binaries/main/app/**
+          if-no-files-found: ignore
+
+      # ─────────────── 单文件 exe 安装器 ───────────────
+      - name: Package EXE installer
+        id: pkg_exe
+        continue-on-error: true
+        working-directory: desktop
+        run: .\gradlew.bat :app:packageExe --stacktrace
+
+      - name: Dump jpackage logs (exe, on failure)
+        if: steps.pkg_exe.outcome == 'failure'
+        shell: pwsh
+        working-directory: desktop
+        run: |
+          Get-ChildItem "app\build\compose\logs" -Recurse -File -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              Write-Host "===== $($_.FullName) ====="
+              Get-Content $_.FullName -Raw
+            }
+
+      # 用发行证书给安装包签名（自签；不消除 SmartScreen，但能显示我们自己的发布者）
+      - name: Sign EXE installer
+        shell: pwsh
+        env:
+          CODESIGN_PFX_B64: ${{ secrets.DESKTOP_CODESIGN_PFX_B64 }}
+          CODESIGN_PFX_PWD: ${{ secrets.DESKTOP_CODESIGN_PFX_PWD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CODESIGN_PFX_B64)) {
+            Write-Host "::warning::未配置 DESKTOP_CODESIGN_PFX_B64，跳过安装包签名"
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String(($env:CODESIGN_PFX_B64 -replace '\s','')))
+
+          $exe = Get-ChildItem "desktop/app/build/compose/binaries/main/exe" -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { Write-Host "::warning::未找到 exe，跳过签名"; exit 0 }
+          Write-Host "待签文件：$($exe.FullName)"
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+                      Where-Object { $_.FullName -match 'x64' } | Select-Object -Last 1
+          if (-not $signtool) { Write-Host "::warning::未找到 signtool，跳过签名"; exit 0 }
+          Write-Host "signtool：$($signtool.FullName)"
+
+          & $signtool.FullName sign /f $pfx /p $env:CODESIGN_PFX_PWD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe.FullName
+          if ($LASTEXITCODE -ne 0) { Write-Host "::warning::signtool 退出码 $LASTEXITCODE（时间戳服务不可达时属正常）" }
+
+          # 校验只做信息性报告：自签证书没有受信任根，verify /pa 必然失败
+          # （这正是「不解决 SmartScreen、只需自己的签名」的预期行为），不能让它阻断构建。
+          Write-Host "--- 签名校验（信息性）---"
+          & $signtool.FullName verify /pa /v $exe.FullName
+          $verifyCode = $LASTEXITCODE
+          if ($verifyCode -ne 0) {
+            Write-Host "::notice::signtool verify 退出码 $verifyCode —— 自签证书无受信任根，属预期结果"
+          }
+
+          # 用 Authenticode 信息确认文件确实带上了签名（不依赖信任链）
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          Write-Host ("签名状态: {0}" -f $sig.Status)
+          if ($null -eq $sig.SignerCertificate) { throw "文件未带上签名！" }
+          Write-Host ("签名主体: {0}" -f $sig.SignerCertificate.Subject)
+          exit 0
+
+      - name: Upload EXE installer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c001apk-desktop-exe-installer
+          path: desktop/app/build/compose/binaries/main/exe/**
+          if-no-files-found: ignore

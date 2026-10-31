@@ -27,28 +27,15 @@
 
     </data>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- 2026-10-31 公共黑名单：外面包一层，横幅才能不被模糊 ✓ -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+    <androidx.constraintlayout.widget.ConstraintLayout android:id="@+id/blurContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         >
-        <!-- 公共黑名单横幅（2026-10-31）：被多人举报时显示 ✓ 默认隐藏 -->
-        <TextView
-            android:id="@+id/blockedBanner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#33FF5252"
-            android:gravity="center"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:text="@string/blocked_multi_report"
-            android:textColor="#FF5252"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/pubDate" />
-
-
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/avatar"
             android:layout_width="0dp"
@@ -424,5 +411,24 @@
         </HorizontalScrollView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- 公共黑名单横幅（2026-10-31）：被多人举报时显示 ✓
+         ⚠️ 必须放在 blurContainer **之外**（兄弟节点）✓
+            否则会被 setRenderEffect 一起糊掉，根本看不清 ✗（真机已踩过）-->
+    <TextView
+        android:id="@+id/blockedBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#F2FFEBEE"
+        android:gravity="center"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:text="@string/blocked_multi_report"
+        android:textColor="#D32F2F"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    </FrameLayout>
+
 
 </layout>

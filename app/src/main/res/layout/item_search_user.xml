@@ -25,12 +25,17 @@
 
     </data>
 
-    <com.google.android.material.card.MaterialCardView
+    <!-- 2026-10-31 公共黑名单：包一层，横幅不被模糊 ✓ -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView android:id="@+id/blurContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clickable="true"
         android:focusable="true"
-        android:onClick="@{(view) -> listener.onViewUser(view, uid)}"
+        android:onClick="@{(view) ->listener.onViewUser(view, uid)}"
         app:cardBackgroundColor="@color/home_card_background_color"
         app:cardElevation="0dp"
         app:strokeWidth="0dp">
@@ -127,5 +132,21 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
+    <TextView
+        android:id="@+id/blockedBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#F2FFEBEE"
+        android:gravity="center"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:text="@string/blocked_multi_report_user"
+        android:textColor="#D32F2F"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    </FrameLayout>
+
 
 </layout>

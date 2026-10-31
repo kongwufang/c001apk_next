@@ -136,6 +136,13 @@ class AppAdapter(
             uid = data.uid ?: ""
             isStickTop = data.isStickTop == 1
 
+            // 公共黑名单（2026-10-31）：首页卡片也要模糊 ✓
+            //   模糊作用于 blurContainer ✓ 横幅是它的兄弟 => 保持清晰 ✓
+            com.example.c001apk.util.BlocklistUi.bind(
+                binding.blurContainer, binding.blockedBanner,
+                com.example.c001apk.util.Blocklist.Kind.FEED, data.id
+            )
+
             binding.setVariable(BR.data, data)
             binding.setVariable(BR.listener, listener)
             binding.setVariable(
@@ -421,6 +428,12 @@ class AppAdapter(
             binding.setVariable(BR.listener, listener)
             // 角标走布局里的 app:verifyUserData="@{data}"，不把 data 塞进 binding 就不会触发
             binding.setVariable(BR.data, data)
+
+            // 公共黑名单（2026-10-31）：搜索页用户卡片 ✓
+            com.example.c001apk.util.BlocklistUi.bind(
+                binding.blurContainer, binding.blockedBanner,
+                com.example.c001apk.util.Blocklist.Kind.USER, data.uid
+            )
 
             if (data.userInfo != null && data.fUserInfo != null) {
                 binding.uid = data.userInfo.uid
