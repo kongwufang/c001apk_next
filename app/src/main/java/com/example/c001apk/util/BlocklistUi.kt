@@ -278,6 +278,57 @@ object BlocklistUi {
         }
     }
 
+    /**
+     * ★★ 只出红条（2026-10-31）★★
+     *
+     * 话题卡片 / 用户卡片用这个 ✓
+     *
+     * 为什么不能用 [bind]：`bind()` 会 `restore()` / `hideBody()` / 锁高度 ✗
+     * 那些操作会碰到卡片里的 logo / 标题 ✗
+     * ⇒ 真机表现：话题卡片的「头像 + 名称」不显示了 ✗（用户反馈）
+     * ⇒ 这个入口**只碰红条那三个 View** ✓ 卡片内容一个字节都不动 ✓
+     */
+    fun bindBannerOnly(
+        bar: View?,
+        banner: View?,
+        reveal: View?,
+        kind: Blocklist.Kind,
+        id: String?,
+        labelRes: Int? = null,
+    ) {
+        val key = id?.trim().orEmpty()
+        bar?.isVisible = false
+        reveal?.isVisible = false
+        if (key.isEmpty() || !Blocklist.enabled()) return
+        if (revealed.contains(rtKey(kind, key))) return
+
+        val apply = { blocked: Boolean ->
+            bar?.isVisible = blocked
+            reveal?.isVisible = blocked
+            if (blocked) {
+                (banner as? android.widget.TextView)?.text =
+                    Blocklist.cachedMsg(kind, key)
+                        ?: labelRes?.let { banner.context.getString(it) }
+                        ?: banner.context.getString(R.string.blocked_multi_report)
+                val pos = rtKey(kind, key)
+                reveal?.setOnClickListener {
+                    revealed.add(pos)
+                    bar.isVisible = false
+                    reveal.isVisible = false
+                }
+            }
+        }
+
+        val known = Blocklist.cached(kind, key)
+        if (known != null) {
+            apply(known)
+            return
+        }
+        Blocklist.prefetch(kind, listOf(key)) {
+            apply(Blocklist.isBlocked(kind, key))
+        }
+    }
+
     /** 应用屏蔽效果 */
     private fun apply(root: View, mode: Mode) {
         if (PROBE) android.util.Log.d(TAG, "apply mode=$mode")

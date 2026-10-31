@@ -499,13 +499,11 @@ class AppAdapter(
             binding.setVariable(BR.data, data)
 
             // 公共黑名单（2026-10-31）：搜索页用户卡片 ✓
-            com.example.c001apk.util.BlocklistUi.bind(
-                binding.blurContainer, binding.blockedBar, binding.blockedBanner,
-                binding.blockedReveal,
+            // ★ 用户卡片同样只出红条 ✓（不碰卡片内容 ✓）
+            com.example.c001apk.util.BlocklistUi.bindBannerOnly(
+                binding.blockedBar, binding.blockedBanner, binding.blockedReveal,
                 com.example.c001apk.util.Blocklist.Kind.USER, data.uid,
-                com.example.c001apk.R.string.blocked_multi_report_user,
-                // ★ 用户卡片也不要模糊 ✓ 只出红条 ✓
-                com.example.c001apk.util.BlocklistUi.Mode.BANNER_ONLY
+                com.example.c001apk.R.string.blocked_multi_report_user
             )
 
             if (data.userInfo != null && data.fUserInfo != null) {
@@ -575,13 +573,13 @@ class AppAdapter(
 
             // 公共黑名单（2026-10-31）：话题卡片 ✓
             //   话题布局的根自带 android:id="@+id/parent" ✓ 直接用它当模糊目标
-            com.example.c001apk.util.BlocklistUi.bind(
-                binding.parent, binding.blockedBar, binding.blockedBanner,
-                binding.blockedReveal,
+            // ★ 话题卡片只出红条 ✓ 用极简入口（绝不碰卡片内容 ✓）
+            //   之前用 `bind()` ✗ 它会 restore/hideBody/锁高度 ⇒
+            //   真机上话题卡片的「头像 + 名称」被弄没了 ✗（用户反馈）
+            com.example.c001apk.util.BlocklistUi.bindBannerOnly(
+                binding.blockedBar, binding.blockedBanner, binding.blockedReveal,
                 com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id,
-                com.example.c001apk.R.string.blocked_multi_report_topic,
-                // ★ 话题卡片**不要模糊** ✓ 只出红条 ✓（2026-10-31 用户要求）
-                com.example.c001apk.util.BlocklistUi.Mode.BANNER_ONLY
+                com.example.c001apk.R.string.blocked_multi_report_topic
             )
             binding.setVariable(BR.listener, listener)
         }
