@@ -318,12 +318,28 @@ object BlocklistUi {
             }
         }
         if (PROBE) {
-            // 打完再查一遍：如果还剩下可见的，说明**有东西在我们之后把它设回来了** ✗
             var stillVisible = 0
             forEachBody(root) { v -> if (v.visibility != View.GONE) stillVisible++ }
+            // ★ 把「仍然可见」的所有子孙的 **id 名** 打出来 ✓
+            //   这样就能知道到底哪些 View 没被我们藏 ✓（漏了哪些 id ✓）
+            val leftovers = ArrayList<String>()
+            fun walk(v: View) {
+                if (v is android.view.ViewGroup) {
+                    for (i in 0 until v.childCount) walk(v.getChildAt(i))
+                } else if (v.visibility == View.VISIBLE && v.height > 0 || v.visibility == View.VISIBLE) {
+                    val name = runCatching {
+                        v.resources.getResourceEntryName(v.id)
+                    }.getOrNull() ?: ("id=${v.id}")
+                    if (v.visibility == View.VISIBLE && v.width > 0) {
+                        leftovers.add(name + "(" + v.width + "x" + v.height + ")")
+                    }
+                }
+            }
+            walk(root)
             android.util.Log.d(
                 TAG,
-                "hideBody 隐藏了 $hidden 个 / 仍可见 $stillVisible 个（total=${bodyOf(root).size}）"
+                "hideBody 藏了 $hidden / 仍可见 $stillVisible（total=${bodyOf(root).size}）" +
+                    " VISIBLE=${leftovers.take(14)}"
             )
         }
     }
