@@ -16,6 +16,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BR
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemAppVersionBinding
+import com.example.c001apk.databinding.ItemBlockedFeedBinding
 import com.example.c001apk.databinding.ItemCollectionListItemBinding
 import com.example.c001apk.databinding.ItemFeedReplyBinding
 import com.example.c001apk.databinding.ItemHomeFeedBinding
