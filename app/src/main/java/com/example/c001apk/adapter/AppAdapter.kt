@@ -60,6 +60,9 @@ import com.google.android.material.color.MaterialColors
  */
 private const val TYPE_BLOCKED = -1001
 
+/** A/B 开关：话题红条（排查内容空白用）*/
+private const val TOPIC_BANNER_ENABLED = false
+
 class AppAdapter(
     private val listener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
@@ -576,11 +579,14 @@ class AppAdapter(
             // ★ 话题卡片只出红条 ✓ 用极简入口（绝不碰卡片内容 ✓）
             //   之前用 `bind()` ✗ 它会 restore/hideBody/锁高度 ⇒
             //   真机上话题卡片的「头像 + 名称」被弄没了 ✗（用户反馈）
-            com.example.c001apk.util.BlocklistUi.bindBannerOnly(
-                binding.blockedBar, binding.blockedBanner, binding.blockedReveal,
-                com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id,
-                com.example.c001apk.R.string.blocked_multi_report_topic
-            )
+            // ⚠️ A/B 测试用开关：false = 完全不调用（排查「内容空白」）
+            if (TOPIC_BANNER_ENABLED) {
+                com.example.c001apk.util.BlocklistUi.bindBannerOnly(
+                    binding.blockedBar, binding.blockedBanner, binding.blockedReveal,
+                    com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id,
+                    com.example.c001apk.R.string.blocked_multi_report_topic
+                )
+            }
             binding.setVariable(BR.listener, listener)
         }
     }
