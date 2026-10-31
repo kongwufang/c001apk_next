@@ -130,8 +130,11 @@ class UserPagerFragment : BasePagerFragment() {
     private fun bindBlocklist() {
         val uid = viewModel.userData?.uid ?: viewModel.uid
         if (uid.isBlank() || !::userBinding.isInitialized) return
+        // ⚠️ 个人主页没有独立的 blockedBar 容器 ✗
+        //    （CollapsingToolbarLayout 只认一个子 View ⇒ 红条放进了 infoLayout 内部 ✓）
+        //    所以 bar / banner 都传 blockedBanner ✓ 显示时 banner 自己就是"条" ✓
         com.example.c001apk.util.BlocklistUi.bind(
-            userBinding.infoLayout, userBinding.blockedBar,
+            userBinding.infoLayout, userBinding.blockedBanner,
             userBinding.blockedBanner, userBinding.blockedReveal,
             com.example.c001apk.util.Blocklist.Kind.USER,
             uid,

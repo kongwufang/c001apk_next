@@ -114,6 +114,7 @@ object BlocklistUi {
 
         // 复位（RecyclerView 复用 ✗）
         bar.isVisible = false
+        reveal?.isVisible = false
         restore(blurView, mode)
 
         if (key.isEmpty() || !Blocklist.enabled()) {
@@ -132,7 +133,9 @@ object BlocklistUi {
         reveal?.setOnClickListener {
             revealed.add(rtKey(kind, key))
             bar.isVisible = false
+            reveal.isVisible = false
             restore(blurView, mode)
+            lastState[blurView] = false
         }
 
         val known = Blocklist.cached(kind, key)
@@ -145,6 +148,7 @@ object BlocklistUi {
                 restore(blurView, mode)
             }
             bar.isVisible = known
+            reveal?.isVisible = known
             lastState[blurView] = known
             return
         }
@@ -159,6 +163,7 @@ object BlocklistUi {
                 restore(blurView, mode)
             }
             bar.isVisible = blocked
+            reveal?.isVisible = blocked
             lastState[blurView] = blocked
         }
     }
