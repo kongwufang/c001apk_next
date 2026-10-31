@@ -141,7 +141,8 @@ class AppAdapter(
             com.example.c001apk.util.BlocklistUi.bind(
                 binding.blurContainer, binding.blockedBar, binding.blockedBanner,
                 binding.blockedReveal,
-                com.example.c001apk.util.Blocklist.Kind.FEED, data.id
+                com.example.c001apk.util.Blocklist.Kind.FEED, data.id,
+                mode = com.example.c001apk.util.BlocklistUi.Mode.FOLD
             )
 
             binding.setVariable(BR.data, data)

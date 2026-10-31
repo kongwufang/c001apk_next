@@ -165,6 +165,7 @@
 
             <TextView
                 android:id="@+id/messageTitle"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -178,6 +179,7 @@
 
             <com.example.c001apk.view.LinkTextView
                 android:id="@+id/message"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -199,6 +201,7 @@
             -->
             <TextView
                 android:id="@+id/messageMore"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
@@ -250,6 +253,7 @@
                  与九图槽在数据上互斥，两个槽位落同一位置，谁显示由可见性决定。 -->
             <com.example.c001apk.view.FeedVideoView
                 android:id="@+id/videoPart"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -259,6 +263,7 @@
 
             <com.example.c001apk.view.ninegridimageview.NineGridImageView
                 android:id="@+id/multiImage"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="10dp"
                 android:layout_marginTop="10dp"
@@ -272,6 +277,7 @@
                  用 Barrier 而不是直接把热评挂到九图槽上，是为了不依赖「GONE 视图的边距算不算」这种细则。 -->
             <androidx.constraintlayout.widget.Barrier
                 android:id="@+id/mediaBarrier"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:barrierDirection="bottom"
@@ -281,6 +287,7 @@
                  跳转由 ViewHolder 通过 onOpen 交给 ItemListener.onOpenLink。 -->
             <com.example.c001apk.view.FeedExtraView
                 android:id="@+id/extraPart"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
@@ -289,6 +296,7 @@
 
             <TextView
                 android:id="@+id/hotReply"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -305,6 +313,7 @@
 
             <LinearLayout
                 android:id="@+id/forwarded"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -319,6 +328,7 @@
 
                 <com.example.c001apk.view.LinkTextView
                     android:id="@+id/forwardedMess"
+            android:tag="bl_body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clickable="true"
@@ -330,6 +340,7 @@
 
                 <com.example.c001apk.view.ninegridimageview.NineGridImageView
                     android:id="@+id/forwardedPic"
+            android:tag="bl_body"
                     android:layout_width="match_parent"
                     android:layout_height="10dp"
                     android:layout_marginTop="10dp"
@@ -341,6 +352,7 @@
 
             <com.example.c001apk.view.CustomHorizontalScrollView
                 android:id="@+id/dyhLayout"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -351,6 +363,7 @@
 
                 <LinearLayout
                     android:id="@+id/linearLayout"
+            android:tag="bl_body"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"

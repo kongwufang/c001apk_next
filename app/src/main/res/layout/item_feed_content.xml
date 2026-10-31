@@ -154,6 +154,7 @@
 
         <TextView
             android:id="@+id/messageTitle"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -167,6 +168,7 @@
 
         <com.example.c001apk.view.LinkTextView
             android:id="@+id/message"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -181,6 +183,7 @@
 
         <TextView
             android:id="@+id/ip"
+            android:tag="bl_body"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -262,6 +265,7 @@
         <!-- 视频槽：视频动态的 pic/picArr 是空的，媒体区只能由它出图（见 FeedVideo 的口径） -->
         <com.example.c001apk.view.FeedVideoView
             android:id="@+id/videoPart"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -271,6 +275,7 @@
 
         <com.example.c001apk.view.ninegridimageview.NineGridImageView
             android:id="@+id/multiImage"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="10dp"
             android:layout_marginTop="10dp"
@@ -283,6 +288,7 @@
         <!-- 媒体区下沿：视频槽和九图槽共用位置，谁可见由谁决定下面的扩展区从哪开始 -->
         <androidx.constraintlayout.widget.Barrier
             android:id="@+id/mediaBarrier"
+            android:tag="bl_body"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:barrierDirection="bottom"
@@ -291,6 +297,7 @@
         <!-- 附加信息槽（点评评分 / 二手 / 商品清单），与列表卡同一个控件；跳转交给 ItemListener -->
         <com.example.c001apk.view.FeedExtraView
             android:id="@+id/extraPart"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:visibility="gone"
@@ -299,6 +306,7 @@
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/extraUrlLayout"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -314,6 +322,7 @@
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/extraPic"
+            android:tag="bl_body"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:background="@color/cover"
@@ -326,6 +335,7 @@
 
             <TextView
                 android:id="@+id/extraTitle"
+            android:tag="bl_body"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
@@ -340,6 +350,7 @@
 
             <TextView
                 android:id="@+id/extraUrl"
+            android:tag="bl_body"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
@@ -356,6 +367,7 @@
 
         <LinearLayout
             android:id="@+id/forwarded"
+            android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -370,6 +382,7 @@
 
             <com.example.c001apk.view.LinkTextView
                 android:id="@+id/forwardedMess"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clickable="true"
@@ -381,6 +394,7 @@
 
             <com.example.c001apk.view.ninegridimageview.NineGridImageView
                 android:id="@+id/forwardedPic"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="10dp"
                 android:layout_marginTop="10dp"
@@ -392,6 +406,7 @@
 
         <HorizontalScrollView
             android:id="@+id/dyhLayout"
+            android:tag="bl_body"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -402,6 +417,7 @@
 
             <LinearLayout
                 android:id="@+id/linearLayout"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
