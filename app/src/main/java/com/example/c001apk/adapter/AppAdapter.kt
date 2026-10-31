@@ -51,6 +51,14 @@ import com.example.c001apk.util.dp
 import com.example.c001apk.view.LinearItemDecoration1
 import com.google.android.material.color.MaterialColors
 
+/**
+ * 专用「被屏蔽卡片」的 viewType（2026-10-31 用户方案）
+ *
+ * ⚠️ 必须是**顶层** `const` ✗ 不能放类体里（Kotlin 限制：类体里只允许 companion 内有 const）
+ * 负数 ✓ 不会和 `when` 里其它 case 撞车 ✓
+ */
+private const val TYPE_BLOCKED = -1001
+
 class AppAdapter(
     private val listener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
@@ -83,12 +91,6 @@ class AppAdapter(
             ImageUtil.showIMG(binding.coverImage, cover)
         }
     }
-
-    /**
-     * 专用「被屏蔽卡片」的 viewType（2026-10-31）
-     * 负数 ✓ 不会和 `when` 里其它 case 撞车
-     */
-    const val TYPE_BLOCKED = -1001
 
     /**
      * 被屏蔽动态的 ViewHolder（用户提的终极方案）。
