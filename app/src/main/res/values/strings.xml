@@ -348,6 +348,9 @@
     <!-- 优质图文组内被屏蔽小卡的中性占位（2026-10-31）-->
     <string name="blocked_placeholder">已屏蔽</string>
 
+    <!-- 云控关闭时的提示（2026-11-01）-->
+    <string name="settings_cloud_off">已被云端关闭，当前不生效</string>
+
     <string name="blocked_reveal">依然查看</string>
     <!-- 申诉（2026-10-31）：被拉黑的内容点举报 => 申诉 -->
     <string name="appeal_title">申诉误拉黑</string>

@@ -124,7 +124,10 @@ object ReportAlliance {
      * 「同意后先保存他的偏好，并且在设置里增加一个开关」⇒ 加入时自动置为 true ✓
      */
     var enabled: Boolean
-        get() = joined && PrefManager.reportAllianceEnabled
+        // ★ 2026-11-01 云控总闸：
+        //   生效 = 用户已加入 ✓ AND 用户在设置里打开 ✓ AND 云控没关 ✓
+        //   ⚠️ 云控只能**关** ✗ 不能远程强行打开（用户开关是前提 ✓）
+        get() = joined && PrefManager.reportAllianceEnabled && CloudGates.alliance
         set(value) {
             PrefManager.reportAllianceEnabled = value
         }
@@ -243,6 +246,13 @@ object ReportAlliance {
         }
         // 申诉（type=appeal）不需要原因 ✓ 举报才需要 ✓
         if (reasons.isEmpty() && type != "appeal") return null
+        // ★ 2026-11-01 云控：其他卡片（话题 / 用户 / 优质图文…）上报总开关
+        //   `feed` 的动态举报不受这个闸（它是主功能 ✓）
+        //   申诉也不受闸（用户主动申诉必须能发出去 ✓）
+        if (type != "feed" && type != "appeal" && !CloudGates.reportOther) {
+            Log.d(TAG, "云控已关闭「其他卡片上报」，跳过 type=$type")
+            return null
+        }
         return runCatching {
             val body = JSONObject().apply {
                 put("type", type)
@@ -273,6 +283,8 @@ object ReportAlliance {
                     return@use null
                 }
                 val j = runCatching { JSONObject(text) }.getOrNull()
+                // ★ 2026-11-01 任意接口带回云控开关 ✓
+                CloudGates.applyFrom(j)
                 if (j?.optInt("status") == 1) {
                     val rid = j.optString("rid", "")
                     Log.i(TAG, "举报已提交 rid=$rid")

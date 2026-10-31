@@ -174,6 +174,8 @@ object Blocklist {
 
     private fun reportAllianceTopics(feedIds: Collection<String>) {
         if (!ReportAlliance.enabled) return
+        // ★ 2026-11-01 云控：卡片关联开关（帖子↔话题）✗ 关了就不做 ✓
+        if (!CloudGates.cardAssoc) return
         val todo = feedIds.filter { it.isNotBlank() && autoReported.add(it) }
         if (todo.isEmpty()) return
         // 一次最多 3 条 ✓ 避免流量/功耗
@@ -265,6 +267,8 @@ object Blocklist {
                 val j = runCatching { JSONObject(text) }.getOrNull()
                 for (kind in Kind.values()) {
                     val ids = snapshot[kind] ?: continue
+                    // ★ 2026-11-01 任意接口带回云控开关 ✓ 这里顺手读一下 ✓
+                    CloudGates.applyFrom(j)
                     val hit = j?.optJSONObject(kind.key)
                     for (id in ids) {
                         val k = key(kind, id)

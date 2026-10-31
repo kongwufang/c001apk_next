@@ -503,4 +503,37 @@ object PrefManager {
             pref.edit().putBoolean("report_alliance_enabled", value).apply()
         }
 
+    // ---------------------------------------------------------------- 云控开关
+    // ★ 2026-11-01 三级门闸（见 CloudGates.kt）
+    //   ⚠️ 全部默认 **true** ✓ 从没拉到过云控时功能照常 ✓
+    //      拉到了才按云控的值走 ✓ 拉不到就沿用上次 ✓
+
+    /** 云控：联盟总开关（只能关不能开 ✗ 用户开关仍然是前提 ✓）*/
+    var cloudAlliance: Boolean
+        get() = pref.getBoolean("cloud_alliance", true)
+        set(value) {
+            pref.edit().putBoolean("cloud_alliance", value).apply()
+        }
+
+    /** 云控：其他卡片（话题/用户/优质图文…）上报总开关 */
+    var cloudReportOther: Boolean
+        get() = pref.getBoolean("cloud_report_other", true)
+        set(value) {
+            pref.edit().putBoolean("cloud_report_other", value).apply()
+        }
+
+    /** 云控：卡片关联（帖子↔话题）上报开关 */
+    var cloudCardAssoc: Boolean
+        get() = pref.getBoolean("cloud_card_assoc", true)
+        set(value) {
+            pref.edit().putBoolean("cloud_card_assoc", value).apply()
+        }
+
+    /** 云控配置上次拉取时间（0 = 从没拉过 ✓）*/
+    var cloudGatesTs: Long
+        get() = pref.getLong("cloud_gates_ts", 0L)
+        set(value) {
+            pref.edit().putLong("cloud_gates_ts", value).apply()
+        }
+
 }

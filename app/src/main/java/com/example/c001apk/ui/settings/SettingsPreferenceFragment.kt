@@ -230,6 +230,15 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         // 匿名举报联盟开关（2026-10-31）
         // ⚠️ 用户没同意加入过联盟时开关显示为关且不可点 ✗
         //    必须先从任意「举报」入口点一次「加入」✓
+            // ★ 2026-11-01 云控总闸：云控关了就把提示写清楚 ✓（开关本身仍归用户 ✓）
+            runCatching {
+                val p = findPreference<androidx.preference.Preference>("reportAllianceEnabled")
+                p?.summary = if (com.example.c001apk.util.CloudGates.alliance) {
+                    getString(com.example.c001apk.R.string.settings_report_alliance_on)
+                } else {
+                    getString(com.example.c001apk.R.string.settings_cloud_off)
+                }
+            }
         findPreference<MaterialSwitchPreference>("reportAllianceEnabled")?.apply {
             val joined = PrefManager.reportAllianceJoined
             isChecked = joined && PrefManager.reportAllianceEnabled
