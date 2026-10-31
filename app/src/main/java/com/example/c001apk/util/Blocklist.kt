@@ -58,6 +58,15 @@ object Blocklist {
     /** id -> 是否被屏蔽 */
     private val verdict = ConcurrentHashMap<String, Boolean>()
 
+    /**
+     * id -> **服务器给的横幅文案**（2026-10-31 用户要求）
+     *
+     * >「把全局红条的显示文本让服务器返回的 msg 决定」
+     *
+     * 服务器没给就回落到本地字符串 ✓
+     */
+    private val msgMap = ConcurrentHashMap<String, String>()
+
     /** id -> 过期时间 */
     private val expireAt = ConcurrentHashMap<String, Long>()
 
@@ -113,6 +122,12 @@ object Blocklist {
             return null
         }
         return verdict[k]
+    }
+
+    /** 服务器给的横幅文案（没有返回 null ✓ 调用方回落到本地字符串 ✓） */
+    fun cachedMsg(kind: Kind, id: String?): String? {
+        if (id.isNullOrBlank()) return null
+        return msgMap[key(kind, id)]
     }
 
     /** 便捷：是否被屏蔽（未知按 false ✓） */
@@ -233,7 +248,15 @@ object Blocklist {
                         val blocked = hit?.has(id) == true
                         verdict[k] = blocked
                         expireAt[k] = now + TTL_MS
-                        if (blocked) knownBlocked.add(k) else knownBlocked.remove(k)
+                        if (blocked) {
+                            knownBlocked.add(k)
+                            // 服务器返回的文案（可空 ✓）
+                            val m = hit?.optJSONObject(id)?.optString("msg", "")?.trim().orEmpty()
+                            if (m.isNotEmpty()) msgMap[k] = m else msgMap.remove(k)
+                        } else {
+                            knownBlocked.remove(k)
+                            msgMap.remove(k)
+                        }
                     }
                 }
                 Log.i(TAG, "批量查询完成: " +
@@ -271,6 +294,7 @@ object Blocklist {
     /** 清空缓存（调试用 / 切换账号时） */
     fun clear() {
         knownBlocked.clear()
+        msgMap.clear()
         verdict.clear()
         expireAt.clear()
         inflight.clear()

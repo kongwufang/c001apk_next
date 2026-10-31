@@ -47,8 +47,14 @@ object BlocklistUi {
         /** 正文折叠（动态卡片 ✓ 保留作者信息）*/
         FOLD,
 
-        /** 整卡模糊（用户 / 话题卡片 ✓）*/
+        /** 整卡模糊（话题卡片 ✓）*/
         BLUR,
+
+        /**
+         * **只显示红条**（个人主页头部 ✓ 2026-10-31 用户要求）
+         * >「个人主页屏蔽时不需要模糊，只需要添加那个红条即可」
+         */
+        BANNER_ONLY,
     }
 
     private const val BODY_TAG = "bl_body"
@@ -89,7 +95,10 @@ object BlocklistUi {
         if (!Blocklist.enabled()) return
         if (revealed.contains(rtKey(kind, key))) return
 
-        (banner as? android.widget.TextView)?.setText(labelRes)
+        // ★ 2026-10-31：横幅文本由**服务器**决定 ✓（服务器没给就回落到本地文案 ✓）
+        val localLabel = banner.context.getString(labelRes)
+        val serverMsg = Blocklist.cachedMsg(kind, key)
+        (banner as? android.widget.TextView)?.text = serverMsg ?: localLabel
         reveal?.setOnClickListener {
             revealed.add(rtKey(kind, key))
             bar.isVisible = false
@@ -98,14 +107,26 @@ object BlocklistUi {
 
         val known = Blocklist.cached(kind, key)
         if (known != null) {
-            if (known) apply(blurView, mode) else restore(blurView, mode)
+            if (known) {
+                apply(blurView, mode)
+                (banner as? android.widget.TextView)?.text =
+                    Blocklist.cachedMsg(kind, key) ?: localLabel
+            } else {
+                restore(blurView, mode)
+            }
             bar.isVisible = known
             return
         }
         Blocklist.prefetch(kind, listOf(key)) {
             if (revealed.contains(rtKey(kind, key))) return@prefetch
             val blocked = Blocklist.isBlocked(kind, key)
-            if (blocked) apply(blurView, mode) else restore(blurView, mode)
+            if (blocked) {
+                apply(blurView, mode)
+                (banner as? android.widget.TextView)?.text =
+                    Blocklist.cachedMsg(kind, key) ?: localLabel
+            } else {
+                restore(blurView, mode)
+            }
             bar.isVisible = blocked
         }
     }
@@ -113,13 +134,13 @@ object BlocklistUi {
     /** 应用屏蔽效果 */
     private fun apply(root: View, mode: Mode) {
         when (mode) {
+            Mode.BANNER_ONLY -> Unit      // 只出红条 ✓ 不动内容 ✓
+
             Mode.FOLD -> {
-                forEachBody(root) { v ->
-                    if (!originVisibility.containsKey(v)) {
-                        originVisibility[v] = v.visibility
-                    }
-                    v.visibility = View.GONE
-                }
+                hideBody(root)
+                // ★ 2026-10-31 修「误展开」：apply 时有些正文 View 还没 inflate 出来 ✗
+                //   （图片区 / 转发区是后补的 ✓）⇒ 布局完成后再隐藏一遍 ✓
+                root.post { hideBody(root) }
             }
             Mode.BLUR -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -135,9 +156,21 @@ object BlocklistUi {
         }
     }
 
+    /** 隐藏所有 `tag == "bl_body"` 的 View（记住原可见性 ✓） */
+    private fun hideBody(root: View) {
+        forEachBody(root) { v ->
+            if (!originVisibility.containsKey(v)) {
+                originVisibility[v] = v.visibility
+            }
+            v.visibility = View.GONE
+        }
+    }
+
     /** 还原 */
     private fun restore(root: View, mode: Mode) {
         when (mode) {
+            Mode.BANNER_ONLY -> Unit      // 什么都没动 ✓ 无需还原 ✓
+
             Mode.FOLD -> {
                 forEachBody(root) { v ->
                     // ★ 2026-10-31 修 bug（真机：卡片里冒出一堆空白框 ✗）

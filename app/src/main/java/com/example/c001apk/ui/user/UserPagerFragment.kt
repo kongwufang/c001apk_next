@@ -131,7 +131,8 @@ class UserPagerFragment : BasePagerFragment() {
             com.example.c001apk.util.Blocklist.Kind.USER,
             uid,
             com.example.c001apk.R.string.blocked_multi_report_user,
-            com.example.c001apk.util.BlocklistUi.Mode.BLUR
+            // ★ 个人主页**不要模糊** ✓ 只加红条 ✓（用户 2026-10-31）
+            com.example.c001apk.util.BlocklistUi.Mode.BANNER_ONLY
         )
     }
 
