@@ -66,6 +66,8 @@ class ShareLinkRepo @Inject constructor() {
         OkHttpClient.Builder()
             // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
             .addInterceptor(com.example.c001apk.util.ServerCookieStore.interceptor())
+            // ★ SSL 策略跟着「校验 SSL 证书」开关走 ✓（2026-10-31）
+            .let { com.example.c001apk.util.SslVerify.apply(it) }
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)

@@ -78,6 +78,8 @@ object ReportAlliance {
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(ServerCookieStore.interceptor())
+            // ★ SSL 策略跟着「校验 SSL 证书」开关走 ✓（2026-10-31）
+            .let { SslVerify.apply(it) }
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)

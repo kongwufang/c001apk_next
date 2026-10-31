@@ -144,8 +144,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
     override fun onResume() {
         super.onResume()
         syncToolbarTitle()
-        // 开关可能被别处改动（如风险弹窗里关闭了「校验 SSL 证书」），回到页面时重新同步互斥状态
-        syncSslDebugState()
     }
 
     class SettingsPreferenceDataStore : PreferenceDataStore() {
@@ -185,7 +183,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "isOpenLinkOutside" -> PrefManager.isOpenLinkOutside
                 "isColorFilter" -> PrefManager.isColorFilter
                 "verifySsl" -> PrefManager.isVerifySsl
-                "sslDebug" -> PrefManager.isSslDebug
                 else -> throw IllegalArgumentException("Invalid key: $key")
             }
         }
@@ -202,7 +199,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "isOpenLinkOutside" -> PrefManager.isOpenLinkOutside = value
                 "isColorFilter" -> PrefManager.isColorFilter = value
                 "verifySsl" -> PrefManager.isVerifySsl = value
-                "sslDebug" -> PrefManager.isSslDebug = value
                 else -> throw IllegalArgumentException("Invalid key: $key")
             }
         }
@@ -525,107 +521,34 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
 
-        // 「校验 SSL 证书」与「网络传输调试模式」互斥：
-        // 打开严格校验时强制关掉调试模式，并刷新调试开关的可用状态
-        findPreference<MaterialSwitchPreference>("verifySsl")?.setOnPreferenceChangeListener { _, value ->
-            if (value == true && PrefManager.isSslDebug) {
-                PrefManager.isSslDebug = false
-            }
-            syncSslDebugState()
-            true
-        }
-
-        // 「网络传输调试模式」：开启要二次确认 + 倒计时，关闭直接生效（两者都需重启应用）
-        syncSslDebugState()
-        findPreference<MaterialSwitchPreference>("sslDebug")?.setOnPreferenceChangeListener { _, value ->
-            when {
-                // 严格校验开着时不可开启（开关本应是禁用态，这里兜底拦截）
-                value == true && PrefManager.isVerifySsl -> false
-
-                // 开启：先弹二次确认，确认后再落库并刷新开关
-                value == true -> {
-                    showSslDebugConfirmDialog()
-                    false
-                }
-
-                // 关闭：直接落库 + 提示
-                else -> {
-                    PrefManager.isSslDebug = false
-                    syncSslDebugState()
-                    Toast.makeText(
-                        requireContext(),
-                        R.string.ssl_debug_disabled_toast,
-                        Toast.LENGTH_LONG
-                    ).show()
-                    false
-                }
-            }
-        }
-
-    }
-
-    /** 按「校验 SSL 证书」的当前值刷新调试开关：互斥时禁用并换成说明文案 */
-    private fun syncSslDebugState() {
-        val debug = findPreference<MaterialSwitchPreference>("sslDebug") ?: return
-        val strict = PrefManager.isVerifySsl
-        if (strict && PrefManager.isSslDebug) {
-            PrefManager.isSslDebug = false
-        }
-        debug.isChecked = PrefManager.isSslDebug
-        debug.isEnabled = !strict
-        debug.summary = getString(
-            if (strict) R.string.settings_ssl_debug_locked_summary
-            else R.string.settings_ssl_debug_summary
-        )
-    }
-
-    /**
-     * 开启「网络传输调试模式」前的二次确认：正向按钮先禁用并倒计时，
-     * 防止误触一键放开全部 SSL 校验。
-     */
-    private fun showSslDebugConfirmDialog() {
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.ssl_debug_confirm_title)
-            .setMessage(R.string.ssl_debug_confirm_message)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.ssl_debug_confirm_ok, null)
-            .create()
-
-        dialog.setOnShowListener {
-            val confirm = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            val handler = Handler(Looper.getMainLooper())
-            var remain = 5
-            confirm.isEnabled = false
-            confirm.text = getString(R.string.ssl_debug_confirm_ok_wait, remain)
-
-            val tick = object : Runnable {
-                override fun run() {
-                    remain--
-                    if (remain > 0) {
-                        confirm.text = getString(R.string.ssl_debug_confirm_ok_wait, remain)
-                        handler.postDelayed(this, 1000L)
-                    } else {
-                        confirm.isEnabled = true
-                        confirm.text = getString(R.string.ssl_debug_confirm_ok)
-                    }
-                }
-            }
-            handler.postDelayed(tick, 1000L)
-
-            confirm.setOnClickListener {
-                handler.removeCallbacks(tick)
-                PrefManager.isSslDebug = true
-                syncSslDebugState()
-                dialog.dismiss()
+        // ★ 2026-10-31 用户要求合并成一个开关：
+        //   「开启之后需要同时通过系统和 APP 内置证书校验，关闭之后就自动开启调试模式」
+        //   => 只剩「校验 SSL 证书」一项 ✓
+        //      isSslDebug 是派生属性（= !isVerifySsl）✓ 见 PrefManager
+        findPreference<MaterialSwitchPreference>("verifySsl")?.apply {
+            isChecked = PrefManager.isVerifySsl
+            summary = getString(
+                if (PrefManager.isVerifySsl) R.string.settings_verify_ssl_summary
+                else R.string.settings_ssl_debug_summary
+            )
+            setOnPreferenceChangeListener { _, value ->
+                PrefManager.isVerifySsl = value as Boolean
+                summary = getString(
+                    if (value) R.string.settings_verify_ssl_summary
+                    else R.string.settings_ssl_debug_summary
+                )
                 Toast.makeText(
                     requireContext(),
-                    R.string.ssl_debug_enabled_toast,
+                    if (value) R.string.ssl_debug_disabled_toast
+                    else R.string.ssl_debug_enabled_toast,
                     Toast.LENGTH_LONG
                 ).show()
+                // 两种模式都要重启（OkHttpClient 构建时固化了 TrustManager ✓）
                 showSslDebugRestartDialog()
+                true
             }
         }
-        dialog.show()
+
     }
 
     /** 开启后提示需要重启（网络栈在 Application 启动时构建，只有整个进程重启才生效） */

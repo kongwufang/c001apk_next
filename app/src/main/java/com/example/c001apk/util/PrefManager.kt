@@ -420,9 +420,22 @@ object PrefManager {
      * 与 [isVerifySsl] 互斥：`校验 SSL 证书` 开着时本项被强制关闭；
      * 且开关修改后需**重启应用**才生效（客户端实例在启动时构建）。
      */
+    /**
+     * 网络传输调试模式（**派生属性**，2026-10-31 用户要求合并开关）。
+     *
+     * >「把 ssl 校验和调试开关改成一个开关，开启之后需要同时通过系统和 APP 内置证书校验，
+     * >  关闭之后就自动开启调试模式」
+     *
+     * ⇒ 只有「校验 SSL 证书」一个开关 ✓
+     *    开 => 系统 PKIX + 内置 CA 库 双重校验
+     *    关 => **自动**进入调试模式（彻底跳过校验，方便抓包）
+     * ⇒ 本属性恒等于 `!isVerifySsl` ✓ 不再单独存 key（旧的 `sslDebug` 键作废 ✗）
+     */
     var isSslDebug: Boolean
-        get() = pref.getBoolean("sslDebug", false)
-        set(value) = pref.edit().putBoolean("sslDebug", value).apply()
+        get() = !isVerifySsl
+        set(value) {
+            isVerifySsl = !value
+        }
 
     /** 其他屏蔽项（关键字/用户/节点）的服务端配置缓存，离线也能先过滤 */
     var spamConfig: String

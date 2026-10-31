@@ -105,6 +105,9 @@ class StatsBeacon @Inject constructor(
         OkHttpClient.Builder()
             // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
             .addInterceptor(ServerCookieStore.interceptor())
+            // ★ SSL 策略跟着「校验 SSL 证书」开关走 ✓（2026-10-31 用户要求：
+            //   「新加的所有接口得遵循他的校验开关，以便我可以网络尝试」）
+            .let { SslVerify.apply(it) }
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)

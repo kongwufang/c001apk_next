@@ -73,6 +73,8 @@ object Blocklist {
         OkHttpClient.Builder()
             // 黑名单接口要带齐身份头（跟举报一致 ✓ 服务端也校验）
             .addInterceptor(ServerCookieStore.interceptor())
+            // ★ SSL 策略跟着「校验 SSL 证书」开关走 ✓（2026-10-31）
+            .let { SslVerify.apply(it) }
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build()
