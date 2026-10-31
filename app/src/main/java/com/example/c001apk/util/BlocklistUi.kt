@@ -66,6 +66,34 @@ object BlocklistUi {
     }
 
     private const val BODY_TAG = "bl_body"
+
+    /**
+     * ★★ 2026-10-31 第三层根因：**Glide 会覆盖 `tag`** ★★
+     *
+     * Glide 加载图片时会 `imageView.setTag(requestKey)` ✗
+     * ⇒ 我们打的 `android:tag="bl_body"` 被**盖掉** ✗
+     * ⇒ `forEachBody` 找不到图片区 ⇒ 它们永远不会被折叠 ✗
+     * ⇒ 表现就是「正文/图片还在、红条也在」（真机截图证实 ✓）
+     *
+     * ⇒ 改用 **`id` 判断** ✓（`id` 不会被任何库覆盖 ✓）
+     *    下面的 id 集合与布局里打 tag 的那批**一一对应** ✓
+     *    （tag 仍然保留作兼容 ✓ 两者取或 ✓）
+     */
+    private val BODY_IDS: Set<Int> by lazy {
+        setOf(
+            R.id.messageTitle, R.id.message, R.id.messageMore,
+            R.id.videoPart, R.id.multiImage, R.id.mediaBarrier,
+            R.id.extraPart, R.id.hotReply,
+            R.id.forwarded, R.id.forwardedMess, R.id.forwardedPic,
+            R.id.dyhLayout, R.id.linearLayout, R.id.ip,
+            R.id.extraUrlLayout, R.id.extraPic, R.id.extraTitle, R.id.extraUrl,
+            // 时间行 + 操作栏（用户要求：「遮挡下面点赞和评论的那一行」）
+            R.id.pubDate, R.id.like, R.id.reply,
+            R.id.favorite, R.id.forward, R.id.report,
+        )
+    }
+
+    private fun isBody(v: View): Boolean = BODY_TAG == v.tag || BODY_IDS.contains(v.id)
     private const val BLUR_RADIUS = 8f
     private const val DIM_ALPHA = 0.35f
 
@@ -346,7 +374,7 @@ object BlocklistUi {
         if (root is ViewGroup) {
             for (i in 0 until root.childCount) {
                 val child = root.getChildAt(i)
-                if (BODY_TAG == child.tag) {
+                if (isBody(child)) {
                     out.add(child)
                 } else {
                     collectBody(child, out)
