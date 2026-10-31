@@ -111,9 +111,23 @@ class AppAdapter(
             binding.data = data
             binding.listener = listener
             // ★ 红条文案由**服务器**决定 ✓（2026-10-31 用户要求）
-            binding.msg = com.example.c001apk.util.Blocklist.cachedMsg(
+            //   ⚠️ 布局里不能写 `@{msg ?? @string/...}` ✗
+            //      databinding 处理失败 ⇒ 类不生成 ✗（踩过）
+            //   ⇒ 在代码里设 ✓
+            binding.blockedBanner.text = com.example.c001apk.util.Blocklist.cachedMsg(
                 com.example.c001apk.util.Blocklist.Kind.FEED, data.id
+            ) ?: binding.root.context.getString(
+                com.example.c001apk.R.string.blocked_multi_report
             )
+            // 头像 + 昵称（头像用 Glide ✓ 布局里不绑 ✓）
+            binding.uname.text = data.userInfo?.username ?: data.displayUsername
+            // 头像：直接用 Glide ✓（项目里没有 loadAvatar 这个工具 ✗）
+            val avatar = data.userInfo?.userAvatar
+            if (!avatar.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(binding.avatar)
+                    .load(avatar)
+                    .into(binding.avatar)
+            }
             // 头部信息（让用户知道这是谁发的 / 什么机器 / 在哪 ✓）
             //   字段名核对过：`deviceTitle` / `deviceName` / `ipLocation` ✓
             //   （没有 `recommend` / `lastupdateText` ✗ 别用）
