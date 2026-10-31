@@ -242,6 +242,16 @@ object Blocklist {
     }
 
     private fun flush() {
+        /**
+         * ★ 2026-11-01 「这一次有没有查出被屏蔽的」
+         *
+         * 用户要求：「正常状态下 app 轮询完状态后还会再刷新一遍 UI，这不是一个聪明的做法，
+         *            我觉得应该静默处理，只有被屏蔽的时候才需要刷屏蔽卡片」
+         *
+         * ⇒ 全 false 时**不通知任何回调** ✓ 列表完全不动 ✓
+         *   只有真查出 blocked=true 才刷新 ✓（此时才需要把卡片换成屏蔽样式 ✓）
+         */
+        var anyBlocked = false
         val snapshot = HashMap<Kind, List<String>>()
         for (kind in Kind.values()) {
             val b = pending[kind] ?: continue
@@ -303,6 +313,7 @@ object Blocklist {
                         verdict[k] = blocked
                         expireAt[k] = now + TTL_MS
                         if (blocked) {
+                            anyBlocked = true
                             knownBlocked.add(k)
                             // 服务器返回的文案（可空 ✓）
                             val m = hit?.optJSONObject(id)?.optString("msg", "")?.trim().orEmpty()
@@ -334,11 +345,19 @@ object Blocklist {
             for (id in ids) inflight.remove(key(kind, id))
         }
 
+        // ★ 2026-11-01 静默处理：本次没有任何「被屏蔽」⇒ 不刷新 UI ✓
+        //   用户：「只有被屏蔽的时候才需要刷屏蔽卡片」✓
         if (pendingCallbacks.isNotEmpty()) {
-            val cbs = pendingCallbacks.toList()
-            pendingCallbacks.clear()
-            CoroutineScope(Dispatchers.Main).launch {
-                for (cb in cbs) runCatching { cb() }
+            if (anyBlocked) {
+                val cbs = pendingCallbacks.toList()
+                pendingCallbacks.clear()
+                CoroutineScope(Dispatchers.Main).launch {
+                    for (cb in cbs) runCatching { cb() }
+                }
+            } else {
+                // 全 false：清掉回调，列表保持原样 ✓（不闪 ✓）
+                pendingCallbacks.clear()
+                Log.d(TAG, "本次无屏蔽，静默（不刷新 UI）")
             }
         }
     }
