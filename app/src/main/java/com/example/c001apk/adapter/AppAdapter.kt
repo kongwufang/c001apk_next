@@ -17,6 +17,7 @@ import com.example.c001apk.BR
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemAppVersionBinding
 import com.example.c001apk.databinding.ItemBlockedFeedBinding
+import com.example.c001apk.databinding.ItemBlockedTopicBinding
 import com.example.c001apk.databinding.ItemCollectionListItemBinding
 import com.example.c001apk.databinding.ItemFeedReplyBinding
 import com.example.c001apk.databinding.ItemHomeFeedBinding
@@ -60,8 +61,11 @@ import com.google.android.material.color.MaterialColors
  */
 private const val TYPE_BLOCKED = -1001
 
-/** A/B 开关：话题红条（排查内容空白用）*/
-private const val TOPIC_BANNER_ENABLED = false
+/**
+ * 专用「被屏蔽话题卡片」的 viewType（2026-10-31 用户选方案 A）
+ * 话题卡片上直接加红条会让 logo/名称消失 ✗ ⇒ 单独做一张卡 ✓
+ */
+private const val TYPE_BLOCKED_TOPIC = -1002
 
 class AppAdapter(
     private val listener: ItemListener
@@ -550,6 +554,48 @@ class AppAdapter(
         }
     }
 
+    /**
+     * 被屏蔽话题的 ViewHolder（方案 A）
+     *
+     * 保留话题 logo / 名称 / 热度 / 讨论数 ✓ 只多一条红带 ✓
+     * 「依然查看」⇒ 记 revealed + notifyItemChanged ⇒ 换成正常话题卡片 ✓
+     */
+    class BlockedTopicViewHolder(
+        val binding: ItemBlockedTopicBinding,
+        val listener: ItemListener,
+        val onReveal: (Int) -> Unit,
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+
+        override fun bind(data: HomeFeedResponse.Data) {
+            binding.data = data
+            binding.listener = listener
+            binding.title.text = data.title
+            binding.hotNum.text = data.hotNumTxt?.let { "${it}热度" }
+            binding.commentNum.text = "${data.commentnumTxt}讨论"
+            binding.blockedBanner.text = com.example.c001apk.util.Blocklist.cachedMsg(
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id
+            ) ?: itemView.context.getString(
+                com.example.c001apk.R.string.blocked_multi_report_topic
+            )
+            val logo = data.logo
+            if (!logo.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(binding.logo)
+                    .load(logo)
+                    .into(binding.logo)
+            }
+            binding.blockedReveal.setOnClickListener {
+                val id = data.id ?: return@setOnClickListener
+                com.example.c001apk.util.BlocklistUi.markRevealed(
+                    com.example.c001apk.util.Blocklist.Kind.TOPIC, id
+                )
+                val pos = bindingAdapterPosition
+                if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                    onReveal(pos)
+                }
+            }
+        }
+    }
+
     class TopicProductViewHolder(val binding: ItemSearchTopicBinding, val listener: ItemListener) :
         BaseViewHolder<ViewDataBinding>(binding) {
         override fun bind(data: HomeFeedResponse.Data) {
@@ -579,14 +625,10 @@ class AppAdapter(
             // ★ 话题卡片只出红条 ✓ 用极简入口（绝不碰卡片内容 ✓）
             //   之前用 `bind()` ✗ 它会 restore/hideBody/锁高度 ⇒
             //   真机上话题卡片的「头像 + 名称」被弄没了 ✗（用户反馈）
-            // ⚠️ A/B 测试用开关：false = 完全不调用（排查「内容空白」）
-            if (TOPIC_BANNER_ENABLED) {
-                com.example.c001apk.util.BlocklistUi.bindBannerOnly(
-                    binding.blockedBar, binding.blockedBanner, binding.blockedReveal,
-                    com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id,
-                    com.example.c001apk.R.string.blocked_multi_report_topic
-                )
-            }
+            // ★ 2026-10-31 最终方案：这个话题卡片**不再显示红条** ✗
+            //   被屏蔽的话题走 `BlockedTopicViewHolder`（专用卡片 ✓）
+            //   曾经在这里内联加红条 ⇒ 话题的 logo + 名称会消失 ✗（A/B 证实）
+            //   `item_search_topic.xml` 里的 blockedBar 保留但永不显示 ✓
             binding.setVariable(BR.listener, listener)
         }
     }
@@ -1024,6 +1066,12 @@ class AppAdapter(
                 )
             }
 
+            TYPE_BLOCKED_TOPIC -> BlockedTopicViewHolder(
+                ItemBlockedTopicBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                ), listener
+            ) { pos -> notifyItemChanged(pos) }
+
             7 -> {
                 TopicProductViewHolder(
                     ItemSearchTopicBinding.inflate(
@@ -1288,6 +1336,17 @@ class AppAdapter(
         //   ⇒ 用 item_blocked_feed.xml（**里面没有正文 View** ✓）
         //   ⇒ databinding 无从"放回来" ✓ 物理上不可能再展开 ✓
         //   ⚠️ 必须在所有模板判断**之前** ✓
+        // ★ 话题：被屏蔽 ⇒ 专用话题卡片 ✓（保留 logo/名称/热度 ✓ 只多一条红带 ✓）
+        val tid = item.id
+        if (tid != null
+            && com.example.c001apk.util.Blocklist.isBlocked(
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, tid)
+            && !com.example.c001apk.util.BlocklistUi.isRevealed(
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, tid)
+        ) {
+            return TYPE_BLOCKED_TOPIC
+        }
+
         val fid = item.id
         if (fid != null
             && com.example.c001apk.util.Blocklist.isBlocked(
