@@ -114,6 +114,18 @@ object BlocklistUi {
     private val originHeight = WeakHashMap<View, Int>()
 
     /**
+     * ★★ 方案 B（2026-10-31 用户选）：卡片**高度锁死** ★★
+     *
+     * 为什么换这个：正文 View 的 `visibility` 归 databinding 的 BindingAdapter 管 ✗
+     *   （`app:pic` / `app:picArr` / `app:setHotReply` 有内容就设 VISIBLE ✗）
+     *   无论怎么兜底都会被更晚的绑定覆盖 ✗（探针+坐标 dump 都证实了 ✓）
+     *
+     * ⇒ 改成锁**卡片自身的高度** ✓ databinding 碰不到 layoutParams ✓
+     *   `clipChildren = true`（默认 ✓）⇒ 溢出的正文被裁掉 ✓
+     */
+    private val originLpHeight = WeakHashMap<View, Int>()
+
+    /**
      * ★ 性能缓存（2026-10-31 修「滑动卡顿」）
      *
      * 原来每次 `bind()` 都要**递归走三遍** View 树（restore + hideBody + post 里的 hideBody ✗）
@@ -195,7 +207,12 @@ object BlocklistUi {
             //   ⇒ 我藏完之后它又放出来 ⇒ 脱钩 ✗
             //   ⇒ 跳过前再强制藏一遍 ✓（一次遍历，很便宜 ✓）
             if (wantBlocked) {
-                if (mode == Mode.FOLD) hideBody(blurView)
+                if (mode == Mode.FOLD) {
+                    hideBody(blurView)
+                    // 高度万一被别的什么重置了，补一下 ✓（已锁过就跳过 ✓）
+                    val h = headerHeightOf(blurView)
+                    if (h > 0) lockHeight(blurView, h)
+                }
                 // 顺便确保红条在 ✓（它也可能被别的东西弄没了 ✓ 少见但兜一下）
                 bar.isVisible = true
                 reveal?.isVisible = true
@@ -282,7 +299,11 @@ object BlocklistUi {
                 //   `executePendingBindings()` **之前** ✗
                 //   数据绑定里的 BindingAdapter 会把 visibility 设回来 ✗
                 //   ⇒ 布局后再补两次（一次 post ✓ 一次延迟兜底 ✓）
-                root.post { hideBody(root) }
+                root.post {
+                    hideBody(root)
+                    // ★ 方案 B：锁死高度 ✓（不依赖子 View 的 visibility ✗）
+                    lockHeight(root, headerHeightOf(root))
+                }
                 root.postDelayed({ hideBody(root) }, 80L)
             }
             Mode.BLUR -> {
@@ -296,6 +317,46 @@ object BlocklistUi {
                     root.alpha = DIM_ALPHA
                 }
             }
+        }
+    }
+
+    /**
+     * 头部高度 = `pubDate` 底边 - 卡片顶边。
+     *
+     * ⚠️ `pubDate` 可能已经 GONE ✓ 但 `bottom` 仍然保留**上次布局的值** ✓
+     *    （View 的 mTop/mBottom 在下一次 layout 之前不会变 ✓）
+     */
+    private fun headerHeightOf(root: View): Int {
+        val pub = root.findViewById<View>(R.id.pubDate) ?: return 0
+        if (pub.bottom <= 0) return 0
+        val top = root.top
+        return (pub.bottom - top).coerceAtLeast(0)
+    }
+
+    /** 锁死卡片高度（方案 B 的核心 ✓） */
+    private fun lockHeight(root: View, h: Int) {
+        if (h <= 0) return
+        val lp = root.layoutParams ?: return
+        if (!originLpHeight.containsKey(root)) {
+            originLpHeight[root] = lp.height
+        }
+        root.clipChildren = true
+        root.clipToPadding = true
+        if (lp.height != h) {
+            lp.height = h
+            root.layoutParams = lp
+        }
+        if (PROBE) android.util.Log.d(TAG, "lockHeight h=$h（原=${originLpHeight[root]}）")
+    }
+
+    /** 解锁 */
+    private fun unlockHeight(root: View) {
+        val h = originLpHeight.remove(root) ?: return
+        val lp = root.layoutParams ?: return
+        if (lp.height != h) {
+            lp.height = h
+            root.layoutParams = lp
+            if (PROBE) android.util.Log.d(TAG, "unlockHeight 还原=${h}")
         }
     }
 
@@ -355,6 +416,8 @@ object BlocklistUi {
             Mode.FOLD -> {
                 // 取消持续强制 ✓ 否则放出来了也会被立刻藏回去 ✗
                 enforceListener.remove(root)?.let { root.removeOnLayoutChangeListener(it) }
+                // ★ 方案 B：高度还原 ✓
+                unlockHeight(root)
                 forEachBody(root) { v ->
                     // ★ 2026-10-31 修 bug（真机：卡片里冒出一堆空白框 ✗）
                     //   原来写的是 `originVisibility[v] ?: View.VISIBLE` ✗
