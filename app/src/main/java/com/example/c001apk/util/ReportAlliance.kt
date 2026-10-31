@@ -153,7 +153,10 @@ object ReportAlliance {
                 Log.w(TAG, "上报被拒: ${text.take(120)}")
                 null
             }
-        }.onFailure { Log.w(TAG, "上报异常: ${it.message}") }.getOrNull()
+        }.onFailure {
+            // ⚠️ NetworkOnMainThreadException 的 message 是 null ✗ 必须打类名 ✓
+            Log.w(TAG, "上报异常: ${it.javaClass.simpleName}: ${it.message}", it)
+        }.getOrNull()
     }
 
     /** 调试用：把原因列表导出成 JSON 数组（客户端/服务端对齐检查） */

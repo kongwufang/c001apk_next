@@ -5,6 +5,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.example.c001apk.R
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 「匿名举报联盟」的弹窗流程。
@@ -107,6 +111,12 @@ object ReportAllianceDialog {
      *
      * ⚠️ 成功只提示「已提交」✓ **不透露任何处置结果** ✗
      *    用户要求的就是匿名 + 不公开 ✓
+     *
+     * ⚠️⚠️ 2026-10-31 修 bug（用户报「点提交显示提交失败」）：
+     *    原来是**在主线程**调 [ReportAlliance.submit] ⇒ 它内部是阻塞式
+     *    `newCall().execute()` ⇒ Android 抛 `NetworkOnMainThreadException`
+     *    ⇒ 被 `runCatching` 吞掉 ⇒ 返回 null ⇒ 一律提示「提交失败」✗
+     *    ⇒ 现在挪到 IO 线程 ✓ 结果回主线程弹 Toast ✓
      */
     fun submit(
         activity: Activity,
@@ -116,12 +126,21 @@ object ReportAllianceDialog {
         reasons: List<String>,
         note: String? = null,
     ) {
-        val rid = ReportAlliance.submit(type, id, topicId, reasons, note)
-        val msg = if (rid != null) {
-            R.string.report_submitted
-        } else {
-            R.string.report_submit_failed
+        if (activity.isFinishing || activity.isDestroyed) {
+            return
         }
-        Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+        CoroutineScope(Dispatchers.IO).launch {
+            val rid = ReportAlliance.submit(type, id, topicId, reasons, note)
+            withContext(Dispatchers.Main) {
+                val msg = if (rid != null) {
+                    R.string.report_submitted
+                } else {
+                    R.string.report_submit_failed
+                }
+                runCatching {
+                    Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 }
