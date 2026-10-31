@@ -435,7 +435,10 @@ class AppAdapter(
             com.example.c001apk.util.BlocklistUi.bind(
                 binding.blurContainer, binding.blockedBar, binding.blockedBanner,
                 binding.blockedReveal,
-                com.example.c001apk.util.Blocklist.Kind.USER, data.uid
+                com.example.c001apk.util.Blocklist.Kind.USER, data.uid,
+                com.example.c001apk.R.string.blocked_multi_report_user,
+                // ★ 用户卡片也不要模糊 ✓ 只出红条 ✓
+                com.example.c001apk.util.BlocklistUi.Mode.BANNER_ONLY
             )
 
             if (data.userInfo != null && data.fUserInfo != null) {
@@ -509,7 +512,9 @@ class AppAdapter(
                 binding.parent, binding.blockedBar, binding.blockedBanner,
                 binding.blockedReveal,
                 com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id,
-                com.example.c001apk.R.string.blocked_multi_report_topic
+                com.example.c001apk.R.string.blocked_multi_report_topic,
+                // ★ 话题卡片**不要模糊** ✓ 只出红条 ✓（2026-10-31 用户要求）
+                com.example.c001apk.util.BlocklistUi.Mode.BANNER_ONLY
             )
             binding.setVariable(BR.listener, listener)
         }

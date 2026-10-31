@@ -173,9 +173,14 @@ object BlocklistUi {
             Mode.BANNER_ONLY -> Unit      // 只出红条 ✓ 不动内容 ✓
 
             Mode.FOLD -> {
-                // 现收正文 ✓ 隐藏 ✓ 布局后再兜一次（后 inflate 的图片/转发区 ✓）
+                // 现收正文 ✓ 隐藏 ✓
                 hideBody(root)
+                // ★ 2026-10-31 修「正文还在」：`hideBody` 跑在
+                //   `executePendingBindings()` **之前** ✗
+                //   数据绑定里的 BindingAdapter 会把 visibility 设回来 ✗
+                //   ⇒ 布局后再补两次（一次 post ✓ 一次延迟兜底 ✓）
                 root.post { hideBody(root) }
+                root.postDelayed({ hideBody(root) }, 80L)
             }
             Mode.BLUR -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
