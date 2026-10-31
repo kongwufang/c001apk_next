@@ -48,6 +48,12 @@ abstract class BaseAdapter<T : ViewDataBinding> :
             com.example.c001apk.util.Blocklist.prefetchPage(
                 feeds = list.mapNotNull { it.id },
                 users = list.mapNotNull { it.userInfo?.uid ?: it.uid },
+                // ★ 2026-11-01 「帖子 id → 话题 id」✓ 云端据此判连坐 ✓
+                feedTopics = list.mapNotNull { d ->
+                    val fid = d.id
+                    val tid = d.tid
+                    if (!fid.isNullOrBlank() && !tid.isNullOrBlank()) fid to tid else null
+                }.toMap(),
                 // ★★ 2026-10-31 补上 **话题** ★★
                 //   之前只发 feeds + users ✗ ⇒ 话题 id 从来没问过服务器 ✗
                 //   ⇒ `cached(TOPIC, id)` 永远 null ⇒ 话题卡片永远不出红条 ✗（用户反馈）

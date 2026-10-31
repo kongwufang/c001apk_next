@@ -138,7 +138,13 @@ object Blocklist {
      *
      * @param onUpdated 有新结果时回调（主线程 ✓ 调用方在里面 notifyDataSetChanged）
      */
-    fun prefetch(kind: Kind, ids: Collection<String?>, onUpdated: (() -> Unit)? = null) {
+    fun prefetch(
+        kind: Kind,
+        ids: Collection<String?>,
+        onUpdated: (() -> Unit)? = null,
+        /** 「帖子 id → 话题 id」映射（只有 FEED 用 ✓ 云端据此判连坐 ✓）*/
+        feedTopics: Map<String, String>? = null,
+    ) {
         if (!enabled()) return
         val now = System.currentTimeMillis()
         var added = false
@@ -170,53 +176,7 @@ object Blocklist {
      * ⚠️ 后台线程 ✓ 不阻塞 UI ✓ 失败静默 ✓
      * ⚠️ 只在**判定为已屏蔽**时做 ✓（未屏蔽的正常内容不打扰 ✓）
      */
-    private val autoReported = java.util.Collections.synchronizedSet(HashSet<String>())
-
-    private fun reportAllianceTopics(feedIds: Collection<String>) {
-        if (!ReportAlliance.enabled) return
-        // ★ 2026-11-01 云控：卡片关联开关（帖子↔话题）✗ 关了就不做 ✓
-        if (!CloudGates.cardAssoc) return
-        val todo = feedIds.filter { it.isNotBlank() && autoReported.add(it) }
-        if (todo.isEmpty()) return
-
-        // ★★ 2026-11-01 修「不停地上报话题」★★
-        //   旧逻辑：`todo.take(3)` ✗ 但调用方每次只传 1 条 ⇒ 等于没限 ✗
-        //   测试模式下所有动态都算屏蔽 ⇒ 一屏 10 条 = 20 个请求 ✗（HAR 里看得到 ✓）
-        //
-        //   新逻辑：**全局预算**（不是每次调用限 ✓ 是滑动窗口 + 日上限 ✓）
-        //     · 每小时最多 3 条
-        //     · 每天最多 10 条
-        //   ⇒ 正常用户几乎无感 ✓ 刷屏场景也不会打爆 ✓
-        val now = System.currentTimeMillis()
-        val windowStart = PrefManager.autoReportWindowStart
-        if (now - windowStart > 60 * 60 * 1000L) {
-            PrefManager.autoReportWindowStart = now
-            PrefManager.autoReportCount = 0
-        }
-        val today = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
-            .format(java.util.Date(now)).toIntOrNull() ?: 0
-        if (PrefManager.autoReportDay != today) {
-            PrefManager.autoReportDay = today
-            PrefManager.autoReportDayCount = 0
-        }
-        val hourlyLeft = (3 - PrefManager.autoReportCount).coerceAtLeast(0)
-        val dailyLeft = (10 - PrefManager.autoReportDayCount).coerceAtLeast(0)
-        val allow = minOf(hourlyLeft, dailyLeft)
-        if (allow <= 0) {
-            Log.d(TAG, "自动上报已达上限（时 $hourlyLeft / 日 $dailyLeft），本次跳过")
-            return
-        }
-
-        todo.take(allow).forEach { id ->
-            PrefManager.autoReportCount += 1
-            PrefManager.autoReportDayCount += 1
-            CoroutineScope(Dispatchers.IO).launch {
-                runCatching { ReportAlliance.autoReportWithTopics(id) }
-            }
-        }
-    }
-
-    /**
+        /**
      * ★ 分页级批量查询（2026-10-31 用户要求）
      *
      * >「我只要首页，搜索页及其他的分页，拉到一个分页的时候，把分页的**所有 ID 一次问服务器**，
@@ -237,11 +197,19 @@ object Blocklist {
         feeds: Collection<String?>? = null,
         users: Collection<String?>? = null,
         topics: Collection<String?>? = null,
+        /**
+         * ★ 2026-11-01 「帖子 id → 话题 id」映射
+         *
+         * 用户要求：「上报的格式是帖子id+话题id，每个帖子后面都带对应的话题id，
+         *            算法云端决定」
+         * ⇒ 云端据此建「话题 → 帖子」关联 ✓ 决定连坐 ✓
+         */
+        feedTopics: Map<String, String>? = null,
         onUpdated: (() -> Unit)? = null,
     ) {
         if (!enabled()) return
         // 每类最多塞 100 个（服务端上限 ✓）
-        feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, onUpdated) }
+        feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, onUpdated, feedTopics) }
         users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, onUpdated) }
         topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, onUpdated) }
     }
@@ -273,6 +241,11 @@ object Blocklist {
         }
 
         val body = JSONObject().apply {
+            // ★ 2026-11-01 「帖子 id + 话题 id」（用户要求的格式 ✓）
+            //   云端据此建「话题 → 帖子」关联 ✓ 连坐由云端决定 ✓
+            if (kind == Kind.FEED && !feedTopics.isNullOrEmpty()) {
+                put("feedTopics", JSONObject(feedTopics))
+            }
             for (kind in Kind.values()) {
                 val ids = snapshot[kind] ?: continue
                 put(kind.key, org.json.JSONArray().apply { ids.forEach { put(it) } })
@@ -307,10 +280,6 @@ object Blocklist {
                         expireAt[k] = now + TTL_MS
                         if (blocked) {
                             knownBlocked.add(k)
-                            // ★ 2026-11-01 日常黑名单运作：这条被屏蔽 ⇒
-                            //   后台探测它带的话题并一起上报 ✓
-                            //   （无 Cookie 详情请求 ✓ 不污染「看过」记录 ✓）
-                            if (kind == Kind.FEED) reportAllianceTopics(listOf(id))
                             // 服务器返回的文案（可空 ✓）
                             val m = hit?.optJSONObject(id)?.optString("msg", "")?.trim().orEmpty()
                             if (m.isNotEmpty()) msgMap[k] = m else msgMap.remove(k)

@@ -119,6 +119,14 @@ data class HomeFeedResponse(
         val pic: String?,
         val tags: String?,
         val ttitle: String?,
+        /**
+         * ★ 2026-11-01 话题 **id**（`ttitle` 只是名字 ✗）
+         *
+         * 用户要求：「上报的格式是帖子id+话题id，每个帖子后面都带对应的话题id，
+         *            算法云端决定」
+         * ⇒ 实测接口里 `tid = "7000005636"` ✓ 必须解析出来才能上报 ✓
+         */
+        val tid: String?,
         var likenum: String?,
         val commentnum: String?,
         val replynum: String?,

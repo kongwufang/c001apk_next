@@ -1368,6 +1368,8 @@ class AppAdapter(
 
         val fid = item.id
         if ((item.entityType == "feed" || item.entityType.isNullOrEmpty()) && fid != null
+            // ⚠️ 连坐由**云端**判断 ✓ 客户端只看 feeds 结果 ✓
+            //   （客户端把「帖子id + 话题id」报上去 ✓ 云端决定谁跟着屏蔽 ✓）
             && com.example.c001apk.util.Blocklist.isBlocked(
                 com.example.c001apk.util.Blocklist.Kind.FEED, fid)
             && !com.example.c001apk.util.BlocklistUi.isRevealed(
