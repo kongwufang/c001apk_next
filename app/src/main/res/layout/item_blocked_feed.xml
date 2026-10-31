@@ -45,6 +45,7 @@
             android:paddingTop="12dp"
             android:paddingBottom="12dp">
 
+            <!-- 头像：圆框 ✓（和正常卡片一致，用 @style/circleImageStyle ✓）-->
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/avatar"
                 android:layout_width="40dp"
@@ -52,7 +53,8 @@
                 android:layout_marginStart="12dp"
                 android:onClick="@{(view) -> listener.onViewUser(view, data.userInfo.uid)}"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:shapeAppearance="@style/circleImageStyle" />
 
             <TextView
                 android:id="@+id/uname"
