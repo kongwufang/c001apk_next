@@ -306,10 +306,12 @@ object BlocklistUi {
             bar?.isVisible = blocked
             reveal?.isVisible = blocked
             if (blocked) {
-                (banner as? android.widget.TextView)?.text =
-                    Blocklist.cachedMsg(kind, key)
-                        ?: labelRes?.let { banner.context.getString(it) }
-                        ?: banner.context.getString(R.string.blocked_multi_report)
+                val tv = banner as? android.widget.TextView
+                if (tv != null) {
+                    tv.text = Blocklist.cachedMsg(kind, key)
+                        ?: labelRes?.let { tv.context.getString(it) }
+                        ?: tv.context.getString(R.string.blocked_multi_report)
+                }
                 val pos = rtKey(kind, key)
                 reveal?.setOnClickListener {
                     revealed.add(pos)
