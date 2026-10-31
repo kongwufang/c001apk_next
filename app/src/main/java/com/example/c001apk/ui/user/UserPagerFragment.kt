@@ -76,18 +76,6 @@ class UserPagerFragment : BasePagerFragment() {
         userBinding.listener = viewModel.ItemClickListener()
         userBinding.isSelf = isSelf
 
-        // ★ 2026-10-31 个人主页也查公共黑名单 ✓（用户要求）
-        //   ⚠️ 必须放在 initUser() 里 ✗ 不能放 initBar() ✗
-        //      initBar() 比 initUser() 先跑 ⇒ userBinding 还没初始化 ⇒ 崩 ✗（已踩过）
-        //   ⚠️ base_view_user.xml 的卡片根 id 是 **infoLayout**（不是 blurContainer ✗）
-        com.example.c001apk.util.BlocklistUi.bind(
-            userBinding.infoLayout, userBinding.blockedBar,
-            userBinding.blockedBanner, userBinding.blockedReveal,
-            com.example.c001apk.util.Blocklist.Kind.USER,
-            viewModel.uid,
-            com.example.c001apk.R.string.blocked_multi_report_user,
-            com.example.c001apk.util.BlocklistUi.Mode.BLUR
-        )
 
         // 自己的主页：按钮变成「编辑信息」；别人的主页：关注 / 已关注；未登录不显示
         userBinding.followBtn.isVisible = isSelf || PrefManager.isLogin
@@ -125,6 +113,28 @@ class UserPagerFragment : BasePagerFragment() {
         }
     }
 
+    /**
+     * 个人主页也查公共黑名单（2026-10-31 用户要求）。
+     *
+     * ⚠️ 三个坑（都踩过）：
+     *   ① 不能放 `initBar()` —— 它比 `initUser()` 先跑，`userBinding` 还没初始化 ⇒ 崩 ✗
+     *   ② 不能放 `initUser()` 里绑完就完 —— 那时 `viewModel.uid` 还是**空**的 ⇒ bind 直接 return ✗
+     *      ⇒ 必须等 `userData` 到手（`followState` observer 里）✓
+     *   ③ `base_view_user.xml` 的卡片根 id 是 **infoLayout**（不是 blurContainer ✗）
+     */
+    private fun bindBlocklist() {
+        val uid = viewModel.userData?.uid ?: viewModel.uid
+        if (uid.isBlank() || !::userBinding.isInitialized) return
+        com.example.c001apk.util.BlocklistUi.bind(
+            userBinding.infoLayout, userBinding.blockedBar,
+            userBinding.blockedBanner, userBinding.blockedReveal,
+            com.example.c001apk.util.Blocklist.Kind.USER,
+            uid,
+            com.example.c001apk.R.string.blocked_multi_report_user,
+            com.example.c001apk.util.BlocklistUi.Mode.BLUR
+        )
+    }
+
     private fun initObserve() {
         viewModel.blockState.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
@@ -140,6 +150,7 @@ class UserPagerFragment : BasePagerFragment() {
                 userBinding.userData = viewModel.userData
                 userBinding.isSelf = isSelf
                 userBinding.executePendingBindings()
+                bindBlocklist()
             }
         }
 
