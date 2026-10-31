@@ -26,6 +26,7 @@
                 app:layout_constraintTop_toTopOf="parent" />
 
             <com.example.c001apk.view.NestedScrollableHost
+                android:id="@+id/groupList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_constraintStart_toStartOf="parent"
@@ -68,7 +69,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/title">
+                app:layout_constraintTop_toBottomOf="@id/groupList">
 
                 <TextView
                     android:id="@+id/groupBlockedText"
