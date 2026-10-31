@@ -29,48 +29,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
-<!-- 公共黑名单横幅条（2026-10-31）：文本 + 「依然查看」按钮 ✓
-         ⚠️ 必须是 blurContainer 的**兄弟**节点 ✓ 否则会被一起模糊掉 ✗ -->
-    <LinearLayout
-        android:id="@+id/blockedBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:background="#F2FFEBEE"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="8dp"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/blockedBanner"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/blocked_multi_report"
-            android:textColor="#D32F2F"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/blockedReveal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:paddingStart="10dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="4dp"
-            android:text="@string/blocked_reveal"
-            android:textColor="#1976D2"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-
     
     <com.google.android.material.card.MaterialCardView android:id="@+id/blurContainer"
         android:layout_width="match_parent"
@@ -260,6 +218,7 @@
 
             <TextView
                 android:id="@+id/pubDate"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -426,7 +385,49 @@
 
     
 
+    
+
+<!-- 公共黑名单横幅条（2026-10-31）：文本 + 「依然查看」按钮 ✓
+         ⚠️ 必须是 blurContainer 的**兄弟**节点 ✓ 否则会被一起模糊掉 ✗ -->
+    <LinearLayout
+        android:id="@+id/blockedBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#F2FFEBEE"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/blockedBanner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/blocked_multi_report"
+            android:textColor="#D32F2F"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/blockedReveal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:text="@string/blocked_reveal"
+            android:textColor="#1976D2"
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </LinearLayout>
+</LinearLayout>
 
 
 
