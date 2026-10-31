@@ -401,10 +401,11 @@ class AppAdapter(
                             com.example.c001apk.util.Blocklist.Kind.FEED, it
                         )
                     }
-                    bar.text = msg ?: itemView.context.getString(
+                    binding.groupBlockedText.text = msg ?: itemView.context.getString(
                         com.example.c001apk.R.string.blocked_multi_report
                     )
-                    bar.setOnClickListener {
+                    // 只有右侧「依然查看」可点 ✓ 蓝字 ✓
+                    binding.groupBlockedReveal.setOnClickListener {
                         // 「依然查看」：把这一组全部放行 ✓
                         ids.forEach {
                             com.example.c001apk.util.BlocklistUi.markRevealed(
