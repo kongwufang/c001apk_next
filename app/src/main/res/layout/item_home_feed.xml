@@ -42,24 +42,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="10dp">
-        <!-- 公共黑名单横幅（2026-10-31）：被多人举报时显示 ✓ 默认隐藏 -->
-        <TextView
-            android:id="@+id/blockedBanner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#33FF5252"
-            android:gravity="center"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
-            android:text="@string/blocked_multi_report"
-            android:textColor="#FF5252"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/pubDate" />
-
-
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/avatar"
                 android:layout_width="0dp"
