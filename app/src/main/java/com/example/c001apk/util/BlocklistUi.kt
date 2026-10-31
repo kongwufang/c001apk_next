@@ -302,7 +302,17 @@ object BlocklistUi {
                 root.post {
                     hideBody(root)
                     // ★ 方案 B：锁死高度 ✓（不依赖子 View 的 visibility ✗）
-                    lockHeight(root, headerHeightOf(root))
+                    val h = headerHeightOf(root)
+                    if (h > 0) {
+                        lockHeight(root, h)
+                    } else {
+                        // ⚠️ 第一张卡在 post 时可能**还没布局**（pub.bottom=0 ✗）
+                        //   ⇒ 再等一帧 / 100ms 后重试一次 ✓（探针证实过 ✓）
+                        root.postDelayed({
+                            val h2 = headerHeightOf(root)
+                            if (h2 > 0) lockHeight(root, h2)
+                        }, 100L)
+                    }
                 }
                 root.postDelayed({ hideBody(root) }, 80L)
             }
