@@ -121,23 +121,6 @@ object ReportAlliance {
         }
 
     /**
-     * ★ 2026-11-01 探测这条动态携带的话题（**无 Cookie** ✓ 不污染浏览记录 ✓）
-     *
-     * @return 话题名列表（可能为空）；任何异常都返回空 ✓ 绝不抛
-     */
-    .onFailure {
-        Log.d(TAG, "探测话题异常（忽略）：${it.javaClass.simpleName}")
-    }.getOrDefault(emptyList())
-
-    /**
-     * ★ 2026-11-01 日常黑名单运作：自动探测话题并**一起上报**
-     *
-     * 调用方：[com.example.c001apk.util.Blocklist]（后台线程 + 每条只做一次）
-     *
-     * 上报：`type=feed` + `id` + `topics[]` + 固定 reason
-     * ⚠️ 服务端只**记录** ✓ 仍然要 ≥3 个不同 IP 才进黑名单 ✓
-     */
-        /**
      * 提交一条举报。
      *
      * @param type    `feed` / `topic`
