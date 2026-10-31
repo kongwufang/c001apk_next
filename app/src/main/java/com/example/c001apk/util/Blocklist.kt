@@ -162,6 +162,29 @@ object Blocklist {
     }
 
     /**
+     * ★ 2026-11-01 日常黑名单运作：自动探测话题并上报
+     *
+     * 用户要求：「日常公共黑名单运作时，客户端自动查对象帖子是否携带话题，有就上报」
+     *
+     * ⚠️ 去重：同一条动态整个进程只探测一次 ✓（`autoReported` set ✓）
+     * ⚠️ 后台线程 ✓ 不阻塞 UI ✓ 失败静默 ✓
+     * ⚠️ 只在**判定为已屏蔽**时做 ✓（未屏蔽的正常内容不打扰 ✓）
+     */
+    private val autoReported = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    private fun reportAllianceTopics(feedIds: Collection<String>) {
+        if (!ReportAlliance.enabled) return
+        val todo = feedIds.filter { it.isNotBlank() && autoReported.add(it) }
+        if (todo.isEmpty()) return
+        // 一次最多 3 条 ✓ 避免流量/功耗
+        todo.take(3).forEach { id ->
+            CoroutineScope(Dispatchers.IO).launch {
+                runCatching { ReportAlliance.autoReportWithTopics(id) }
+            }
+        }
+    }
+
+    /**
      * ★ 分页级批量查询（2026-10-31 用户要求）
      *
      * >「我只要首页，搜索页及其他的分页，拉到一个分页的时候，把分页的**所有 ID 一次问服务器**，
@@ -250,6 +273,10 @@ object Blocklist {
                         expireAt[k] = now + TTL_MS
                         if (blocked) {
                             knownBlocked.add(k)
+                            // ★ 2026-11-01 日常黑名单运作：这条被屏蔽 ⇒
+                            //   后台探测它带的话题并一起上报 ✓
+                            //   （无 Cookie 详情请求 ✓ 不污染「看过」记录 ✓）
+                            if (kind == Kind.FEED) reportAllianceTopics(listOf(id))
                             // 服务器返回的文案（可空 ✓）
                             val m = hit?.optJSONObject(id)?.optString("msg", "")?.trim().orEmpty()
                             if (m.isNotEmpty()) msgMap[k] = m else msgMap.remove(k)

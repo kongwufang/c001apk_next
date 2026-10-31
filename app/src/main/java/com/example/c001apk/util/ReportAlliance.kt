@@ -86,6 +86,25 @@ object ReportAlliance {
             .build()
     }
 
+    /**
+     * ★ 2026-11-01 **无 Cookie** 客户端（探测话题专用）
+     *
+     * 用户要求：「用无 cookie 的情况请求详情页避免污染用户的历史记录数据」
+     *
+     * 和 [client] 的区别：
+     *   · **不挂** `ServerCookieStore.interceptor()` ✗ ⇒ 不带 ck1 ✓
+     *   · `CookieJar.NO_COOKIES` ⇒ 一个 Cookie 都不存不送 ✓
+     *   ⇒ 酷安收到的是"匿名"请求 ✓ 不会把它记成「你看过这条」✓
+     */
+    private val anonClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(okhttp3.CookieJar.NO_COOKIES)
+            .let { SslVerify.apply(it) }
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
+
     private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
 
     /** 是否已同意加入联盟（首次弹窗点「加入」后为 true） */
@@ -106,6 +125,101 @@ object ReportAlliance {
         set(value) {
             PrefManager.reportAllianceEnabled = value
         }
+
+    /**
+     * ★ 2026-11-01 探测这条动态携带的话题（**无 Cookie** ✓ 不污染浏览记录 ✓）
+     *
+     * @return 话题名列表（可能为空）；任何异常都返回空 ✓ 绝不抛
+     */
+    fun discoverTopics(feedId: String): List<String> = runCatching {
+        if (feedId.isBlank()) return@runCatching emptyList<String>()
+        val url = "https://api.coolapk.com/v6/feed/detail?id=" +
+                java.net.URLEncoder.encode(feedId, "UTF-8")
+        val req = Request.Builder()
+            .url(url)
+            .get()
+            .header("X-Client-SSaid", PrefManager.ssaid)
+            .header("X-App-userrandomid", PrefManager.userRandomId)
+            .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
+            .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
+            .header("X-Client-Platform", "android")
+            .header("User-Agent", com.example.c001apk.constant.Constants.USER_AGENT)
+            .build()
+
+        anonClient.newCall(req).execute().use { resp ->
+            val text = resp.body?.string().orEmpty()
+            if (!resp.isSuccessful || text.isEmpty()) {
+                Log.d(TAG, "探测话题：HTTP ${resp.code}（忽略）")
+                return@use emptyList<String>()
+            }
+            val j = runCatching { JSONObject(text) }.getOrNull()
+                ?: return@use emptyList<String>()
+            val data = j.optJSONObject("data") ?: return@use emptyList<String>()
+
+            val out = LinkedHashSet<String>()
+            data.optString("ttitle", "").trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
+            for (key in listOf("message", "title", "intro")) {
+                val body = data.optString(key, "")
+                if (body.isBlank()) continue
+                for (m in Regex("#([^#\n]{1,40})#").findAll(body)) {
+                    val t = m.groupValues[1].trim()
+                    if (t.isNotEmpty()) out.add(t)
+                }
+            }
+            for (key in listOf("topics", "topicRows")) {
+                val arr = data.optJSONArray(key) ?: continue
+                for (i in 0 until arr.length()) {
+                    val o = arr.optJSONObject(i) ?: continue
+                    o.optString("title", "").trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
+                    o.optString("ttitle", "").trim().takeIf { it.isNotEmpty() }?.let { out.add(it) }
+                }
+            }
+            out.take(10).toList()
+        }
+    }.onFailure {
+        Log.d(TAG, "探测话题异常（忽略）：${it.javaClass.simpleName}")
+    }.getOrDefault(emptyList())
+
+    /**
+     * ★ 2026-11-01 日常黑名单运作：自动探测话题并**一起上报**
+     *
+     * 调用方：[com.example.c001apk.util.Blocklist]（后台线程 + 每条只做一次）
+     *
+     * 上报：`type=feed` + `id` + `topics[]` + 固定 reason
+     * ⚠️ 服务端只**记录** ✓ 仍然要 ≥3 个不同 IP 才进黑名单 ✓
+     */
+    fun autoReportWithTopics(feedId: String) {
+        if (!enabled || feedId.isBlank()) return
+        runCatching {
+            val topics = discoverTopics(feedId)
+            if (topics.isEmpty()) {
+                Log.d(TAG, "自动上报：$feedId 没带话题，跳过")
+                return@runCatching
+            }
+            val body = JSONObject().apply {
+                put("type", "feed")
+                put("id", feedId)
+                put("topics", JSONArray(topics))
+                put("reasons", "ad")
+                put("note", "auto:topic-assoc")
+            }.toString()
+            val req = Request.Builder()
+                .url(ENDPOINT)
+                .post(body.toRequestBody(JSON_TYPE))
+                .header("X-Client-SSaid", PrefManager.ssaid)
+                .header("X-App-userrandomid", PrefManager.userRandomId)
+                .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
+                .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
+                .header("X-Client-Platform", "android")
+                .header("User-Agent", com.example.c001apk.constant.Constants.USER_AGENT)
+                .build()
+            client.newCall(req).execute().use { resp ->
+                Log.d(TAG, "自动上报(含话题) $feedId topics=$topics => HTTP ${resp.code}")
+            }
+        }.onFailure {
+            Log.d(TAG, "自动上报异常（忽略）：${it.javaClass.simpleName}")
+        }
+    }
 
     /**
      * 提交一条举报。
