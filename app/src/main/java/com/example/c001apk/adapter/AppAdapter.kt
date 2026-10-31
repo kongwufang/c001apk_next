@@ -106,6 +106,8 @@ class AppAdapter(
     class BlockedFeedViewHolder(
         val binding: ItemBlockedFeedBinding,
         val listener: ItemListener,
+        /** 「依然查看」回调（由 Adapter 提供 ✓ `notifyItemChanged` 是 Adapter 的方法 ✗ 不是 ViewHolder 的）*/
+        val onReveal: (Int) -> Unit,
     ) : BaseViewHolder<ViewDataBinding>(binding) {
 
         override fun bind(data: HomeFeedResponse.Data) {
@@ -144,7 +146,7 @@ class AppAdapter(
                 )
                 val pos = bindingAdapterPosition
                 if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
-                    notifyItemChanged(pos)
+                    onReveal(pos)
                 }
             }
         }
@@ -953,7 +955,7 @@ class AppAdapter(
                 ItemBlockedFeedBinding.inflate(
                     LayoutInflater.from(parent.context), parent, false
                 ), listener
-            )
+            ) { pos -> notifyItemChanged(pos) }
 
             0 -> {
                 ImageCarouselCardViewHolder(
