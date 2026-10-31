@@ -85,41 +85,35 @@
                 app:layout_constraintStart_toEndOf="@id/avatar"
                 app:layout_constraintTop_toBottomOf="@id/uname" />
 
-            <View
-                android:id="@+id/blockedBar"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="#F2FFEBEE"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/avatar" />
-
+            <!-- 红条：背景直接给 TextView ✓（原先套了个 wrap_content 的空 View ✗ 高度 0 看不见 ✗）-->
             <TextView
                 android:id="@+id/blockedBanner"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="#F2FFEBEE"
+                android:gravity="center_vertical|start"
                 android:paddingStart="12dp"
-                android:paddingTop="10dp"
+                android:paddingTop="12dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="10dp"
+                android:paddingBottom="12dp"
                 android:text="@string/blocked_multi_report"
                 android:textColor="#D32F2F"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 app:layout_constraintEnd_toStartOf="@id/blockedReveal"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="@id/blockedBar" />
+                app:layout_constraintTop_toBottomOf="@id/avatar" />
 
             <TextView
                 android:id="@+id/blockedReveal"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="#F2FFEBEE"
                 android:paddingStart="12dp"
-                android:paddingTop="10dp"
+                android:paddingTop="12dp"
                 android:paddingEnd="14dp"
-                android:paddingBottom="10dp"
+                android:paddingBottom="12dp"
                 android:text="@string/blocked_reveal"
                 android:textColor="#1976D2"
                 android:textSize="13sp"
