@@ -54,6 +54,13 @@ abstract class BaseAdapter<T : ViewDataBinding> :
                     val tid = d.tid
                     if (!fid.isNullOrBlank() && !tid.isNullOrBlank()) fid to tid else null
                 }.toMap(),
+                // ★ 2026-11-01 「帖子 id → 作者 uid」✓
+                //   云端据此做「帖子入库 ⇒ 该作者所有帖子连坐」✓
+                feedAuthors = list.mapNotNull { d ->
+                    val fid = d.id
+                    val uid = d.userInfo?.uid ?: d.uid
+                    if (!fid.isNullOrBlank() && !uid.isNullOrBlank()) fid to uid else null
+                }.toMap(),
                 // ★★ 2026-10-31 补上 **话题** ★★
                 //   之前只发 feeds + users ✗ ⇒ 话题 id 从来没问过服务器 ✗
                 //   ⇒ `cached(TOPIC, id)` 永远 null ⇒ 话题卡片永远不出红条 ✗（用户反馈）

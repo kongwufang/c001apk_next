@@ -141,9 +141,12 @@ object Blocklist {
     fun prefetch(
         kind: Kind,
         ids: Collection<String?>,
-        /** ★ 「帖子 id → 话题 id」映射（只有 FEED 用 ✓ 云端据此判连坐 ✓）
+        /** ★ 「帖子 id → 话题 id」（只有 FEED 用 ✓ 云端据此做话题连坐 ✓）
          *  ⚠️ 必须放在 `onUpdated` **之前** ✗ 否则尾随 lambda 会绑到这里 ✗（踩过） */
         feedTopics: Map<String, String>? = null,
+        /** ★ 2026-11-01 「帖子 id → 作者 uid」✓ 云端据此做作者连坐 ✓
+         *  ⚠️ 同样必须在 `onUpdated` 之前 ✓ */
+        feedAuthors: Map<String, String>? = null,
         onUpdated: (() -> Unit)? = null,
     ) {
         // 顺手把「帖子 → 话题」攒起来 ✓ flush 时一起发 ✓
@@ -153,6 +156,14 @@ object Blocklist {
                 // 防无限增长 ✓ 简单粗暴：全清（下次页面会重新填 ✓）
                 pendingFeedTopics.clear()
                 pendingFeedTopics.putAll(feedTopics)
+            }
+        }
+        // ★ 2026-11-01 「帖子 → 作者 uid」攒批 ✓（云端做作者连坐 ✓）
+        if (kind == Kind.FEED && !feedAuthors.isNullOrEmpty()) {
+            pendingFeedAuthors.putAll(feedAuthors)
+            if (pendingFeedAuthors.size > 400) {
+                pendingFeedAuthors.clear()
+                pendingFeedAuthors.putAll(feedAuthors)
             }
         }
         if (!enabled()) return
@@ -215,13 +226,16 @@ object Blocklist {
          * ⇒ 云端据此建「话题 → 帖子」关联 ✓ 决定连坐 ✓
          */
         feedTopics: Map<String, String>? = null,
+        /** ★ 「帖子 id → 作者 uid」（云端作者连坐 ✓ 同样放在 onUpdated 之前 ✓）*/
+        feedAuthors: Map<String, String>? = null,
         onUpdated: (() -> Unit)? = null,
     ) {
         if (!enabled()) return
         // 每类最多塞 100 个（服务端上限 ✓）
-        feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, feedTopics, onUpdated) }
-        users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, null, onUpdated) }
-        topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, null, onUpdated) }
+        feeds?.takeIf { it.isNotEmpty() }
+            ?.let { prefetch(Kind.FEED, it, feedTopics, feedAuthors, onUpdated) }
+        users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, null, null, onUpdated) }
+        topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, null, null, onUpdated) }
     }
 
     private val pendingCallbacks = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
@@ -231,6 +245,12 @@ object Blocklist {
      * 攒批：[prefetch] 时塞进来 ✓ [flush] 发请求时取走 ✓
      */
     private val pendingFeedTopics = ConcurrentHashMap<String, String>()
+
+    /**
+     * 待发送的「帖子 id → 作者 uid」（2026-11-01）
+     * 云端据此做「帖子入库 ⇒ 该作者所有帖子连坐」✓
+     */
+    private val pendingFeedAuthors = ConcurrentHashMap<String, String>()
 
     private fun scheduleFlush() {
         if (!flushScheduled.compareAndSet(false, true)) return
@@ -277,6 +297,14 @@ object Blocklist {
                     // ⚠️ `JSONObject(Map)` 在 Kotlin 里类型不匹配 ✗ 手工塞 ✓
                     put("feedTopics", JSONObject().apply {
                         ft.forEach { (fid, tid) -> put(fid, tid) }
+                    })
+                }
+                // ★ 2026-11-01 「帖子 id + 作者 uid」✓ 云端作者连坐用 ✓
+                val fa = HashMap(pendingFeedAuthors)
+                fa.keys.retainAll(snapshot[Kind.FEED].orEmpty().toSet())
+                if (fa.isNotEmpty()) {
+                    put("feedAuthors", JSONObject().apply {
+                        fa.forEach { (fid, uid) -> put(fid, uid) }
                     })
                 }
             }
