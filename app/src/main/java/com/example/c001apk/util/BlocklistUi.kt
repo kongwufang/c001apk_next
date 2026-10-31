@@ -64,6 +64,19 @@ object BlocklistUi {
     /** 正文 View 的**原始可见性**（折叠后要还原 ✓ gone/invisible 的不能一律变 visible ✗）*/
     private val originVisibility = WeakHashMap<View, Int>()
 
+    /**
+     * ★ 性能缓存（2026-10-31 修「滑动卡顿」）
+     *
+     * 原来每次 `bind()` 都要**递归走三遍** View 树（restore + hideBody + post 里的 hideBody ✗）
+     * ⇒ RecyclerView 滑动时每帧都在干这个 ⇒ 掉帧 / 划不回去 ✗
+     *
+     * 现在：
+     *   root -> 打标了 `bl_body` 的 View 列表（**只算一次** ✓）
+     *   root -> 上次应用的状态（**没变就直接 return** ✓ 这是最大的省 ✓）
+     */
+    private val bodyCache = WeakHashMap<View, Array<View>>()
+    private val lastState = WeakHashMap<View, Boolean>()
+
     /** 用户点过「依然查看」的项（本会话内不再折叠/模糊 ✓）*/
     private val revealed = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
@@ -87,13 +100,30 @@ object BlocklistUi {
         mode: Mode = Mode.BLUR,
     ) {
         val key = id?.trim().orEmpty()
+
+        // ★ 状态没变 => 整个跳过 ✓（RecyclerView 滑回来时会反复 bind 同一项 ✗）
+        //   这是修「滑动卡顿」最关键的一条 ✓
+        val wantBlocked = if (key.isEmpty() || !Blocklist.enabled()) {
+            false
+        } else {
+            Blocklist.cached(kind, key) == true
+        }
+        if (lastState[blurView] == wantBlocked && !revealed.contains(rtKey(kind, key))) {
+            return          // 上一轮就是这个状态 ✓ 什么都不用做 ✓
+        }
+
         // 复位（RecyclerView 复用 ✗）
         bar.isVisible = false
         restore(blurView, mode)
 
-        if (key.isEmpty()) return
-        if (!Blocklist.enabled()) return
-        if (revealed.contains(rtKey(kind, key))) return
+        if (key.isEmpty() || !Blocklist.enabled()) {
+            lastState[blurView] = false
+            return
+        }
+        if (revealed.contains(rtKey(kind, key))) {
+            lastState[blurView] = false
+            return
+        }
 
         // ★ 2026-10-31：横幅文本由**服务器**决定 ✓（服务器没给就回落到本地文案 ✓）
         val localLabel = banner.context.getString(labelRes)
@@ -115,6 +145,7 @@ object BlocklistUi {
                 restore(blurView, mode)
             }
             bar.isVisible = known
+            lastState[blurView] = known
             return
         }
         Blocklist.prefetch(kind, listOf(key)) {
@@ -128,6 +159,7 @@ object BlocklistUi {
                 restore(blurView, mode)
             }
             bar.isVisible = blocked
+            lastState[blurView] = blocked
         }
     }
 
@@ -137,10 +169,13 @@ object BlocklistUi {
             Mode.BANNER_ONLY -> Unit      // 只出红条 ✓ 不动内容 ✓
 
             Mode.FOLD -> {
+                val before = bodyOf(root).size
                 hideBody(root)
-                // ★ 2026-10-31 修「误展开」：apply 时有些正文 View 还没 inflate 出来 ✗
-                //   （图片区 / 转发区是后补的 ✓）⇒ 布局完成后再隐藏一遍 ✓
-                root.post { hideBody(root) }
+                val after = bodyOf(root).size
+                // ★ 只有在「这次又多发现了正文 View」时才补一遍 ✓
+                //   （图片区 / 转发区是后 inflate 的 ✗）
+                //   原来无条件 post ✓ 每帧都排一次任务 ⇒ 卡 ✗
+                if (after > before) root.post { hideBody(root) }
             }
             Mode.BLUR -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -193,18 +228,33 @@ object BlocklistUi {
         }
     }
 
-    /** 递归找 `tag == "bl_body"` 的 View */
-    private fun forEachBody(root: View, action: (View) -> Unit) {
+    /** 递归找 `tag == "bl_body"` 的 View（内部用 ✓ 只在**建缓存**时走一次）*/
+    private fun collectBody(root: View, out: MutableList<View>) {
         if (root is ViewGroup) {
             for (i in 0 until root.childCount) {
                 val child = root.getChildAt(i)
                 if (BODY_TAG == child.tag) {
-                    action(child)
+                    out.add(child)
                 } else {
-                    forEachBody(child, action)
+                    collectBody(child, out)
                 }
             }
         }
+    }
+
+    /** 取正文 View 列表（缓存 ✓ 没有就建一次）*/
+    private fun bodyOf(root: View): Array<View> {
+        bodyCache[root]?.let { return it }
+        val out = ArrayList<View>(24)
+        collectBody(root, out)
+        val arr = out.toTypedArray()
+        if (arr.isNotEmpty()) bodyCache[root] = arr     // 空的不缓存（后补的还要再收 ✓）
+        return arr
+    }
+
+    private fun forEachBody(root: View, action: (View) -> Unit) {
+        val arr = bodyOf(root)
+        for (v in arr) action(v)
     }
 
     private fun rtKey(kind: Blocklist.Kind, id: String) = "${kind.name}|$id"

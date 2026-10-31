@@ -111,6 +111,11 @@ class UserPagerFragment : BasePagerFragment() {
                 putExtra("url", "https://m.coolapk.com/myDevice/${viewModel.uid}")
             }
         }
+
+        // ★ 2026-10-31：initUser() 时 userData 已就绪 ✓ 这里**必须**绑一次
+        //   （followState / profileState 两个 observer 在**首次加载时都不触发** ✗
+        //     ⇒ 之前主页一直没红条就是这个原因 ✓）
+        bindBlocklist()
     }
 
     /**
