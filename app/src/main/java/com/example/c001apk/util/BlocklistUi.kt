@@ -84,6 +84,16 @@ object BlocklistUi {
      */
     private val lastState = WeakHashMap<View, Boolean>()
 
+    /**
+     * ★ 2026-10-31 持续强制折叠用（治「滑回来又展开」）
+     *
+     * 每次布局变化都再 `hideBody` 一遍 ✓
+     * 为什么必须这样：`hideBody` 之后**还有更晚的 databinding**
+     * （图片区 / 商品卡是异步绑定的 ✗）会把 visibility 设回来 ✗
+     * `post` / `postDelayed(80ms)` 都兜不住 ✗（探针+截图证实过）
+     */
+    private val enforceListener = WeakHashMap<View, View.OnLayoutChangeListener>()
+
     /** 用户点过「依然查看」的项（本会话内不再折叠/模糊 ✓）*/
     private val revealed = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
@@ -137,7 +147,19 @@ object BlocklistUi {
         }
         if (lastState[blurView] == wantBlocked && !revealed.contains(rtKey(kind, key))) {
             if (PROBE) android.util.Log.d(TAG, "  => 状态没变，跳过（want=$wantBlocked）")
-            return          // 上一轮就是这个状态 ✓ 什么都不用做 ✓
+            // ★★ 2026-10-31 关键：**不能盲目信任 lastState** ✗
+            //   `lastState` 记的是「我上次想让它怎样」✓
+            //   但正文的 visibility 是 databinding 的 BindingAdapter 管的 ✗
+            //   （`app:pic` / `app:picArr` / `app:setHotReply` 有内容就设 VISIBLE ✗）
+            //   ⇒ 我藏完之后它又放出来 ⇒ 脱钩 ✗
+            //   ⇒ 跳过前再强制藏一遍 ✓（一次遍历，很便宜 ✓）
+            if (wantBlocked) {
+                if (mode == Mode.FOLD) hideBody(blurView)
+                // 顺便确保红条在 ✓（它也可能被别的东西弄没了 ✓ 少见但兜一下）
+                bar.isVisible = true
+                reveal?.isVisible = true
+            }
+            return
         }
 
         // 复位（RecyclerView 复用 ✗）
@@ -207,6 +229,14 @@ object BlocklistUi {
             Mode.FOLD -> {
                 // 现收正文 ✓ 隐藏 ✓
                 hideBody(root)
+                // ★ 挂持续强制（每次布局变化再藏一遍 ✓ 根治异步绑定把 visibility 设回来 ✗）
+                if (!enforceListener.containsKey(root)) {
+                    val l = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                        if (lastState[v] == true) hideBody(v)
+                    }
+                    enforceListener[root] = l
+                    root.addOnLayoutChangeListener(l)
+                }
                 // ★ 2026-10-31 修「正文还在」：`hideBody` 跑在
                 //   `executePendingBindings()` **之前** ✗
                 //   数据绑定里的 BindingAdapter 会把 visibility 设回来 ✗
@@ -253,9 +283,13 @@ object BlocklistUi {
     private fun restore(root: View, mode: Mode) {
         if (PROBE) android.util.Log.d(TAG, "restore mode=$mode（把正文放出来）")
         when (mode) {
-            Mode.BANNER_ONLY -> Unit      // 什么都没动 ✓ 无需还原 ✓
+            Mode.BANNER_ONLY -> {
+                enforceListener.remove(root)?.let { root.removeOnLayoutChangeListener(it) }
+            }
 
             Mode.FOLD -> {
+                // 取消持续强制 ✓ 否则放出来了也会被立刻藏回去 ✗
+                enforceListener.remove(root)?.let { root.removeOnLayoutChangeListener(it) }
                 forEachBody(root) { v ->
                     // ★ 2026-10-31 修 bug（真机：卡片里冒出一堆空白框 ✗）
                     //   原来写的是 `originVisibility[v] ?: View.VISIBLE` ✗
