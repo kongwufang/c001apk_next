@@ -341,4 +341,8 @@
     <string name="settings_report_alliance_on">开启：举报按钮走自建匿名通道（不上报给酷安）</string>
     <string name="settings_report_alliance_off">关闭：举报按钮点击后提示如何重新开启</string>
     <string name="report_no_id">这条内容缺少 ID，无法举报</string>
+    <!-- 公共黑名单（2026-10-31） -->
+    <string name="blocked_multi_report">该内容已被多人举报</string>
+    <string name="blocked_multi_report_user">该用户已被多人举报</string>
+    <string name="blocked_multi_report_topic">该话题已被多人举报</string>
 </resources>

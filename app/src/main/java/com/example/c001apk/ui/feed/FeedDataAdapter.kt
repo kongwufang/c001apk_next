@@ -96,6 +96,48 @@ class FeedDataAdapter(
             }
             binding.extraPart.bind(data)
             binding.executePendingBindings()
+            // 公共黑名单（2026-10-31）：渲染卡片的同时后台查 ✓
+            //   用户原话：「进去的时候渲染卡片的同时后台请求一下服务器 ID 或者用户 ID，
+            //             服务器返回结果后，如果是被屏蔽状态 UI 更新为卡片带个模糊，
+            //             上面显示一个该用户/话题已被多人举报」
+            applyBlocklist(binding.root, binding.blockedBanner, data?.id, data?.userInfo?.uid)
+        }
+
+        /** 查黑名单 => 横幅 + 压暗（未知时先按正常显示 ✓ 结果回来再更新 ✓） */
+        private fun applyBlocklist(root: android.view.View, banner: android.view.View, feedId: String?, userId: String?) {
+            val fid = feedId?.trim().orEmpty()
+            if (fid.isEmpty()) {
+                banner.visibility = android.view.View.GONE
+                root.alpha = 1f
+                return
+            }
+            com.example.c001apk.util.Blocklist.prefetch(
+                com.example.c001apk.util.Blocklist.Kind.FEED, listOf(fid)
+            ) {
+                // 结果回来后（主线程）刷新这一项 ✓
+                val blocked = com.example.c001apk.util.Blocklist.isBlocked(
+                    com.example.c001apk.util.Blocklist.Kind.FEED, fid
+                )
+                banner.visibility = if (blocked) android.view.View.VISIBLE else android.view.View.GONE
+                // 「带个模糊」：API 31+ 真模糊 ✓ 低版本用压暗 ✓
+                if (android.os.Build.VERSION.SDK_INT >= 31) {
+                    root.setRenderEffect(
+                        if (blocked) android.graphics.RenderEffect.createBlurEffect(
+                            8f, 8f, android.graphics.Shader.TileMode.CLAMP
+                        ) else null
+                    )
+                } else {
+                    root.alpha = if (blocked) 0.4f else 1f
+                }
+            }
+            // 已知状态立即生效 ✓（缓存命中时不闪）
+            val known = com.example.c001apk.util.Blocklist.cached(
+                com.example.c001apk.util.Blocklist.Kind.FEED, fid
+            )
+            if (known != null) {
+                banner.visibility = if (known) android.view.View.VISIBLE else android.view.View.GONE
+                if (android.os.Build.VERSION.SDK_INT < 31) root.alpha = if (known) 0.4f else 1f
+            }
         }
 
     }
