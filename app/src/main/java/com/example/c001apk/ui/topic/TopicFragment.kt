@@ -160,9 +160,13 @@ class TopicFragment : BasePagerFragment() {
         header.root.isVisible = false
         headerBinding = header
 
-        // ★ 话题详情页红带：叠在占位 FrameLayout 的底部 ✓
-        val host = binding.view as? android.widget.FrameLayout
-        if (host != null) {
+        // ★ 话题详情页红带
+        //   ⚠️ `binding.view` 是个**占位 <View>** ✗ `toReplaceView` 会把它从层级里移除 ✓
+        //      ⇒ 加到它上面没用 ✗（第一次就是这么失败的 ✓）
+        //   ✅ 加到 `collapsingToolbar`（FrameLayout）底部 ✓
+        //      不影响 `header.root` 的 `CollapsingToolbarLayout.LayoutParams` ✓
+        val host: android.view.ViewGroup? = binding.collapsingToolbar
+        if (host != null && true) {
             val band = android.widget.TextView(requireContext()).apply {
                 text = requireContext().getString(
                     com.example.c001apk.R.string.blocked_multi_report_topic
