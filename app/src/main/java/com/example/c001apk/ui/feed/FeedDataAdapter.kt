@@ -102,7 +102,8 @@ class FeedDataAdapter(
             //             上面显示一个该用户/话题已被多人举报」
             // 公共黑名单：模糊 blurContainer ✓ 横幅是它的兄弟 ⇒ 清晰 ✓（2026-10-31）
             com.example.c001apk.util.BlocklistUi.bind(
-                binding.blurContainer, binding.blockedBanner,
+                binding.blurContainer, binding.blockedBar, binding.blockedBanner,
+                binding.blockedReveal,
                 com.example.c001apk.util.Blocklist.Kind.FEED, data?.id
             )
         }

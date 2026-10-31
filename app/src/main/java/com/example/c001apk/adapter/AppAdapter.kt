@@ -139,7 +139,8 @@ class AppAdapter(
             // 公共黑名单（2026-10-31）：首页卡片也要模糊 ✓
             //   模糊作用于 blurContainer ✓ 横幅是它的兄弟 => 保持清晰 ✓
             com.example.c001apk.util.BlocklistUi.bind(
-                binding.blurContainer, binding.blockedBanner,
+                binding.blurContainer, binding.blockedBar, binding.blockedBanner,
+                binding.blockedReveal,
                 com.example.c001apk.util.Blocklist.Kind.FEED, data.id
             )
 
@@ -431,7 +432,8 @@ class AppAdapter(
 
             // 公共黑名单（2026-10-31）：搜索页用户卡片 ✓
             com.example.c001apk.util.BlocklistUi.bind(
-                binding.blurContainer, binding.blockedBanner,
+                binding.blurContainer, binding.blockedBar, binding.blockedBanner,
+                binding.blockedReveal,
                 com.example.c001apk.util.Blocklist.Kind.USER, data.uid
             )
 
@@ -499,6 +501,15 @@ class AppAdapter(
                     "${data.feedCommentNumTxt}讨论"
 
             binding.setVariable(BR.data, data)
+
+            // 公共黑名单（2026-10-31）：话题卡片 ✓
+            //   话题布局的根自带 android:id="@+id/parent" ✓ 直接用它当模糊目标
+            com.example.c001apk.util.BlocklistUi.bind(
+                binding.parent, binding.blockedBar, binding.blockedBanner,
+                binding.blockedReveal,
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id,
+                com.example.c001apk.R.string.blocked_multi_report_topic
+            )
             binding.setVariable(BR.listener, listener)
         }
     }
