@@ -340,8 +340,11 @@ object BlocklistUi {
         if (!originLpHeight.containsKey(root)) {
             originLpHeight[root] = lp.height
         }
-        root.clipChildren = true
-        root.clipToPadding = true
+        // ⚠️ clipChildren / clipToPadding 是 **ViewGroup** 的属性 ✗ 不在 View 上
+        (root as? android.view.ViewGroup)?.let {
+            it.clipChildren = true
+            it.clipToPadding = true
+        }
         if (lp.height != h) {
             lp.height = h
             root.layoutParams = lp
