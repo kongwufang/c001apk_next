@@ -39,7 +39,7 @@
         android:layout_marginTop="6dp"
         android:layout_marginEnd="10dp"
         android:layout_marginBottom="6dp"
-        app:cardBackgroundColor="@color/home_card_background_color"
+        app:cardBackgroundColor="?attr/colorSurface"
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp">
 
@@ -54,7 +54,7 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="12dp"
-                android:background="@color/cover"
+                android:background="?attr/colorSurfaceVariant"
                 android:onClick="@{(view) -> listener.onViewUser(view, data.userInfo.uid)}"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
