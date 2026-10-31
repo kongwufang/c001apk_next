@@ -13,6 +13,31 @@ abstract class BaseAdapter<T : ViewDataBinding> :
         holder.dataBinding.executePendingBindings()
     }
 
+    /**
+     * ★ 2026-10-31 分页级批量查询（用户要求）
+     *
+     * 用户原话：
+     * >「应该是用户刷新首页内容时，拿到了首页刷新的那十几个帖子，
+     * >  一次性把那十几个帖子全部询问，然后一次性渲染卡片，
+     * >  而不是等划到才渲染」
+     *
+     * `BaseAdapter` 是 `ListAdapter` ⇒ 所有列表（首页 / 关注 / 搜索 / 话题 / 个人主页）
+     * 都走 `submitList()` ✓ ⇒ **只覆写这一处**就把所有列表都覆盖了 ✓
+     *
+     * ⇒ 拉到一个分页 ⇒ 立刻把这一页的 feed id / 用户 uid 一次性发过去问 ✓
+     *    （每类最多 100 个 ✓ 收到结果后 bind 时直接读缓存 ⇒ 不闪烁 ✓）
+     */
+    override fun submitList(list: MutableList<HomeFeedResponse.Data>?) {
+        super.submitList(list)
+        if (list.isNullOrEmpty()) return
+        runCatching {
+            com.example.c001apk.util.Blocklist.prefetchPage(
+                feeds = list.mapNotNull { it.id },
+                users = list.mapNotNull { it.userInfo?.uid ?: it.uid },
+            )
+        }
+    }
+
 }
 
 class HomeFeedDiffCallback : DiffUtil.ItemCallback<HomeFeedResponse.Data>() {
