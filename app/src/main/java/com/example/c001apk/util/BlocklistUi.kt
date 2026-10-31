@@ -140,7 +140,14 @@ object BlocklistUi {
         when (mode) {
             Mode.FOLD -> {
                 forEachBody(root) { v ->
-                    v.visibility = originVisibility[v] ?: View.VISIBLE
+                    // ★ 2026-10-31 修 bug（真机：卡片里冒出一堆空白框 ✗）
+                    //   原来写的是 `originVisibility[v] ?: View.VISIBLE` ✗
+                    //   `forwarded` / `hotReply` / `extraPart` / `linearLayout` 这些
+                    //   正文 View **默认就是 gone** ✓（按内容隐藏）
+                    //   ⇒ 没被折叠过（没记录原值）的会被强制设成 VISIBLE ✗
+                    //   ⇒ 卡片里出现一堆空白圆角框 ✗
+                    //   => 没记录过就**不动它** ✓ 保持 XML 里的默认可见性 ✓
+                    originVisibility[v]?.let { v.visibility = it }
                 }
             }
             Mode.BLUR -> {
