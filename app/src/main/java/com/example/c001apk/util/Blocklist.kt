@@ -211,8 +211,8 @@ object Blocklist {
         if (!enabled()) return
         // 每类最多塞 100 个（服务端上限 ✓）
         feeds?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.FEED, it, feedTopics, onUpdated) }
-        users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, onUpdated) }
-        topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, onUpdated) }
+        users?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.USER, it, null, onUpdated) }
+        topics?.takeIf { it.isNotEmpty() }?.let { prefetch(Kind.TOPIC, it, null, onUpdated) }
     }
 
     private val pendingCallbacks = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
