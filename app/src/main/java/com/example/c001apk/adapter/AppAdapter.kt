@@ -129,15 +129,22 @@ class AppAdapter(
             ) ?: binding.root.context.getString(
                 com.example.c001apk.R.string.blocked_multi_report
             )
-            // 头像 + 昵称（头像用 Glide ✓ 布局里不绑 ✓）
-            binding.uname.text = data.userInfo?.username ?: data.displayUsername
-            // 头像：直接用 Glide ✓（项目里没有 loadAvatar 这个工具 ✗）
-            val avatar = data.userInfo?.userAvatar
-            if (!avatar.isNullOrBlank()) {
-                com.bumptech.glide.Glide.with(binding.avatar)
-                    .load(avatar)
-                    .into(binding.avatar)
-            }
+            // 头像 + 昵称
+            // ★ 2026-10-31 修「被屏蔽的用户不显示头像」：
+            //   ① 昵称：`userInfo.username` 可能为空 ✗（卡片是「XXX的动态」时作者在别处 ✓）
+            //      ⇒ 依次兜底 `username` / `displayUsername` ✓
+            //   ② 头像：不能用**裸 Glide** ✗
+            //      头像 URL 常是 `http://` ✗ 裸 Glide 会因为明文传输策略加载失败 ✗
+            //      项目标准是 `ImageUtil.showIMG` ✓ 它内部会 `http2https` + 带 UA ✓
+            //   ③ 头像字段：`userInfo.userAvatar` 可能为空 ✗
+            //      ⇒ 兜底 `data.userAvatar` / `fUserInfo.userAvatar` ✓
+            binding.uname.text = data.userInfo?.username
+                ?: data.username
+                ?: data.displayUsername
+            val avatar = data.userInfo?.userAvatar?.takeIf { it.isNotBlank() }
+                ?: data.userAvatar?.takeIf { it.isNotBlank() }
+                ?: data.fUserInfo?.userAvatar?.takeIf { it.isNotBlank() }
+            com.example.c001apk.util.ImageUtil.showIMG(binding.avatar, avatar)
             // 头部信息（让用户知道这是谁发的 / 什么机器 / 在哪 ✓）
             //   字段名核对过：`deviceTitle` / `deviceName` / `ipLocation` ✓
             //   （没有 `recommend` / `lastupdateText` ✗ 别用）
