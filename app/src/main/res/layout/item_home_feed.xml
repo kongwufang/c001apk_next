@@ -27,13 +27,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+    
     <com.google.android.material.card.MaterialCardView android:id="@+id/blurContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clickable="true"
         android:focusable="true"
-        android:onClick="@{(view) ->
-listener.onViewFeed(view, data.id, data.userInfo.uid, data.userInfo.username, data.userInfo.userAvatar, data.deviceTitle, data.message, String.valueOf(data.dateline), null, null, data)}"
+        android:onClick="@{(view) -> listener.onViewFeed(view, data.id, data.userInfo.uid, data.userInfo.username, data.userInfo.userAvatar, data.deviceTitle, data.message, String.valueOf(data.dateline), null, null, data)}"
         app:cardBackgroundColor="@color/home_card_background_color"
         app:cardElevation="0dp"
         app:strokeWidth="0dp">
@@ -42,6 +42,24 @@ listener.onViewFeed(view, data.id, data.userInfo.uid, data.userInfo.username, da
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="10dp">
+        <!-- 公共黑名单横幅（2026-10-31）：被多人举报时显示 ✓ 默认隐藏 -->
+        <TextView
+            android:id="@+id/blockedBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#33FF5252"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/blocked_multi_report"
+            android:textColor="#FF5252"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/pubDate" />
+
+
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/avatar"
                 android:layout_width="0dp"
@@ -364,8 +382,7 @@ listener.onViewFeed(view, data.id, data.userInfo.uid, data.userInfo.username, da
 
     </com.google.android.material.card.MaterialCardView>
     <!-- 公共黑名单横幅（2026-10-31）：被多人举报时显示 ✓
-         ⚠️ 必须放在 blurContainer **之外**（兄弟节点）✓
-            否则会被 setRenderEffect 一起糊掉，根本看不清 ✗（真机已踩过）-->
+         ⚠️ 必须是 blurContainer 的**兄弟**节点 ✓ 否则会被一起模糊掉 ✗ -->
     <TextView
         android:id="@+id/blockedBanner"
         android:layout_width="match_parent"
