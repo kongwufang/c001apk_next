@@ -65,7 +65,16 @@ object ReportAlliance {
         "netdisk" to "网盘推广",
     )
 
-    /** 专属 OkHttp：只打自家域名 ✓ 必须挂 [ServerCookieStore]（要把 ck1 带回去 ✓） */
+    /**
+     * 专属 OkHttp：只打自家域名 ✓ 挂 [ServerCookieStore]（要把 ck1 带回去 ✓）
+     *
+     * ⚠️ 2026-10-31 云控策略（用户原话）：
+     *   「客户端要带所有请求头，我说的是如果用脚本拼请求头的时候，缺了请求头
+     *     直接标记机器人」
+     *   ⇒ 正常客户端**必须带齐**全部头 ✓
+     *     服务端把「缺任意一个」当脚本特征 ✓ 标记机器人 + 连坐 IP 段 ✓
+     *   ⇒ 所以这里一个都不能少：ssaid / uid / 版本 / code / 平台 / cookie ✓
+     */
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .addInterceptor(ServerCookieStore.interceptor())
@@ -127,6 +136,9 @@ object ReportAlliance {
                 if (!note.isNullOrBlank()) put("note", note.take(500))
             }.toString()
 
+            // ★ 2026-10-31 云控策略：**必须带齐**全部头 ✓
+            //   服务端把「缺任意一个」当脚本特征 ⇒ 标记机器人 + 连坐 IP 段 ✓
+            //   （缺了也不报错 ✓ 只是内部记一笔 ✓ 见 report/create.php 的 REQUIRED_HEADERS）
             val req = Request.Builder()
                 .url(ENDPOINT)
                 .post(body.toRequestBody(JSON_TYPE))
