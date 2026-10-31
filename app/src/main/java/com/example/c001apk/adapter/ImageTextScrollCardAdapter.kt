@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.BR
@@ -27,6 +28,46 @@ class ImageTextScrollCardAdapter(
             binding.setVariable(BR.data, data)
             binding.setVariable(BR.listener, listener)
             binding.executePendingBindings()
+
+            // ★ 2026-10-31 优质图文组内的每张小卡也查公共黑名单（用户要求）
+            //   命中 ⇒ 藏封面 + 标题、显示红条 ✓
+            //   ⚠️ 这两个 View 的 visibility **没有** databinding 绑定 ✓
+            //      所以不会被 BindingAdapter 设回来 ✓（不会重现「藏了又显示」✗）
+            val id = data.id
+            val apply = { blocked: Boolean ->
+                binding.imageTextScrollCard.isVisible = !blocked
+                binding.title.isVisible = !blocked
+                binding.blockedBar.isVisible = blocked
+                if (blocked) {
+                    binding.blockedBar.text =
+                        com.example.c001apk.util.Blocklist.cachedMsg(
+                            com.example.c001apk.util.Blocklist.Kind.FEED, id
+                        ) ?: binding.root.context.getString(
+                            com.example.c001apk.R.string.blocked_multi_report
+                        )
+                }
+            }
+            if (id.isNullOrBlank() || !com.example.c001apk.util.Blocklist.enabled()) {
+                apply(false)
+            } else {
+                val known = com.example.c001apk.util.Blocklist.cached(
+                    com.example.c001apk.util.Blocklist.Kind.FEED, id
+                )
+                if (known != null) {
+                    apply(known)
+                } else {
+                    apply(false)
+                    com.example.c001apk.util.Blocklist.prefetch(
+                        com.example.c001apk.util.Blocklist.Kind.FEED, listOf(id)
+                    ) {
+                        apply(
+                            com.example.c001apk.util.Blocklist.isBlocked(
+                                com.example.c001apk.util.Blocklist.Kind.FEED, id
+                            )
+                        )
+                    }
+                }
+            }
         }
     }
 

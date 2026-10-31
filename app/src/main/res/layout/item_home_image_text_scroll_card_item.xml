@@ -44,6 +44,26 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/imageTextScrollCard" />
 
+        <!-- 公共黑名单红带（2026-10-31 用户要求：优质图文也要）✓
+             ⚠️ 只隐藏封面和标题 ✓ 这两个 View 的 visibility **没有** databinding 绑定 ✓
+                所以不会被 BindingAdapter 设回来 ✓（踩过的坑不会重现）-->
+        <TextView
+            android:id="@+id/blockedBar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:background="#F2FFEBEE"
+            android:gravity="center"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="@string/blocked_multi_report"
+            android:textColor="#D32F2F"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </layout>
