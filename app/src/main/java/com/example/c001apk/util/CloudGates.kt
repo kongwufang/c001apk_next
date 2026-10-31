@@ -174,6 +174,13 @@ object CloudGates {
                     }
                     applyFrom(j)
                     PrefManager.cloudGatesTs = System.currentTimeMillis()
+                    // ★ 2026-11-01 加一条「拉到了」的日志 ✓
+                    //   原来只在「变化 / 失败」时打 ✗ ⇒ logcat 干净得像没跑 ✓（踩过）
+                    Log.i(
+                        TAG,
+                        "云控已拉取 alliance=$alliance reportOther=$reportOther " +
+                            "cardAssoc=$cardAssoc（下次 ${TTL_MS / 3600000}h 后）"
+                    )
                 }
             }.onFailure {
                 Log.d(TAG, "云控拉取异常（沿用上次）：${it.javaClass.simpleName}")
