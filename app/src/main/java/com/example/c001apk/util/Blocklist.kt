@@ -264,7 +264,10 @@ object Blocklist {
                 // 只保留这次真的在问的 feed ✓
                 ft.keys.retainAll(snapshot[Kind.FEED].orEmpty().toSet())
                 if (ft.isNotEmpty()) {
-                    put("feedTopics", JSONObject(ft))
+                    // ⚠️ `JSONObject(Map)` 在 Kotlin 里类型不匹配 ✗ 手工塞 ✓
+                    put("feedTopics", JSONObject().apply {
+                        ft.forEach { (fid, tid) -> put(fid, tid) }
+                    })
                 }
             }
             for (kind in Kind.values()) {
