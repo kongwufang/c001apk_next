@@ -146,6 +146,15 @@ object Blocklist {
         feedTopics: Map<String, String>? = null,
         onUpdated: (() -> Unit)? = null,
     ) {
+        // 顺手把「帖子 → 话题」攒起来 ✓ flush 时一起发 ✓
+        if (kind == Kind.FEED && !feedTopics.isNullOrEmpty()) {
+            pendingFeedTopics.putAll(feedTopics)
+            if (pendingFeedTopics.size > 400) {
+                // 防无限增长 ✓ 只留最近的
+                val keep = pendingFeedTopics.keys.takeLast(200).toSet()
+                pendingFeedTopics.keys.retainAll(keep)
+            }
+        }
         if (!enabled()) return
         val now = System.currentTimeMillis()
         var added = false
@@ -217,6 +226,12 @@ object Blocklist {
 
     private val pendingCallbacks = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 
+    /**
+     * 待发送的「帖子 id → 话题 id」（2026-11-01）
+     * 攒批：[prefetch] 时塞进来 ✓ [flush] 发请求时取走 ✓
+     */
+    private val pendingFeedTopics = ConcurrentHashMap<String, String>()
+
     private fun scheduleFlush() {
         if (!flushScheduled.compareAndSet(false, true)) return
         CoroutineScope(Dispatchers.IO).launch {
@@ -242,10 +257,15 @@ object Blocklist {
         }
 
         val body = JSONObject().apply {
-            // ★ 2026-11-01 「帖子 id + 话题 id」（用户要求的格式 ✓）
-            //   云端据此建「话题 → 帖子」关联 ✓ 连坐由云端决定 ✓
-            if (kind == Kind.FEED && !feedTopics.isNullOrEmpty()) {
-                put("feedTopics", JSONObject(feedTopics))
+            // ★ 2026-11-01 「帖子 id + 话题 id」
+            //   ⚠️ 只在本次请求**含 feeds** 时才带 ✓（没 feed 就没意义 ✗）
+            if (snapshot.containsKey(Kind.FEED)) {
+                val ft = HashMap(pendingFeedTopics)
+                // 只保留这次真的在问的 feed ✓
+                ft.keys.retainAll(snapshot[Kind.FEED].orEmpty().toSet())
+                if (ft.isNotEmpty()) {
+                    put("feedTopics", JSONObject(ft))
+                }
             }
             for (kind in Kind.values()) {
                 val ids = snapshot[kind] ?: continue
