@@ -345,6 +345,9 @@
     <string name="blocked_multi_report">该内容已被多人举报</string>
     <string name="blocked_multi_report_user">该用户已被多人举报</string>
     <string name="blocked_multi_report_topic">该话题已被多人举报</string>
+    <!-- 优质图文组内被屏蔽小卡的中性占位（2026-10-31）-->
+    <string name="blocked_placeholder">已屏蔽</string>
+
     <string name="blocked_reveal">依然查看</string>
     <!-- 申诉（2026-10-31）：被拉黑的内容点举报 => 申诉 -->
     <string name="appeal_title">申诉误拉黑</string>

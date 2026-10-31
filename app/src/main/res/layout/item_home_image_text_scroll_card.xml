@@ -40,7 +40,25 @@
 
             </com.example.c001apk.view.NestedScrollableHost>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        
+    <!-- ★ 2026-10-31 优质图文：**整组一条**红带（不是每张小卡各一条 ✗ 用户微调）-->
+    <TextView
+        android:id="@+id/groupBlockedBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="10dp"
+        android:background="#F2FFEBEE"
+        android:gravity="center"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:text="@string/blocked_multi_report"
+        android:textColor="#D32F2F"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
