@@ -43,6 +43,14 @@ class OfflineCacheRepo @Inject constructor(
     private val offlineCacheDao: OfflineCacheDao,
     private val networkRepo: NetworkRepo,
     @ApplicationContext private val context: Context,
+    /**
+     * 单帖第三方分享。
+     *
+     * 用它做「缓存即上云」：官方常删帖，本地缓存只在这台手机上 ✗
+     * 缓存成功后顺手传一份到云（123 冷 + OSS 热）⇒ 换手机 / 清数据 / 原帖被删都能找回 ✓
+     * 顺手拿到的分享链接也在里面（用户之后点分享就不用再传一遍 ✓）
+     */
+    private val shareLinkRepo: ShareLinkRepo,
 ) {
 
     private val gson = Gson()
@@ -62,6 +70,24 @@ class OfflineCacheRepo @Inject constructor(
     fun loadAllLive(): LiveData<List<OfflineFeedSummary>> = offlineCacheDao.loadAllLive()
 
     suspend fun get(fid: String): OfflineFeedEntity? = offlineCacheDao.get(fid)
+
+    /**
+     * 拿某个帖子的**本地已缓存图片**（按文件名排序）。
+     *
+     * 给「单帖第三方分享」用：缓存过的帖子分享时不用再下一次图 ✓
+     * 没缓存过（或缓存里没图）⇒ 返回空列表 ✓ 那边就只发文字 ✓
+     */
+    suspend fun localImageFiles(fid: String): List<File> = withContext(Dispatchers.IO) {
+        if (fid.isBlank()) return@withContext emptyList()
+        val e = offlineCacheDao.get(fid) ?: return@withContext emptyList()
+        val dir = File(e.imageDir)
+        if (!dir.isDirectory) return@withContext emptyList()
+        dir.listFiles()
+            ?.filter { it.isFile && it.length() > 1024 }
+            ?.filter { it.extension.lowercase() in setOf("jpg", "jpeg", "png", "webp") }
+            ?.sortedBy { it.name }
+            .orEmpty()
+    }
 
     fun isSaving(fid: String): Boolean = fid in saving
 
@@ -157,7 +183,31 @@ class OfflineCacheRepo @Inject constructor(
                 replyJson = replyArr.toString()
             )
         )
+        // ④ 缓存成功 ⇒ **顺手传一份到云**（防止官方删帖后彻底丢失 ✗）
+        //   静默执行：失败只记日志，不打扰用户（本地缓存本身是好的 ✓）
+        autoCloud(fid)
         return null
+    }
+
+    /**
+     * 缓存成功后的「上云」。
+     *
+     * 从数据库把刚存好的实体读回来渲染成单帖 HTML，连同本地图片一起上传 ✓
+     * 失败不影响本地缓存 ✓（下次用户手动点分享会再试一次）
+     */
+    private fun autoCloud(fid: String) {
+        scope.launch {
+            runCatching {
+                val e = offlineCacheDao.get(fid) ?: return@runCatching
+                val data = feedDataOf(e) ?: return@runCatching
+                val imgs = localImageFiles(fid)
+                val r = shareLinkRepo.createShare(data, imgs)
+                r.onSuccess { android.util.Log.i("OfflineCache", "上云成功 $fid -> ${it.url}") }
+                    .onFailure { android.util.Log.w("OfflineCache", "上云失败 $fid: ${it.message}") }
+            }.onFailure {
+                android.util.Log.w("OfflineCache", "上云异常 $fid: ${it.message}")
+            }
+        }
     }
 
     /** 置顶评论跟着详情数据走（在 `topReplyRows` 里），这里只取前 [REPLY_LIMIT] 条普通评论 */

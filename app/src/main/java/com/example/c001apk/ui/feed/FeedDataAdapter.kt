@@ -96,7 +96,19 @@ class FeedDataAdapter(
             }
             binding.extraPart.bind(data)
             binding.executePendingBindings()
+            // 公共黑名单（2026-10-31）：渲染卡片的同时后台查 ✓
+            //   用户原话：「进去的时候渲染卡片的同时后台请求一下服务器 ID 或者用户 ID，
+            //             服务器返回结果后，如果是被屏蔽状态 UI 更新为卡片带个模糊，
+            //             上面显示一个该用户/话题已被多人举报」
+            // 公共黑名单：模糊 blurContainer ✓ 横幅是它的兄弟 ⇒ 清晰 ✓（2026-10-31）
+            com.example.c001apk.util.BlocklistUi.bind(
+                binding.blurContainer, binding.blockedBar, binding.blockedBanner,
+                binding.blockedReveal,
+                com.example.c001apk.util.Blocklist.Kind.FEED, data?.id,
+                mode = com.example.c001apk.util.BlocklistUi.Mode.FOLD
+            )
         }
+
 
     }
 

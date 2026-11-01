@@ -47,6 +47,23 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
     private val viewModel by viewModels<MineViewModel>()
     private val messageFirstAdapter by lazy { MessageFirstAdapter() }
     private val mineMenuAdapter by lazy { MineMenuAdapter() }
+
+    /**
+     * 侧栏卡片（公告 + 升级）2026-11-01
+     * 挂在宫格**下面** ✓ 没数据时高度 0 ✓ 不占位 ✓
+     */
+    private val sideCardAdapter by lazy {
+        SideCardAdapter(
+            onOpenUrl = { url ->
+                com.example.c001apk.util.UpdateChecker.openExternal(
+                    requireContext(), url, getString(R.string.update_open_link_failed)
+                )
+            },
+            onDownload = { info -> downloadUpdate(info) },
+            onSkipVersion = { /* PrefManager 已写 ✓ 这里不用做事 */ },
+            onNoticeDismissed = { /* PrefManager 已写 ✓ 这里不用做事 */ },
+        )
+    }
     private lateinit var mLayoutManager: LinearLayoutManager
     private lateinit var sLayoutManager: StaggeredGridLayoutManager
     private val isPortrait by lazy {
@@ -63,6 +80,9 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             initScroll()
             initRefresh()
             initObserve()
+            // ★ 侧栏卡片（公告 + 升级）2026-11-01
+            //   每次进侧栏都拉一次 ✓ 公告是时效性的 ✓ 服务端 60 秒缓存兜底 ✓
+            viewModel.fetchSideCards()
         }
     }
 
@@ -71,7 +91,8 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             adapter = ConcatAdapter(
                 HeaderAdapter(),
                 messageFirstAdapter,
-                mineMenuAdapter
+                mineMenuAdapter,
+                sideCardAdapter          // ★ 宫格下面那块空白 ✓ 2026-11-01
             )
             layoutManager =
                 if (isPortrait) {
@@ -114,9 +135,22 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
         }
     }
 
+    /**
+     * 升级卡点「下载」⇒ 跳外部浏览器（多线路先弹选择 ✓ 沿用旧逻辑 ✓）
+     * 走 [com.example.c001apk.util.UpdateChecker.openDownload] ✓ 和旧弹窗同一份 ✓
+     */
+    private fun downloadUpdate(info: com.example.c001apk.util.UpdateChecker.UpdateInfo) {
+        com.example.c001apk.util.UpdateChecker.openDownload(requireContext(), info)
+    }
+
     private fun initObserve() {
         viewModel.countList.observe(viewLifecycleOwner) {
             messageFirstAdapter.setFFFList(it)
+        }
+
+        // ★ 侧栏卡片（公告 + 升级）2026-11-01
+        viewModel.sideCards.observe(viewLifecycleOwner) { (notices, update) ->
+            sideCardAdapter.setData(notices, update)
         }
 
         viewModel.loadingState.observe(viewLifecycleOwner) {
@@ -203,6 +237,9 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             initScroll()
             initRefresh()
             initObserve()
+            // ★ 侧栏卡片（公告 + 升级）2026-11-01
+            //   每次进侧栏都拉一次 ✓ 公告是时效性的 ✓ 服务端 60 秒缓存兜底 ✓
+            viewModel.fetchSideCards()
         }
     }
 

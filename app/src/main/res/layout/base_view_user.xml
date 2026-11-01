@@ -24,7 +24,8 @@
     </data>
 
     <!-- 铺在封面图上的整块头部：封面 + 头像 + 昵称/认证/简介 + 数据 + 性别地区 + 装备条 -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+
+        <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/infoLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -400,5 +401,52 @@
                 tools:ignore="ContentDescription" />
         </LinearLayout>
 
+    
+
+        <!-- 公共黑名单红条（2026-10-31）：
+             ⚠️ 必须放在 infoLayout **内部** ✓
+                外面那层是 CollapsingToolbarLayout ⇒ 只认一个子 View ✗
+                放外面根本不渲染 ✗（真机踩过）-->
+        <TextView
+            android:id="@+id/blockedBanner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="6dp"
+            android:background="#F2FFEBEE"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="@string/blocked_multi_report_user"
+            android:textColor="#D32F2F"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/blockedReveal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:text="@string/blocked_reveal"
+            android:textColor="#1976D2"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/blockedBanner"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/blockedBanner" />
     </androidx.constraintlayout.widget.ConstraintLayout>
+    
+    
+
 </layout>

@@ -8,9 +8,78 @@ import com.example.c001apk.logic.model.HomeFeedResponse
 abstract class BaseAdapter<T : ViewDataBinding> :
     ListAdapter<HomeFeedResponse.Data, BaseViewHolder<T>>(HomeFeedDiffCallback()) {
 
+    /**
+     * 每次 submitList 只刷新一次（批量结果回来时）✓
+     *
+     * ⚠️ 为什么必须有：`getItemViewType` 是**同步**在布局时调用的 ✗
+     *    那一刻批量查询还没回来 ⇒ 缓存空 ⇒ 只能返回普通卡片 ✗
+     *    结果回来后**必须**让列表重算 viewType ✓ 否则专用卡片永远不出现 ✗
+     *
+     * ⚠️ 为什么早先删过：那时话题卡片是「内联加红条」✗
+     *    一次 notify 就会把话题卡片的内容刷成空白 ✗
+     *    现在话题走**专用卡片** ✓ 那个隐患已经不存在 ✓
+     */
+    private var refreshedOnce = false
+
     override fun onBindViewHolder(holder: BaseViewHolder<T>, position: Int) {
         holder.bind(currentList[position])
         holder.dataBinding.executePendingBindings()
+    }
+
+    /**
+     * ★ 2026-10-31 分页级批量查询（用户要求）
+     *
+     * 用户原话：
+     * >「应该是用户刷新首页内容时，拿到了首页刷新的那十几个帖子，
+     * >  一次性把那十几个帖子全部询问，然后一次性渲染卡片，
+     * >  而不是等划到才渲染」
+     *
+     * `BaseAdapter` 是 `ListAdapter` ⇒ 所有列表（首页 / 关注 / 搜索 / 话题 / 个人主页）
+     * 都走 `submitList()` ✓ ⇒ **只覆写这一处**就把所有列表都覆盖了 ✓
+     *
+     * ⇒ 拉到一个分页 ⇒ 立刻把这一页的 feed id / 用户 uid 一次性发过去问 ✓
+     *    （每类最多 100 个 ✓ 收到结果后 bind 时直接读缓存 ⇒ 不闪烁 ✓）
+     */
+    override fun submitList(list: List<HomeFeedResponse.Data>?) {
+        super.submitList(list)
+        refreshedOnce = false
+        if (list.isNullOrEmpty()) return
+        runCatching {
+            com.example.c001apk.util.Blocklist.prefetchPage(
+                feeds = list.mapNotNull { it.id },
+                users = list.mapNotNull { it.userInfo?.uid ?: it.uid },
+                // ★ 2026-11-01 「帖子 id → 话题 id」✓ 云端据此判连坐 ✓
+                feedTopics = list.mapNotNull { d ->
+                    val fid = d.id
+                    val tid = d.tid
+                    if (!fid.isNullOrBlank() && !tid.isNullOrBlank()) fid to tid else null
+                }.toMap(),
+                // ★ 2026-11-01 「帖子 id → 作者 uid」✓
+                //   云端据此做「帖子入库 ⇒ 该作者所有帖子连坐」✓
+                feedAuthors = list.mapNotNull { d ->
+                    val fid = d.id
+                    val uid = d.userInfo?.uid ?: d.uid
+                    if (!fid.isNullOrBlank() && !uid.isNullOrBlank()) fid to uid else null
+                }.toMap(),
+                // ★★ 2026-10-31 补上 **话题** ★★
+                //   之前只发 feeds + users ✗ ⇒ 话题 id 从来没问过服务器 ✗
+                //   ⇒ `cached(TOPIC, id)` 永远 null ⇒ 话题卡片永远不出红条 ✗（用户反馈）
+                //   话题实体：`entityType == "topic"` ✓ 也有混在别处的话题卡片
+                //   ⇒ 只要模板里出现话题就一起问 ✓（多问几个 id 很便宜 ✓）
+                topics = list.filter {
+                    it.entityType == "topic" || it.ttitle?.isNotBlank() == true
+                }.mapNotNull { it.id },
+            ) {
+                // ★ 批量结果回来 ⇒ post 出去刷新一次 ✓
+                //   `getItemViewType` 才会重新分流到专用卡片（TYPE_BLOCKED / TYPE_BLOCKED_TOPIC）✓
+                if (!refreshedOnce) {
+                    refreshedOnce = true
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        if (itemCount > 0) notifyItemRangeChanged(0, itemCount)
+                    }
+                }
+            }
+        }
     }
 
 }

@@ -96,8 +96,10 @@ object UpdateChecker {
      * 否则裸 OkHttpClient 走平台默认校验，抓包证书永远过不去。
      */
     private val client by lazy {
-        if (PrefManager.isSslDebug) SslVerify.applyDebug(OkHttpClient.Builder()).build()
-        else OkHttpClient()
+        // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
+        if (PrefManager.isSslDebug)
+            SslVerify.applyDebug(OkHttpClient.Builder()).addInterceptor(ServerCookieStore.interceptor()).build()
+        else OkHttpClient.Builder().addInterceptor(ServerCookieStore.interceptor()).build()
     }
 
     private val userAgent: String by lazy {
@@ -289,6 +291,36 @@ object UpdateChecker {
      *
      * @param onIgnored 「不再提示」后的回调（用来刷新界面上的开关状态，可空）
      */
+    /**
+     * 打开下载（多线路时先弹线路选择）—— 2026-11-01 抽出来 ✓
+     * 升级卡片和旧弹窗共用这一份 ✓ 别各写一套 ✗
+     */
+    fun openDownload(context: Context, info: UpdateInfo) {
+        if (info.lines.size == 1) {
+            openExternal(context, info.lines[0].url, "打开下载链接失败")
+            return
+        }
+        if (info.lines.isEmpty()) {
+            Toast.makeText(context, "没有可用的下载线路", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val names = info.lines.map { it.name }.toTypedArray()
+        MaterialAlertDialogBuilder(context).apply {
+            setTitle("选择下载线路")
+            setItems(names) { d, which ->
+                d.dismiss()
+                openExternal(context, info.lines[which].url, "打开下载链接失败")
+            }
+            setNegativeButton(android.R.string.cancel, null)
+            show()
+        }
+    }
+
+    /** 只把接口响应预热进 60 秒缓存 ✓ 不弹任何窗 ✓（侧栏升级卡用 / 启动时调 ✓） */
+    suspend fun prefetch() {
+        loadSnapshot()
+    }
+
     fun showUpdateDialog(
         context: Context,
         info: UpdateInfo,
@@ -306,26 +338,17 @@ object UpdateChecker {
         MaterialAlertDialogBuilder(context).apply {
             setTitle("发现新版本 ${info.versionName}")
             setView(scrollView)
-            setNegativeButton(android.R.string.cancel, null)
-            setNeutralButton("不再提示") { _, _ ->
-                PrefManager.isCheckUpdateStable = false
+            // ★★ 2026-11-01 用户要求 ★★
+            //   「不再提醒按钮取消，包括弹窗，都改成跳过此版本，
+            //     提升用户的更新积极性，设置那边才能关闭检查更新」
+            //   ⇒ 这里只留两个按钮：跳过此版本 / 下载 ✗ 没有「不再提示」
+            //   ⇒ 想彻底不检查，只能去设置里关开关 ✓（那就需要有意识的操作 ✓）
+            setNegativeButton("跳过此版本") { _, _ ->
+                PrefManager.skippedUpdateCode = info.versionCode
                 onIgnored?.invoke()
             }
             setPositiveButton("下载") { _, _ ->
-                if (info.lines.size == 1) {
-                    openExternal(context, info.lines[0].url, "打开下载链接失败")
-                } else {
-                    val names = info.lines.map { it.name }.toTypedArray()
-                    MaterialAlertDialogBuilder(context).apply {
-                        setTitle("选择下载线路")
-                        setItems(names) { d, which ->
-                            d.dismiss()
-                            openExternal(context, info.lines[which].url, "打开下载链接失败")
-                        }
-                        setNegativeButton(android.R.string.cancel, null)
-                        show()
-                    }
-                }
+                openDownload(context, info)
             }
             show()
         }

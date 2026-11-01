@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    被公共黑名单屏蔽的**话题**卡片（2026-10-31 用户选方案 A）
+
+    为什么单独做一个布局：
+      在 `item_search_topic.xml` 里加红条 ⇒ **话题的 logo + 名称会消失** ✗
+      （真机 A/B 证实：关掉就正常，打开就空白 ✗ 原因始终没能自洽解释 ✗）
+      ⇒ 照首页动态卡片的成功经验 ✓ 单独做一张卡 ✓ 从结构上避开干扰 ✓
+
+    保留：话题 logo + 名称 + 热度 + 讨论数（用户要知道是哪个话题 ✓）
+    增加：粉底红条 + 「依然查看」
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+
+        <variable
+            name="data"
+            type="com.example.c001apk.logic.model.HomeFeedResponse.Data" />
+
+        <variable
+            name="listener"
+            type="com.example.c001apk.adapter.ItemListener" />
+    </data>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="5dp"
+        android:onClick="@{(view) -> listener.onViewTopic(view, data.entityType, data.title, data.url, data.id)}"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="10dp">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/logo"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/colorSurfaceVariant"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:shapeAppearance="@style/searchTopicRadius" />
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/logo"
+                app:layout_constraintTop_toTopOf="@id/logo" />
+
+            <TextView
+                android:id="@+id/hotNum"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="4dp"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                app:layout_constraintStart_toEndOf="@id/logo"
+                app:layout_constraintTop_toBottomOf="@id/title" />
+
+            <TextView
+                android:id="@+id/commentNum"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="4dp"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                app:layout_constraintStart_toEndOf="@id/hotNum"
+                app:layout_constraintTop_toBottomOf="@id/title" />
+
+            <!-- ★ 红条（和首页专用卡片同款 ✓） -->
+            <TextView
+                android:id="@+id/blockedBanner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="#F2FFEBEE"
+                android:gravity="center_vertical|start"
+                android:paddingStart="12dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="12dp"
+                android:text="@string/blocked_multi_report_topic"
+                android:textColor="#D32F2F"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@id/blockedReveal"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/logo" />
+
+            <TextView
+                android:id="@+id/blockedReveal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#F2FFEBEE"
+                android:paddingStart="12dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="12dp"
+                android:text="@string/blocked_reveal"
+                android:textColor="#1976D2"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@id/blockedBanner"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/blockedBanner" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+</layout>

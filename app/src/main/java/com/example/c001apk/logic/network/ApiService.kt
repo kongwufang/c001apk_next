@@ -375,6 +375,22 @@ interface ApiService {
     ): Call<MessageResponse>
 
     /**
+     * **收新消息**（轮询用）。2026-10-30 从官方包里挖出来（jadx `defpackage/lk1.java`）。
+     *
+     * `id` 是**消息 id 游标**，语义为「返回 id >= 给定值的消息」——实测会把这条**本身也带回来** ✗
+     * 所以调用方必须按 id 去重 ✓（见 MessageDetailViewModel.startPolling）
+     *
+     * 实测要点（2026-10-30）：
+     * · 是**立即返回**的普通接口（0.2~0.3s），**不是长轮询** ✗ ⇒ 客户端要自己定时拉 ✓
+     * · `id` 为空 / 0 / 超过最新一条 / 传 ukey ⇒ 都返回 `status=-1`「你无法查看该私信」✗
+     * · 返回里会混 `messageExt`（系统提示）⇒ 要过滤 ✓
+     */
+    @GET("/v6/message/receive")
+    fun receiveMessage(
+        @Query("id") id: String
+    ): Call<MessageResponse>
+
+    /**
      * 发私信（multipart）。`uid` 传的是**对方**的 uid，服务端据此隐式建立会话，
      * 所以对从没聊过的人也能直接发 —— 这就是「主页 → 私信」按钮的底层能力。
      *
@@ -395,7 +411,10 @@ interface ApiService {
         @Part("message_pic") messagePic: RequestBody,
         @Part("message_extra") messageExtra: RequestBody,
         @Part("message_card") messageCard: RequestBody
-    ): Call<MessageResponse.ActionResponse>
+        // ★ 2026-10-30：官方签名是 `Result<List<Entity>>`（见 jadx defpackage/lk1.java），
+        //   不是 ActionResponse ✗ 改成 MessageResponse 才能拿到服务端回的真实消息 id，
+        //   乐观发送成功后就不用等下一次 loadHistory 才认识那条 ✓
+    ): Call<MessageResponse>
 
     /** 把某个私信会话标记为已读 */
     @GET("/v6/message/read")

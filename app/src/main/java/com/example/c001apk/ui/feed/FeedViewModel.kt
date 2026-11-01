@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.c001apk.util.ApiError
+import com.example.c001apk.logic.repository.ShareLinkRepo
 
 @HiltViewModel(assistedFactory = FeedViewModel.Factory::class)
 class FeedViewModel @AssistedInject constructor(
@@ -42,8 +43,56 @@ class FeedViewModel @AssistedInject constructor(
     blackListRepo: BlackListRepo,
     historyRepo: HistoryFavoriteRepo,
     networkRepo: NetworkRepo,
-    private val offlineCacheRepo: OfflineCacheRepo
+    private val offlineCacheRepo: OfflineCacheRepo,
+    /** 单帖「第三方链接分享」（详情页分享按钮 + 离线缓存自动上云都用它） */
+    private val shareLinkRepo: ShareLinkRepo
 ) : BaseAppViewModel(blackListRepo, historyRepo, networkRepo) {
+
+    // ---------------------------------------------------------------- 第三方分享
+
+    /** 分享进度：null=空闲 / true=正在生成 */
+    val shareLoading = MutableLiveData(false)
+
+    /** 分享结果（Event 包一层，避免旋转屏幕重复弹窗） */
+    val shareResult = MutableLiveData<Event<ShareLinkRepo.Result>>()
+
+    /** 分享失败提示 */
+    val shareError = MutableLiveData<Event<String>>()
+
+    /**
+     * 把当前帖子分享成第三方链接。
+     *
+     * 图片优先用**离线缓存里已经下好的本地文件** ✓ 没有就只发文字 ✓
+     * （不为了分享临时去下几 MB 图 ✗ 用户等不起）
+     */
+    /**
+     * 手动触发离线缓存（详情页 ⋮ 菜单用）。
+     *
+     * 缓存成功后 [OfflineCacheRepo] 会自动上云 ✓ 不用这里再管 ✓
+     */
+    fun saveOffline() {
+        // ⚠️ 缓存主键是**帖子 id**（不是 data.fid）✗
+        //    列表卡片那条路径传的就是 onFavoriteClick(data.id) ✓
+        //    （data.fid 很多帖子是 0 / 空串，拿它当主键会直接 return ⇒ 什么都不发生 ✗）
+        val key = id.takeIf { it.isNotBlank() } ?: return
+        if (offlineCacheRepo.isSaving(key)) return
+        offlineCacheRepo.saveAsync(key)
+    }
+
+    fun shareAsLink(data: HomeFeedResponse.Data) {
+        if (shareLoading.value == true) return
+        shareLoading.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val localImgs = runCatching { offlineCacheRepo.localImageFiles(data.id.orEmpty()) }
+                .getOrDefault(emptyList())
+            val r = shareLinkRepo.createShare(data, localImgs)
+            withContext(Dispatchers.Main) {
+                shareLoading.value = false
+                r.onSuccess { shareResult.value = Event(it) }
+                    .onFailure { shareError.value = Event(it.message ?: "分享失败") }
+            }
+        }
+    }
 
     @AssistedFactory
     interface Factory {

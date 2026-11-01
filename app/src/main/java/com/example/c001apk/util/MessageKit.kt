@@ -124,13 +124,28 @@ object MessageKit {
     fun hasPic(data: MessageResponse.Data?): Boolean = !data?.messagePic.isNullOrEmpty()
 
     /**
+     * 这条消息的图片是不是**本地 uri**（乐观发送的临时消息）。
+     *
+     * 正常消息的 `message_pic` 是 OSS 对象名（`/message/2026/1006/x.png`），
+     * 要现问 `showImage` 换带 auth_key 的签名地址 ✗
+     * 而本地乐观消息的 `message_pic` 直接塞的是相册 uri（`content://…`）✓
+     * adapter 靠这个区分：本地 uri 直接交给 Glide，别去调 `showImage`（会 404）
+     */
+    @JvmStatic
+    fun isLocalPic(data: MessageResponse.Data?): Boolean {
+        val p = data?.messagePic ?: return false
+        return p.startsWith("content://") || p.startsWith("file://")
+    }
+
+    /**
      * 图片消息取原图要用消息 id（`/v6/message/showImage?id=`）。
      * `/v6/message/chat` 里 `id` 偶尔为空，退到 `entityId`（两者是同一个值）。
      */
     @JvmStatic
     fun picId(data: MessageResponse.Data?): String {
         if (data == null) return ""
-        return data.id.ifEmpty { data.entityId.orEmpty() }
+        // ⚠️ `id` 运行时可能是 null（messageEmpty / 乐观消息）⇒ orEmpty() 兜住
+        return data.id.orEmpty().ifEmpty { data.entityId.orEmpty() }
     }
 
     /** 会话项是不是小秘书 */
@@ -150,6 +165,24 @@ object MessageKit {
         if (!data.message.isNullOrBlank()) return plainText(data.message)
         if (!data.messagePic.isNullOrBlank()) return "[图片]"
         return ""
+    }
+
+    /**
+     * 长按复制用的纯文本。
+     *
+     * 服务端把私信正文当 **HTML** 下发 ✗（带链接的消息是
+     * `<a class="feed-link-url" href="…">查看链接</a>`）⇒ 直接复制会带一堆标签 ✗
+     * 这里降级成纯文本，并保留换行（复制出去的多行消息应该还是多行 ✓）。
+     *
+     * 纯图片消息返回空串 ⇒ 上层弹「这条没有可复制的文字」✓
+     */
+    @JvmStatic
+    fun copyText(data: MessageResponse.Data?): String {
+        if (data == null) return ""
+        val raw = data.message.orEmpty()
+        if (raw.isBlank()) return ""
+        return if (raw.indexOf('<') < 0) MarkdownUtils.decodeEntities(raw).trim()
+        else Html.fromHtml(raw, Html.FROM_HTML_MODE_COMPACT).toString().trim()
     }
 
     /**

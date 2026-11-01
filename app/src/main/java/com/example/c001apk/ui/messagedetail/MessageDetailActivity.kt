@@ -25,6 +25,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
@@ -40,6 +41,7 @@ import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.dp
 import com.example.c001apk.util.ossUpload
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -64,9 +66,27 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             partnerAvatar = intent.getStringExtra("avatar").orEmpty(),
             partnerUid = intent.getStringExtra("uid").orEmpty(),
             // 图片消息的地址要现问 showImage 换，只能在 ViewModel 里做（那边有作用域 + 缓存）
-            loadPic = { id, onReady -> viewModel.loadMessagePic(id, onReady) }
+            loadPic = { id, onReady -> viewModel.loadMessagePic(id, onReady) },
+            // 发送失败时点红色感叹号 ⇒ 问是否重发（2026-10-30 乐观发送）
+            onRetry = { item -> askResend(item) },
+            // 图片气泡尺寸定下来后回调（见下方 stickToBottom 说明）
+            onPicSized = { if (stickToBottom) scrollToBottom() }
         )
     }
+
+    /**
+     * 是否"黏"在底部。
+     *
+     * 为什么需要：进页面时图片还在异步换签名地址 + 加载 ⇒ 气泡先是小占位 ✗
+     * 图片回来后气泡被撑到真实比例 ⇒ 上方内容整体变高 ⇒ 列表就不在底部了 ✗
+     * （用户 2026-10-30 报的就是这个）
+     *
+     * 策略：默认 true ✓
+     * · 用户手动往上滑 ⇒ 置 false（别抢人家的滚动 ✗）
+     * · 用户滑回底部 ⇒ 置 true
+     * · 只有 true 时，图片尺寸变化后才再贴一次底 ✓
+     */
+    private var stickToBottom = true
 
     /** 只读会话（酷安小秘书）：能看登录提醒 / 站内信，但不给输入框 */
     private var readOnly = false
@@ -112,6 +132,23 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
     }
 
     /**
+     * 页面可见 ⇒ 开始轮询收新消息（`/v6/message/receive`）。
+     *
+     * 用 onStart/onStop 而不是 onCreate/onDestroy：
+     * 切到后台就停 ✓ 回来立刻继续 ✓ 不会在后台白耗流量与电量 ✓
+     * （跟 MessageCenterActivity 用 onStop 的思路一致）
+     */
+    override fun onStart() {
+        super.onStart()
+        viewModel.startPolling()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.stopPolling()
+    }
+
+    /**
      * 选图。私信一次只发一张，所以用单选的 [ActivityResultContracts.PickVisualMedia]
      * （系统相册，不用申请读存储权限），跟回复页用同一套。
      */
@@ -126,8 +163,29 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
         binding.toolBar.title = intent.getStringExtra("uname").orEmpty()
         binding.toolBar.setNavigationOnClickListener { finish() }
 
+        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                // 往上滑 ⇒ 别再强行黏底了 ✓
+                if (dy < 0) stickToBottom = false
+                // 已经贴到最底 ⇒ 恢复黏底 ✓
+                if (!rv.canScrollVertically(1)) stickToBottom = true
+                // 滑到**最顶上**且还能往上 ⇒ 翻更早的一页 ✓
+                if (dy < 0 && !rv.canScrollVertically(-1)) {
+                    viewModel.loadMore()
+                }
+            }
+        })
+
         binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@MessageDetailActivity)
+            // ⚠️ 必须 stackFromEnd = true（2026-10-30 用户要求「进页面自动滑到最底下」）
+            // 普通 LinearLayoutManager 是从**顶部**开始布局的 ✗ 聊天记录一多，
+            // 首次进来会停在最早那条 ✗ 而 submitList 之后那句 scrollToPosition 又可能
+            // 赶在布局完成前跑掉（diff 是异步的）⇒ 于是停在顶上 ✗
+            // stackFromEnd 让列表**从底部开始**布局 ✓ 内容不满屏时也贴着输入框 ✓
+            // 新消息进来时自然就在最下面，不用额外滚 ✓
+            layoutManager = LinearLayoutManager(this@MessageDetailActivity).apply {
+                stackFromEnd = true
+            }
             adapter = this@MessageDetailActivity.adapter
         }
 
@@ -253,8 +311,11 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
                         this@MessageDetailActivity, prepared, listOf(uri),
                         listOf(picType), listOf(picMd5),
                         iOnSuccess = {
+                            // 第二个参数是 **OSS 对象名**（接口要的），第三个是**本地 uri**
+                            // （乐观发送要立刻显示缩略图）—— 两者不能混 ✓
                             viewModel.sendImageMessage(
-                                prepared.fileInfo.firstOrNull()?.uploadFileName.orEmpty()
+                                prepared.fileInfo.firstOrNull()?.uploadFileName.orEmpty(),
+                                uri.toString()
                             )
                         },
                         iOnFailure = {
@@ -293,12 +354,41 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
         }
     }
 
+    /** 滚到最底部（最后一条）*/
+    private fun scrollToBottom() {
+        val count = adapter.itemCount
+        if (count > 0) binding.recyclerView.scrollToPosition(count - 1)
+    }
+
     private fun send() {
         if (readOnly) return
         val text = binding.editText.text?.toString().orEmpty()
         if (text.isBlank()) return
+        // 立刻清空输入框：消息已经乐观上屏（转圈），不用等网络回来 ✓
         binding.editText.setText("")
         viewModel.sendMessage(text)
+    }
+
+    /**
+     * 发送失败后点红色感叹号 ⇒ 问是否重发。
+     *
+     * · 重发：走 [MessageDetailViewModel.retrySend]，内容不丢 ✓
+     * · 删除：只从本地列表移掉（服务端本来没收到 ✓），走 [MessageDetailViewModel.discardFailed]
+     */
+    private fun askResend(item: ChatItem) {
+        if (isFinishing || isDestroyed) return
+        val preview = when {
+            item.data.message.isNotBlank() -> "「" + item.data.message.take(24) + "…」"
+            MessageKit.hasPic(item.data) -> "[图片]"
+            else -> "这条消息"
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("发送失败")
+            .setMessage(preview + " 没有发送成功，是否重新发送？")
+            .setPositiveButton("重新发送") { _, _ -> viewModel.retrySend(item) }
+            .setNegativeButton("删除") { _, _ -> viewModel.discardFailed(item) }
+            .setNeutralButton("取消", null)
+            .show()
     }
 
     // ---------------- 表情面板（跟回复页同一套，只是键盘/面板切换是手动接的） ----------------

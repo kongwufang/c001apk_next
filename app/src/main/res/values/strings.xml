@@ -311,4 +311,63 @@
     <string name="settings_save_follow_summary">开启=关注关系同步到云端账号；关闭=只保存在本机</string>
     <string name="settings_save_blacklist">黑名单（用户）</string>
     <string name="settings_save_blacklist_summary">开启=同步到云端账号；关闭=只在本机生效</string>
+    <!-- 单帖「第三方链接分享」（Issue #18） -->
+    <string name="share_link_confirm_title">通过第三方链接分享</string>
+    <string name="share_link_confirm_message">会生成一个网页链接，别人打开就能看到这篇帖子（含图片）。\n即使原帖被删除，链接里的内容也还在。</string>
+    <string name="share_link_confirm_ok">生成链接</string>
+    <string name="share_link_generating">正在生成链接…</string>
+    <string name="share_link_ready">链接已生成</string>
+    <string name="share_link_failed">生成失败：%1$s</string>
+    <string name="share_link_copied">链接已复制</string>
+    <string name="share_link_offline_hint">离线缓存会自动把帖子备份到云端</string>
+    <string name="share_link_menu">分享链接</string>
+    <string name="offline_cache_title">离线缓存</string>
+
+    <!-- ============ 匿名举报联盟（2026-10-31 用户需求）============ -->
+    <string name="report_alliance_join_title">加入匿名举报联盟？</string>
+    <string name="report_alliance_join_message">加入后，你点的举报会走自建匿名通道 —— 不上报给酷安，也不带你的账号。\n\n被多人举报的内容会对更多人显示为「已被多人举报」，仅此而已：不拦截、也不通知被举报人。\n\n随时可以在「设置 - 推荐流相关」里关掉。</string>
+    <string name="report_alliance_join">加入</string>
+    <string name="report_alliance_later">以后再说</string>
+    <string name="report_alliance_off_title">匿名举报已关闭</string>
+    <string name="report_alliance_off_message">你可以在「设置 - 推荐流相关」里随时打开。</string>
+    <string name="report_alliance_enable">打开</string>
+    <string name="report_reason_title">选择举报原因（可多选）</string>
+    <string name="report_submit">提交举报</string>
+    <string name="report_need_reason">请至少选择一个原因</string>
+    <string name="report_submitted">已提交，感谢你</string>
+    <string name="report_submit_failed">提交失败，稍后再试</string>
+    <string name="report_note_hint">补充说明（可选）</string>
+    <!-- 设置项 -->
+    <string name="settings_report_alliance">匿名举报联盟</string>
+    <string name="settings_report_alliance_on">开启：举报按钮走自建匿名通道（不上报给酷安）</string>
+    <string name="settings_report_alliance_off">关闭：举报按钮点击后提示如何重新开启</string>
+    <string name="report_no_id">这条内容缺少 ID，无法举报</string>
+    <!-- 公共黑名单（2026-10-31） -->
+    <string name="blocked_multi_report">该内容已被多人举报</string>
+    <string name="blocked_multi_report_user">该用户已被多人举报</string>
+    <string name="blocked_multi_report_topic">该话题已被多人举报</string>
+    <!-- 优质图文组内被屏蔽小卡的中性占位（2026-10-31）-->
+    <string name="blocked_placeholder">已屏蔽</string>
+
+    <!-- 云控关闭时的提示（2026-11-01）-->
+    <string name="settings_cloud_off">已被云端关闭，当前不生效</string>
+
+    <string name="blocked_reveal">依然查看</string>
+    <!-- 申诉（2026-10-31）：被拉黑的内容点举报 => 申诉 -->
+    <string name="appeal_title">申诉误拉黑</string>
+    <string name="appeal_message">该内容已被多人举报而折叠。如果你认为这是误判，可以提交申诉。</string>
+    <string name="appeal_submit">提交申诉</string>
+    <string name="appeal_submitted">申诉已提交，感谢你</string>
+    <string name="appeal_menu">申诉</string>
+    <!-- 关于页「致谢」栏（2026-11-01）-->
+    <string name="about_thanks">致谢</string>
+    <string name="about_role_thanks">取号算法（libdu.so 逆向研究）</string>
+
+    <!-- 侧栏卡片（2026-11-01）-->
+    <string name="notice_close">关闭公告</string>
+    <string name="update_found_title">发现新版本 %1$s</string>
+    <string name="update_skip_version">跳过此版本</string>
+    <string name="update_no_changelog">无更新日志</string>
+    <string name="update_open_link_failed">打开链接失败</string>
+
 </resources>

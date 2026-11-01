@@ -339,6 +339,32 @@ object PrefManager {
         set(value) = pref.edit().putBoolean("isCheckUpdateStable", value).apply()
 
     /**
+     * 已「跳过此版本」的 versionCode（2026-11-01 用户要求）
+     *
+     * 侧栏升级卡的叉 / 「跳过此版本」按钮都会写这里 ✓
+     * ⇒ 同一个版本不再出现 ✓ 新版本来了还会出现 ✓
+     * ⚠️ 和 `isCheckUpdateStable = false` 不是一回事 ✗
+     *    那是「彻底不检查更新」（设置里才能关 ✓）
+     */
+    var skippedUpdateCode: Long
+        get() = pref.getLong("skippedUpdateCode", -1L)
+        set(value) = pref.edit().putLong("skippedUpdateCode", value).apply()
+
+    /** 这条公告我看过了 ✓（侧栏公告卡的叉 ✓ 已读隐藏） */
+    fun isNoticeDismissed(id: String): Boolean =
+        pref.getStringSet("dismissedNotices", null)?.contains(id) == true
+
+    /** 记下「这条公告已读」✓ 只增不减（服务端换 id 就等于新公告 ✓） */
+    fun dismissNotice(id: String) {
+        val cur = pref.getStringSet("dismissedNotices", null)?.toMutableSet() ?: mutableSetOf()
+        if (cur.add(id)) {
+            // 别无限膨胀 ✗ 超过 200 条就清空重来 ✓（公告本来就少 ✓）
+            if (cur.size > 200) cur.clear().also { cur.add(id) }
+            pref.edit().putStringSet("dismissedNotices", cur).apply()
+        }
+    }
+
+    /**
      * 用户随机 ID（上报头 `X-App-userrandomid`；Prefs 键沿用早期的 `useradomid` 不改，
      * 改了会让已装用户被当成新用户重算）：本应用自己造的匿名标识，首次启动随机生成一份
      * 32 位 hex 落盘（[com.example.c001apk.MyApplication] 启动时初始化），
@@ -420,9 +446,22 @@ object PrefManager {
      * 与 [isVerifySsl] 互斥：`校验 SSL 证书` 开着时本项被强制关闭；
      * 且开关修改后需**重启应用**才生效（客户端实例在启动时构建）。
      */
+    /**
+     * 网络传输调试模式（**派生属性**，2026-10-31 用户要求合并开关）。
+     *
+     * >「把 ssl 校验和调试开关改成一个开关，开启之后需要同时通过系统和 APP 内置证书校验，
+     * >  关闭之后就自动开启调试模式」
+     *
+     * ⇒ 只有「校验 SSL 证书」一个开关 ✓
+     *    开 => 系统 PKIX + 内置 CA 库 双重校验
+     *    关 => **自动**进入调试模式（彻底跳过校验，方便抓包）
+     * ⇒ 本属性恒等于 `!isVerifySsl` ✓ 不再单独存 key（旧的 `sslDebug` 键作废 ✗）
+     */
     var isSslDebug: Boolean
-        get() = pref.getBoolean("sslDebug", false)
-        set(value) = pref.edit().putBoolean("sslDebug", value).apply()
+        get() = !isVerifySsl
+        set(value) {
+            isVerifySsl = !value
+        }
 
     /** 其他屏蔽项（关键字/用户/节点）的服务端配置缓存，离线也能先过滤 */
     var spamConfig: String
@@ -453,4 +492,118 @@ object PrefManager {
     fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         pref.unregisterOnSharedPreferenceChangeListener(listener)
     }
+    /**
+     * 服务器通过 `Set-Cookie` 下发的 cookie（`name=value; name2=value2`）。
+     *
+     * 用户 2026-10-31 要求：
+     * 「这里面所有请求我服务器的接口，我服务器都可以返回 setcookies 指令，
+     *   收到后下一次上报的时候在所有地方带上这个」
+     *
+     * ⇒ 由 [ServerCookieStore] 读写 ✓ 只发给 `*.houlangs.cn` ✓（绝不发给酷安 ✗）
+     */
+    var serverCookies: String
+        get() = pref.getString("server_cookies", "").orEmpty()
+        set(value) {
+            pref.edit().putString("server_cookies", value).apply()
+        }
+
+    /**
+     * 「匿名举报联盟」：用户是否已在首次弹窗里点过「加入」。
+     *
+     * 用户 2026-10-31 需求：「首次点击会跳出弹窗 ... 用户同意后先保存他的偏好」
+     */
+    var reportAllianceJoined: Boolean
+        get() = pref.getBoolean("report_alliance_joined", false)
+        set(value) {
+            pref.edit().putBoolean("report_alliance_joined", value).apply()
+        }
+
+    /**
+     * 「匿名举报联盟」开关（设置 → 推荐流相关 ✓）。
+     *
+     * 用户需求：「在设置里增加一个开关，放推荐流设置那里，可以随时控制」
+     */
+    /**
+     * 「匿名举报联盟」是否已经在**首次启动时主动问过**（2026-11-01 用户要求）
+     *
+     * 原来只在用户点举报时才问 ✗ ⇒ 改成 App 第一次进入就主动问 ✓
+     * ⚠️ 只影响「主动问」这一次 ✗
+     *    点举报时如果还没加入，仍然会再问（那是同意门槛 ✓ 不能省 ✗）
+     */
+    var reportAllianceAsked: Boolean
+        get() = pref.getBoolean("reportAllianceAsked", false)
+        set(value) = pref.edit().putBoolean("reportAllianceAsked", value).apply()
+
+    var reportAllianceEnabled: Boolean
+        get() = pref.getBoolean("report_alliance_enabled", false)
+        set(value) {
+            pref.edit().putBoolean("report_alliance_enabled", value).apply()
+        }
+
+    // ---------------------------------------------------------------- 云控开关
+    // ★ 2026-11-01 三级门闸（见 CloudGates.kt）
+    //   ⚠️ 全部默认 **true** ✓ 从没拉到过云控时功能照常 ✓
+    //      拉到了才按云控的值走 ✓ 拉不到就沿用上次 ✓
+
+    /** 云控：联盟总开关（只能关不能开 ✗ 用户开关仍然是前提 ✓）*/
+    var cloudAlliance: Boolean
+        get() = pref.getBoolean("cloud_alliance", true)
+        set(value) {
+            pref.edit().putBoolean("cloud_alliance", value).apply()
+        }
+
+    /** 云控：其他卡片（话题/用户/优质图文…）上报总开关 */
+    var cloudReportOther: Boolean
+        get() = pref.getBoolean("cloud_report_other", true)
+        set(value) {
+            pref.edit().putBoolean("cloud_report_other", value).apply()
+        }
+
+    /** 云控：卡片关联（帖子↔话题）上报开关 */
+    var cloudCardAssoc: Boolean
+        get() = pref.getBoolean("cloud_card_assoc", true)
+        set(value) {
+            pref.edit().putBoolean("cloud_card_assoc", value).apply()
+        }
+
+    // ---------------------------------------------------------------- 自动上报预算
+    // ★ 2026-11-01 修「不停地上报话题」：
+    //   原来只按「每次调用最多 3 条」限流 ✗ 但调用方每次只传 1 条 ⇒ 等于没限 ✗
+    //   ⇒ 改成**全局预算**：每小时最多 3 条、每天最多 10 条 ✓
+
+    /** 本窗口内已自动上报条数 */
+    var autoReportCount: Int
+        get() = pref.getInt("auto_report_count", 0)
+        set(value) {
+            pref.edit().putInt("auto_report_count", value).apply()
+        }
+
+    /** 当前窗口起点（毫秒）*/
+    var autoReportWindowStart: Long
+        get() = pref.getLong("auto_report_window_start", 0L)
+        set(value) {
+            pref.edit().putLong("auto_report_window_start", value).apply()
+        }
+
+    /** 当天已自动上报条数（跨天清零 ✓）*/
+    var autoReportDayCount: Int
+        get() = pref.getInt("auto_report_day_count", 0)
+        set(value) {
+            pref.edit().putInt("auto_report_day_count", value).apply()
+        }
+
+    /** 当天日期（yyyyMMdd，用于跨天清零 ✓）*/
+    var autoReportDay: Int
+        get() = pref.getInt("auto_report_day", 0)
+        set(value) {
+            pref.edit().putInt("auto_report_day", value).apply()
+        }
+
+    /** 云控配置上次拉取时间（0 = 从没拉过 ✓）*/
+    var cloudGatesTs: Long
+        get() = pref.getLong("cloud_gates_ts", 0L)
+        set(value) {
+            pref.edit().putLong("cloud_gates_ts", value).apply()
+        }
+
 }

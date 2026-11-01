@@ -12,6 +12,12 @@
         android:showAsAction="never"
         android:title="@string/subscribe" />
 
+    <!-- 匿名举报话题（2026-10-31 用户需求：放在右上角的更多菜单里 ✓） -->
+    <item
+        android:id="@+id/reportTopic"
+        android:showAsAction="never"
+        android:title="@string/report" />
+
     <item
         android:id="@+id/block"
         android:showAsAction="never"

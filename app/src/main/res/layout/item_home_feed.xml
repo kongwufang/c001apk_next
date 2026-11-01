@@ -22,7 +22,15 @@
 
     </data>
 
-    <com.google.android.material.card.MaterialCardView
+    <!-- 2026-10-31 公共黑名单：外面包一层，横幅才能不被模糊 ✓ -->
+    <!-- 2026-10-31：竖向 LinearLayout => 横幅在上、卡片在下，**不重叠** ✓
+         （原来用 FrameLayout 是覆盖式，会把作者行压住 ✗）-->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+    
+    <com.google.android.material.card.MaterialCardView android:id="@+id/blurContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clickable="true"
@@ -36,7 +44,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="10dp">
-
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/avatar"
                 android:layout_width="0dp"
@@ -160,6 +167,7 @@
 
             <TextView
                 android:id="@+id/messageTitle"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -173,6 +181,7 @@
 
             <com.example.c001apk.view.LinkTextView
                 android:id="@+id/message"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -194,6 +203,7 @@
             -->
             <TextView
                 android:id="@+id/messageMore"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
@@ -208,6 +218,7 @@
 
             <TextView
                 android:id="@+id/pubDate"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -218,6 +229,7 @@
 
             <TextView
                 android:id="@+id/like"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="?attr/actionBarItemBackground"
@@ -230,6 +242,7 @@
 
             <TextView
                 android:id="@+id/reply"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="10dp"
@@ -245,6 +258,7 @@
                  与九图槽在数据上互斥，两个槽位落同一位置，谁显示由可见性决定。 -->
             <com.example.c001apk.view.FeedVideoView
                 android:id="@+id/videoPart"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -254,6 +268,7 @@
 
             <com.example.c001apk.view.ninegridimageview.NineGridImageView
                 android:id="@+id/multiImage"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="10dp"
                 android:layout_marginTop="10dp"
@@ -267,6 +282,7 @@
                  用 Barrier 而不是直接把热评挂到九图槽上，是为了不依赖「GONE 视图的边距算不算」这种细则。 -->
             <androidx.constraintlayout.widget.Barrier
                 android:id="@+id/mediaBarrier"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:barrierDirection="bottom"
@@ -276,6 +292,7 @@
                  跳转由 ViewHolder 通过 onOpen 交给 ItemListener.onOpenLink。 -->
             <com.example.c001apk.view.FeedExtraView
                 android:id="@+id/extraPart"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
@@ -284,6 +301,7 @@
 
             <TextView
                 android:id="@+id/hotReply"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -300,6 +318,7 @@
 
             <LinearLayout
                 android:id="@+id/forwarded"
+            android:tag="bl_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -314,6 +333,7 @@
 
                 <com.example.c001apk.view.LinkTextView
                     android:id="@+id/forwardedMess"
+            android:tag="bl_body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:clickable="true"
@@ -325,6 +345,7 @@
 
                 <com.example.c001apk.view.ninegridimageview.NineGridImageView
                     android:id="@+id/forwardedPic"
+            android:tag="bl_body"
                     android:layout_width="match_parent"
                     android:layout_height="10dp"
                     android:layout_marginTop="10dp"
@@ -336,6 +357,7 @@
 
             <com.example.c001apk.view.CustomHorizontalScrollView
                 android:id="@+id/dyhLayout"
+            android:tag="bl_body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -346,6 +368,7 @@
 
                 <LinearLayout
                     android:id="@+id/linearLayout"
+            android:tag="bl_body"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -358,5 +381,54 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
+    
+
+    
+
+    
+
+<!-- 公共黑名单横幅条（2026-10-31）：文本 + 「依然查看」按钮 ✓
+         ⚠️ 必须是 blurContainer 的**兄弟**节点 ✓ 否则会被一起模糊掉 ✗ -->
+    <LinearLayout
+        android:id="@+id/blockedBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#F2FFEBEE"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/blockedBanner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/blocked_multi_report"
+            android:textColor="#D32F2F"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/blockedReveal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="4dp"
+            android:text="@string/blocked_reveal"
+            android:textColor="#1976D2"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>
+
+
 
 </layout>

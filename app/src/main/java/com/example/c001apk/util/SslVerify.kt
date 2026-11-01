@@ -28,8 +28,20 @@ import javax.net.ssl.X509TrustManager
  *    所以这一步不能省，否则服务器塞的老根会让整条链被拒）。
  *
  * 2. **锚点白名单**：证书链的信任锚必须落在应用内置的 CA 库里
- *    （res/raw/cacert_000.pem ~ cacert_121.pem，122 张 = Mozilla CA 全集
+ *    （res/raw/cacert_000.pem ~ cacert_117.pem，118 张 = Mozilla CA 全集
  *    https://curl.se/ca/cacert.pem + 追加的 DigiCert Global Root CA 历史根。
+ *
+ *    ★ 2026-10-30：删掉 3 张 **eMudhra / emSign** 根
+ *      （emSign ECC Root CA - G3 / emSign Root CA - C1 / emSign ECC Root CA - C3 / emSign Root CA - G1）
+ *      —— 2026-10 该 CA 的 8 张中间证书私钥弱到可暴破（私钥标量只有 0x04），
+ *      Chrome/Firefox 10-17、Apple 10-19、Microsoft 10-20 紧急吊销，
+ *      10-23 eMudhra 宣布退出全球 SSL/TLS 业务。
+ *      ⇒ 浏览器/系统的吊销**不会传导到 app 内置的锚点库** ✗
+ *        必须在这里手工删掉，否则白名单形同虚设 ✗
+ *      注：G3/C1/C3 已被 Mozilla 移出；G1 仍在 Mozilla 里，但我们主动也删 ✓（该 CA 已退出 TLS 业务）
+ *      删完重新编号（062~121 → 059~118 → 058~117），共 118 张 ✓
+ *      ⚠️ 最后一张 cacert_117 仍是 DigiCert Global Root CA（2006 SHA-1 老根）
+ *         —— 酷安各站的证书链就锚在它上面，**绝对不能删** ✗✗
  *    酷安全站（api/www/m/account.coolapk.com）的证书链都锚在这张 SHA-1 老根上，
  *    Mozilla 政策已把它除名，但系统/Chrome 仍信任，必须显式补上才能过白名单）。
  *    用户自己装的抓包证书（Charles/Fiddler/mitmproxy）、厂商预置的私有根、
@@ -54,6 +66,12 @@ object SslVerify {
 
     private const val TAG = "SslVerify"
 
+    /** 内置 CA 的最大编号上限（防死循环 ✓ 当前实际到 117） */
+    private const val MAX_CA_INDEX = 256
+
+    /** 允许连续多少个编号空缺（平时是 0 ✓ 留点余量给"删中间某张"的情况） */
+    private const val MAX_CONSECUTIVE_MISS = 3
+
     /** 内置 Mozilla CA 根证书列表（懒加载，首次网络请求时构建一次） */
     private val bundledAnchors: List<X509Certificate> by lazy {
         val certFactory = CertificateFactory.getInstance("X.509")
@@ -61,12 +79,22 @@ object SslVerify {
         val resources = context.resources
         val anchors = mutableListOf<X509Certificate>()
         var index = 0
-        while (true) {
-            // 资源名固定三位数：cacert_000 ~ cacert_121
+        // ⚠️ 2026-10-30：原来是 `while (true) { if (resId == 0) break }` ✗
+        //   遇到**第一个缺号**就停 ⇒ 将来谁删了中间某张证书，后面的锚点（尤其是
+        //   末尾的 DigiCert Global Root CA）就全部加载不到 ⇒ 全站请求直接挂 ✗✗
+        //   改成：允许连续跳过少量空号，并加上限防止死循环 ✓
+        var consecutiveMiss = 0
+        while (index < MAX_CA_INDEX && consecutiveMiss < MAX_CONSECUTIVE_MISS) {
+            // 资源名固定三位数：cacert_000 ~ cacert_117（当前 118 张）
             val resId = resources.getIdentifier(
                 "cacert_%03d".format(index), "raw", context.packageName
             )
-            if (resId == 0) break
+            if (resId == 0) {
+                consecutiveMiss++
+                index++
+                continue
+            }
+            consecutiveMiss = 0
             resources.openRawResource(resId).use { input ->
                 certFactory.generateCertificates(input).forEach { cert ->
                     (cert as? X509Certificate)?.let { anchors.add(it) }

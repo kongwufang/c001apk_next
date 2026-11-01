@@ -16,6 +16,8 @@ import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BR
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ItemAppVersionBinding
+import com.example.c001apk.databinding.ItemBlockedFeedBinding
+import com.example.c001apk.databinding.ItemBlockedTopicBinding
 import com.example.c001apk.databinding.ItemCollectionListItemBinding
 import com.example.c001apk.databinding.ItemFeedReplyBinding
 import com.example.c001apk.databinding.ItemHomeFeedBinding
@@ -51,6 +53,20 @@ import com.example.c001apk.util.dp
 import com.example.c001apk.view.LinearItemDecoration1
 import com.google.android.material.color.MaterialColors
 
+/**
+ * 专用「被屏蔽卡片」的 viewType（2026-10-31 用户方案）
+ *
+ * ⚠️ 必须是**顶层** `const` ✗ 不能放类体里（Kotlin 限制：类体里只允许 companion 内有 const）
+ * 负数 ✓ 不会和 `when` 里其它 case 撞车 ✓
+ */
+private const val TYPE_BLOCKED = -1001
+
+/**
+ * 专用「被屏蔽话题卡片」的 viewType（2026-10-31 用户选方案 A）
+ * 话题卡片上直接加红条会让 logo/名称消失 ✗ ⇒ 单独做一张卡 ✓
+ */
+private const val TYPE_BLOCKED_TOPIC = -1002
+
 class AppAdapter(
     private val listener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
@@ -81,6 +97,72 @@ class AppAdapter(
             // 封面图：pic 优先，没有就用九图第一张（官方那个槽位也是这么落图的）
             val cover = data.pic?.takeIf { it.isNotEmpty() } ?: data.picArr?.firstOrNull()
             ImageUtil.showIMG(binding.coverImage, cover)
+        }
+    }
+
+    /**
+     * 被屏蔽动态的 ViewHolder（用户提的终极方案）。
+     *
+     * ⚠️ 布局 `item_blocked_feed.xml` 里**故意没有任何正文 View** ✓
+     *   正文 / 图片 / 转发 / 热评 / 点赞评论栏 —— 一个都没有 ✓
+     *   ⇒ databinding 的 BindingAdapter 无从把它"放回来" ✓
+     *   ⇒ 从结构上根治「红条在、正文也回来了」✗（之前折腾很久的那个 bug）
+     *
+     * 「依然查看」⇒ 记 revealed + `notifyItemChanged` ⇒ 立刻换成正常卡片 ✓
+     */
+    class BlockedFeedViewHolder(
+        val binding: ItemBlockedFeedBinding,
+        val listener: ItemListener,
+        /** 「依然查看」回调（由 Adapter 提供 ✓ `notifyItemChanged` 是 Adapter 的方法 ✗ 不是 ViewHolder 的）*/
+        val onReveal: (Int) -> Unit,
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+
+        override fun bind(data: HomeFeedResponse.Data) {
+            binding.data = data
+            binding.listener = listener
+            // ★ 红条文案由**服务器**决定 ✓（2026-10-31 用户要求）
+            //   ⚠️ 布局里不能写 `@{msg ?? @string/...}` ✗
+            //      databinding 处理失败 ⇒ 类不生成 ✗（踩过）
+            //   ⇒ 在代码里设 ✓
+            binding.blockedBanner.text = com.example.c001apk.util.Blocklist.cachedMsg(
+                com.example.c001apk.util.Blocklist.Kind.FEED, data.id
+            ) ?: binding.root.context.getString(
+                com.example.c001apk.R.string.blocked_multi_report
+            )
+            // 头像 + 昵称
+            // ★ 2026-10-31 修「被屏蔽的用户不显示头像」：
+            //   ① 昵称：`userInfo.username` 可能为空 ✗（卡片是「XXX的动态」时作者在别处 ✓）
+            //      ⇒ 依次兜底 `username` / `displayUsername` ✓
+            //   ② 头像：不能用**裸 Glide** ✗
+            //      头像 URL 常是 `http://` ✗ 裸 Glide 会因为明文传输策略加载失败 ✗
+            //      项目标准是 `ImageUtil.showIMG` ✓ 它内部会 `http2https` + 带 UA ✓
+            //   ③ 头像字段：`userInfo.userAvatar` 可能为空 ✗
+            //      ⇒ 兜底 `data.userAvatar` / `fUserInfo.userAvatar` ✓
+            binding.uname.text = data.userInfo?.username
+                ?: data.username
+                ?: data.displayUsername
+            val avatar = data.userInfo?.userAvatar?.takeIf { it.isNotBlank() }
+                ?: data.userAvatar?.takeIf { it.isNotBlank() }
+                ?: data.fUserInfo?.userAvatar?.takeIf { it.isNotBlank() }
+            com.example.c001apk.util.ImageUtil.showIMG(binding.avatar, avatar)
+            // 头部信息（让用户知道这是谁发的 / 什么机器 / 在哪 ✓）
+            //   字段名核对过：`deviceTitle` / `deviceName` / `ipLocation` ✓
+            //   （没有 `recommend` / `lastupdateText` ✗ 别用）
+            val device = data.deviceTitle?.takeIf { it.isNotBlank() }
+                ?: data.deviceName?.takeIf { it.isNotBlank() }
+            val ip = data.ipLocation?.takeIf { it.isNotBlank() }
+            binding.subLine.text = listOfNotNull(device, ip).joinToString("  ")
+
+            binding.blockedReveal.setOnClickListener {
+                val id = data.id ?: return@setOnClickListener
+                com.example.c001apk.util.BlocklistUi.markRevealed(
+                    com.example.c001apk.util.Blocklist.Kind.FEED, id
+                )
+                val pos = bindingAdapterPosition
+                if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                    onReveal(pos)
+                }
+            }
         }
     }
 
@@ -135,6 +217,14 @@ class AppAdapter(
             id = data.id ?: ""
             uid = data.uid ?: ""
             isStickTop = data.isStickTop == 1
+
+            // 公共黑名单（2026-10-31）：首页卡片也要模糊 ✓
+            //   模糊作用于 blurContainer ✓ 横幅是它的兄弟 => 保持清晰 ✓
+            // ★ 2026-10-31 动态卡片**不再**做折叠 ✗
+            //   被屏蔽的动态由 `BlockedFeedViewHolder`（专用卡片 ✓）接管 ✓
+            //   那个布局里没有正文 View ⇒ 物理上不可能展开 ✓
+            //   （保留这段注释是为了说明：FOLD 模式在首页动态卡片上已经不用了 ✓
+            //     折叠/红条/还原那一整套只留给详情页 和 话题/用户卡片 ✓）
 
             binding.setVariable(BR.data, data)
             binding.setVariable(BR.listener, listener)
@@ -280,6 +370,11 @@ class AppAdapter(
                     if (itemDecorationCount == 0)
                         addItemDecoration(LinearItemDecoration1(10.dp))
                 }
+
+                // ★ 2026-10-31 优质图文：**每张小卡各一条**红带（用户最终要求）
+                //   实现位置在 `ImageTextScrollCardAdapter.bind()` ✓
+                //   宽度 0dp + start/end 约束 ⇒ 正好等于**那张卡**的宽 ✓
+                //   ⚠️ 不要做成「整组通栏」✗ 那会比小卡宽 ⇒ 越界 ✗（踩过）
             }
         }
 
@@ -422,6 +517,14 @@ class AppAdapter(
             // 角标走布局里的 app:verifyUserData="@{data}"，不把 data 塞进 binding 就不会触发
             binding.setVariable(BR.data, data)
 
+            // 公共黑名单（2026-10-31）：搜索页用户卡片 ✓
+            // ★ 用户卡片同样只出红条 ✓（不碰卡片内容 ✓）
+            com.example.c001apk.util.BlocklistUi.bindBannerOnly(
+                binding.blockedBar, binding.blockedBanner, binding.blockedReveal,
+                com.example.c001apk.util.Blocklist.Kind.USER, data.uid,
+                com.example.c001apk.R.string.blocked_multi_report_user
+            )
+
             if (data.userInfo != null && data.fUserInfo != null) {
                 binding.uid = data.userInfo.uid
                 binding.uname.text = data.userInfo.username
@@ -463,6 +566,50 @@ class AppAdapter(
         }
     }
 
+    /**
+     * 被屏蔽话题的 ViewHolder（方案 A）
+     *
+     * 保留话题 logo / 名称 / 热度 / 讨论数 ✓ 只多一条红带 ✓
+     * 「依然查看」⇒ 记 revealed + notifyItemChanged ⇒ 换成正常话题卡片 ✓
+     */
+    class BlockedTopicViewHolder(
+        val binding: ItemBlockedTopicBinding,
+        val listener: ItemListener,
+        val onReveal: (Int) -> Unit,
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+
+        override fun bind(data: HomeFeedResponse.Data) {
+            binding.data = data
+            binding.listener = listener
+            binding.title.text = data.title
+            binding.hotNum.text = data.hotNumTxt?.let { "${it}热度" }
+            // ⚠️ `commentnumTxt` 可能是 null ✗ 直接拼会显示 "null讨论" ✗
+            binding.commentNum.text =
+                "${data.commentnumTxt?.takeIf { it.isNotBlank() } ?: "0"}讨论"
+            binding.blockedBanner.text = com.example.c001apk.util.Blocklist.cachedMsg(
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, data.id
+            ) ?: itemView.context.getString(
+                com.example.c001apk.R.string.blocked_multi_report_topic
+            )
+            val logo = data.logo
+            if (!logo.isNullOrBlank()) {
+                com.bumptech.glide.Glide.with(binding.logo)
+                    .load(logo)
+                    .into(binding.logo)
+            }
+            binding.blockedReveal.setOnClickListener {
+                val id = data.id ?: return@setOnClickListener
+                com.example.c001apk.util.BlocklistUi.markRevealed(
+                    com.example.c001apk.util.Blocklist.Kind.TOPIC, id
+                )
+                val pos = bindingAdapterPosition
+                if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                    onReveal(pos)
+                }
+            }
+        }
+    }
+
     class TopicProductViewHolder(val binding: ItemSearchTopicBinding, val listener: ItemListener) :
         BaseViewHolder<ViewDataBinding>(binding) {
         override fun bind(data: HomeFeedResponse.Data) {
@@ -486,6 +633,16 @@ class AppAdapter(
                     "${data.feedCommentNumTxt}讨论"
 
             binding.setVariable(BR.data, data)
+
+            // 公共黑名单（2026-10-31）：话题卡片 ✓
+            //   话题布局的根自带 android:id="@+id/parent" ✓ 直接用它当模糊目标
+            // ★ 话题卡片只出红条 ✓ 用极简入口（绝不碰卡片内容 ✓）
+            //   之前用 `bind()` ✗ 它会 restore/hideBody/锁高度 ⇒
+            //   真机上话题卡片的「头像 + 名称」被弄没了 ✗（用户反馈）
+            // ★ 2026-10-31 最终方案：这个话题卡片**不再显示红条** ✗
+            //   被屏蔽的话题走 `BlockedTopicViewHolder`（专用卡片 ✓）
+            //   曾经在这里内联加红条 ⇒ 话题的 logo + 名称会消失 ✗（A/B 证实）
+            //   `item_search_topic.xml` 里的 blockedBar 保留但永不显示 ✓
             binding.setVariable(BR.listener, listener)
         }
     }
@@ -853,6 +1010,13 @@ class AppAdapter(
     ): BaseViewHolder<ViewDataBinding> {
         return when (viewType) {
 
+            // ★ 被屏蔽专用卡片（2026-10-31）
+            TYPE_BLOCKED -> BlockedFeedViewHolder(
+                ItemBlockedFeedBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                ), listener
+            ) { pos -> notifyItemChanged(pos) }
+
             0 -> {
                 ImageCarouselCardViewHolder(
                     ItemHomeImageCarouselCardBinding.inflate(
@@ -915,6 +1079,12 @@ class AppAdapter(
                     listener
                 )
             }
+
+            TYPE_BLOCKED_TOPIC -> BlockedTopicViewHolder(
+                ItemBlockedTopicBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                ), listener
+            ) { pos -> notifyItemChanged(pos) }
 
             7 -> {
                 TopicProductViewHolder(
@@ -1174,6 +1344,39 @@ class AppAdapter(
 
     override fun getItemViewType(position: Int): Int {
         val item = currentList[position]
+
+        // ★★ 2026-10-31 专用「被屏蔽卡片」（用户提的终极方案）★★
+        //   命中公共黑名单 ⇒ 直接返回 TYPE_BLOCKED
+        //   ⇒ 用 item_blocked_feed.xml（**里面没有正文 View** ✓）
+        //   ⇒ databinding 无从"放回来" ✓ 物理上不可能再展开 ✓
+        //   ⚠️ 必须在所有模板判断**之前** ✓
+        // ★ 话题：被屏蔽 ⇒ 专用话题卡片 ✓（保留 logo/名称/热度 ✓ 只多一条红带 ✓）
+        //   ⚠️ **必须**判 `entityType == "topic"` ✗
+        //      之前只判了 `isBlocked(TOPIC, id)` ✗
+        //      测试模式下所有 id 都算屏蔽 ⇒ **动态卡片被误判成话题** ✗
+        //      ⇒ 用话题布局渲染动态 ⇒ logo 为空显示灰块 ✗ + "null讨论" ✗
+        //      ⇒ 用户看到的就是「被屏蔽的用户不显示头像」✓（真正原因）
+        val tid = item.id
+        if (item.entityType == "topic" && tid != null
+            && com.example.c001apk.util.Blocklist.isBlocked(
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, tid)
+            && !com.example.c001apk.util.BlocklistUi.isRevealed(
+                com.example.c001apk.util.Blocklist.Kind.TOPIC, tid)
+        ) {
+            return TYPE_BLOCKED_TOPIC
+        }
+
+        val fid = item.id
+        if ((item.entityType == "feed" || item.entityType.isNullOrEmpty()) && fid != null
+            // ⚠️ 连坐由**云端**判断 ✓ 客户端只看 feeds 结果 ✓
+            //   （客户端把「帖子id + 话题id」报上去 ✓ 云端决定谁跟着屏蔽 ✓）
+            && com.example.c001apk.util.Blocklist.isBlocked(
+                com.example.c001apk.util.Blocklist.Kind.FEED, fid)
+            && !com.example.c001apk.util.BlocklistUi.isRevealed(
+                com.example.c001apk.util.Blocklist.Kind.FEED, fid)
+        ) {
+            return TYPE_BLOCKED
+        }
         // 版本历史（/v6/apk/downloadVersionList）的条目没有 entityType / entityId，只有 version* 字段。
         // entityType 虽然声明为非空 String，但 Gson 遇到缺失字段会塞 null，
         // 直接交给下面的 when 取 hashCode 会 NPE，所以先单独认出来（顺便兜住其它 null 情况）

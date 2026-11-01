@@ -46,6 +46,9 @@ class MyApplication : Application() {
         // 风控命中（-415 账号过多 / err_request_captcha_v2）→ 「设备标识未配置」引导弹窗
         RiskControlPrompter.install(this)
 
+        // ★ 2026-11-01 启动时拉一次云控开关（6 小时 TTL ✓ 失败沿用上次 ✓）
+        com.example.c001apk.util.CloudGates.refresh()
+
         // 每次进入应用读一次剪贴板：是酷安分享链接就弹「是否打开」
         ShareLinkPrompter.install(this)
 

@@ -70,8 +70,35 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
         // 首次启动：告诉用户侧边栏在哪（否则☰太隐蔽，用户找不到 ✗）
         if (!PrefManager.sidebarHintShown) {
             PrefManager.sidebarHintShown = true
+            // ★ 2026-11-01：「匿名举报联盟」改成首次进入主动问 ✓
+            //   ⚠️ 必须等新手提示**关掉之后**再问 ✗
+            //      两个 Dialog 同时弹会叠在一起 ✗ 用户一脸问号 ✗
+            //   ⇒ 在 showSidebarHint() 的 dismiss 回调里接着问 ✓
             binding.root.post { showSidebarHint() }
+        } else {
+            // 已经看过新手提示 ⇒ 直接问（同样是首次进入才问 ✓ 问过就置位 ✓）
+            binding.root.post { maybeAskReportAlliance() }
         }
+    }
+
+    /**
+     * 首次启动主动问「要不要加入匿名举报联盟」✓
+     *
+     * 条件：没问过 ✓ 且 还没加入 ✓ 且 界面还在 ✓
+     * 触发时机：新手提示 dismiss 之后 ✓（或本来就没有新手提示 ⇒ 启动即问 ✓）
+     * 再等 400ms 让首页先画出来 ✓ 不然像连弹两个框 ✗
+     */
+    private fun maybeAskReportAlliance() {
+        if (PrefManager.reportAllianceAsked || com.example.c001apk.util.ReportAlliance.joined) {
+            return
+        }
+        PrefManager.reportAllianceAsked = true       // ★ 弹出前就置位 ✓ 中途被杀也不重复弹 ✓
+        binding.root.postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            runCatching {
+                com.example.c001apk.util.ReportAllianceDialog.askJoin(this)
+            }
+        }, 400L)
     }
 
     /**
@@ -101,6 +128,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
             view.setOnClickListener { dialog.dismiss() }
             view.findViewById<android.view.View>(R.id.hintConfirm)
                 .setOnClickListener { dialog.dismiss() }
+            // 关掉之后再问联盟 ⇒ 两个弹窗不会叠 ✓（见 maybeAskReportAlliance 注释）
+            dialog.setOnDismissListener { maybeAskReportAlliance() }
             dialog.show()
         }
     }
@@ -171,15 +200,15 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
     /**
      * 启动时的自更新检查（只看正式版，Beta 通道已去掉）。
      *
-     * 自建接口一次响应里还有关于页按钮那段，跟这里共用 60 秒缓存，不会重复请求。
+     * ★★ 2026-11-01 用户要求：「APP 进入之后自动检查更新就不跳窗口了，
+     *    只显示在侧栏，减少打扰」★★
+     *   ⇒ 这里**只把接口响应预热进缓存** ✓ 不弹任何窗 ✗
+     *   ⇒ 用户打开侧栏（「我的」）时，升级卡直接读缓存 ⇒ 秒出 ✓
+     *   ⇒ 想看弹窗请去「关于」页点「立即检查更新」✓
      */
     private fun checkSelfUpdate() {
         if (!PrefManager.isCheckUpdateStable) return
-        lifecycleScope.launch {
-            val info = UpdateChecker.fetchUpdate() ?: return@launch
-            if (info.isNewer && !isFinishing && !isDestroyed)
-                UpdateChecker.showUpdateDialog(this@MainActivity, info)
-        }
+        lifecycleScope.launch { UpdateChecker.prefetch() }
     }
 
     private fun genData() {

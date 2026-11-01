@@ -58,6 +58,7 @@ abstract class BaseAppViewModel(
     open fun showCollection(id: String, title: String) {}
 
     inner class ItemClickListener : ItemListener {
+
         override fun onShowCollection(id: String, title: String) {
             showCollection(id, title)
         }
