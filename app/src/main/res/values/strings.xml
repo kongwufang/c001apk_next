@@ -358,6 +358,10 @@
     <string name="appeal_submit">提交申诉</string>
     <string name="appeal_submitted">申诉已提交，感谢你</string>
     <string name="appeal_menu">申诉</string>
+    <!-- 关于页「致谢」栏（2026-11-01）-->
+    <string name="about_thanks">致谢</string>
+    <string name="about_role_thanks">取号算法（libdu.so 逆向研究）</string>
+
     <!-- 侧栏卡片（2026-11-01）-->
     <string name="notice_close">关闭公告</string>
     <string name="update_found_title">发现新版本 %1$s</string>

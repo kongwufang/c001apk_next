@@ -105,6 +105,14 @@ class AboutActivity : BaseActivity<ActivityAboutBinding>() {
             getString(R.string.about_role_developer_collaborator), "https://github.com/klxiaoniu"
         )
 
+        // ★ 致谢（2026-11-01 用户要求）：取号算法参考了这位作者的逆向研究 ✓
+        //   头像已内置（res/drawable-nodpi/cont_people11.jpg ✓ 不联网 ✓）
+        //   只署作者、不表明仓库 ✓（作者本人要求）
+        addEntry(
+            binding.groupThanks, R.drawable.cont_people11, "People-11",
+            getString(R.string.about_role_thanks), "https://github.com/People-11"
+        )
+
         // 维护者就我一个人；GitHub 资料里写的 bio 拉到之后，补在这条下面当一行小字
         val me = addEntry(
             binding.groupMaintainer, R.drawable.cont_kongwufang, maintainerUser,

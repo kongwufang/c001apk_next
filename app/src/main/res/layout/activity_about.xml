@@ -252,6 +252,47 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!--
+                致谢：取号算法（foO/sfOo/2cO 的编码方式）参考了 People-11
+                对 libdu.so 的逆向研究 ✓ 2026-11-01 用户要求
+
+                ⚠️ 按作者要求：**只署作者，不表明仓库** ✗
+                   所以这里只有名字 + 他的 GitHub 主页链接 ✓
+                ⚠️ 头像不联网加载 ✗ 已随包内置：
+                   res/drawable-nodpi/cont_people11.jpg（从 GitHub 拉下来的 200x200 ✓）
+            -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="6dp"
+                android:text="@string/about_thanks"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginBottom="5dp"
+                app:cardBackgroundColor="@color/home_card_background_color"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:id="@+id/groupThanks"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp" />
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- 维护者：现在是「我」 -->
             <TextView
                 android:layout_width="wrap_content"
