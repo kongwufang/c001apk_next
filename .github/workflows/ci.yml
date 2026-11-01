@@ -352,6 +352,11 @@ jobs:
           #   3. 按 feat / fix / perf 分组 ✓ 只列本次 ✓
           #   4. `.github/release-notes.md` 变成**可选补充**（当版重点），
           #      不写就不显示 ✓ 写了也只在最后 ✓ 不再是主体 ✗
+          # ★ 2026-11-01 修 bug：这一段原来只 echo 到 **CI 日志** ✗ 没写进 $NOTES ✗
+          #   （上面的 `{ ... } > "$NOTES"` 在表头那里就闭合了 ✗）
+          #   ⇒ V1.0.9 的 release 说明里只剩表头 + 可选重点，没有「本版更新」✗
+          #   ⇒ 那次是手工用 API 补的 ✓ 现在把整段包进 >> "$NOTES" ✓
+          {
           PREV_TAG=$(git tag -l 'V[0-9]*' --sort=-v:refname | head -1 || true)
           echo
           echo "---"
@@ -395,6 +400,7 @@ jobs:
             echo
             git log -30 --no-merges --pretty='- %s（%h）'
           fi
+          } >> "$NOTES"
           echo
           # 可选：当版人工写的重点（维护者自己决定写不写 ✓ 不写就不显示 ✓）
           if [ -f .github/release-notes.md ]; then
