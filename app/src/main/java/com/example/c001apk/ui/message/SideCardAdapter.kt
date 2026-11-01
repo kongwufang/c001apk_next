@@ -162,7 +162,7 @@ class SideCardAdapter(
                                 LinearLayout.LayoutParams.WRAP_CONTENT,
                                 LinearLayout.LayoutParams.WRAP_CONTENT
                             )
-                            lp.marginStart = (8 * resources.displayMetrics.density).toInt()
+                            lp.marginStart = (8 * itemView.resources.displayMetrics.density).toInt()
                             layoutParams = lp
                         }
                         setOnClickListener {
