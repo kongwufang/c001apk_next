@@ -98,6 +98,17 @@ object Blocklist {
 
     private val flushScheduled = AtomicBoolean(false)
 
+    /**
+     * ★ 2026-11-01 服务端可控的缓存时长（毫秒）
+     *
+     * 用户要求：「让我的服务器可以控制 ttl」
+     * 来源：`blocklist/check.php` 响应里的 `ttl`（秒 ✓）
+     *      服务端从 `data/blocklist_config.json` 读 ✓ 改文件即生效 ✓ 不用发版 ✓
+     * 取值异常 ⇒ 回落到本地默认 60 秒 ✓（范围 5 秒 ~ 24 小时 ✓）
+     */
+    @Volatile
+    private var serverTtlMs: Long = TTL_MS
+
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             // 黑名单接口要带齐身份头（跟举报一致 ✓ 服务端也校验）
@@ -124,12 +135,12 @@ object Blocklist {
         val k = key(kind, id)
         // 已确认屏蔽的，直接回 true ✓ 不看 TTL ✗（避免"滑回来就展开" ✗）
         if (knownBlocked.contains(k)) return true
-        val exp = expireAt[k] ?: return null
-        if (System.currentTimeMillis() > exp) {
-            verdict.remove(k)
-            expireAt.remove(k)
-            return null
-        }
+        // ★★ 2026-11-01 修「翻页时拉黑没生效（有时候行有时候不行）」★★
+        //   原来：TTL 一到就 `verdict.remove()` ⇒ 卡片立刻渲染回**普通卡** ✗
+        //        要等下一次请求回来才变回屏蔽卡 ✗ 请求慢/失败就一直普通 ✗
+        //        ⇒ 非 100% 复现（取决于是否刚好跨过 TTL 边界）✗
+        //   现在：**过期只是「允许重新问」，不是「值作废」** ✓
+        //        旧值继续用于渲染 ✓ 新结果回来自然覆盖 ✓（解禁也能纠正 ✓）
         return verdict[k]
     }
 
@@ -337,8 +348,20 @@ object Blocklist {
         val now = System.currentTimeMillis()
         runCatching {
             client.newCall(req).execute().use { resp ->
+                // ★ 非 2xx 当失败处理 ✓（否则会把「没数据」误判成「未屏蔽」✗）
+                if (!resp.isSuccessful) {
+                    throw java.io.IOException("http " + resp.code)
+                }
                 val text = resp.body?.string().orEmpty()
                 val j = runCatching { JSONObject(text) }.getOrNull()
+                // ★ 服务端下发 ttl（秒）⇒ 本地换算成毫秒 ✓ 越界就忽略 ✓
+                if (j == null) {
+                    throw java.io.IOException("bad json")
+                }
+                val ttlSec = j?.optInt("ttl", 0) ?: 0
+                if (ttlSec in 5..86400) {
+                    serverTtlMs = ttlSec * 1000L
+                }
                 for (kind in Kind.values()) {
                     val ids = snapshot[kind] ?: continue
                     // ★ 2026-11-01 任意接口带回云控开关 ✓ 这里顺手读一下 ✓
@@ -348,7 +371,7 @@ object Blocklist {
                         val k = key(kind, id)
                         val blocked = hit?.has(id) == true
                         verdict[k] = blocked
-                        expireAt[k] = now + TTL_MS
+                        expireAt[k] = now + serverTtlMs
                         if (blocked) {
                             anyBlocked = true
                             knownBlocked.add(k)
@@ -365,15 +388,15 @@ object Blocklist {
                     snapshot.entries.joinToString { "${it.key.key}=${it.value.size}" })
             }
         }.onFailure {
-            // 失败静默 ✓ 当作「未屏蔽」✓ 但只缓存 30 秒（很快重试 ✓）
+            // ★★ 2026-11-01 修：失败**不要**写「未屏蔽」★★
+            //   原来：失败 ⇒ verdict=false + 缓存 30 秒 ✗
+            //        ⇒ 一次网络抖动，这一批卡片 30 秒内全变回普通卡 ✗
+            //        ⇒ 正是「有时候行有时候不行」的另一半原因 ✓
+            //   现在：只把 expireAt 设成 5 秒后（快点重试 ✓）值一概不动 ✓
             Log.w(TAG, "查询失败: ${it.javaClass.simpleName}")
             for ((kind, ids) in snapshot) {
                 for (id in ids) {
-                    val k = key(kind, id)
-                    // ⚠️ 已确认屏蔽的**不要**被失败覆盖 ✗（否则滑回来就展开 ✗）
-                    if (knownBlocked.contains(k)) continue
-                    verdict[k] = false
-                    expireAt[k] = now + 30_000L
+                    expireAt[key(kind, id)] = now + 5_000L
                 }
             }
         }
