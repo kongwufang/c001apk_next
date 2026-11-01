@@ -523,6 +523,17 @@ object PrefManager {
      *
      * 用户需求：「在设置里增加一个开关，放推荐流设置那里，可以随时控制」
      */
+    /**
+     * 「匿名举报联盟」是否已经在**首次启动时主动问过**（2026-11-01 用户要求）
+     *
+     * 原来只在用户点举报时才问 ✗ ⇒ 改成 App 第一次进入就主动问 ✓
+     * ⚠️ 只影响「主动问」这一次 ✗
+     *    点举报时如果还没加入，仍然会再问（那是同意门槛 ✓ 不能省 ✗）
+     */
+    var reportAllianceAsked: Boolean
+        get() = pref.getBoolean("reportAllianceAsked", false)
+        set(value) = pref.edit().putBoolean("reportAllianceAsked", value).apply()
+
     var reportAllianceEnabled: Boolean
         get() = pref.getBoolean("report_alliance_enabled", false)
         set(value) {

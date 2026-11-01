@@ -57,7 +57,17 @@ object ReportAllianceDialog {
         showReasonPicker(activity, onSubmit)
     }
 
-    /** 首次的「加入联盟」弹窗 */
+    /**
+     * ★ 2026-11-01 用户要求：App **第一次进入就主动问**
+     *   （原来只在点举报时才问 ✗ 很多人根本不知道有这个功能）
+     *
+     * 由 [MainActivity] 在首次启动时调用 ✓ 排在新手提示之后 ✓ 两个弹窗不叠加 ✓
+     */
+    fun askJoin(activity: Activity, onResult: (Boolean) -> Unit = {}) {
+        showJoinPrompt(activity, onResult)
+    }
+
+    /** 「加入联盟」的确认框 */
     private fun showJoinPrompt(activity: Activity, onResult: (Boolean) -> Unit) {
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.report_alliance_join_title)
@@ -66,7 +76,7 @@ object ReportAllianceDialog {
                 ReportAlliance.join(activity)
                 onResult(true)
             }
-            .setNegativeButton(android.R.string.cancel) { _, _ -> onResult(false) }
+            .setNegativeButton(R.string.report_alliance_later) { _, _ -> onResult(false) }
             .setCancelable(true)
             .show()
     }

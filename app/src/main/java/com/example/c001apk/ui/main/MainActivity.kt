@@ -72,6 +72,32 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
             PrefManager.sidebarHintShown = true
             binding.root.post { showSidebarHint() }
         }
+
+        // ★ 2026-11-01 用户要求：「这个开关是用户点击举报按钮才会询问的，
+        //   现在改为 app 第一次进入后主动询问」
+        //   ⇒ 首次进入就问一次 ✓ 排在新手提示之后（避免两个弹窗叠在一起 ✗）
+        //   ⇒ 问过就置位 ✓ 用户点「取消」也不再骚扰 ✗
+        //     （但点举报时如果还没加入，仍然会再问 —— 那是同意门槛 ✓ 不能省 ✗）
+        binding.root.post { maybeAskReportAlliance() }
+    }
+
+    /**
+     * 首次启动主动问「要不要加入匿名举报联盟」✓
+     *
+     * 条件：没问过 ✓ 且 还没加入 ✓ 且 界面还在 ✓
+     * 提示先给 1.2 秒 ⇒ 让新手提示 / 首页先出来 ✓ 不然像连弹两个框 ✗
+     */
+    private fun maybeAskReportAlliance() {
+        if (PrefManager.reportAllianceAsked || com.example.c001apk.util.ReportAlliance.joined) {
+            return
+        }
+        PrefManager.reportAllianceAsked = true       // ★ 弹出前就置位 ✓ 中途被杀也不重复弹 ✓
+        binding.root.postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            runCatching {
+                com.example.c001apk.util.ReportAllianceDialog.askJoin(this)
+            }
+        }, 1200L)
     }
 
     /**

@@ -324,9 +324,10 @@
     <string name="offline_cache_title">离线缓存</string>
 
     <!-- ============ 匿名举报联盟（2026-10-31 用户需求）============ -->
-    <string name="report_alliance_join_title">加入匿名举报联盟</string>
-    <string name="report_alliance_join_message">如果你认为官方举报是滚木，可以加入我们的匿名举报联盟</string>
+    <string name="report_alliance_join_title">加入匿名举报联盟？</string>
+    <string name="report_alliance_join_message">加入后，你点的举报会走自建匿名通道 —— 不上报给酷安，也不带你的账号。\n\n被多人举报的内容会对更多人显示为「已被多人举报」，仅此而已：不拦截、也不通知被举报人。\n\n随时可以在「设置 - 推荐流相关」里关掉。</string>
     <string name="report_alliance_join">加入</string>
+    <string name="report_alliance_later">以后再说</string>
     <string name="report_alliance_off_title">匿名举报已关闭</string>
     <string name="report_alliance_off_message">你可以在「设置 - 推荐流相关」里随时打开。</string>
     <string name="report_alliance_enable">打开</string>
