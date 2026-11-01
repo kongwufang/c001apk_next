@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -92,6 +93,33 @@ class SzlmIdWebActivity : BaseActivity<ActivitySzlmIdWebBinding>() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 binding.progressBar.isVisible = false
+            }
+
+            /**
+             * ★ 2026-11-01 致谢里的作者主页链接
+             *
+             * 不拦的话，点链接会在**本 WebView 内部**跳走 ⚠️
+             *   取号页被顶掉 ⇒ 用户以为出错了 ⇒ 还得退出去重进 ✗
+             * ⇒ 只拦 github.com，交给系统浏览器 ✓
+             *
+             * 为什么不拦所有外链 ✗
+             *   Cloudflare Turnstile 的验证流程也可能触发主框架跳转
+             *   全拦会把验证打坏 ✗ ⇒ **只拦 github.com** 最安全 ✓
+             */
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?,
+            ): Boolean {
+                val u = request?.url?.toString().orEmpty()
+                if (u.startsWith("https://github.com/") || u.startsWith("http://github.com/")) {
+                    runCatching {
+                        com.example.c001apk.util.UpdateChecker.openExternal(
+                            this@SzlmIdWebActivity, u, "打开链接失败"
+                        )
+                    }
+                    return true
+                }
+                return false
             }
         }
         web.webChromeClient = object : WebChromeClient() {
