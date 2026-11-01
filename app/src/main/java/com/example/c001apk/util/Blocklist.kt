@@ -30,7 +30,7 @@ import org.json.JSONObject
  * ② **批量 + 去重 + 缓存** ✓
  *    - 一次最多 100 个 id（服务端上限 ✓）
  *    - 攒 250ms 再发（避免每个 item 一次请求 ✗）
- *    - 命中/未命中都进内存缓存 ✓ TTL 5 分钟 ✓
+ *    - 命中/未命中都进内存缓存 ✓ TTL 60 秒 ✓（2026-11-01 由 5 分钟改小 ⇒ 更实时）
  *    - 已在请求中的 id 不重复请求 ✓
  *
  * ③ **受开关控制** ✓
@@ -46,7 +46,16 @@ object Blocklist {
     private const val ENDPOINT = "https://service.houlangs.cn/c001apk/blocklist/check.php"
     private const val BATCH_MAX = 100
     private const val DEBOUNCE_MS = 250L
-    private const val TTL_MS = 5 * 60 * 1000L
+    /**
+     * 结果缓存多久后允许**重新问一次**服务器
+     *
+     * ★ 2026-11-01 用户要求「改成实时变化的」：
+     *   屏蔽状态现在全部在服务端**读取时实时推导** ✓（作者连坐也是 ✓）
+     *   客户端只要别再压着旧结果就行 ✓
+     *   5 分钟太钝 ✗ 降到 60 秒 ✓（页面级批量查询本来就只在翻页时发 ✓
+     *   而且「无屏蔽时静默不刷 UI」✓ 所以缩短 TTL 不会造成界面抖动 ✓）
+     */
+    private const val TTL_MS = 60 * 1000L
 
     /** 对象类型（与服务端 `feeds` / `users` / `topics` 对应） */
     enum class Kind(val key: String) {
