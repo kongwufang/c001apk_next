@@ -6,6 +6,10 @@
 [![装机量](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dinstalls%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![24小时活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive24%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![今日新增](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dnew%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![7天内活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive7%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php)<br>
 [![30天内活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive30%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![7天内新增](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dnew7%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![所有用户24h活跃时长](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dplaytime%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![活跃分支数](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dbranches%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php)
 
+## 致谢
+
+- [**People-11**](https://github.com/People-11) —— 取号算法（对 `libdu.so` 的逆向分析）参考了他的研究成果，感谢他的分享
+
 ## 下载 / 更新
 
 最新正式版：**[release-latest](https://github.com/kongwufang/c001apk_next/releases/tag/release-latest)**（正式版与测试版共用同一 versionCode，可互相覆盖安装）
