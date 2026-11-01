@@ -9,8 +9,10 @@
     >「在关于页面点击立即检查更新，就还是跳旧的窗口，只不过按钮修改」
 
     ## 语义
-      · 右上角叉 = **跳过此版本**（存 versionCode ✓ 同版本不再提醒 ✓ 新版本来了还会出现 ✓）
-      · 「跳过此版本」按钮 = 同上 ✓
+      · ⚠️ **这张卡没有叉** ✗（2026-11-01 用户要求：「升级的卡片是不能有叉的，
+        所以用户只能通过选择下面两个按钮」）
+         ⇒ 只能点「跳过此版本」或「下载」，不给"随手划掉"的机会 ✓
+         ⇒ 公告卡**有**叉（已读隐藏 ✓）两者不一样 ✓
       · 「下载」= 跳外部浏览器（多线路时先弹线路选择 ✓ 沿用旧逻辑 ✓）
       · 没有「不再提醒」✗ 想彻底关掉得去设置里关「检查更新」✓（提升更新积极性 ✓）
       ⚠️ **绝对不要**在这张卡片上加 layout_margin ✗（2026-11-01 踩过）
@@ -57,16 +59,6 @@
                 android:textStyle="bold"
                 tools:text="发现新版本 1.0.8" />
 
-            <ImageView
-                android:id="@+id/close"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginStart="6dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/update_skip_version"
-                android:padding="6dp"
-                android:src="@drawable/ic_close"
-                app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
         <TextView

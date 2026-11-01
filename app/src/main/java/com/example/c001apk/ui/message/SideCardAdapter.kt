@@ -187,7 +187,7 @@ class SideCardAdapter(
         private val card: MaterialCardView = v.findViewById(R.id.card)
         private val title: TextView = v.findViewById(R.id.title)
         private val changelog: TextView = v.findViewById(R.id.changelog)
-        private val close: ImageView = v.findViewById(R.id.close)
+        // ★ 2026-11-01：这张卡**没有叉** ✗ 只能点下面两个按钮（用户要求）
         private val skip: MaterialButton = v.findViewById(R.id.skip)
         private val download: MaterialButton = v.findViewById(R.id.download)
 
@@ -207,7 +207,6 @@ class SideCardAdapter(
                 onSkipVersion(info.versionCode)
                 removeUpdate()
             }
-            close.setOnClickListener(skipIt)
             skip.setOnClickListener(skipIt)
             download.setOnClickListener { onDownload(info) }
         }
