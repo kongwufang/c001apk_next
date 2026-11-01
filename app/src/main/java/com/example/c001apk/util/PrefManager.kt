@@ -339,6 +339,32 @@ object PrefManager {
         set(value) = pref.edit().putBoolean("isCheckUpdateStable", value).apply()
 
     /**
+     * 已「跳过此版本」的 versionCode（2026-11-01 用户要求）
+     *
+     * 侧栏升级卡的叉 / 「跳过此版本」按钮都会写这里 ✓
+     * ⇒ 同一个版本不再出现 ✓ 新版本来了还会出现 ✓
+     * ⚠️ 和 `isCheckUpdateStable = false` 不是一回事 ✗
+     *    那是「彻底不检查更新」（设置里才能关 ✓）
+     */
+    var skippedUpdateCode: Long
+        get() = pref.getLong("skippedUpdateCode", -1L)
+        set(value) = pref.edit().putLong("skippedUpdateCode", value).apply()
+
+    /** 这条公告我看过了 ✓（侧栏公告卡的叉 ✓ 已读隐藏） */
+    fun isNoticeDismissed(id: String): Boolean =
+        pref.getStringSet("dismissedNotices", null)?.contains(id) == true
+
+    /** 记下「这条公告已读」✓ 只增不减（服务端换 id 就等于新公告 ✓） */
+    fun dismissNotice(id: String) {
+        val cur = pref.getStringSet("dismissedNotices", null)?.toMutableSet() ?: mutableSetOf()
+        if (cur.add(id)) {
+            // 别无限膨胀 ✗ 超过 200 条就清空重来 ✓（公告本来就少 ✓）
+            if (cur.size > 200) cur.clear().also { cur.add(id) }
+            pref.edit().putStringSet("dismissedNotices", cur).apply()
+        }
+    }
+
+    /**
      * 用户随机 ID（上报头 `X-App-userrandomid`；Prefs 键沿用早期的 `useradomid` 不改，
      * 改了会让已装用户被当成新用户重算）：本应用自己造的匿名标识，首次启动随机生成一份
      * 32 位 hex 落盘（[com.example.c001apk.MyApplication] 启动时初始化），

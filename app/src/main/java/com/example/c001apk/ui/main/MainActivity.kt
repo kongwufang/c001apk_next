@@ -171,15 +171,15 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
     /**
      * 启动时的自更新检查（只看正式版，Beta 通道已去掉）。
      *
-     * 自建接口一次响应里还有关于页按钮那段，跟这里共用 60 秒缓存，不会重复请求。
+     * ★★ 2026-11-01 用户要求：「APP 进入之后自动检查更新就不跳窗口了，
+     *    只显示在侧栏，减少打扰」★★
+     *   ⇒ 这里**只把接口响应预热进缓存** ✓ 不弹任何窗 ✗
+     *   ⇒ 用户打开侧栏（「我的」）时，升级卡直接读缓存 ⇒ 秒出 ✓
+     *   ⇒ 想看弹窗请去「关于」页点「立即检查更新」✓
      */
     private fun checkSelfUpdate() {
         if (!PrefManager.isCheckUpdateStable) return
-        lifecycleScope.launch {
-            val info = UpdateChecker.fetchUpdate() ?: return@launch
-            if (info.isNewer && !isFinishing && !isDestroyed)
-                UpdateChecker.showUpdateDialog(this@MainActivity, info)
-        }
+        lifecycleScope.launch { UpdateChecker.prefetch() }
     }
 
     private fun genData() {

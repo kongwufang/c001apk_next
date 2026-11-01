@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    侧栏「公告卡片」（2026-11-01 新增）
+
+    ## 需求（用户原话）
+    >「在侧栏上，有一大块空出来的空间可以利用起来……可以放公告和 APP 升级提示」
+    >「公告卡片的所有参数都要支持服务器可以自定义，
+    >  比如说可以自定义卡片逻辑，可以定义卡片是否有背景，是否有按钮等等」
+    >「每一种卡片上面都可以有一个叉，就像 rikkahub 一样，相当于已读隐藏功能」
+
+    ## 由服务器决定的字段（见 NoticeRepo.Card）
+      title/body       文案（支持换行 ✓）
+      bgColor          背景色（空 = 用主题色 ✓ 尊重深色模式 ✓）
+      bgImage          背景图 URL（空 = 不加载 ✓）
+      dismissible      是否有右上角那个叉 ✓
+      buttons[]        0~3 个按钮（文字 + 链接，链接空 = 纯关闭 ✓）
+      accent           强调色（按钮文字/标题色，空 = 主题色 ✓）
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="10dp"
+    android:layout_marginTop="10dp"
+    android:layout_marginEnd="10dp"
+    app:cardBackgroundColor="?attr/colorSurfaceVariant"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp">
+
+        <!-- 标题行：标题 + 叉 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="公告" />
+
+            <ImageView
+                android:id="@+id/close"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/notice_close"
+                android:padding="6dp"
+                android:src="@drawable/ic_close"
+                app:tint="?attr/colorOnSurfaceVariant" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="这里是公告正文" />
+
+        <!-- 按钮行（服务器给了才有 ✓ 最多 3 个 ✓ 最多两列换行）-->
+        <LinearLayout
+            android:id="@+id/buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="?android:textColorTertiary"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:text="2026-11-01" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

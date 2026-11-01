@@ -358,4 +358,11 @@
     <string name="appeal_submit">提交申诉</string>
     <string name="appeal_submitted">申诉已提交，感谢你</string>
     <string name="appeal_menu">申诉</string>
+    <!-- 侧栏卡片（2026-11-01）-->
+    <string name="notice_close">关闭公告</string>
+    <string name="update_found_title">发现新版本 %1$s</string>
+    <string name="update_skip_version">跳过此版本</string>
+    <string name="update_no_changelog">无更新日志</string>
+    <string name="update_open_link_failed">打开链接失败</string>
+
 </resources>
