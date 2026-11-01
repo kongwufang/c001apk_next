@@ -16,15 +16,17 @@
       buttons[]        0~3 个按钮（文字 + 链接，链接空 = 纯关闭 ✓）
       accent           强调色（按钮文字/标题色，空 = 主题色 ✓）
 -->
+      ⚠️ **绝对不要**在这张卡片上加 layout_margin ✗（2026-11-01 踩过）
+         RecyclerView 已经挂了 `LinearItemDecoration(10dp)` ⇒ 它会给**每个** item
+         加上 left/right/bottom 各 10dp ✓
+         这里再加 margin ⇒ 变成 20dp ⇒ 比上面的九宫格窄一圈 ✗
+         用户原话：「这个卡片我想跟上面的卡片共宽，看起来视觉比较舒适」
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="10dp"
-    android:layout_marginTop="10dp"
-    android:layout_marginEnd="10dp"
     app:cardBackgroundColor="?attr/colorSurfaceVariant"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
