@@ -19,8 +19,14 @@
     </data>
 
     <!--
-      图文正文末尾的互动栏：点赞 / 回复 / 收藏 / 转发，和动态详情内容卡底栏是同一套动作
+      图文正文末尾的互动栏：点赞 / 回复 / 收藏 / 转发 / 举报，和动态详情内容卡底栏是同一套动作
       （动态把那行做在内容卡里，图文的正文是散块，只能单独占一项挂在末尾）。
+
+      ★ 2026-11-01 加举报（用户要求「图文详情页也要能举报图文」）：
+        动态详情底栏本来就有举报 ✓（item_feed_content.xml 里 id/@+id/report）
+        图文详情只有工具栏溢出菜单里那一项 ✗ 不显眼 ✗
+        ⇒ 这里补一个同款按钮 ✓ 走同一个 ItemListener.onReportFeed ✓
+          被拉黑时 BlocklistUi.BODY_IDS 已含 R.id.report ⇒ 会自动隐藏 ✓
     -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -70,6 +76,18 @@
             android:textColor="@android:color/darker_gray"
             app:customText="@{data.forwardnum}"
             app:icon="@{@drawable/ic_feed_forward}" />
+
+        <!-- 匿名举报（2026-11-01）：图文详情页也能举报 ✓ 与动态详情底栏同一个回调 ✓ -->
+        <TextView
+            android:id="@+id/report"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:background="?attr/actionBarItemBackground"
+            android:contentDescription="@string/report"
+            android:onClick="@{(v) -> listener.onReportFeed(v, data.id)}"
+            android:textColor="@android:color/darker_gray"
+            app:icon="@{@drawable/ic_report_flag}" />
 
     </LinearLayout>
 
