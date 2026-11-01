@@ -70,22 +70,23 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
         // 首次启动：告诉用户侧边栏在哪（否则☰太隐蔽，用户找不到 ✗）
         if (!PrefManager.sidebarHintShown) {
             PrefManager.sidebarHintShown = true
+            // ★ 2026-11-01：「匿名举报联盟」改成首次进入主动问 ✓
+            //   ⚠️ 必须等新手提示**关掉之后**再问 ✗
+            //      两个 Dialog 同时弹会叠在一起 ✗ 用户一脸问号 ✗
+            //   ⇒ 在 showSidebarHint() 的 dismiss 回调里接着问 ✓
             binding.root.post { showSidebarHint() }
+        } else {
+            // 已经看过新手提示 ⇒ 直接问（同样是首次进入才问 ✓ 问过就置位 ✓）
+            binding.root.post { maybeAskReportAlliance() }
         }
-
-        // ★ 2026-11-01 用户要求：「这个开关是用户点击举报按钮才会询问的，
-        //   现在改为 app 第一次进入后主动询问」
-        //   ⇒ 首次进入就问一次 ✓ 排在新手提示之后（避免两个弹窗叠在一起 ✗）
-        //   ⇒ 问过就置位 ✓ 用户点「取消」也不再骚扰 ✗
-        //     （但点举报时如果还没加入，仍然会再问 —— 那是同意门槛 ✓ 不能省 ✗）
-        binding.root.post { maybeAskReportAlliance() }
     }
 
     /**
      * 首次启动主动问「要不要加入匿名举报联盟」✓
      *
      * 条件：没问过 ✓ 且 还没加入 ✓ 且 界面还在 ✓
-     * 提示先给 1.2 秒 ⇒ 让新手提示 / 首页先出来 ✓ 不然像连弹两个框 ✗
+     * 触发时机：新手提示 dismiss 之后 ✓（或本来就没有新手提示 ⇒ 启动即问 ✓）
+     * 再等 400ms 让首页先画出来 ✓ 不然像连弹两个框 ✗
      */
     private fun maybeAskReportAlliance() {
         if (PrefManager.reportAllianceAsked || com.example.c001apk.util.ReportAlliance.joined) {
@@ -97,7 +98,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
             runCatching {
                 com.example.c001apk.util.ReportAllianceDialog.askJoin(this)
             }
-        }, 1200L)
+        }, 400L)
     }
 
     /**
@@ -127,6 +128,8 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
             view.setOnClickListener { dialog.dismiss() }
             view.findViewById<android.view.View>(R.id.hintConfirm)
                 .setOnClickListener { dialog.dismiss() }
+            // 关掉之后再问联盟 ⇒ 两个弹窗不会叠 ✓（见 maybeAskReportAlliance 注释）
+            dialog.setOnDismissListener { maybeAskReportAlliance() }
             dialog.show()
         }
     }
