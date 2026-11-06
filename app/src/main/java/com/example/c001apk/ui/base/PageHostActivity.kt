@@ -118,6 +118,11 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             intent.getStringExtra("type").orEmpty()
         )
 
+        // ✅ 用户主页（UserActivity → UserFragment，BaseView 系第一个 ✓）
+        "user" -> com.example.c001apk.ui.user.UserFragment.newInstance(
+            intent.getStringExtra("id")
+        )
+
         // ✅ 浏览历史（HistoryActivity → HistoryFragment）
         "history" -> com.example.c001apk.ui.history.HistoryFragment()
 
