@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.os.Bundle
 import androidx.core.view.isVisible
 import com.example.c001apk.R
+import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.example.c001apk.adapter.LoadingState
 import com.example.c001apk.constant.Constants
@@ -135,8 +136,23 @@ abstract class BaseViewActivity<VM : BaseAppViewModel> : MaterialActivity() {
     }
 
     override fun onApplyUserThemeResource(theme: Resources.Theme, isDecorView: Boolean) {
-        if (!ThemeUtils.isSystemAccent)
+        if (!ThemeUtils.isSystemAccent) {
+            // ① 先落用户选的那套强调色（旧角色集：primary / surface / …）
             theme.applyStyle(ThemeUtils.colorThemeStyleRes, true)
+            // ② ★ 2026-11-06：再用它的 colorPrimary 当种子，让 DynamicColors 补齐**全套**
+            //    角色 —— 那 20 套 overlay 是 materialthemebuilder 1.3.3 生成的旧角色集 ✗
+            //    没有 colorSurfaceContainer* ✗ ⇒ 卡片底色一直是基础主题的紫色系 ✗
+            //    这一步只补容器色阶 ✓ 强调色仍由 setThemeOverlay 保底 ✓
+            if (DynamicColors.isDynamicColorAvailable()) {
+                DynamicColors.applyToActivityIfAvailable(
+                    this,
+                    com.google.android.material.color.DynamicColorsOptions.Builder()
+                        .setContentBasedSource(ThemeUtils.contentSeedOf(this))
+                        .setThemeOverlay(ThemeUtils.colorThemeStyleRes)
+                        .build()
+                )
+            }
+        }
         theme.applyStyle(ThemeUtils.getNightThemeStyleRes(this), true) //blackDarkMode
         // overlay 刚落定，把页面底色跟着刷成新明暗下的 colorSurface（Decor 还没建就跳过，
         // onPostCreate 会兜底）
