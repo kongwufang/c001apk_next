@@ -70,6 +70,7 @@ class FeedPageFragment : BaseViewAppFragment<FeedViewModel>() {
                 beginTransaction()
                 // 不走 Loading 状态：一是别让整页转圈盖住首屏，二是 initData 早于 initObserve，
                 // 发状态会变成粘性事件让 observer 再调一次 beginTransaction（事务提交两次）
+                // 这里要用 _binding（视图可能已销毁 ✓）⇒ 基类已把它改成可见 ✓
                 _binding?.indicator?.parent?.isVisible = false
                 fetchData()
             } else {

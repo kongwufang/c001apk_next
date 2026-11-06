@@ -32,7 +32,9 @@ import com.example.c001apk.databinding.BaseFragmentContainerBinding
  */
 abstract class BaseViewAppFragment<VM : BaseAppViewModel> : Fragment() {
 
-    private var _binding: BaseFragmentContainerBinding? = null
+    // ⚠️ 不能是 private ✗ 子类要在 initData 里用（如 FeedPageFragment 的首屏直出 ✓）
+    //    与 BaseViewFragment 保持一致：无修饰 ⇒ public ✓
+    var _binding: BaseFragmentContainerBinding? = null
     val binding get() = _binding!!
 
     abstract val viewModel: VM
