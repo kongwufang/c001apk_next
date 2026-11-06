@@ -41,13 +41,50 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         binding.toolBar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         if (savedInstanceState == null) {
-            openPage(intent.getStringExtra(ARG_ROOT_KEY))
+            // ① 显式指定了 Fragment（阶段③ 的通用入口）⇒ 按**白名单**建，不用反射 ✓
+            val wanted = intent.getStringExtra(ARG_FRAGMENT)
+            val fragment = if (wanted != null) fragmentFor(wanted) else null
+            if (fragment != null) {
+                openFragment(fragment, wanted, intent.getStringExtra(ARG_TITLE))
+            } else {
+                // ② 默认：设置一级页（rootKey 可空 = 一级；非空 = 直接开某个二级页）
+                openPage(intent.getStringExtra(ARG_ROOT_KEY))
+            }
         }
     }
 
-    /** 压一个新的设置页进返回栈（带视图动画 ✓ 动画中可点 ✓ 可被下一次点击打断 ✓） */
+    /**
+     * 类名 → Fragment 实例（**白名单**，不用反射 ✗）。
+     *
+     * 阶段③ 每迁一个页面，就在这里加一行 ✓ 编译期就能发现漏了 ✓
+     * 反射那套在 R8 下要写 keep 规则、拼错类名还是运行时崩 ✗ 不值得 ✓
+     */
+    private fun fragmentFor(className: String): Fragment? = when (className) {
+        SettingsPreferenceFragment::class.java.name ->
+            SettingsPreferenceFragment.newInstance(intent.getStringExtra(ARG_ROOT_KEY))
+
+        else -> null
+    }
+
+    /** 压一个设置页（一级/二级都走这里；带视图动画 ✓ 动画中可点 ✓ 可被打断 ✓） */
     fun openPage(rootKey: String?) {
-        val fragment = SettingsPreferenceFragment.newInstance(rootKey)
+        openFragment(SettingsPreferenceFragment.newInstance(rootKey), rootKey ?: ROOT_STACK, null)
+    }
+
+    /**
+     * ★ 通用入口：把**任意 Fragment** 压进本宿主的返回栈。
+     *
+     * 阶段③迁移其它页面时只需要：
+     * ```
+     * PageHostActivity.intent(ctx, SomeFragment::class.java, args, "标题")
+     * ```
+     * 页面内部再压栈就调 `(activity as? PageHostActivity)?.openFragment(...)` ✓
+     *
+     * ⚠️ 刻意**不用反射**建 Fragment ✗：反射在 R8 下要 keep 规则 ✓ 且编译期发现不了拼错 ✗
+     *    调用方直接 new 好传进来 ✓ 最稳 ✓
+     */
+    fun openFragment(fragment: Fragment, tag: String?, title: String?) {
+        if (!title.isNullOrBlank()) supportActionBar?.title = title
         supportFragmentManager.beginTransaction()
             .setReorderingAllowed(true)
             .setCustomAnimations(
@@ -56,8 +93,8 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
                 TransitionAnim.fragmentPopEnter(),
                 TransitionAnim.fragmentPopExit(),
             )
-            .replace(R.id.pageHostContainer, fragment)
-            .addToBackStack(rootKey ?: ROOT_STACK)
+            .replace(R.id.pageHostContainer, fragment, tag)
+            .addToBackStack(tag ?: ROOT_STACK)
             .commit()
     }
 
@@ -65,5 +102,30 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         /** 二级 PreferenceScreen 的 key，和 SettingsDetailActivity.ARG_ROOT_KEY 同义 */
         const val ARG_ROOT_KEY = "rootKey"
         private const val ROOT_STACK = "settings-root"
+
+        /**
+         * 阶段③ 迁移别的页面时的标准入口（**不带 window 动画** ✓）：
+         *
+         * ```
+         * startActivity(PageHostActivity.intent(this, SomeFragment::class.java, null, "标题"))
+         * ```
+         *
+         * ⚠️ 千万别用 `IntentUtil.startActivity` ✗ 它会带 enterOptions ⇒ 又变成 window 动画 ✗
+         */
+        fun intent(
+            context: android.content.Context,
+            fragmentClass: Class<out Fragment>,
+            args: android.os.Bundle? = null,
+            title: String? = null,
+        ): android.content.Intent =
+            android.content.Intent(context, PageHostActivity::class.java).apply {
+                putExtra(ARG_FRAGMENT, fragmentClass.name)
+                args?.let { putExtra(ARG_FRAGMENT_ARGS, it) }
+                if (!title.isNullOrBlank()) putExtra(ARG_TITLE, title)
+            }
+
+        private const val ARG_FRAGMENT = "fragmentClass"
+        private const val ARG_FRAGMENT_ARGS = "fragmentArgs"
+        private const val ARG_TITLE = "hostTitle"
     }
 }
