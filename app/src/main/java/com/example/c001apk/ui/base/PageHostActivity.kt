@@ -106,6 +106,18 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             intent.getStringExtra("title").orEmpty(),
         )
 
+        // ✅ 酷图（CoolPicActivity → CoolPicFragment，title 需 URL 解码 ✓）
+        "coolPic" -> com.example.c001apk.ui.coolpic.CoolPicFragment.newInstance(
+            runCatching {
+                java.net.URLDecoder.decode(intent.getStringExtra("title").orEmpty(), "UTF-8")
+            }.getOrDefault(intent.getStringExtra("title").orEmpty())
+        )
+
+        // ✅ 消息列表（MessageActivity → MessageFragment，type 决定哪一类消息 ✓）
+        "message" -> com.example.c001apk.ui.messagedetail.MessageFragment.newInstance(
+            intent.getStringExtra("type").orEmpty()
+        )
+
         // ✅ 搜索（SearchActivity → SearchFragment）
         "search" -> com.example.c001apk.ui.search.SearchFragment.newInstance(
             intent.getStringExtra("pageType").orEmpty(),

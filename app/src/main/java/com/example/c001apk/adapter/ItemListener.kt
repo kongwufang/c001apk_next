@@ -1,5 +1,6 @@
 package com.example.c001apk.adapter
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.app.Activity
 import android.view.View
 import android.widget.ImageView
@@ -115,9 +116,16 @@ interface ItemListener {
     }
 
     fun onViewCoolPic(view: View, title: String?) {
-        IntentUtil.startActivity<CoolPicActivity>(view.context) {
-            putExtra("title", title?.replace("#", ""))
-        }
+        view.context.startActivity(
+                              PageHostActivity.intentByPage(
+                                  view.context,
+                                  "coolPic",
+                                  android.os.Bundle().apply {
+                                      putString("title", title?.replace("#", ""))
+                                  },
+                                  null,
+                              )
+                          )
     }
 
     fun onViewTopic(view: View, type: String?, title: String?, url: String?, id: String?) {
