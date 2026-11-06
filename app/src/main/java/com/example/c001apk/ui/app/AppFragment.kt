@@ -27,7 +27,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class AppFragment : BasePagerFragment() {
 
-    private val viewModel by viewModels<AppViewModel>(ownerProducer = { requireActivity() })
+    private val viewModel by viewModels<AppViewModel>(ownerProducer = { parentFragment ?: requireActivity() })
 
     // 与 AppViewModel.handleAppData() 里的 tabList 一一对应
     private val typeList =

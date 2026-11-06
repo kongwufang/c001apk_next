@@ -11,7 +11,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class CarouselPagerFragment : BasePagerFragment() {
 
-    private val viewModel by viewModels<CarouselViewModel>(ownerProducer = { requireActivity() })
+    private val viewModel by viewModels<CarouselViewModel>(ownerProducer = { parentFragment ?: requireActivity() })
     override var tabController: IOnTabClickListener? = null
 
     override fun getFragment(position: Int): Fragment =

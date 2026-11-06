@@ -71,7 +71,7 @@ import kotlin.math.abs
 @AndroidEntryPoint
 class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
-    private val viewModel by viewModels<FeedViewModel>(ownerProducer = { requireActivity() })
+    private val viewModel by viewModels<FeedViewModel>(ownerProducer = { parentFragment ?: requireActivity() })
     private val isPortrait by lazy { resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT }
     private lateinit var feedDataAdapter: FeedDataAdapter
     private lateinit var feedReplyAdapter: FeedReplyAdapter

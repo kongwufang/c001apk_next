@@ -36,7 +36,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class TopicFragment : BasePagerFragment() {
 
-    private val viewModel by viewModels<TopicViewModel>(ownerProducer = { requireActivity() })
+    private val viewModel by viewModels<TopicViewModel>(ownerProducer = { parentFragment ?: requireActivity() })
     override var tabController: IOnTabClickListener? = null
     private lateinit var subscribe: MenuItem
     private var menuBlock: MenuItem? = null

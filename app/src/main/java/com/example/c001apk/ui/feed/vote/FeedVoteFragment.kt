@@ -26,7 +26,7 @@ import com.google.android.material.color.MaterialColors
 
 class FeedVoteFragment : BaseFragment<FragmentFeedVoteBinding>() {
 
-    private val viewModel by viewModels<FeedViewModel>(ownerProducer = { requireActivity() })
+    private val viewModel by viewModels<FeedViewModel>(ownerProducer = { parentFragment ?: requireActivity() })
     private lateinit var feedDataAdapter: FeedDataAdapter
     private lateinit var feedReplyAdapter: FeedReplyAdapter
     private lateinit var footerAdapter: FooterAdapter

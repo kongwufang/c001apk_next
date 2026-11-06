@@ -33,7 +33,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class UserPagerFragment : BasePagerFragment() {
 
-    private val viewModel by viewModels<UserViewModel>(ownerProducer = { requireActivity() })
+    private val viewModel by viewModels<UserViewModel>(ownerProducer = { parentFragment ?: requireActivity() })
     private lateinit var userBinding: BaseViewUserBinding
     private var menuBlock: MenuItem? = null
 
