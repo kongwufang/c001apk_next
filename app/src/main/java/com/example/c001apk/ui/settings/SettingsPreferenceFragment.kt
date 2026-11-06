@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.settings
 
+import com.example.c001apk.ui.base.PageHostActivity
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
 import android.annotation.SuppressLint
@@ -129,6 +130,14 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
      */
     override fun onNavigateToScreen(preferenceScreen: PreferenceScreen) {
         val key = preferenceScreen.key ?: return
+        // ★ debug2 试点：如果宿主是 PageHostActivity（单 Activity），就在宿主内压 Fragment 栈
+        //   ⇒ 视图动画不挡触摸 ✓ 动画期间可点 ✓ 新点击能立刻打断 ✓
+        //   否则（老的 SettingsActivity 路径）仍开 SettingsDetailActivity ✓ 行为不变 ✓
+        val host = activity as? PageHostActivity
+        if (host != null) {
+            host.openPage(key)
+            return
+        }
         IntentUtil.startActivity<SettingsDetailActivity>(requireContext()) {
             putExtra(SettingsDetailActivity.ARG_ROOT_KEY, key)
         }

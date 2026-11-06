@@ -483,6 +483,10 @@
             android:name=".ui.settings.SpamShieldActivity"
             android:exported="false" />
         <!-- 2026-09-18 重构：设置入口从底栏迁移到「我的」页面右上角图标 -->
+        <!-- debug2 试点：单 Activity + Fragment 宿主（转场跟手） -->
+        <activity
+            android:name=".ui.base.PageHostActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.settings.SettingsActivity"
             android:exported="false" />

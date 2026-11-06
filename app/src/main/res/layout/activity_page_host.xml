@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  单 Activity 试点宿主（debug2）
+
+  和 activity_settings 的区别只有一个：容器 id 叫 pageHostContainer，
+  并且**承载整个返回栈**（设置一级 + 二级都在这里压栈，不再开新 Activity）。
+
+  为什么这样能「跟手」：
+    · 窗口动画（overridePendingTransition / ActivityOptions）由 WindowManager 驱动，
+      动画期间系统会延迟派发触摸 ⇒ 必须等播完才能点 ✗
+    · Fragment 的 setCustomAnimations 是**视图动画**（跑在 View 上）⇒ 不挡触摸 ✓
+      而且新事务可以立即替换正在播的动画 ✓
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="false"
+    app:consumeSystemWindowsInsets="end"
+    app:edgeToEdge="true"
+    app:fitsSystemWindowsInsets="end">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="false"
+        app:fitsSystemWindowsInsets="@integer/internal_fragment_top_insets">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolBar"
+            android:layout_width="match_parent"
+            android:layout_height="?actionBarSize"
+            app:title="@string/tab_setting" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1px"
+            android:background="?attr/colorSurfaceVariant" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/pageHostContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

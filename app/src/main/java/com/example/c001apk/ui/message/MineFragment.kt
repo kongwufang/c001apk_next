@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.os.Bundle
@@ -260,7 +261,11 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
                     }
 
                     R.id.settings -> {
-                        IntentUtil.startActivity<SettingsActivity>(requireContext()) {}
+                        // ★ debug2 试点：走单 Activity 宿主（不带 enterOptions ⇒ 不播 window 动画 ✓）
+                        //   老路径 SettingsActivity 保留不动 ✓ 回退只需删这一处 ✓
+                        requireContext().startActivity(
+                            android.content.Intent(requireContext(), PageHostActivity::class.java)
+                        )
                         true
                     }
 
