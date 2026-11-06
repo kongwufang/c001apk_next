@@ -41,17 +41,22 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         binding.toolBar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         if (savedInstanceState == null) {
-            // ① 显式指定了 Fragment（阶段③ 的通用入口）⇒ 按**白名单**建，不用反射 ✓
-            // ① 通用页面 key（全量迁移：每个页面一个 key ✓ 参数沿用老 Activity 的 extras）
-            val page = intent.getStringExtra(ARG_PAGE)?.let { fragmentForPage(it) }
-            if (page != null) {
-                openFragment(page, intent.getStringExtra(ARG_PAGE), intent.getStringExtra(ARG_TITLE))
-                return@if
-            }
+            // 三种入口，优先级从上到下 ✓
+            //   ① 通用页面 key（全量迁移：每个页面一个 key ✓ 参数沿用老 Activity 的 extras）
+            //   ② 显式 Fragment 类名（阶段③ 的通用入口）
+            //   ③ 默认：设置页
+            //
+            // ⚠️ 别写 `return@if` ✗ Kotlin 里 if **不是** lambda ⇒ "Label must be named" 编译错 ✗
+            //    （2026-11-06 CI 踩过一次 ✗）这里改成 if / else if / else 链 ✓
+            val pageKey = intent.getStringExtra(ARG_PAGE)
+            val pageFragment = pageKey?.let { fragmentForPage(it) }
             val wanted = intent.getStringExtra(ARG_FRAGMENT)
-            val fragment = if (wanted != null) fragmentFor(wanted) else null
-            if (fragment != null) {
-                openFragment(fragment, wanted, intent.getStringExtra(ARG_TITLE))
+            val namedFragment = if (wanted != null) fragmentFor(wanted) else null
+
+            if (pageFragment != null) {
+                openFragment(pageFragment, pageKey, intent.getStringExtra(ARG_TITLE))
+            } else if (namedFragment != null) {
+                openFragment(namedFragment, wanted, intent.getStringExtra(ARG_TITLE))
             } else {
                 // ② 默认：设置页。
                 //   如果直接指定了二级页（rootKey != null），必须**先铺一级页当底** ✗
