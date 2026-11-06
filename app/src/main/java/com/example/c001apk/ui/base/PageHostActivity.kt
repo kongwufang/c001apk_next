@@ -118,6 +118,17 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             intent.getStringExtra("type").orEmpty()
         )
 
+        // ✅ 应用详情（AppActivity → AppPageFragment）
+        "app" -> com.example.c001apk.ui.app.AppPageFragment.newInstance(
+            intent.getStringExtra("id")
+        )
+
+        // ✅ 内嵌页 / 轮播（CarouselActivity → CarouselPageFragment）
+        "carousel" -> com.example.c001apk.ui.carousel.CarouselPageFragment.newInstance(
+            intent.getStringExtra("url"),
+            intent.getStringExtra("title"),
+        )
+
         // ✅ 话题 / 商品聚合页（TopicActivity → TopicPageFragment ✓ 数据不依赖登录 ✓）
         "topic" -> com.example.c001apk.ui.topic.TopicPageFragment.newInstance(
             intent.getStringExtra("url"),
