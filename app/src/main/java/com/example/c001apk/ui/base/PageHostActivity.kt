@@ -121,11 +121,10 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         // ⚠️ 入栈名字**必须唯一** ✗ 否则重复进同一个二级页时
         //    FragmentManager 会抛 IllegalStateException（Back stack entry name already exists）✗
         if (addToBackStack) {
-            tx.addToBackStack(
-                tag ?: ROOT_STACK,
-                // 名字加序号：同一 key 连进两次也不会撞 ✓
-                (System.nanoTime() and 0xFFFF).toString(),
-            )
+            // ⚠️ 用**单参**重载 + 字符串拼唯一名（编译期绝对安全 ✓）
+            //    别用 addToBackStack(name, tag) 那个两参重载 ✗ 老版本 Fragment 里没有 ✗
+            //    也别写 `System.nanoTime() and 0xFFFF` ✗ Long 和 Int 不能 and ✗
+            tx.addToBackStack("${tag ?: ROOT_STACK}#${System.nanoTime()}")
         }
         tx.commit()
     }
