@@ -497,19 +497,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
         // 首页工具栏原来那个「编辑Tab」按钮，位置让给消息入口后挪到了这里
         findPreference<Preference>("editTab")?.setOnPreferenceClickListener {
-            run {
-                val host = activity as? PageHostActivity
-                if (host != null) {
-                    host.openFragment(
-                        com.example.c001apk.ui.others.CopyFragment.forHomeMenu(),
-                        "edit-tab",
-                        getString(R.string.edit_tab),
-                    )
-                } else {
-                    IntentUtil.startActivity<CopyActivity>(requireContext()) {
-                        putExtra("type", "homeMenu")
-                    }
-                }
+            IntentUtil.startActivity<CopyActivity>(requireContext()) {
+                putExtra("type", "homeMenu")
             }
             true
         }

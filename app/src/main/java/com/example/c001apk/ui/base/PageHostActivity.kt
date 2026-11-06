@@ -77,9 +77,6 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             com.example.c001apk.ui.others.AboutFragment()
 
 
-        // 编辑 Tab（CopyActivity 的 homeMenu 模式 ✓ 阶段③ 第 4 个）
-        com.example.c001apk.ui.others.CopyFragment::class.java.name ->
-            com.example.c001apk.ui.others.CopyFragment.forHomeMenu()
 
         // 用户/话题黑名单（阶段性③ 第 3 个）✓
         com.example.c001apk.ui.blacklist.BlackListFragment::class.java.name ->
