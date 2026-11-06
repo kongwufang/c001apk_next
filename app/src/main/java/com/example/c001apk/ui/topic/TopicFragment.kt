@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.topic
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.app.ActivityOptions
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -404,19 +405,29 @@ class TopicFragment : BasePagerFragment() {
                 when (it.itemId) {
                     R.id.search -> {
                         if (viewModel.type == "topic") {
-                            IntentUtil.startActivity<SearchActivity>(requireContext()) {
-                                putExtra("type", "topic")
-                                putExtra("pageType", "tag")
-                                putExtra("pageParam", viewModel.url.replace("/t/", ""))
-                                putExtra("title", viewModel.url.replace("/t/", ""))
-                            }
+                            requireContext().startActivity(
+                                PageHostActivity.intentByPage(
+                                    requireContext(), "search",
+                                    android.os.Bundle().apply {
+                                        putString("type", "topic")
+                                        putString("pageType", "tag")
+                                        putString("pageParam", viewModel.url.replace("/t/", ""))
+                                        putString("title", viewModel.url.replace("/t/", ""))
+                                    }, null,
+                                )
+                            )
                         } else {
-                            IntentUtil.startActivity<SearchActivity>(requireContext()) {
-                                putExtra("type", "topic")
-                                putExtra("pageType", "product_phone")
-                                putExtra("pageParam", viewModel.id)
-                                putExtra("title", viewModel.title)
-                            }
+                            requireContext().startActivity(
+                                PageHostActivity.intentByPage(
+                                    requireContext(), "search",
+                                    android.os.Bundle().apply {
+                                        putString("type", "topic")
+                                        putString("pageType", "product_phone")
+                                        putString("pageParam", viewModel.id)
+                                        putString("title", viewModel.title)
+                                    }, null,
+                                )
+                            )
                         }
                     }
 

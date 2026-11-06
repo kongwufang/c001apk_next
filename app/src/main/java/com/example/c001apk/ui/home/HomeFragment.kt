@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.home
 
+import com.example.c001apk.ui.base.PageHostActivity
 import com.example.c001apk.util.PrefManager
 import android.os.Bundle
 import android.view.View
@@ -110,8 +111,9 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
         }
 
         binding.search.setOnClickListener {
-            IntentUtil.startActivity<SearchActivity>(requireContext()) {
-            }
+            requireContext().startActivity(
+                PageHostActivity.intentByPage(requireContext(), "search", null, null)
+            )
         }
 
         // 原来这里是「编辑Tab」，已挪到 设置 → 外观，位置让给消息入口

@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.base.PageHostActivity
 import com.example.c001apk.ui.follow.LocalFollowActivity
 import android.view.LayoutInflater
 import android.view.View
@@ -50,10 +51,15 @@ class MessageFirstAdapter : RecyclerView.Adapter<MessageFirstAdapter.FirstViewHo
         override fun onClick(view: View?) {
             when (view?.id) {
                 R.id.feedLayout ->
-                    IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                        putExtra("uid", PrefManager.uid)
-                        putExtra("type", "feed")
-                    }
+                    itemView.context.startActivity(
+                        PageHostActivity.intentByPage(
+                            itemView.context, "fffList",
+                            android.os.Bundle().apply {
+                                putString("uid", PrefManager.uid)
+                                putString("type", "feed")
+                            }, null,
+                        )
+                    )
 
                 R.id.followLayout ->
                     // 2026-10-25：「关注」存本地还是云端由设置决定 ✓
@@ -62,17 +68,27 @@ class MessageFirstAdapter : RecyclerView.Adapter<MessageFirstAdapter.FirstViewHo
                     if (!PrefManager.saveFollowToCloud) {
                         IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
                     } else {
-                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                            putExtra("uid", PrefManager.uid)
-                            putExtra("type", "follow")
-                        }
+                        itemView.context.startActivity(
+                            PageHostActivity.intentByPage(
+                                itemView.context, "fffList",
+                                android.os.Bundle().apply {
+                                    putString("uid", PrefManager.uid)
+                                    putString("type", "follow")
+                                }, null,
+                            )
+                        )
                     }
 
                 R.id.fansLayout ->
-                    IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                        putExtra("uid", PrefManager.uid)
-                        putExtra("type", "fans")
-                    }
+                    itemView.context.startActivity(
+                        PageHostActivity.intentByPage(
+                            itemView.context, "fffList",
+                            android.os.Bundle().apply {
+                                putString("uid", PrefManager.uid)
+                                putString("type", "fans")
+                            }, null,
+                        )
+                    )
             }
         }
 

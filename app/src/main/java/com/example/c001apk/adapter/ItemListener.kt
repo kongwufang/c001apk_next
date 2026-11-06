@@ -101,11 +101,15 @@ interface ItemListener {
 
     fun viewFFFList(view: View, uid: String?, isEnable: Boolean, type: String) {
         uid?.let {
-            IntentUtil.startActivity<FFFListActivity>(view.context) {
-                putExtra("uid", uid)
-                putExtra("isEnable", isEnable)
-                putExtra("type", type)
-            }
+            view.context.startActivity(
+                PageHostActivity.intentByPage(
+                    view.context, "fffList",
+                    android.os.Bundle().apply {
+                        putString("uid", uid)
+                        putString("type", type)
+                    }, null,
+                )
+            )
         }
     }
 

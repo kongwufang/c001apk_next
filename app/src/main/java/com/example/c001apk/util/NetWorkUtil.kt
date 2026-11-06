@@ -192,9 +192,14 @@ object NetWorkUtil {
             )
         } else if (replace.startsWith("/t/")) {
             if (replace.contains("?type=8")) {
-                IntentUtil.startActivity<CoolPicActivity>(context) {
-                    putExtra("title", replace.substring(3, replace.indexOfFirst { it == '?' }))
-                }
+                context.startActivity(
+                    PageHostActivity.intentByPage(
+                        context, "coolPic",
+                        android.os.Bundle().apply {
+                            putString("title", replace.substring(3, replace.indexOfFirst { it == '?' }))
+                        }, null,
+                    )
+                )
             } else {
                 with(replace.indexOfFirst { it == '?' }) {
                     val param = if (this@with != -1) replace.substring(3, this@with)
@@ -376,10 +381,15 @@ object NetWorkUtil {
     fun openLinkDyh(type: String, mContext: Context, url: String, id: String, title: String?) {
         when (type) {
             "feedRelation" -> {
-                IntentUtil.startActivity<DyhActivity>(mContext) {
-                    putExtra("id", id)
-                    putExtra("title", title)
-                }
+                mContext.startActivity(
+                    PageHostActivity.intentByPage(
+                        mContext, "dyh",
+                        android.os.Bundle().apply {
+                            putString("id", id)
+                            putString("title", title)
+                        }, null,
+                    )
+                )
             }
 
             "topic", "product" -> {

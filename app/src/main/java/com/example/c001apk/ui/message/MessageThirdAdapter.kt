@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.view.LayoutInflater
@@ -90,17 +91,23 @@ class MessageThirdAdapter : RecyclerView.Adapter<MessageThirdAdapter.ThirdViewHo
                     // 这里不再把 CookieUtil 的未读数本地清零：红点统一由
                     // 「服务端未读数 − 本机已读账本」算出来，点进分类页看过的那些
                     // 会在分类页里记账（MessageViewModel.markSeen），返回后红点自然消掉
-                    IntentUtil.startActivity<MessageActivity>(itemView.context) {
-                        when (binding.title.text) {
-                            "@我的动态" -> putExtra("type", "atMe")
-                            "@我的评论" -> putExtra("type", "atCommentMe")
-                            "我收到的赞" -> putExtra("type", "feedLike")
-                            "好友关注" -> putExtra("type", "contactsFollow")
-                            "我的回复" -> putExtra("type", "commentMe")
-                            "私信" -> putExtra("type", "list")
-                            "酷安小秘书" -> putExtra("type", "secretary")
-                        }
+                    // ★ 全量迁移：先算出 type，再进宿主（原来是 when 里直接 putExtra ✗）
+                    val msgType = when (binding.title.text) {
+                        "@我的动态" -> "atMe"
+                        "@我的评论" -> "atCommentMe"
+                        "我收到的赞" -> "feedLike"
+                        "好友关注" -> "contactsFollow"
+                        "我的回复" -> "commentMe"
+                        "私信" -> "list"
+                        "酷安小秘书" -> "secretary"
+                        else -> "atMe"
                     }
+                    itemView.context.startActivity(
+                        PageHostActivity.intentByPage(
+                            itemView.context, "message",
+                            android.os.Bundle().apply { putString("type", msgType) }, null,
+                        )
+                    )
                 }
             }
         }

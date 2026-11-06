@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.user
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -347,11 +348,16 @@ class UserPagerFragment : BasePagerFragment() {
                     }
 
                     R.id.search -> {
-                        IntentUtil.startActivity<SearchActivity>(requireContext()) {
-                            putExtra("pageType", "user")
-                            putExtra("pageParam", viewModel.uid)
-                            putExtra("title", viewModel.userData?.username)
-                        }
+                        requireContext().startActivity(
+                            PageHostActivity.intentByPage(
+                                requireContext(), "search",
+                                android.os.Bundle().apply {
+                                    putString("pageType", "user")
+                                    putString("pageParam", viewModel.uid)
+                                    putString("title", viewModel.userData?.username)
+                                }, null,
+                            )
+                        )
                     }
 
                     R.id.block -> {

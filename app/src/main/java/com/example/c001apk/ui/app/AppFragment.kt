@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.app
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.app.ActivityOptions
 import android.content.Intent
 import android.os.Bundle
@@ -137,11 +138,16 @@ class AppFragment : BasePagerFragment() {
             setOnMenuItemClickListener {
                 when (it.itemId) {
                     R.id.search -> {
-                        IntentUtil.startActivity<SearchActivity>(requireContext()) {
-                            putExtra("pageType", "apk")
-                            putExtra("pageParam", viewModel.appId)
-                            putExtra("title", viewModel.appData?.title)
-                        }
+                        requireContext().startActivity(
+                            PageHostActivity.intentByPage(
+                                requireContext(), "search",
+                                android.os.Bundle().apply {
+                                    putString("pageType", "apk")
+                                    putString("pageParam", viewModel.appId)
+                                    putString("title", viewModel.appData?.title)
+                                }, null,
+                            )
+                        )
                     }
 
                     R.id.subscribe -> {
