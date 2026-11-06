@@ -22,7 +22,7 @@
 on:
   workflow_dispatch:
   push:
-    branches: [ debug, desktop2 ]
+    branches: [ debug2 ]
     paths-ignore:
       - '**.md'
 
