@@ -118,6 +118,19 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             intent.getStringExtra("type").orEmpty()
         )
 
+        // ✅ 帖子/动态详情（FeedActivity → FeedPageFragment，调用点最多 ✓）
+        "feed" -> com.example.c001apk.ui.feed.FeedPageFragment.newInstance(
+            intent.getStringExtra("id"),
+            intent.getStringExtra("rid"),
+            intent.getBooleanExtra("viewReply", false),
+            intent.getBooleanExtra("offline", false),
+            if (android.os.Build.VERSION.SDK_INT >= 33)
+                intent.getParcelableExtra("feedData", com.example.c001apk.logic.model.HomeFeedResponse.Data::class.java)
+            else
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra("feedData"),
+        )
+
         // ✅ 应用详情（AppActivity → AppPageFragment）
         "app" -> com.example.c001apk.ui.app.AppPageFragment.newInstance(
             intent.getStringExtra("id")
