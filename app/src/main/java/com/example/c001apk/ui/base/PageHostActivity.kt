@@ -42,6 +42,12 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
 
         if (savedInstanceState == null) {
             // ① 显式指定了 Fragment（阶段③ 的通用入口）⇒ 按**白名单**建，不用反射 ✓
+            // ① 通用页面 key（全量迁移：每个页面一个 key ✓ 参数沿用老 Activity 的 extras）
+            val page = intent.getStringExtra(ARG_PAGE)?.let { fragmentForPage(it) }
+            if (page != null) {
+                openFragment(page, intent.getStringExtra(ARG_PAGE), intent.getStringExtra(ARG_TITLE))
+                return@if
+            }
             val wanted = intent.getStringExtra(ARG_FRAGMENT)
             val fragment = if (wanted != null) fragmentFor(wanted) else null
             if (fragment != null) {
@@ -63,6 +69,55 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
      * 阶段③ 每迁一个页面，就在这里加一行 ✓ 编译期就能发现漏了 ✓
      * 反射那套在 R8 下要写 keep 规则、拼错类名还是运行时崩 ✗ 不值得 ✓
      */
+    /**
+     * ★ 通用页面注册表（全量迁移）。
+     *
+     * 约定：每迁一个页面，就在这里加一个 `key` 分支 ✓
+     *   · 参数沿用**老 Activity 的 extras**（id / title / type / uid / pageType / pageParam …✓）
+     *   · key 用页面名的小驼峰（collection / search / dyh / fffList …✓）
+     *
+     * 调用方（新代码）：
+     * ```
+     * startActivity(PageHostActivity.intent(ctx, "collection", null, "收藏"))
+     * // 已经在宿主内 ⇒ (activity as? PageHostActivity)?.openPageByKey("collection")
+     * ```
+     */
+    private fun fragmentForPage(page: String): Fragment? = when (page) {
+        // ✅ 收藏（云端）—— newInstance(id, title) ✓ id 传 null 表示「我的收藏」
+        "collection" -> com.example.c001apk.ui.collection.CollectionFragment.newInstance(
+            null,
+            intent.getStringExtra("title") ?: "收藏",
+        )
+
+        // ✅ 关注/粉丝/点赞/回复 列表（FFFListActivity → FollowPagerFragment）
+        "fffList" -> com.example.c001apk.ui.follow.FollowPagerFragment.newInstance(
+            intent.getStringExtra("uid").orEmpty(),
+            intent.getStringExtra("type") ?: "feed",
+        )
+
+        // ✅ 动态（DyhActivity → DyhFragment）
+        "dyh" -> com.example.c001apk.ui.dyh.DyhFragment.newInstance(
+            intent.getStringExtra("id").orEmpty(),
+            intent.getStringExtra("title").orEmpty(),
+        )
+
+        // ✅ 搜索（SearchActivity → SearchFragment）
+        "search" -> com.example.c001apk.ui.search.SearchFragment.newInstance(
+            intent.getStringExtra("pageType").orEmpty(),
+            intent.getStringExtra("pageParam").orEmpty(),
+            intent.getStringExtra("title").orEmpty(),
+        )
+
+        else -> null
+    }
+
+    /** 宿主内压一个通用页面（已在宿主里时用这个 ✓） */
+    fun openPageByKey(page: String, title: String? = null): Boolean {
+        val f = fragmentForPage(page) ?: return false
+        openFragment(f, page, title)
+        return true
+    }
+
     private fun fragmentFor(className: String): Fragment? = when (className) {
         SettingsPreferenceFragment::class.java.name ->
             SettingsPreferenceFragment.newInstance(intent.getStringExtra(ARG_ROOT_KEY))
@@ -171,6 +226,19 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
          *
          * ⚠️ 千万别用 `IntentUtil.startActivity` ✗ 它会带 enterOptions ⇒ 又变成 window 动画 ✗
          */
+        /** 通用页面入口（全量迁移首选 ✓ 参数走 Bundle） */
+        fun intentByPage(
+            context: android.content.Context,
+            page: String,
+            args: android.os.Bundle? = null,
+            title: String? = null,
+        ): android.content.Intent =
+            android.content.Intent(context, PageHostActivity::class.java).apply {
+                putExtra(ARG_PAGE, page)
+                args?.let { putExtras(it) }
+                if (!title.isNullOrBlank()) putExtra(ARG_TITLE, title)
+            }
+
         fun intent(
             context: android.content.Context,
             fragmentClass: Class<out Fragment>,
@@ -184,6 +252,8 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             }
 
         private const val ARG_FRAGMENT = "fragmentClass"
+        /** 通用页面 key（全量迁移用）：见 fragmentFor 的 when 分支 */
+        const val ARG_PAGE = "page"
         private const val ARG_FRAGMENT_ARGS = "fragmentArgs"
         private const val ARG_TITLE = "hostTitle"
     }

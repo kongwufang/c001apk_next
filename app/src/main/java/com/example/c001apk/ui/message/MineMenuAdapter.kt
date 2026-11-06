@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.message
 
+import com.example.c001apk.ui.base.PageHostActivity
 import com.example.c001apk.ui.blacklist.BlackListActivity
 import com.example.c001apk.ui.collection.LocalCollectionActivity
 import com.example.c001apk.ui.follow.LocalFollowActivity
@@ -61,10 +62,17 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     if (!PrefManager.saveFollowToCloud) {
                         IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
                     } else if (PrefManager.isLogin) {
-                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                            putExtra("type", "follow")
-                            putExtra("uid", PrefManager.uid)
-                        }
+                        itemView.context.startActivity(
+                              PageHostActivity.intentByPage(
+                                  itemView.context,
+                                  "fffList",
+                                  android.os.Bundle().apply {
+                                      putString("type", "follow")
+                                      putString("uid", PrefManager.uid)
+                                  },
+                                  null,
+                              )
+                          )
                     }
 
                 R.id.favLayout ->
@@ -74,30 +82,53 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     if (!PrefManager.saveCollectionToCloud) {
                         IntentUtil.startActivity<LocalCollectionActivity>(itemView.context) {}
                     } else if (PrefManager.isLogin) {
-                        IntentUtil.startActivity<CollectionActivity>(itemView.context) {
-                        }
+                        // ★ 全量迁移：走宿主（视图动画 ✓ 跟手 ✓）
+                        itemView.context.startActivity(
+                            PageHostActivity.intentByPage(itemView.context, "collection", null, "收藏")
+                        )
                     }
 
                 R.id.likeLayout ->
                     if (PrefManager.isLogin)
-                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                            putExtra("type", "like")
-                            putExtra("uid", PrefManager.uid)
-                        }
+                        itemView.context.startActivity(
+                              PageHostActivity.intentByPage(
+                                  itemView.context,
+                                  "fffList",
+                                  android.os.Bundle().apply {
+                                      putString("type", "like")
+                                      putString("uid", PrefManager.uid)
+                                  },
+                                  null,
+                              )
+                          )
 
                 R.id.replyLayout ->
                     if (PrefManager.isLogin)
-                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                            putExtra("type", "reply")
-                            putExtra("uid", PrefManager.uid)
-                        }
+                        itemView.context.startActivity(
+                              PageHostActivity.intentByPage(
+                                  itemView.context,
+                                  "fffList",
+                                  android.os.Bundle().apply {
+                                      putString("type", "reply")
+                                      putString("uid", PrefManager.uid)
+                                  },
+                                  null,
+                              )
+                          )
 
                 R.id.freqLayout ->
                     if (PrefManager.isLogin)
-                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                            putExtra("type", "recentHistory")
-                            putExtra("uid", PrefManager.uid)
-                        }
+                        itemView.context.startActivity(
+                              PageHostActivity.intentByPage(
+                                  itemView.context,
+                                  "fffList",
+                                  android.os.Bundle().apply {
+                                      putString("type", "recentHistory")
+                                      putString("uid", PrefManager.uid)
+                                  },
+                                  null,
+                              )
+                          )
 
                 R.id.historyLayout ->
                     IntentUtil.startActivity<HistoryActivity>(itemView.context) {
