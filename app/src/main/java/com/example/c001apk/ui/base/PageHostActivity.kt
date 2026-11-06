@@ -72,6 +72,10 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         com.example.c001apk.ui.settings.params.ParamsPreferenceFragment::class.java.name ->
             com.example.c001apk.ui.settings.params.ParamsPreferenceFragment()
 
+        // 关于页（2026-11-06 从 AboutActivity 抽出 ✓ 阶段③ 第一个迁移样例）
+        com.example.c001apk.ui.others.AboutFragment::class.java.name ->
+            com.example.c001apk.ui.others.AboutFragment()
+
         else -> null
     }
 

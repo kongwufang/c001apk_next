@@ -321,7 +321,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         findPreference<Preference>("about")?.apply {
             summary = "${BuildConfig.VERSION_NAME}(${BuildConfig.VERSION_CODE})"
             setOnPreferenceClickListener {
-                IntentUtil.startActivity<AboutActivity>(requireContext()) {}
+                // ★ debug2 试点：宿主内就压 AboutFragment（视图动画 ✓ 跟手 ✓）
+                val host = activity as? PageHostActivity
+                if (host != null) {
+                    host.openFragment(
+                        com.example.c001apk.ui.others.AboutFragment(),
+                        "about",
+                        getString(R.string.about),
+                    )
+                } else {
+                    IntentUtil.startActivity<AboutActivity>(requireContext()) {}
+                }
                 true
             }
         }
