@@ -118,6 +118,9 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             intent.getStringExtra("type").orEmpty()
         )
 
+        // ✅ 浏览历史（HistoryActivity → HistoryFragment）
+        "history" -> com.example.c001apk.ui.history.HistoryFragment()
+
         // ✅ 搜索（SearchActivity → SearchFragment）
         "search" -> com.example.c001apk.ui.search.SearchFragment.newInstance(
             intent.getStringExtra("pageType").orEmpty(),

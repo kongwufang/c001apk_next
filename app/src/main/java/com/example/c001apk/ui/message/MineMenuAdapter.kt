@@ -131,9 +131,9 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                           )
 
                 R.id.historyLayout ->
-                    IntentUtil.startActivity<HistoryActivity>(itemView.context) {
-                        putExtra("type", "browse")
-                    }
+                    itemView.context.startActivity(
+                              PageHostActivity.intentByPage(itemView.context, "history", null, "浏览历史")
+                          )
 
                 // 第 9 格（2026-10-25 用户要求：从「敬请期待」换成**黑名单**）
                 //   跳 BlackListActivity(type=user) ⇒ 它内部按
