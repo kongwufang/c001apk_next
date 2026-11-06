@@ -126,6 +126,7 @@
     <string name="link_risk_tip">温馨提示：当前网页 (%1$s) 不在 c001apk 官方域名下，请注意您的账号安全</string>
     <!-- 非可信链接跳外部浏览器前的二次确认 -->
     <string name="link_external_title">外部链接</string>
+    <string name="link_untrusted_title">这个页面不可信</string>
     <string name="link_external_confirm">确认</string>
     <!-- 进入应用时读到剪贴板里的酷安分享链接 -->
     <string name="share_link_title">识别到分享链接</string>

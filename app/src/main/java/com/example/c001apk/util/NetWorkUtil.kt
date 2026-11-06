@@ -239,9 +239,18 @@ object NetWorkUtil {
                 )
             }
         } else if (replace.startsWith("#/page?url=") || replace.startsWith("/page?url=")) {
-            IntentUtil.startActivity<CarouselActivity>(context) {
-                putExtra("url", replace.replace("#/page?url=", "").replace("/page?url=", ""))
-                putExtra("title", title)
+            // ★ 2026-11-06 安全（台账 AP-待办 2）：
+            //   `/page?url=` 里塞的是**任意地址** ✗ 之前直接进 CarouselActivity 的 WebView ✗
+            //   任何外部 App 都能 craft `coolmarket://page?url=https://任意站` 把我们当跳板 ✗
+            //   ⇒ 现在：域名在信任名单里才直接开 ✓ 否则**先问用户** ✓
+            val pageUrl = replace.replace("#/page?url=", "").replace("/page?url=", "")
+            if (LinkGuard.isTrusted(pageUrl)) {
+                IntentUtil.startActivity<CarouselActivity>(context) {
+                    putExtra("url", pageUrl)
+                    putExtra("title", title)
+                }
+            } else {
+                confirmOpenWeb(context, pageUrl, title)
             }
         } else if (replace.startsWith("#/topic/") || replace.startsWith("/topic/")) {
             // 服务端下发的「栏目」url 必须整条交给 /v6/page/dataList，sort / keywords /
@@ -251,14 +260,18 @@ object NetWorkUtil {
             // 之前落到末尾的 else，只会弹「unsupported url」。
             // withConfigCard 那对参数是让服务端多下发一张空的 configCard（「默认配置」），
             // 通用列表渲染不了它、会多出一条空白卡片，所以剥掉（实测剥掉后正好 20 条榜单项）。
-            IntentUtil.startActivity<CarouselActivity>(context) {
-                putExtra(
-                    "url",
-                    replace
-                        .replace(Regex("[&?]withConfigCard=[^&]*"), "")
-                        .replace(Regex("[&?]configCardExtraData=[^&]*"), "")
-                )
-                putExtra("title", title)
+            val topicUrl = replace
+                .replace(Regex("[&?]withConfigCard=[^&]*"), "")
+                .replace(Regex("[&?]configCardExtraData=[^&]*"), "")
+            // ★ 2026-11-06 安全（台账 AP-待办 2）：这支持的是**自家**的栏目地址 ✓
+            //   但如果参数里挟带了外部 url ✗ 也要先问用户 ✓
+            if (LinkGuard.isTrusted(topicUrl) || !topicUrl.contains("url=", ignoreCase = true)) {
+                IntentUtil.startActivity<CarouselActivity>(context) {
+                    putExtra("url", topicUrl)
+                    putExtra("title", title)
+                }
+            } else {
+                confirmOpenWeb(context, topicUrl, title)
             }
         } else if (replace.startsWith("image.coolapk.com")) {
             ImageUtil.startBigImgViewSimple(context, url.http2https)
@@ -297,6 +310,35 @@ object NetWorkUtil {
      * 弹窗只能挂在 Activity 上，而 [openLink] 的调用方偶尔会传 Application context，
      * 所以这里解包一次；实在拿不到就退化成 Toast（至少别静默什么都不做）。
      */
+    /**
+     * ★ 2026-11-06（台账 AP-待办 2）：**不可信地址**在 App 内打开前的确认框。
+     *
+     * 和 [confirmLeaveApp] 的区别：这个是「**在 App 内**打开一个不可信网页」✗
+     * 那个是「离开 App 去浏览器」✓ 文案与确认后动作都不同 ✓
+     *
+     * 用户点「继续」⇒ 仍然用 WebViewActivity 打开 ✓（WebViewActivity 自己还有底部风险提示 ✓）
+     */
+    private fun confirmOpenWeb(context: Context, url: String, title: String?) {
+        val activity = context.findActivity()
+        val host = LinkGuard.hostOf(url)
+        val message = "这个页面来自 ${host.ifEmpty { "未知站点" }}，不是我们信任的站点。\n确定要打开吗？"
+        if (activity == null) {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            return
+        }
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.link_untrusted_title)
+            .setMessage(message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.link_external_confirm) { _, _ ->
+                IntentUtil.startActivity<WebViewActivity>(activity) {
+                    putExtra("url", url)
+                    if (!title.isNullOrEmpty()) putExtra("title", title)
+                }
+            }
+            .show()
+    }
+
     private fun confirmLeaveApp(context: Context, url: String) {
         val activity = context.findActivity()
         val message = "你即将离开 c001apk next，前往 ${LinkGuard.hostOf(url)}"
