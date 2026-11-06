@@ -116,7 +116,8 @@ class CopyFragment : Fragment() {
             if (needRestart == true) {
                 val ctx = context ?: return@observe
                 val intent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
-                intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    ?: return@observe
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 startActivity(intent)
             }
         }
