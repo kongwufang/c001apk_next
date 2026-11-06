@@ -76,6 +76,13 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         com.example.c001apk.ui.others.AboutFragment::class.java.name ->
             com.example.c001apk.ui.others.AboutFragment()
 
+        // 其他屏蔽项（关键字/用户/节点）：type 走 ARG_TYPE ✓
+        com.example.c001apk.ui.settings.SpamShieldFragment::class.java.name ->
+            com.example.c001apk.ui.settings.SpamShieldFragment.newInstance(
+                intent.getStringExtra(com.example.c001apk.ui.settings.SpamShieldFragment.ARG_TYPE)
+                    ?: "word"
+            )
+
         else -> null
     }
 

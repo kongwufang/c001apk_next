@@ -383,22 +383,55 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
         findPreference<Preference>("spamWord")?.setOnPreferenceClickListener {
-            IntentUtil.startActivity<SpamShieldActivity>(requireContext()) {
-                putExtra("type", "word")
+            run {
+                val host = activity as? PageHostActivity
+                if (host != null) {
+                    host.openFragment(
+                        com.example.c001apk.ui.settings.SpamShieldFragment.newInstance("word"),
+                        "spam-word",
+                        null,
+                    )
+                } else {
+                    IntentUtil.startActivity<SpamShieldActivity>(requireContext()) {
+                        putExtra("type", "word")
+                    }
+                }
             }
             true
         }
 
         findPreference<Preference>("spamUser")?.setOnPreferenceClickListener {
-            IntentUtil.startActivity<SpamShieldActivity>(requireContext()) {
-                putExtra("type", "user")
+            run {
+                val host = activity as? PageHostActivity
+                if (host != null) {
+                    host.openFragment(
+                        com.example.c001apk.ui.settings.SpamShieldFragment.newInstance("user"),
+                        "spam-user",
+                        null,
+                    )
+                } else {
+                    IntentUtil.startActivity<SpamShieldActivity>(requireContext()) {
+                        putExtra("type", "user")
+                    }
+                }
             }
             true
         }
 
         findPreference<Preference>("spamNode")?.setOnPreferenceClickListener {
-            IntentUtil.startActivity<SpamShieldActivity>(requireContext()) {
-                putExtra("type", "node")
+            run {
+                val host = activity as? PageHostActivity
+                if (host != null) {
+                    host.openFragment(
+                        com.example.c001apk.ui.settings.SpamShieldFragment.newInstance("node"),
+                        "spam-node",
+                        null,
+                    )
+                } else {
+                    IntentUtil.startActivity<SpamShieldActivity>(requireContext()) {
+                        putExtra("type", "node")
+                    }
+                }
             }
             true
         }
