@@ -118,6 +118,14 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             intent.getStringExtra("type").orEmpty()
         )
 
+        // ✅ 话题 / 商品聚合页（TopicActivity → TopicPageFragment ✓ 数据不依赖登录 ✓）
+        "topic" -> com.example.c001apk.ui.topic.TopicPageFragment.newInstance(
+            intent.getStringExtra("url"),
+            intent.getStringExtra("title"),
+            intent.getStringExtra("id"),
+            intent.getStringExtra("type"),
+        )
+
         // ✅ 用户主页（UserActivity → UserFragment，BaseView 系第一个 ✓）
         "user" -> com.example.c001apk.ui.user.UserFragment.newInstance(
             intent.getStringExtra("id")
