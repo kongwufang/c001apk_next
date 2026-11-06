@@ -1,5 +1,6 @@
 package com.example.c001apk.util
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -183,9 +184,12 @@ object NetWorkUtil {
                 putExtra("id", replace.replace("/apk/", "").replace("/game/", ""))
             }
         } else if (replace.startsWith("/u/")) {
-            IntentUtil.startActivity<UserActivity>(context) {
-                putExtra("id", replace.substring(3))
-            }
+            context.startActivity(
+                PageHostActivity.intentByPage(
+                    context, "user",
+                    android.os.Bundle().apply { putString("id", replace.substring(3)) }, null,
+                )
+            )
         } else if (replace.startsWith("/t/")) {
             if (replace.contains("?type=8")) {
                 IntentUtil.startActivity<CoolPicActivity>(context) {

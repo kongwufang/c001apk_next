@@ -179,9 +179,12 @@ interface ItemListener {
     }
 
     fun onViewUser(view: View, uid: String?) {
-        IntentUtil.startActivity<UserActivity>(view.context) {
-            putExtra("id", uid)
-        }
+        view.context.startActivity(
+            PageHostActivity.intentByPage(
+                view.context, "user",
+                android.os.Bundle().apply { putString("id", uid) }, null,
+            )
+        )
     }
 
     /**

@@ -120,9 +120,12 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             // 头部整块（头像 + 昵称 + 等级 + 进度）点击进入自己的主页
             binding.profileLayout.setOnClickListener {
                 if (PrefManager.uid.isNotEmpty())
-                    IntentUtil.startActivity<UserActivity>(requireContext()) {
-                        putExtra("id", PrefManager.uid)
-                    }
+                    requireContext().startActivity(
+                        PageHostActivity.intentByPage(
+                            requireContext(), "user",
+                            android.os.Bundle().apply { putString("id", PrefManager.uid) }, null,
+                        )
+                    )
             }
             if (viewModel.initLogin) {
                 viewModel.initLogin = false

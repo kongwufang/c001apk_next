@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.follow
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
@@ -115,9 +116,12 @@ class LocalFollowActivity : AppCompatActivity() {
                 "uid: ${item.uid}"
             }
             holder.tv.setOnClickListener {
-                IntentUtil.startActivity<UserActivity>(holder.itemView.context) {
-                    putExtra("id", item.uid)
-                }
+                holder.itemView.context.startActivity(
+                    PageHostActivity.intentByPage(
+                        holder.itemView.context, "user",
+                        android.os.Bundle().apply { putString("id", item.uid) }, null,
+                    )
+                )
             }
         }
     }

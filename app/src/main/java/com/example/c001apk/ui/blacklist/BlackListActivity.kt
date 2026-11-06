@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.blacklist
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.content.Context
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
@@ -221,9 +222,12 @@ class BlackListActivity : BaseActivity<ActivityBlackListBinding>(), IOnItemClick
             userAdapter.setOnItemClickListener(
                 onItemClick = { user ->
                     user.uid?.let {
-                        IntentUtil.startActivity<UserActivity>(this) {
-                            putExtra("id", it)
-                        }
+                        startActivity(
+                            PageHostActivity.intentByPage(
+                                this, "user",
+                                android.os.Bundle().apply { putString("id", it) }, null,
+                            )
+                        )
                     }
                 },
                 onRemoveClick = { user ->
@@ -306,9 +310,12 @@ class BlackListActivity : BaseActivity<ActivityBlackListBinding>(), IOnItemClick
     override fun onItemClick(data: String) {
         when (viewModel.type) {
             "user" -> {
-                IntentUtil.startActivity<UserActivity>(this) {
-                    putExtra("id", data)
-                }
+                startActivity(
+                    PageHostActivity.intentByPage(
+                        this, "user",
+                        android.os.Bundle().apply { putString("id", data) }, null,
+                    )
+                )
             }
 
             "topic" -> {

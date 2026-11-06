@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.blacklist
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -264,9 +265,12 @@ class BlackListFragment : Fragment(), IOnItemClickListener {
             userAdapter.setOnItemClickListener(
                 onItemClick = { user ->
                     user.uid?.let {
-                        IntentUtil.startActivity<UserActivity>(requireContext()) {
-                            putExtra("id", it)
-                        }
+                        requireContext().startActivity(
+                            PageHostActivity.intentByPage(
+                                requireContext(), "user",
+                                android.os.Bundle().apply { putString("id", it) }, null,
+                            )
+                        )
                     }
                 },
                 onRemoveClick = { user ->
@@ -336,9 +340,12 @@ class BlackListFragment : Fragment(), IOnItemClickListener {
 
     override fun onItemClick(data: String) {
         when (type) {
-            "user" -> IntentUtil.startActivity<UserActivity>(requireContext()) {
-                putExtra("id", data)
-            }
+            "user" -> requireContext().startActivity(
+                PageHostActivity.intentByPage(
+                    requireContext(), "user",
+                    android.os.Bundle().apply { putString("id", data) }, null,
+                )
+            )
 
             "topic" -> IntentUtil.startActivity<TopicActivity>(requireContext()) {
                 putExtra("type", "topic")

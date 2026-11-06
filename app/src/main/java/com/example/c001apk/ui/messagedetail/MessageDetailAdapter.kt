@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.messagedetail
 
+import com.example.c001apk.ui.base.PageHostActivity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -122,9 +123,12 @@ class MessageDetailAdapter(
                 val target = partnerUid.takeIf { it.isNotBlank() }
                     ?: data.fromuid.takeIf { it.isNotBlank() }
                     ?: return@setOnClickListener
-                IntentUtil.startActivity<UserActivity>(binding.avatarLeft.context) {
-                    putExtra("id", target)
-                }
+                binding.avatarLeft.context.startActivity(
+                    PageHostActivity.intentByPage(
+                        binding.avatarLeft.context, "user",
+                        android.os.Bundle().apply { putString("id", target) }, null,
+                    )
+                )
             }
 
             val view = if (isMe) binding.picRight else binding.picLeft
