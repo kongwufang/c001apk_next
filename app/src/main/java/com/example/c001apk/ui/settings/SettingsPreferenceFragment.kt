@@ -369,15 +369,37 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
         findPreference<Preference>("userBlackList")?.setOnPreferenceClickListener {
-            IntentUtil.startActivity<BlackListActivity>(requireContext()) {
-                putExtra("type", "user")
+            run {
+                val host = activity as? PageHostActivity
+                if (host != null) {
+                    host.openFragment(
+                        com.example.c001apk.ui.blacklist.BlackListFragment.newInstance("user"),
+                        "blacklist-user",
+                        null,
+                    )
+                } else {
+                    IntentUtil.startActivity<BlackListActivity>(requireContext()) {
+                        putExtra("type", "user")
+                    }
+                }
             }
             true
         }
 
         findPreference<Preference>("topicBlackList")?.setOnPreferenceClickListener {
-            IntentUtil.startActivity<BlackListActivity>(requireContext()) {
-                putExtra("type", "topic")
+            run {
+                val host = activity as? PageHostActivity
+                if (host != null) {
+                    host.openFragment(
+                        com.example.c001apk.ui.blacklist.BlackListFragment.newInstance("topic"),
+                        "blacklist-topic",
+                        null,
+                    )
+                } else {
+                    IntentUtil.startActivity<BlackListActivity>(requireContext()) {
+                        putExtra("type", "topic")
+                    }
+                }
             }
             true
         }

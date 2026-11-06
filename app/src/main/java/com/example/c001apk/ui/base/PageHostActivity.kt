@@ -76,6 +76,13 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         com.example.c001apk.ui.others.AboutFragment::class.java.name ->
             com.example.c001apk.ui.others.AboutFragment()
 
+        // 用户/话题黑名单（阶段性③ 第 3 个）✓
+        com.example.c001apk.ui.blacklist.BlackListFragment::class.java.name ->
+            com.example.c001apk.ui.blacklist.BlackListFragment.newInstance(
+                intent.getStringExtra(com.example.c001apk.ui.blacklist.BlackListFragment.ARG_TYPE)
+                    ?: "user"
+            )
+
         // 其他屏蔽项（关键字/用户/节点）：type 走 ARG_TYPE ✓
         com.example.c001apk.ui.settings.SpamShieldFragment::class.java.name ->
             com.example.c001apk.ui.settings.SpamShieldFragment.newInstance(
