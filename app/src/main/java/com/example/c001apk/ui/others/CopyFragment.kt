@@ -10,7 +10,6 @@ import android.view.ViewGroup
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.c001apk.R
@@ -34,8 +33,8 @@ import java.util.regex.Pattern
  *   · 传 [ARG_TEXT]  ⇒ 纯文本查看（把正文里的 <a> 链接提出来 + 高亮）
  *   · 传 [ARG_TYPE]=homeMenu ⇒ 编辑 Tab（拖拽排序 + 完成保存 + 重启应用）
  *
- * ⚠️ homeMenu 模式原来用 `ViewModelProvider(activity)[HomeViewModel]`（Activity 作用域 ✗）
- *    Fragment 里改成 [activityViewModels] ✓ 作用域落在宿主上 ✓
+ * ⚠️ homeMenu 模式取 HomeViewModel 用的是 `ViewModelProvider(requireActivity())` ✓
+ *    （与老 CopyActivity 逐字一致 ✓ 作用域落在宿主上 ✓）
  *    保存走 PrefManager ⇒ 重启后主页面读到的就是新顺序 ✓
  *
  * 老的 [CopyActivity] 一行没动 ✓
@@ -46,7 +45,7 @@ class CopyFragment : Fragment() {
     private var _binding: FragmentCopyBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: HomeViewModel by activityViewModels()
+    private lateinit var viewModel: HomeViewModel
     private lateinit var mAdapter: HomeMenuAdapter
     private lateinit var mLayoutManager: LinearLayoutManager
     private lateinit var menuList: ArrayList<HomeMenu>
@@ -71,8 +70,6 @@ class CopyFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val ctx = requireContext()
-
         // 模式 A：纯文本查看
         val body = text
         if (body != null) {
@@ -91,15 +88,15 @@ class CopyFragment : Fragment() {
 
         // 模式 B：编辑 Tab
         if (mode == "homeMenu") {
+            // 和老 CopyActivity 完全一样的取法 ✓（activityViewModels 在宿主里也行，
+            // 但为了和原实现逐字一致、排除编译风险，先用 ViewModelProvider ✓）
+            viewModel = androidx.lifecycle.ViewModelProvider(requireActivity())[HomeViewModel::class.java]
             menuList = ArrayList()
             binding.tabPage.isVisible = true
             (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.title =
                 getString(R.string.edit_tab)
             initObserve()
         }
-
-        // ctx 仅用于上面的分支判断，避免未使用告警
-        if (ctx.packageName.isEmpty()) return
     }
 
     override fun onDestroyView() {
