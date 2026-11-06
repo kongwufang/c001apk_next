@@ -12,7 +12,7 @@ on:
     # debug = 测试线：版本号对齐 main（= 线上最高号，不涨号），产物进 debug-latest（prerelease）
     # update = 只放升级配置 json，不构建产物（见 Publish 步骤的排除条件）
     # main 的发布由 release.yml 负责 ✓
-    branches: [ debug, update ]
+    branches: [ debug, debug2, update ]
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -308,7 +308,9 @@ jobs:
           set -euo pipefail
           case "${GITHUB_REF_NAME}" in
             main) TAG=release-latest; TITLE="正式版（main 自动构建）"; PRE=() ;;
-            *)    TAG=debug-latest;   TITLE="测试版（debug 自动构建）"; PRE=(--prerelease) ;;
+              # debug2 = 单 Activity 重构试验线 ⇒ 单独一个 release，别和 debug 抢同一个 tag
+              debug2) TAG=debug2-latest;  TITLE="测试版（debug2 自动构建）"; PRE=(--prerelease) ;;
+            *)      TAG=debug-latest;    TITLE="测试版（debug 自动构建）"; PRE=(--prerelease) ;;
           esac
 
           # 只发布正式签名的发行包。debug 构建出的包与它同名（都叫 xxx-debug(版本号).apk），
