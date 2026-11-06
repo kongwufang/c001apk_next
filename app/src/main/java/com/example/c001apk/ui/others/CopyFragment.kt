@@ -113,7 +113,7 @@ class CopyFragment : Fragment() {
         }
 
         viewModel.restart.observe(viewLifecycleOwner) { needRestart ->
-            if (needRestart) {
+            if (needRestart == true) {
                 val ctx = context ?: return@observe
                 val intent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
                 intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)

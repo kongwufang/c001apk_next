@@ -236,6 +236,19 @@ jobs:
           ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} --stacktrace 2>&1 | tee gradle-release.log
           echo "releaseName=$(ls app/build/outputs/apk/release/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
+
+      # ★ 2026-11-06：把 Kotlin 编译错误写进 Job Summary ✓
+      #   CI 失败时取不到日志（需要 auth）✗ 但 Summary 会渲染在 run 页面 HTML 里 ✓
+      - name: 编译错误摘要（仅失败时）
+        if: failure()
+        run: |
+          set +e
+          {
+            echo "### 编译错误摘要"
+            echo "```"
+            grep -E '^e: |error: ' gradle-release.log 2>/dev/null | head -40
+            echo "```"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload release
         if: success()
         uses: actions/upload-artifact@v4
