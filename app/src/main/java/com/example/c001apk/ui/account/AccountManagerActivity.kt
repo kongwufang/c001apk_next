@@ -35,11 +35,6 @@ class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
         // 返回箭头（MaterialToolbar 自带，BaseActivity 不管这个）
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // ① 扫码登录 —— 调摄像头扫桌面端二维码（阶段 ④）
-        binding.cellScanLogin.setOnClickListener {
-            startActivity(Intent(this, ScanActivity::class.java))
-        }
-
         // ② 底部红色退出登录
         binding.btnLogout.setOnClickListener { confirmLogout() }
     }

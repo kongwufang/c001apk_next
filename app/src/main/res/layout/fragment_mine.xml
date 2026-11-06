@@ -194,7 +194,7 @@
             <!--
                 2026-10-05：页面按桌面版重排——消息入口搬去首页工具栏、
                 通知列表独立成 MessageCenterActivity，这里只剩个人中心
-                （头部用户卡 + 统计卡 + 功能宫格）。宫格见 item_mine_menu.xml。
+                （头部用户卡 + 统计卡）。⚠️ 功能宫格已于 2026-11-07 移除 ✓
             -->
             <View
                 android:layout_width="match_parent"

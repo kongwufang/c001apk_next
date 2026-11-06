@@ -51,33 +51,6 @@
             android:alignmentMode="alignMargins">
 
             <LinearLayout
-                android:id="@+id/cellScanLogin"
-                android:layout_width="0dp"
-                android:layout_height="96dp"
-                android:layout_columnWeight="1"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:focusable="true">
-
-                <ImageView
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:src="@drawable/ic_qr_scan"
-                    app:tint="?attr/colorPrimary"
-                    android:contentDescription="@string/scanLogin" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/scanLogin"
-                    android:textSize="12sp"
-                    android:textColor="?attr/colorOnSurface" />
-            </LinearLayout>
-
-            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="96dp"
                 android:layout_columnWeight="1"

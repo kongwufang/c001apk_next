@@ -46,7 +46,6 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
 
     private val viewModel by viewModels<MineViewModel>()
     private val messageFirstAdapter by lazy { MessageFirstAdapter() }
-    private val mineMenuAdapter by lazy { MineMenuAdapter() }
 
     /**
      * 侧栏卡片（公告 + 升级）2026-11-01
@@ -91,8 +90,9 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             adapter = ConcatAdapter(
                 HeaderAdapter(),
                 messageFirstAdapter,
-                mineMenuAdapter,
-                sideCardAdapter          // ★ 宫格下面那块空白 ✓ 2026-11-01
+                sideCardAdapter          // ★ 侧栏卡片（2026-11-01）
+                // ⚠️ 原来这里还有 mineMenuAdapter（八宫格）✗
+                //    2026-11-07 用户要求移除 ✓「八宫格按钮框」整块不要了 ✓
             )
             layoutManager =
                 if (isPortrait) {
