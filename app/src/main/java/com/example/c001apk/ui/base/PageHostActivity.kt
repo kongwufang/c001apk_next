@@ -118,7 +118,15 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             )
             .replace(R.id.pageHostContainer, fragment, tag)
         // ⚠️ 一级页不进栈（否则返回会把它弹掉 ⇒ 白屏 ✗）
-        if (addToBackStack) tx.addToBackStack(tag ?: ROOT_STACK)
+        // ⚠️ 入栈名字**必须唯一** ✗ 否则重复进同一个二级页时
+        //    FragmentManager 会抛 IllegalStateException（Back stack entry name already exists）✗
+        if (addToBackStack) {
+            tx.addToBackStack(
+                tag ?: ROOT_STACK,
+                // 名字加序号：同一 key 连进两次也不会撞 ✓
+                (System.nanoTime() and 0xFFFF).toString(),
+            )
+        }
         tx.commit()
     }
 
