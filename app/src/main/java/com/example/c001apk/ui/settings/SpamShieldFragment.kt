@@ -88,12 +88,12 @@ class SpamShieldFragment : Fragment() {
     private fun add() {
         val value = binding.editText.text?.toString()?.trim().orEmpty()
         if (value.isEmpty()) {
-            makeToast("请输入内容")
+            requireContext().makeToast("请输入内容")
             return
         }
         val name = binding.editText2.text?.toString()?.trim()
         if (type == "node" && name.isNullOrEmpty()) {
-            makeToast("请填写节点名称")
+            requireContext().makeToast("请填写节点名称")
             return
         }
         viewModel.add(value, name)
@@ -111,7 +111,7 @@ class SpamShieldFragment : Fragment() {
         }
         viewModel.toastText.observe(viewLifecycleOwner) { event ->
             event?.getContentIfNotHandledOrReturnNull()?.let {
-                makeToast(it)
+                requireContext().makeToast(it)
             }
         }
     }
