@@ -67,6 +67,11 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         SettingsPreferenceFragment::class.java.name ->
             SettingsPreferenceFragment.newInstance(intent.getStringExtra(ARG_ROOT_KEY))
 
+        // 参数设置（Fiddler/机型伪装那页）：官方本来就只是个壳 Activity + Fragment ✓
+        // ⇒ 直接进宿主 ✓ 返回也走 Fragment 栈 ✓
+        com.example.c001apk.ui.settings.params.ParamsPreferenceFragment::class.java.name ->
+            com.example.c001apk.ui.settings.params.ParamsPreferenceFragment()
+
         else -> null
     }
 

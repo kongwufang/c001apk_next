@@ -311,7 +311,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
 
         findPreference<Preference>("params")?.setOnPreferenceClickListener {
-            IntentUtil.startActivity<ParamsActivity>(requireContext()) {}
+            // ★ debug2 试点：在宿主内就直接压 Fragment 栈（视图动画 ✓ 跟手 ✓）
+            val host = activity as? PageHostActivity
+            if (host != null) {
+                host.openFragment(
+                    com.example.c001apk.ui.settings.params.ParamsPreferenceFragment(),
+                    "params",
+                    "参数设置",
+                )
+            } else {
+                IntentUtil.startActivity<ParamsActivity>(requireContext()) {}
+            }
             true
         }
 
