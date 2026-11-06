@@ -244,7 +244,11 @@ object NetWorkUtil {
             //   任何外部 App 都能 craft `coolmarket://page?url=https://任意站` 把我们当跳板 ✗
             //   ⇒ 现在：域名在信任名单里才直接开 ✓ 否则**先问用户** ✓
             val pageUrl = replace.replace("#/page?url=", "").replace("/page?url=", "")
-            if (LinkGuard.isTrusted(pageUrl)) {
+              // ⚠️ 实测：pageUrl 大多是**相对路径**（v9/page/...）✗ 没有 scheme/host ✗
+              //    LinkGuard.isTrusted 要 host ⇒ 一律判不信任 ⇒ 首页「今日酷安」卡一点就弹框 ✗
+              // ⇒ 相对路径 = 自家页面 ⇒ 直接进 Carousel ✓；只有绝对地址才过白名单 ✓
+              val absolute = pageUrl.startsWith("http://") || pageUrl.startsWith("https://")
+            if (!absolute || LinkGuard.isTrusted(pageUrl)) {
                 IntentUtil.startActivity<CarouselActivity>(context) {
                     putExtra("url", pageUrl)
                     putExtra("title", title)
@@ -265,7 +269,8 @@ object NetWorkUtil {
                 .replace(Regex("[&?]configCardExtraData=[^&]*"), "")
             // ★ 2026-11-06 安全（台账 AP-待办 2）：这支持的是**自家**的栏目地址 ✓
             //   但如果参数里挟带了外部 url ✗ 也要先问用户 ✓
-            if (LinkGuard.isTrusted(topicUrl) || !topicUrl.contains("url=", ignoreCase = true)) {
+              val topicAbsolute = topicUrl.startsWith("http://") || topicUrl.startsWith("https://")
+            if (!topicAbsolute || LinkGuard.isTrusted(topicUrl)) {
                 IntentUtil.startActivity<CarouselActivity>(context) {
                     putExtra("url", topicUrl)
                     putExtra("title", title)
