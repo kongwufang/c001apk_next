@@ -96,7 +96,7 @@ class SearchSuggestAdapter(
 
         val accent = MaterialColors.getColor(
             holder.title,
-            com.google.android.material.R.attr.colorPrimary
+            androidx.appcompat.R.attr.colorPrimary
         )
         holder.title.text = if (isUserItem) {
             val s = SpannableString(text)
