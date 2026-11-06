@@ -47,8 +47,12 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
             if (fragment != null) {
                 openFragment(fragment, wanted, intent.getStringExtra(ARG_TITLE))
             } else {
-                // ② 默认：设置一级页（rootKey 可空 = 一级；非空 = 直接开某个二级页）
-                openPage(intent.getStringExtra(ARG_ROOT_KEY))
+                // ② 默认：设置页。
+                //   如果直接指定了二级页（rootKey != null），必须**先铺一级页当底** ✗
+                //   否则返回时把二级页弹掉 ⇒ 容器空 ⇒ 白屏 ✗（2026-11-06 实测踩过）
+                val rootKey = intent.getStringExtra(ARG_ROOT_KEY)
+                openPage(null)          // 一级页当底，不进返回栈 ✓
+                if (rootKey != null) openPage(rootKey)   // 二级页压栈 ✓
             }
         }
     }
@@ -66,9 +70,23 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
         else -> null
     }
 
-    /** 压一个设置页（一级/二级都走这里；带视图动画 ✓ 动画中可点 ✓ 可被打断 ✓） */
+    /**
+     * 压一个设置页。
+     *
+     * ⚠️ **一级页（rootKey == null）不进返回栈** ✗
+     *    2026-11-06 实测：进了栈之后，在设置主页按返回会把**唯一那个 Fragment 弹掉** ✗
+     *    ⇒ 容器空了 ⇒ 只剩工具栏 ⇒ **白屏** ✗（用户截图确认）
+     *    正式做法：一级页直接 replace 不进栈 ⇒ 返回时栈空 ⇒ Activity 自然 finish ✓
+     *    二级页才 addToBackStack ✓
+     */
     fun openPage(rootKey: String?) {
-        openFragment(SettingsPreferenceFragment.newInstance(rootKey), rootKey ?: ROOT_STACK, null)
+        val root = rootKey == null
+        openFragment(
+            SettingsPreferenceFragment.newInstance(rootKey),
+            if (root) null else rootKey,
+            null,
+            addToBackStack = !root,
+        )
     }
 
     /**
@@ -83,9 +101,14 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
      * ⚠️ 刻意**不用反射**建 Fragment ✗：反射在 R8 下要 keep 规则 ✓ 且编译期发现不了拼错 ✗
      *    调用方直接 new 好传进来 ✓ 最稳 ✓
      */
-    fun openFragment(fragment: Fragment, tag: String?, title: String?) {
+    fun openFragment(
+        fragment: Fragment,
+        tag: String?,
+        title: String?,
+        addToBackStack: Boolean = true,
+    ) {
         if (!title.isNullOrBlank()) supportActionBar?.title = title
-        supportFragmentManager.beginTransaction()
+        val tx = supportFragmentManager.beginTransaction()
             .setReorderingAllowed(true)
             .setCustomAnimations(
                 TransitionAnim.fragmentEnter(),
@@ -94,8 +117,9 @@ class PageHostActivity : BaseActivity<ActivityPageHostBinding>() {
                 TransitionAnim.fragmentPopExit(),
             )
             .replace(R.id.pageHostContainer, fragment, tag)
-            .addToBackStack(tag ?: ROOT_STACK)
-            .commit()
+        // ⚠️ 一级页不进栈（否则返回会把它弹掉 ⇒ 白屏 ✗）
+        if (addToBackStack) tx.addToBackStack(tag ?: ROOT_STACK)
+        tx.commit()
     }
 
     companion object {
