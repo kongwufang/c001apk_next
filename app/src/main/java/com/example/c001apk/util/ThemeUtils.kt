@@ -62,7 +62,9 @@ object ThemeUtils {
     fun contentSeedOf(context: Context): Int {
         val probe = context.resources.newTheme()
         probe.applyStyle(colorThemeStyleRes, true)
-        val attrs = intArrayOf(com.google.android.material.R.attr.colorPrimary)
+        // ⚠️ colorPrimary 这个 attr 是 **appcompat** 定义的 ✗ 不在 material 的 R 里 ✗
+        //    （2026-11-06 CI 编译失败就是这个：material.R.attr.colorPrimary 解析不到 ✗）
+        val attrs = intArrayOf(androidx.appcompat.R.attr.colorPrimary)
         val ta = probe.obtainStyledAttributes(attrs)
         val c = try {
             ta.getColor(0, 0)
