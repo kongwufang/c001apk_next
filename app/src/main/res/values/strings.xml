@@ -371,4 +371,6 @@
     <string name="update_no_changelog">无更新日志</string>
     <string name="update_open_link_failed">打开链接失败</string>
 
+    <string name="settings_improve_plan">加入用户改善计划</string>
+    <string name="settings_improve_plan_summary">开启后会接收服务器下发的提示与诊断请求，帮助我们更快定位你反馈的问题。默认关闭，随时可关。</string>
 </resources>

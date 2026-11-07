@@ -174,6 +174,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         override fun getBoolean(key: String?, defValue: Boolean): Boolean {
             return when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog
+                "joinImprovePlan" -> PrefManager.joinImprovePlan
                 "blackDarkTheme" -> PrefManager.blackDarkTheme
                 "followSystemAccent" -> PrefManager.followSystemAccent
                 "showEmoji" -> PrefManager.showEmoji
@@ -190,6 +191,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         override fun putBoolean(key: String?, value: Boolean) {
             when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog = value
+                "joinImprovePlan" -> PrefManager.joinImprovePlan = value
                 "blackDarkTheme" -> PrefManager.blackDarkTheme = value
                 "followSystemAccent" -> PrefManager.followSystemAccent = value
                 "showEmoji" -> PrefManager.showEmoji = value

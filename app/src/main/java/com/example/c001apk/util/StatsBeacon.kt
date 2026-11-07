@@ -212,6 +212,7 @@ class StatsBeacon @Inject constructor(
             .header("User-Agent", userAgent())
             .header("X-Client-Version", BuildConfig.VERSION_NAME)
                 .header(ServerIdentity.HEADER_API, ServerIdentity.API_VERSION.toString())
+            .header("X-Client-Improve", if (PrefManager.joinImprovePlan) "1" else "0")
             .header("X-Client-Code", BuildConfig.VERSION_CODE.toString())
             .header("X-Install-Time", info.firstInstallTime.toString())
             .header("X-Update-Time", info.lastUpdateTime.toString())

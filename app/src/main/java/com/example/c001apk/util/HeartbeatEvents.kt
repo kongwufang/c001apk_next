@@ -59,6 +59,12 @@ object HeartbeatEvents {
     private val main = Handler(Looper.getMainLooper())
 
     fun dispatch(ctx: Context, root: JSONObject) {
+        // ★ 2026-11-07 用户要求：只有开了「加入用户改善计划」才接受下发事件 ✓
+        //   关着时**连 toast 都不弹** ✓（心跳照常上报 ✗ 统计不受影响 ✓）
+        if (!PrefManager.joinImprovePlan) {
+            android.util.Log.d("HeartbeatEvents", "未加入用户改善计划，跳过 ${root.optJSONArray("events")?.length() ?: 0} 条事件")
+            return
+        }
         val arr = root.optJSONArray("events") ?: return
         if (arr.length() == 0) return
 

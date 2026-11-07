@@ -459,6 +459,22 @@ object PrefManager {
      *
      * ⚠️ 关着时拦截器只做一次 bool 判断 ✓ **零开销** ✓
      */
+    /**
+     * 是否加入「用户改善计划」（设置 → 高级，**默认关闭** ✓ 2026-11-07）
+     *
+     * 开着的含义（用户要求）：
+     *   · **接受心跳接口下发的事件**（toast / dialog / gates / log …）
+     *   · 心跳请求头带 `X-Client-Improve: 1` ⇒ 服务器知道这台设备愿意配合 ✓
+     *
+     * 关着时：
+     *   · 心跳照常上报（统计不受影响 ✓）
+     *   · 但**不执行**任何下发事件 ✗（连 toast 都不弹 ✓）
+     *   · 请求头带 `X-Client-Improve: 0` ✓
+     */
+    var joinImprovePlan: Boolean
+        get() = pref.getBoolean("joinImprovePlan", false)
+        set(value) = pref.edit().putBoolean("joinImprovePlan", value).apply()
+
     var recordHttpLog: Boolean
         get() = pref.getBoolean("recordHttpLog", false)
         set(value) = pref.edit().putBoolean("recordHttpLog", value).apply()

@@ -267,6 +267,13 @@
             android:title="@string/image_quality" />
 
         <!-- HTTP 请求日志（默认关 ✓ 打开后全局记录，可导出/清空 ✓） -->
+            <!-- 加入用户改善计划（默认关 ✓ 开了才接受心跳下发的事件 ✓ 2026-11-07） -->
+            <rikka.material.preference.MaterialSwitchPreference
+                android:defaultValue="false"
+                android:icon="@drawable/ic_bug"
+                android:key="joinImprovePlan"
+                android:summary="@string/settings_improve_plan_summary"
+                android:title="@string/settings_improve_plan" />
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="false"
             android:icon="@drawable/ic_bug"
