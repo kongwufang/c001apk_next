@@ -118,8 +118,11 @@ class SideCardAdapter(
             body.text = c.body
             body.visibility = if (c.body.isEmpty()) View.GONE else View.VISIBLE
 
-            time.text = c.time
-            time.visibility = if (c.time.isEmpty()) View.GONE else View.VISIBLE
+            // ★ 2026-11-07 用户要求：时间那行**默认不显示**（卡片空间宝贵 ✗）
+            //   服务器想显示 ⇒ 卡里写 "showTime": true ✓
+            val showTime = c.showTime && c.time.isNotEmpty()
+            time.text = if (showTime) c.time else ""
+            time.visibility = if (showTime) View.VISIBLE else View.GONE
 
             close.visibility = if (c.dismissible) View.VISIBLE else View.GONE
             close.setOnClickListener {

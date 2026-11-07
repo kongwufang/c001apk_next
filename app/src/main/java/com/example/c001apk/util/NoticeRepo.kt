@@ -70,6 +70,13 @@ object NoticeRepo {
         val dismissible: Boolean,
         val buttons: List<Button>,
         val time: String,
+        /**
+         * 要不要显示底部那行时间（默认 **false** ✓ 2026-11-07 用户要求）
+         *
+         * 理由：卡片空间宝贵，「2026-11-07 17:58」这种信息对用户没有价值 ✗
+         * 服务器想让某张卡显示 ⇒ 显式写 `"showTime": true` ✓
+         */
+        val showTime: Boolean,
         val priority: Int,
     )
 
@@ -206,6 +213,10 @@ object NoticeRepo {
             dismissible = o.optBoolean("dismissible", true),
             buttons = buttons,
             time = o.optString("time").trim(),
+            // ★ 2026-11-07 用户要求：时间那行默认**不显示** ✗
+            //   卡片空间很宝贵，"2026-11-07 17:58" 对用户没意义 ✓
+            //   服务器想让某张卡显示时间 ⇒ 显式写 "showTime": true ✓
+            showTime = o.optBoolean("showTime", false),
             priority = o.optInt("priority", 0),
         )
     }
