@@ -131,8 +131,11 @@ object CardUi {
      * `entityTypeName` 一律排最后：它多半是 `pear_goods`、`product` 这类内部名，
      * 有真实描述时不该把它顶出来（京东商品卡以前就显示成「商品名 / pear_goods」）。
      */
-    const val DEFAULT_ICON = "logo|pic|goods_pic|icon|tpic|userAvatar|cover"
-    const val DEFAULT_ITEM_TITLE = "title|goods_title|device_title|alias_title|config_name|name"
+    // ★ 2026-11-08：user 实体的头像字段叫 avatar（iconListCard「优质酷友」）
+    const val DEFAULT_ICON = "logo|pic|goods_pic|icon|tpic|userAvatar|avatar|cover"
+    // ★ 2026-11-08：user 实体没有 title，只有 username / displayUsername
+    const val DEFAULT_ITEM_TITLE =
+        "title|goods_title|device_title|alias_title|config_name|username|displayUsername|name"
     const val DEFAULT_ITEM_SUBTITLE =
         "sub_title|subTitle|description|message|goods_promo_title|goods_promo_price|entityTypeName"
 

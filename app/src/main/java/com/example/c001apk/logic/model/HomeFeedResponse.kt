@@ -439,6 +439,9 @@ data class HomeFeedResponse(
         val subTitle: String? = null,
         // iconListCard 里的实体给的是 icon 而不是 logo
         val icon: String? = null,
+        // ★ 2026-11-08：iconListCard「优质酷友」下的 user 实体头像字段叫 `avatar`
+        //   （不是 userAvatar ✗ 实测见 _rev/follow/digital_v15_product.json）
+        val avatar: String? = null,
         // ---- 游戏频道（/v6/page/dataList?url=V15_YOUXI）下发的 topic 实体字段 ----
         // 讨论热度文本（热门新游卡片右下角那个数字）
         @SerializedName("hot_num_txt") val hotNumTxt: String? = null,
