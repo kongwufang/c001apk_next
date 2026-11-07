@@ -251,6 +251,31 @@ class HomeFeedViewModel @AssistedInject constructor(
 
     var dataListUrl: String? = null
     var dataListTitle: String? = null
+
+    /**
+     * 切换关注分组（2026-11-07 ✓ 用户反馈「切分组时头像那行先消失、下面挤上来再挤回去」）
+     *
+     * ## 为什么不能像原来那样干
+     * 原来：`dataList = emptyList()` + `loadingState = Loading`
+     *   ⇒ 列表清空 + 页面切到 loading
+     *   ⇒ 顶部「最近更新 + chips」跟着列表一起消失 ✗ 视觉上就是"跳一下"✗
+     *
+     * ## 现在的做法
+     * 列表**不清空** ✓ 只改 url 并从第 1 页重拉 ✓
+     *   `isRefreshing = true` ⇒ fetchDataList 里会 `currentList.clear()` 再填 ✓
+     *   新数据到达才替换 ✓ 期间旧列表 + 头部都还在 ✓ 不跳动 ✓
+     */
+    fun switchGroup(url: String, title: String) {
+        if (dataListUrl == url) return
+        dataListUrl = url
+        dataListTitle = title
+        page = 1
+        lastItem = null
+        isEnd = false
+        isRefreshing = true
+        isLoadMore = false
+        fetchData()
+    }
     private fun fetchDataList() {
         viewModelScope.launch(Dispatchers.IO) {
             networkRepo.getDataList(

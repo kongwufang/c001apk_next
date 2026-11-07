@@ -379,12 +379,9 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
             followHeader?.setSelectedUid(null)
         }
         PrefManager.FOLLOWTYPE = key
-        viewModel.dataListUrl = url
-        viewModel.dataListTitle = title
-        viewModel.dataList.value = emptyList()
-        viewModel.footerState.value = FooterState.LoadingDone
-        viewModel.loadingState.value = LoadingState.Loading
         followHeader?.setSelected(key)
+        // ★ 不清空列表、不切 loading ⇒ 头部两行不会闪一下消失 ✓
+        viewModel.switchGroup(url, title)
     }
 
     override fun fetchData() {
