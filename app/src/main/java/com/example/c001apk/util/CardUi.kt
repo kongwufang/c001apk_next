@@ -241,6 +241,16 @@ object CardUi {
         LIST_TEMPLATES.forEach { m[it] = Rule(layout = LIST) }
         GRID_TEMPLATES.forEach { (t, span) -> m[t] = Rule(layout = GRID, span = span) }
 
+        // ★ 2026-11-07 首页「关注」tab 实测补的两条（数据见 _rev/follow/tab_*.json）：
+        //   textLinkListCard：好友关注 / 话题关注里下发的那种「一行文字链接」卡，
+        //     实体是 textLink（例：{entityType:textLink, title:"我关注的酷友", url:"/user/myFollowList"}）
+        //     官方就是一行「标题 + 右箭头」整行可点 ⇒ 走 LINKS 的单条分支（renderTopContent 那套行布局）✓
+        //   注意：必须在 HSCROLL/LIST/GRID 三个循环**之后**配，否则会被后面的批量赋值盖掉 ✗
+        m["textLinkListCard"] = Rule(layout = LINKS)
+        //   iconGridCard：热门话题宫格（实体是 topic：logo + title）
+        //     数码/应用关注里各出现 1 次；原来自动推断会排成 2 列 ✗ 官方是 3 列 ✓
+        m["iconGridCard"] = Rule(layout = GRID, span = 3)
+
         // 下面两条是实测过的例外，必须排在上面几个批量模板之后才不会被盖掉
         // 图片放大卡：实测是整宽大图 + 标题，按实体数推断会排成宫格
         m["imageScaleCard"] = Rule(layout = LIST)   // 实际渲染被 GenericCardRenderer 的 IMAGE_SCALE_CARD 分支拦截 ✓
