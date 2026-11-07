@@ -103,10 +103,10 @@ class BackupHelper @Inject constructor(
         val json = gson.toJson(backup)
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(json.toByteArray()) }
             ?: return false
-        Log.i(TAG, "导出成功：${json.length} 字节")
+        AppLog.i(LogModule.CACHE, "BackupHelper", "导出成功：${json.length} 字节")
         true
     }.getOrElse {
-        Log.e(TAG, "导出失败", it)
+        AppLog.e(LogModule.CACHE, "BackupHelper", "导出失败", it)
         false
     }
 
@@ -118,7 +118,7 @@ class BackupHelper @Inject constructor(
         } ?: return false
         val backup: Backup = gson.fromJson(json, Backup::class.java) ?: return false
         if (backup.app != "c001apk_next") {
-            Log.w(TAG, "不是本应用的备份文件")
+            AppLog.w(LogModule.CACHE, "BackupHelper", "不是本应用的备份文件")
             return false
         }
 
@@ -144,10 +144,10 @@ class BackupHelper @Inject constructor(
         backup.userBlackList?.let { userBlackListDao.insertList(it) }
         backup.browseHistory?.let { browseHistoryDao.insertList(it) }
         backup.offlineCache?.let { offlineCacheDao.insertList(it) }
-        Log.i(TAG, "导入成功")
+        AppLog.i(LogModule.CACHE, "BackupHelper", "导入成功")
         true
     }.getOrElse {
-        Log.e(TAG, "导入失败", it)
+        AppLog.e(LogModule.CACHE, "BackupHelper", "导入失败", it)
         false
     }
 

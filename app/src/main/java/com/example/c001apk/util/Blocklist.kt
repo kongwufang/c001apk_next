@@ -385,7 +385,7 @@ object Blocklist {
                         }
                     }
                 }
-                Log.i(TAG, "批量查询完成: " +
+                AppLog.i(LogModule.GATES, "Blocklist", "批量查询完成: " +
                     snapshot.entries.joinToString { "${it.key.key}=${it.value.size}" })
             }
         }.onFailure {
@@ -394,7 +394,7 @@ object Blocklist {
             //        ⇒ 一次网络抖动，这一批卡片 30 秒内全变回普通卡 ✗
             //        ⇒ 正是「有时候行有时候不行」的另一半原因 ✓
             //   现在：只把 expireAt 设成 5 秒后（快点重试 ✓）值一概不动 ✓
-            Log.w(TAG, "查询失败: ${it.javaClass.simpleName}")
+            AppLog.w(LogModule.GATES, "Blocklist", "查询失败: ${it.javaClass.simpleName}")
             for ((kind, ids) in snapshot) {
                 for (id in ids) {
                     expireAt[key(kind, id)] = now + 5_000L
@@ -418,7 +418,7 @@ object Blocklist {
             } else {
                 // 全 false：清掉回调，列表保持原样 ✓（不闪 ✓）
                 pendingCallbacks.clear()
-                Log.d(TAG, "本次无屏蔽，静默（不刷新 UI）")
+                AppLog.d(LogModule.GATES, "Blocklist", "本次无屏蔽，静默（不刷新 UI）")
             }
         }
     }

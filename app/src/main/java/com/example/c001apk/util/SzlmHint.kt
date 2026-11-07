@@ -98,7 +98,7 @@ object SzlmHint {
 
         val activity = currentActivity ?: (context as? Activity)
         if (activity == null || activity.isFinishing || activity.isDestroyed) {
-            Log.w(TAG, "命中 szlmId 失效文案但没有可用 Activity，跳过弹窗：${message?.take(40)}")
+            AppLog.w(LogModule.USER, "SzlmHint", "命中 szlmId 失效文案但没有可用 Activity，跳过弹窗：${message?.take(40)}")
             return
         }
 
@@ -116,7 +116,7 @@ object SzlmHint {
                         }
                     }
                     .show()
-            }.onFailure { Log.w(TAG, "弹窗失败: $it") }
+            }.onFailure { AppLog.w(LogModule.USER, "SzlmHint", "弹窗失败: $it") }
         }
     }
 
@@ -127,7 +127,7 @@ object SzlmHint {
      * —— 服务端已经判定过了，这里只负责**弹窗**（60 秒节流照旧 ✓）
      */
     fun notifyExpired(context: Context?, message: String?) {
-        Log.w(TAG, "主动探测判定过期：${(message ?: "").take(60)}")
+        AppLog.w(LogModule.USER, "SzlmHint", "主动探测判定过期：${(message ?: "").take(60)}")
         maybeShowDialog(context, message)
     }
 
@@ -144,7 +144,7 @@ object SzlmHint {
             try {
                 // 状态码优先：567 是整页 HTML 风控 ✗ 不用看 body ✓
                 if (response.code == BLOCKED_STATUS) {
-                    Log.w(TAG, "HTTP 567（风控页）⇒ 提示重新取号")
+                    AppLog.w(LogModule.USER, "SzlmHint", "HTTP 567（风控页）⇒ 提示重新取号")
                     maybeShow(AppContextHolder.context, null, BLOCKED_STATUS)
                     return response
                 }
@@ -153,12 +153,12 @@ object SzlmHint {
                 if (len in 0..MAX_PEEK) {
                     val text = response.peekBody(MAX_PEEK).string()
                     if (matches(text)) {
-                        Log.w(TAG, "命中 szlmId 失效文案：${text.take(80)}")
+                        AppLog.w(LogModule.USER, "SzlmHint", "命中 szlmId 失效文案：${text.take(80)}")
                         maybeShow(AppContextHolder.context, text)
                     }
                 }
             } catch (e: Throwable) {
-                Log.w(TAG, "检查响应体失败: $e")
+                AppLog.w(LogModule.USER, "SzlmHint", "检查响应体失败: $e")
             }
             return response
         }

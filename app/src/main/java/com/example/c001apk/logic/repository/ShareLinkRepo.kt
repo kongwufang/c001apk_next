@@ -1,5 +1,7 @@
 package com.example.c001apk.logic.repository
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import android.util.Log
 import com.example.c001apk.constant.Constants
 import com.example.c001apk.logic.model.HomeFeedResponse
@@ -142,7 +144,7 @@ class ShareLinkRepo @Inject constructor() {
                     .build()
                 client.newCall(req).execute().use { resp ->
                     if (!resp.isSuccessful) {
-                        Log.w(TAG, "下图失败 ${resp.code}: ${u.take(60)}")
+                        AppLog.w(LogModule.NET, "ShareLinkRepo", "下图失败 ${resp.code}: ${u.take(60)}")
                         return@use
                     }
                     val bytes = resp.body?.bytes() ?: return@use
@@ -152,10 +154,10 @@ class ShareLinkRepo @Inject constructor() {
                     out.add(f)
                 }
             } catch (e: Throwable) {
-                Log.w(TAG, "下图异常: ${e.message}")
+                AppLog.w(LogModule.NET, "ShareLinkRepo", "下图异常: ${e.message}")
             }
         }
-        Log.i(TAG, "现下图片 ${out.size}/${urls.size} 张")
+        AppLog.i(LogModule.NET, "ShareLinkRepo", "现下图片 ${out.size}/${urls.size} 张")
         return out
     }
 
@@ -221,7 +223,7 @@ class ShareLinkRepo @Inject constructor() {
             client.newCall(req).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
-                    Log.w(TAG, "HTTP ${resp.code}: ${body.take(200)}")
+                    AppLog.w(LogModule.NET, "ShareLinkRepo", "HTTP ${resp.code}: ${body.take(200)}")
                     return@withContext kotlin.Result.failure(
                         RuntimeException("服务器返回 ${resp.code}")
                     )
@@ -242,7 +244,7 @@ class ShareLinkRepo @Inject constructor() {
                 )
             }
         } catch (e: Throwable) {
-            Log.w(TAG, "createShare failed", e)
+            AppLog.w(LogModule.NET, "ShareLinkRepo", "createShare failed", e)
             kotlin.Result.failure(e)
         }
     }

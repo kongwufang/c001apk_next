@@ -1,5 +1,7 @@
 package com.example.c001apk
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import com.example.c001apk.util.SyncLocationBootstrap
 import android.annotation.SuppressLint
 import android.app.Application
@@ -138,7 +140,7 @@ class MyApplication : Application() {
         // （那时单例已经建好）。这里冷启动时后台预热，把这份一次性开销从点开的瞬间挪走。
         Thread {
             runCatching { Sketch.with(this) }.onFailure {
-                android.util.Log.w("MyApplication", "Sketch 预热失败", it)
+                AppLog.w(LogModule.APP, "MyApplication", "Sketch 预热失败", it)
             }
         }.start()
 

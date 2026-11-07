@@ -335,7 +335,7 @@ object NetWorkUtil {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(context, "打开失败", Toast.LENGTH_SHORT).show()
-            Log.w("error", "Activity was not found for intent, $intent")
+            AppLog.w(LogModule.UI, "NetWorkUtil", "Activity was not found for intent, $intent")
         }
     }
 

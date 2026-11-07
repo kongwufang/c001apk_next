@@ -89,7 +89,7 @@ object ServerCookieStore {
     fun clear() {
         cached = ""
         runCatching { PrefManager.serverCookies = "" }
-        Log.i(TAG, "已清空")
+        AppLog.i(LogModule.GATES, "ServerCookieStore", "已清空")
     }
 
     /**
@@ -131,10 +131,10 @@ object ServerCookieStore {
         val map = parse(current())
         if (expired || value.isEmpty()) {
             map.remove(name)
-            Log.i(TAG, "服务器删除 cookie: $name")
+            AppLog.i(LogModule.GATES, "ServerCookieStore", "服务器删除 cookie: $name")
         } else {
             map[name] = value
-            Log.i(TAG, "服务器下发 cookie: $name=${value.take(24)}…（共 ${map.size} 个）")
+            AppLog.i(LogModule.GATES, "ServerCookieStore", "服务器下发 cookie: $name=${value.take(24)}…（共 ${map.size} 个）")
         }
         val joined = map.entries.joinToString("; ") { "${it.key}=${it.value}" }
         cached = joined

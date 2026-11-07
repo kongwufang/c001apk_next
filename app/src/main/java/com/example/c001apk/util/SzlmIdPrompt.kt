@@ -131,7 +131,7 @@ object SzlmIdPrompt {
             parts[0] = PrefManager.SZLMID
             PrefManager.xAppDevice = DeviceCode.encode(parts.joinToString(";"))
         }.onFailure {
-            android.util.Log.w("SzlmIdPrompt", "重建设备串首字段失败，保持原值", it)
+            AppLog.w(LogModule.USER, "SzlmIdPrompt", "重建设备串首字段失败，保持原值", it)
         }
     }
 }

@@ -130,7 +130,7 @@ object SzlmMonitor {
         started = true
         handler.removeCallbacks(tick)
         handler.postDelayed(tick, FIRST_DELAY_MS)
-        Log.i(TAG, "已启动：每 ${INTERVAL_MS / 60000} 分钟本地探测一次 duid（直连酷安）")
+        AppLog.i(LogModule.USER, "SzlmMonitor", "已启动：每 ${INTERVAL_MS / 60000} 分钟本地探测一次 duid（直连酷安）")
     }
 
     fun checkNow() {
@@ -143,7 +143,7 @@ object SzlmMonitor {
 
     private fun checkOnce() {
         if (PrefManager.SZLMID.isEmpty()) {
-            Log.d(TAG, "跳过：duid 为空")
+            AppLog.d(LogModule.USER, "SzlmMonitor", "跳过：duid 为空")
             return
         }
         // ⚠️ 未登录**也继续** ✓ —— duid 在 X-App-Device 头里，不依赖登录态 ✓
@@ -153,12 +153,12 @@ object SzlmMonitor {
                 val feedId = resolveFeedId()
                 val (code, body) = get("/v6/feed/detail?id=" + feedId)
                 val v = judge(code, body)
-                Log.i(TAG, "探测 id=$feedId code=$code ok=${v.ok} expired=${v.expired} reason=${v.reason}")
+                AppLog.i(LogModule.USER, "SzlmMonitor", "探测 id=$feedId code=$code ok=${v.ok} expired=${v.expired} reason=${v.reason}")
                 if (v.expired) {
                     handler.post { SzlmHint.notifyExpired(AppContextHolder.context, v.reason) }
                 }
             }.onFailure {
-                Log.w(TAG, "探测异常：${it.javaClass.simpleName}: ${it.message}")
+                AppLog.w(LogModule.USER, "SzlmMonitor", "探测异常：${it.javaClass.simpleName}: ${it.message}")
             }
         }.start()
     }
@@ -190,14 +190,14 @@ object SzlmMonitor {
         if (PrefManager.isLogin && PrefManager.uid.isNotEmpty()) {
             val own = firstFeedId(PrefManager.uid)
             if (own.isNotEmpty()) return own
-            Log.i(TAG, "本人主页没有动态，改用维护者主页兜底")
+            AppLog.i(LogModule.USER, "SzlmMonitor", "本人主页没有动态，改用维护者主页兜底")
         } else {
-            Log.i(TAG, "未登录，直接用维护者主页探测")
+            AppLog.i(LogModule.USER, "SzlmMonitor", "未登录，直接用维护者主页探测")
         }
         // ② 维护者主页兜底 ✓
         val master = firstFeedId(MAINTAINER_UID)
         if (master.isNotEmpty()) return master
-        Log.i(TAG, "维护者主页也拿不到，用固定 id 兜底")
+        AppLog.i(LogModule.USER, "SzlmMonitor", "维护者主页也拿不到，用固定 id 兜底")
         // ③ 固定 id
         return FALLBACK_ID
     }
@@ -215,7 +215,7 @@ object SzlmMonitor {
         val path = "/v6/user/feedList?uid=$uid&page=1&showAnonymous=0&isIncludeTop=1"
         val (code, body) = runCatching { get(path) }.getOrNull() ?: return ""
         if (code != 200) {
-            Log.d(TAG, "取 uid=$uid 的帖子列表失败 code=$code")
+            AppLog.d(LogModule.USER, "SzlmMonitor", "取 uid=$uid 的帖子列表失败 code=$code")
             return ""
         }
         val id = runCatching {
@@ -228,13 +228,13 @@ object SzlmMonitor {
             ""
         }.getOrDefault("")
         if (id.isEmpty()) {
-            Log.d(TAG, "uid=$uid 没发过帖子 / 解析不到 id")
+            AppLog.d(LogModule.USER, "SzlmMonitor", "uid=$uid 没发过帖子 / 解析不到 id")
             return ""
         }
         cachedId = id
         cachedAt = System.currentTimeMillis()
         cachedForUid = uid
-        Log.i(TAG, "探测目标 = uid=$uid 主页第一条动态 id=$id")
+        AppLog.i(LogModule.USER, "SzlmMonitor", "探测目标 = uid=$uid 主页第一条动态 id=$id")
         return id
     }
 

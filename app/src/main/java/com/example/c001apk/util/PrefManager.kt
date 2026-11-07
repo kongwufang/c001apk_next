@@ -1,6 +1,7 @@
 package com.example.c001apk.util
 
-import android.content.Context.MODE_PRIVATE
+import android.content.Context
+import com.example.c001apk.BuildConfig.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import com.example.c001apk.MyApplication.Companion.context
@@ -478,6 +479,60 @@ object PrefManager {
     var recordHttpLog: Boolean
         get() = pref.getBoolean("recordHttpLog", false)
         set(value) = pref.edit().putBoolean("recordHttpLog", value).apply()
+
+    // ---------------- 全局日志（2026-11-08 A 步）----------------
+    // 全部默认关闭：release 上只让 W/E 走 logcat（见 logLevelValue 的兜底）✓
+    // 用户在「设置→高级」里打开后，才按模块落盘/进内存环（C 步接界面）
+
+    /** 总开关 */
+    var logEnabled: Boolean
+        get() = pref.getBoolean("logEnabled", false)
+        set(value) = pref.edit().putBoolean("logEnabled", value).apply()
+
+    /** 级别：v / d / i / w / e（存的字符串，方便设置页直接绑） */
+    var logLevel: String
+        get() = pref.getString("logLevel", "i") ?: "i"
+        set(value) = pref.edit().putString("logLevel", value).apply()
+
+    /**
+     * 生效的最低级别（int，与 logcat 对齐）
+     *
+     * 开关没开时不返回 0（那样日志会全开），而是：
+     * · debug 包：INFO（约等于原来 Log.i 那批，不会突然变吵）
+     * · release 包：WARN（只留异常与警告）
+     */
+    val logLevelValue: Int
+        get() {
+            if (!logEnabled) return if (BuildConfig.DEBUG) 4 else 5
+            return when (logLevel.lowercase()) {
+                "v" -> 2
+                "d" -> 3
+                "i" -> 4
+                "w" -> 5
+                "e" -> 6
+                else -> 4
+            }
+        }
+
+    /**
+     * 模块白名单（空集 = 全部允许）
+     *
+     * 存成 StringSet，元素是 [LogModule.key]（如 "net" / "card"）
+     */
+    var logModules: Set<String>
+        get() = pref.getStringSet("logModules", emptySet()) ?: emptySet()
+        set(value) = pref.edit().putStringSet("logModules", value).apply()
+
+    /** 这个模块要不要记日志 */
+    fun isLogModuleEnabled(key: String): Boolean {
+        val set = logModules
+        return set.isEmpty() || set.contains(key)
+    }
+
+    /** 文件日志保留天数（B 步落盘时用） */
+    var logFileDays: Int
+        get() = pref.getInt("logFileDays", 3)
+        set(value) = pref.edit().putInt("logFileDays", value).apply()
 
     /**
      * 心跳 `notice` 事件推送过来的公告卡（2026-11-07）

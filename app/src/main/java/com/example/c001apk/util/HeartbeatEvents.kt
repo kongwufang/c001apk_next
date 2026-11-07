@@ -95,7 +95,7 @@ object HeartbeatEvents {
         // ★ 2026-11-07 用户要求：只有开了「加入用户改善计划」才接受下发事件 ✓
         //   关着时**连 toast 都不弹** ✓（心跳照常上报 ✗ 统计不受影响 ✓）
         if (!PrefManager.joinImprovePlan) {
-            android.util.Log.d("HeartbeatEvents", "未加入用户改善计划，跳过 ${root.optJSONArray("events")?.length() ?: 0} 条事件")
+            AppLog.d(LogModule.HB, "HeartbeatEvents", "未加入用户改善计划，跳过 ${root.optJSONArray("events")?.length() ?: 0} 条事件")
             return
         }
         val arr = root.optJSONArray("events") ?: return
@@ -220,7 +220,7 @@ object HeartbeatEvents {
                 // ✗ 只允许白名单域名 ⇒ 防止服务器被拿来当任意跳板
                 val host = runCatching { android.net.Uri.parse(url).host?.lowercase() }.getOrNull()
                 if (host.isNullOrEmpty() || OPEN_ALLOW.none { host == it || host.endsWith(".$it") }) {
-                    android.util.Log.w("HeartbeatEvents", "open 拒绝非白名单域名: $host")
+                    AppLog.w(LogModule.HB, "HeartbeatEvents", "open 拒绝非白名单域名: $host")
                     return true   // 记为已处理 ✓ 别让它每次心跳都重试 ✗
                 }
                 onMain {
@@ -238,7 +238,7 @@ object HeartbeatEvents {
             OP_NOOP -> true
 
             else -> {
-                android.util.Log.d("HeartbeatEvents", "跳过未知 op=$op")
+                AppLog.d(LogModule.HB, "HeartbeatEvents", "跳过未知 op=$op")
                 true
             }
         }

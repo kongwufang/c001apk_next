@@ -262,7 +262,7 @@ object TokenDeviceUtils {
                     PrefManager.xAppDevice = DeviceCode.encode(parts.joinToString(";"))
                 }
             }
-        }.onFailure { Log.w("TokenDeviceUtils", "迁移设备串 szlmId 失败，保持原值", it) }
+        }.onFailure { AppLog.w(LogModule.USER, "TokenDeviceUtils", "迁移设备串 szlmId 失败，保持原值", it) }
         PrefManager.DEVICE_FINGERPRINT_VERSION = FINGERPRINT_VERSION
     }
 

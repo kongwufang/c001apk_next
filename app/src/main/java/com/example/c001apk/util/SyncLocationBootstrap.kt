@@ -31,7 +31,7 @@ object SyncLocationBootstrap {
         val now = if (PrefManager.isLogin) 1 else 0
         val last = PrefManager.syncLocationLoginSnapshot
         if (last == now) {
-            Log.i(TAG, "登录态未变化（${if (now == 1) "已登录" else "未登录"}），保持用户设置 ✓")
+            AppLog.i(LogModule.USER, "SyncLocationBootstrap", "登录态未变化（${if (now == 1) "已登录" else "未登录"}），保持用户设置 ✓")
             return
         }
         val cloud = now == 1
@@ -39,9 +39,7 @@ object SyncLocationBootstrap {
         PrefManager.saveFollowToCloud = cloud
         PrefManager.saveBlackListToCloud = cloud
         PrefManager.syncLocationLoginSnapshot = now
-        Log.i(
-            TAG,
-            "登录态变化（${if (last == -1) "首次" else if (last == 1) "已登录" else "未登录"}" +
+        AppLog.i(LogModule.USER, "SyncLocationBootstrap", "登录态变化（${if (last == -1) "首次" else if (last == 1) "已登录" else "未登录"}" +
                 " → ${if (cloud) "已登录" else "未登录"}）" +
                 "，三个开关对齐成${if (cloud) "云端" else "本地"} ✓"
         )

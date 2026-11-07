@@ -124,9 +124,7 @@ object CloudGates {
             PrefManager.cloudGatesTs = System.currentTimeMillis()
         }
         if (changed) {
-            Log.i(
-                TAG,
-                "云控开关已更新 alliance=$alliance reportOther=$reportOther cardAssoc=$cardAssoc"
+            AppLog.i(LogModule.GATES, "CloudGates", "云控开关已更新 alliance=$alliance reportOther=$reportOther cardAssoc=$cardAssoc"
             )
         }
     }
@@ -175,26 +173,24 @@ object CloudGates {
                 client.newCall(req).execute().use { resp ->
                     val text = resp.body?.string().orEmpty()
                     if (!resp.isSuccessful || text.isEmpty()) {
-                        Log.d(TAG, "云控拉取失败 HTTP ${resp.code}，沿用上次")
+                        AppLog.d(LogModule.GATES, "CloudGates", "云控拉取失败 HTTP ${resp.code}，沿用上次")
                         return@use
                     }
                     val j = runCatching { JSONObject(text) }.getOrNull()
                     if (j?.optInt("status") != 1) {
-                        Log.d(TAG, "云控返回异常，沿用上次: ${text.take(80)}")
+                        AppLog.d(LogModule.GATES, "CloudGates", "云控返回异常，沿用上次: ${text.take(80)}")
                         return@use
                     }
                     applyFrom(j)
                     PrefManager.cloudGatesTs = System.currentTimeMillis()
                     // ★ 2026-11-01 加一条「拉到了」的日志 ✓
                     //   原来只在「变化 / 失败」时打 ✗ ⇒ logcat 干净得像没跑 ✓（踩过）
-                    Log.i(
-                        TAG,
-                        "云控已拉取 alliance=$alliance reportOther=$reportOther " +
+                    AppLog.i(LogModule.GATES, "CloudGates", "云控已拉取 alliance=$alliance reportOther=$reportOther " +
                             "cardAssoc=$cardAssoc（下次 ${TTL_MS / 3600000}h 后）"
                     )
                 }
             }.onFailure {
-                Log.d(TAG, "云控拉取异常（沿用上次）：${it.javaClass.simpleName}")
+                AppLog.d(LogModule.GATES, "CloudGates", "云控拉取异常（沿用上次）：${it.javaClass.simpleName}")
             }
             fetching.set(false)
         }

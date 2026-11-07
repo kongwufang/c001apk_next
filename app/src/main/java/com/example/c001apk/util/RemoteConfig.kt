@@ -33,7 +33,7 @@ object RemoteConfig {
     fun refreshAsync() {
         Thread {
             runCatching { runBlocking { refresh() } }
-                .onFailure { Log.w(TAG, "拉取云端配置失败", it) }
+                .onFailure { AppLog.w(LogModule.GATES, "RemoteConfig", "拉取云端配置失败", it) }
         }.apply {
             name = "remote-config"
             isDaemon = true
