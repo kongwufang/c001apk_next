@@ -13,6 +13,7 @@ import android.util.Log
 import android.widget.Toast
 import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.R
+import com.example.c001apk.ui.follow.FFFListActivity
 import com.example.c001apk.ui.app.AppActivity
 import com.example.c001apk.ui.carousel.CarouselActivity
 import com.example.c001apk.ui.coolpic.CoolPicActivity
@@ -173,10 +174,24 @@ object NetWorkUtil {
                     )
                 }
             }
-        } else if (replace.startsWith("#/feed/")) { // iconLinkGridCard-coolpic
+        } else if (replace.startsWith("/user/myFollowList") ||
+            replace.startsWith("#/user/myFollowList")
+        ) {
+            // ★ 2026-11-07 修：「我关注的酷友」卡（textLinkListCard）的 url 是 /user/myFollowList
+            //   实测服务端对这个 page url 直接回「无法访问该数据」✗（见 _rev/win_ref/_probe_cards.py）
+            //   ⇒ 别拿去请求，直接开我们自己的关注列表页 ✓
+            IntentUtil.startActivity<FFFListActivity>(context) {
+                putExtra("uid", PrefManager.uid)
+                putExtra("type", "follow")
+            }
+        } else if (replace.startsWith("#/feed/")) { // iconLinkGridCard-coolpic / titleCard 值得看
+            // ★ 2026-11-07 修：`#/feed/digestList?...`（「值得看」标题卡）里带 `#`
+            //   ⇒ 原样塞给 CarouselActivity 后，它拼出来的 /v6/page/dataList?url=#/feed/...
+            //     服务端认不出 ⇒ 界面只剩一个错误码 ✗
+            //   实测去掉 `#` 后（/feed/digestList?...）能正常返回 21 条 ✓
             IntentUtil.startActivity<CarouselActivity>(context) {
                 putExtra("title", title)
-                putExtra("url", url)
+                putExtra("url", replace.removePrefix("#"))
             }
         } else if (replace.startsWith("/apk/") || replace.startsWith("/game/")) {
             IntentUtil.startActivity<AppActivity>(context) {
@@ -264,7 +279,10 @@ object NetWorkUtil {
             // 之前落到末尾的 else，只会弹「unsupported url」。
             // withConfigCard 那对参数是让服务端多下发一张空的 configCard（「默认配置」），
             // 通用列表渲染不了它、会多出一条空白卡片，所以剥掉（实测剥掉后正好 20 条榜单项）。
+            // ★ 2026-11-07：`#/topic/hotTagList?...`（热门话题宫格）也要先去掉前导 `#`
+            //   否则 CarouselActivity 拼出的 dataList url 带 `#` ⇒ 服务端报错 ⇒ 只剩错误码 ✗
             val topicUrl = replace
+                .removePrefix("#")
                 .replace(Regex("[&?]withConfigCard=[^&]*"), "")
                 .replace(Regex("[&?]configCardExtraData=[^&]*"), "")
             // ★ 2026-11-06 安全（台账 AP-待办 2）：这支持的是**自家**的栏目地址 ✓
