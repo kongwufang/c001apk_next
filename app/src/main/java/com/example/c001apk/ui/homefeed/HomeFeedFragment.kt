@@ -139,6 +139,7 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
         if (viewModel.type != "follow") return null
         return FollowHeaderAdapter(
             onPickGroup = { key -> switchFollowGroup(key) },
+            onOpenRecent = { openRecentFollow() },
             onPickUser = { uid, _ ->
                 if (uid.isNotEmpty()) runCatching {
                     com.example.c001apk.util.IntentUtil.startActivity<
@@ -330,6 +331,47 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
             }
             show()
         }
+    }
+
+    /**
+     * 进「最近更新」页（2026-11-07 ✓ 官方是两级：入口 → 列表 → 某人 → 他的内容）
+     *
+     * 数据不用再请求：直接拿当前关注流里**已加载**的动态反推
+     *   · 作者去重 ✓ 顺序 = 列表顺序（时间新→旧）✓
+     *   · 每人取**最新一条**的时间 + 正文摘要 ✓
+     */
+    private fun openRecentFollow() {
+        val list = viewModel.dataList.value.orEmpty()
+        val items = ArrayList<RecentFollowActivity.Item>()
+        val seen = HashSet<String>()
+        list.forEach { d ->
+            if (d.entityType != "feed") return@forEach
+            val uid = d.uid.orEmpty()
+            if (uid.isEmpty() || !seen.add(uid)) return@forEach
+            items.add(
+                RecentFollowActivity.Item(
+                    uid = uid,
+                    name = d.username.orEmpty(),
+                    avatar = d.userAvatar.orEmpty(),
+                    time = d.dateline ?: 0L,
+                    snippet = stripHtml(d.message.orEmpty()).take(120),
+                )
+            )
+        }
+        RecentFollowCache.put(items)
+        startActivity(android.content.Intent(requireContext(), RecentFollowActivity::class.java))
+    }
+
+    /** 动态正文是 HTML（含 <a class="feed-link-tag">#话题#</a>）⇒ 列表里只留纯文本 */
+    private fun stripHtml(s: String): String {
+        if (s.isEmpty()) return ""
+        return s.replace(Regex("<[^>]+>"), "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .trim()
     }
 
     /** 切换关注分组（chips 点击 ⇒ 换 url 重新拉 ✓ 逻辑与原来的弹窗一致） */

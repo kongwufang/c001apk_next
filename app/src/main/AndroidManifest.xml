@@ -465,6 +465,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.homefeed.RecentFollowActivity"
+            android:exported="false"
+            android:label="最近更新" />
+
+        <activity
             android:name=".ui.follow.FFFListActivity"
             android:exported="false" />
         <activity

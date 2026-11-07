@@ -44,6 +44,8 @@ import com.google.android.material.color.MaterialColors
 class FollowHeaderAdapter(
     private val onPickGroup: (String) -> Unit,
     private val onPickUser: (String, String) -> Unit,
+    /** 点「最近更新」⇒ 进「最近更新」页（官方就是两级结构 ✓ 2026-11-07） */
+    private val onOpenRecent: () -> Unit,
 ) : RecyclerView.Adapter<FollowHeaderAdapter.Holder>() {
 
     /** 最近更新的作者（从动态里反推 ✓ 按出现顺序去重 ✓） */
@@ -135,7 +137,9 @@ class FollowHeaderAdapter(
             // ---------- 第一行：最近更新 ----------
             if (authors.isEmpty()) {
                 val hint = TextView(ctx).apply {
-                    text = "最近更新"
+                    text = "最近更新 ›"
+                    isClickable = true
+                    setOnClickListener { onOpenRecent() }
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                     setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
                     gravity = Gravity.CENTER_VERTICAL
@@ -149,11 +153,14 @@ class FollowHeaderAdapter(
                 )
             } else {
                 val label = TextView(ctx).apply {
-                    text = "最近更新"
+                    // ★ 官方这里是个**入口**：点进去才是「哪些人更新了」的列表 ✓
+                    text = "最近更新 ›"
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                     setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(ctx, 4), 0, dp(ctx, 10), 0)
+                    isClickable = true
+                    setOnClickListener { onOpenRecent() }
                 }
                 authorRow.addView(
                     label,
