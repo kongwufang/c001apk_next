@@ -107,7 +107,13 @@ object GenericCardRenderer {
 
         // 卡片自身四块（取哪些字段可以被规则表改，默认还是原来那套）
         val title = pickCard(data, CardUi.titleField(template))
-        val summary = pickCard(data, CardUi.summaryField(template))?.let { plainText(it) }
+        // ★ 2026-11-08 修「一张卡出现两个更多」：
+        //   卡片 subTitle 就是「更多」，而 summaryField 链里也含 subTitle
+        //   ⇒ 标题行右边已经画了「更多 ›」，下面又冒出一个「更多」✗
+        //   ⇒ summary 与 subTitle 相同时直接当作没有
+        val summary = pickCard(data, CardUi.summaryField(template))
+            ?.let { plainText(it) }
+            ?.takeIf { it != data.subTitle?.trim() }
         // 卡片自带配图只在没有实体时当主图（imageScaleCard、只有图的 fabCard）
         val hero = pickCard(data, CardUi.heroField(template))?.takeIf { entities.isEmpty() }
 
@@ -1549,7 +1555,8 @@ private fun bindUserRow(
     listener: ItemListener,
 ) {
     val context = b.root.context
-    val avatar = entity.avatar
+    // 头像：三种字段都可能（avatar / userAvatar / userSmallAvatar）⇒ 依次兜底 ✓
+    val avatar = entity.avatar ?: entity.userAvatar ?: entity.userSmallAvatar
     if (!avatar.isNullOrEmpty()) {
         runCatching {
             com.bumptech.glide.Glide.with(b.avatar).load(avatar)
@@ -1618,4 +1625,5 @@ private fun HomeFeedResponse.Entities.hasContent(): Boolean =
             !message.isNullOrEmpty() || !description.isNullOrEmpty() ||
             // ★ 2026-11-08 修「优质酷友」卡：user 实体只有 username/avatar，没有 title/logo/pic ✗
             //   原来会被这条过滤直接丢掉 ⇒ 卡片只剩标题行 ✗
-            !username.isNullOrEmpty() || !avatar.isNullOrEmpty()
+            !username.isNullOrEmpty() || !avatar.isNullOrEmpty() ||
+            !userAvatar.isNullOrEmpty() || !userSmallAvatar.isNullOrEmpty()

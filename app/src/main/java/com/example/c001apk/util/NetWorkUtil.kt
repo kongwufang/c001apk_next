@@ -296,6 +296,17 @@ object NetWorkUtil {
             } else {
                 confirmOpenWeb(context, topicUrl, title)
             }
+        } else if (replace.startsWith("#/")) {
+            // ★ 2026-11-08 修「点更多只会弹 unsupported url」：
+            //   「优质酷友」的更多是 #/member/rankList?…、「热门数码」是 #/product/hotProductList?…
+            //   这类内部路由都能当 page url 交给 /v6/page/dataList
+            //   （实测 rankList 21 条、hotProductList 20 条 ✓）
+            //   ⇒ 去掉前导 # 交给 CarouselActivity，别再落到末尾的 else ✗
+            val pageUrl = replace.removePrefix("#")
+            IntentUtil.startActivity<CarouselActivity>(context) {
+                putExtra("url", pageUrl)
+                putExtra("title", title)
+            }
         } else if (replace.startsWith("image.coolapk.com")) {
             ImageUtil.startBigImgViewSimple(context, url.http2https)
         } else if (url.startsWith("https://") || url.startsWith("http://")) {
