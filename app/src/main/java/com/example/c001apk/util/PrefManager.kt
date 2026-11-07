@@ -1,7 +1,7 @@
 package com.example.c001apk.util
 
 import android.content.Context
-import com.example.c001apk.BuildConfig.MODE_PRIVATE
+import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import com.example.c001apk.MyApplication.Companion.context
@@ -503,7 +503,15 @@ object PrefManager {
      */
     val logLevelValue: Int
         get() {
-            if (!logEnabled) return if (com.example.c001apk.BuildConfig.DEBUG) 4 else 5
+            if (!logEnabled) {
+                // 用 debuggable 标志判断，不依赖 BuildConfig（见提交说明：那行 import 和
+                // BuildConfig.MODE_PRIVATE 会打架，CI 直接报 Unresolved ✗）
+                val debuggable = runCatching {
+                    (context.applicationInfo.flags and
+                            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                }.getOrDefault(false)
+                return if (debuggable) 4 else 5
+            }
             return when (logLevel.lowercase()) {
                 "v" -> 2
                 "d" -> 3
