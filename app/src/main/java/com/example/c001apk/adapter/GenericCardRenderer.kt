@@ -111,6 +111,16 @@ object GenericCardRenderer {
         // 卡片自带配图只在没有实体时当主图（imageScaleCard、只有图的 fabCard）
         val hero = pickCard(data, CardUi.heroField(template))?.takeIf { entities.isEmpty() }
 
+        // ★ 2026-11-08 对齐官方 item_title_list：
+        //   官方那张卡**自身没有内边距**，留白都在行里（user 行 16dp、product 行 12dp）
+        //   ⇒ LIST 骨架把外层 padding 清成 0，标题行自己补 16dp 水平内边距 ✓
+        if (spec.layout == CardUi.LIST) {
+            binding.content.setPadding(0, 8.dp, 0, 6.dp)
+            binding.titleRow.setPadding(16.dp, 0, 16.dp, 6.dp)
+        } else {
+            binding.titleRow.setPadding(0, 0, 0, 0)
+        }
+
         // 标题行：「标题 + 更多 ›」同一行（官方样式 ✓ 2026-11-08）
         val moreLabel = data.subTitle?.takeIf { it.isNotBlank() } ?: "更多"
         val moreUrl = data.url?.takeIf { it.isNotBlank() }
