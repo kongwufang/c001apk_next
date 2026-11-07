@@ -373,6 +373,11 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
             else -> "应用关注"
         }
         if (viewModel.dataListUrl == url) return
+        // 切换分组 ⇒ 清掉作者筛选（否则换了分组却还只看某个人 ✗ 会误以为没数据）
+        if (filterUid != null) {
+            filterUid = null
+            followHeader?.setSelectedUid(null)
+        }
         PrefManager.FOLLOWTYPE = key
         viewModel.dataListUrl = url
         viewModel.dataListTitle = title
