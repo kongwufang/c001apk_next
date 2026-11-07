@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.json.JSONObject
 
 /**
@@ -16,46 +17,47 @@ import org.json.JSONObject
  * ⇒ 心跳每 30~60 秒一次、App 在前台就跑 ✓
  *   把它当成**长轮询的轻量替代**：服务器在任何一次心跳响应里都能塞指令 ✓
  *
- * ## 协议（服务器 → 客户端）
- * ```json
- * {
- *   "interval": 60,
- *   "events": [
- *     { "id": "e-20261107-1", "op": "toast", "text": "服务器在线 ✓" },
- *     { "id": "e-20261107-2", "op": "gates" },
- *     { "id": "e-20261107-3", "op": "notice" }
- *   ]
- * }
- * ```
+ * ## 支持的 op
  *
- * | op | 作用 | 字段 |
- * |---|---|---|
- * | `toast` | 弹一条 toast | `text` 必填 |
- * | `gates` | 立刻重拉云控开关（`CloudGates`）| — |
- * | `notice` | 立刻重拉公告（下次开侧栏就是新内容 ✓）| — |
- * | `noop`  | 什么都不做（服务器试探 / 埋点用）| — |
+ * | op | 作用 | 需要字段 | 风险 |
+ * |---|---|---|---|
+ * | `toast` | 弹一条 toast | `text` | 低 |
+ * | `dialog` | 弹一个对话框（标题+正文+「知道了」）| `title` `text` | 低 |
+ * | `gates` | 立刻重拉云控开关 | — | 低 |
+ * | `notice` | 预留（公告每次开侧栏都拉 ✓）| — | 低 |
+ * | `update` | 立刻检查更新并弹更新框 | — | 低 |
+ * | `clearCache` | 清 Glide 图片缓存 | — | 低 |
+ * | `reload` | 重建当前页面（recreate）| — | 中 |
+ * | `open` | 打开一个链接（**只允许白名单域名** ✗）| `url` `title` | **中高** |
+ * | `log` | 上报诊断信息（A+B+C 三层 ✓）| — | 低 |
+ * | `noop` | 什么都不做（服务器试探 / 埋点）| — | 无 |
  *
- * ## 三条原则
- * · **按 id 去重** ✓ 同一条指令只执行一次（`PrefManager` 里存已执行 id ✓ 只留最近 50 个 ✗）
- * · **失败静默** ✓ 任何解析/执行异常都不能影响心跳 ✗
- * · **不认识就跳过** ✓ 老客户端遇到新 op 不能崩 ✗（forward compatible ✓）
+ * ## 四条原则
+ * · **按 id 去重** ✓ 同一条只执行一次（`PrefManager` 存最近 50 个 ✓）
+ * · **失败静默** ✓ 任何异常都不能影响心跳 ✗
+ * · **不认识就跳过** ✓ 老客户端遇到新 op 不能崩 ✗
+ * · **危险操作只给白名单** ✗ `open` 只允许 houlangs.cn / coolapk.com ✓
  */
 object HeartbeatEvents {
 
-    /** 支持的操作 */
     private const val OP_TOAST = "toast"
+    private const val OP_DIALOG = "dialog"
     private const val OP_GATES = "gates"
     private const val OP_NOTICE = "notice"
+    private const val OP_UPDATE = "update"
+    private const val OP_CLEAR_CACHE = "clearCache"
+    private const val OP_RELOAD = "reload"
+    private const val OP_OPEN = "open"
+    private const val OP_LOG = "log"
     private const val OP_NOOP = "noop"
 
-    /** 已执行 id 最多保留多少个（防 prefs 无限涨 ✗） */
+    /** `open` 允许的域名后缀（防止被当成任意跳板 ✗） */
+    private val OPEN_ALLOW = listOf("houlangs.cn", "coolapk.com", "github.com")
+
     private const val MAX_SEEN = 50
 
-    /**
-     * 解析并执行心跳响应里的事件
-     *
-     * @param root 心跳响应的 JSON 根对象（没有 events 字段就什么都不做 ✓）
-     */
+    private val main = Handler(Looper.getMainLooper())
+
     fun dispatch(ctx: Context, root: JSONObject) {
         val arr = root.optJSONArray("events") ?: return
         if (arr.length() == 0) return
@@ -64,50 +66,114 @@ object HeartbeatEvents {
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
             val id = o.optString("id").trim()
-            // 没 id 就没法去重 ✗ 一条都不执行 ✓（防止服务器手滑造成无限 toast ✗）
             if (id.isEmpty()) continue
             if (PrefManager.isHeartbeatEventDone(id)) continue
-
             val ok = runCatching { run(ctx, o) }.getOrDefault(false)
-            // 只有执行成功才记下来 ✓ 失败的下次心跳还会重试 ✓
             if (ok) handled.add(id)
         }
         if (handled.isNotEmpty()) PrefManager.markHeartbeatEventsDone(handled, MAX_SEEN)
     }
 
-    /** 单条执行；返回 true = 执行成功（可以记为已做 ✓） */
     private fun run(ctx: Context, o: JSONObject): Boolean {
         return when (val op = o.optString("op").trim()) {
+
             OP_TOAST -> {
                 val text = o.optString("text").trim()
                 if (text.isEmpty()) return false
-                Handler(Looper.getMainLooper()).post {
+                onMain { Toast.makeText(ctx, text, Toast.LENGTH_LONG).show() }
+                true
+            }
+
+            OP_DIALOG -> {
+                val title = o.optString("title").trim().ifEmpty { "来自服务器的消息" }
+                val text = o.optString("text").trim()
+                if (text.isEmpty()) return false
+                val act = SzlmHint.current() ?: run {
+                    // 没有前台 Activity ⇒ 退化成 toast ✓ 不丢消息 ✓
+                    onMain { Toast.makeText(ctx, "$title\n$text", Toast.LENGTH_LONG).show() }
+                    return true
+                }
+                onMain {
                     runCatching {
-                        Toast.makeText(ctx, text, Toast.LENGTH_LONG).show()
+                        MaterialAlertDialogBuilder(act)
+                            .setTitle(title)
+                            .setMessage(text)
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show()
                     }
                 }
                 true
             }
 
             OP_GATES -> {
-                // 云控开关：下次读的时候自然会刷新（这里主动清一下快照）
                 runCatching { CloudGates.invalidate() }
                 true
             }
 
-            OP_NOTICE -> {
-                // 公告没有内存缓存（每次开侧栏都拉 ✓）⇒ 这里只把「已读」清掉不合适 ✗
-                // ⇒ 什么都不用做，但保留 op 让服务器能"标记一次拉取"✓
+            OP_NOTICE -> true   // 预留：公告本身无缓存，开侧栏就是新的 ✓
+
+            OP_UPDATE -> {
+                // 后台拉一次更新信息；有新版本才弹框 ✓
+                Thread {
+                    runCatching {
+                        val info = kotlinx.coroutines.runBlocking { UpdateChecker.fetchUpdate() }
+                            ?: return@Thread
+                        if (!info.isNewer) return@Thread
+                        val act = SzlmHint.current() ?: return@Thread
+                        onMain { runCatching { UpdateChecker.showUpdateDialog(act, info) } }
+                    }
+                }.start()
+                true
+            }
+
+            OP_CLEAR_CACHE -> {
+                Thread {
+                    runCatching {
+                        val glide = com.bumptech.glide.Glide.get(ctx)
+                        glide.clearMemory()
+                        glide.clearDiskCache()
+                    }
+                }.start()
+                true
+            }
+
+            OP_RELOAD -> {
+                val act = SzlmHint.current() ?: return true
+                onMain { runCatching { act.recreate() } }
+                true
+            }
+
+            OP_OPEN -> {
+                val url = o.optString("url").trim()
+                if (url.isEmpty()) return false
+                // ✗ 只允许白名单域名 ⇒ 防止服务器被拿来当任意跳板
+                val host = runCatching { android.net.Uri.parse(url).host?.lowercase() }.getOrNull()
+                if (host.isNullOrEmpty() || OPEN_ALLOW.none { host == it || host.endsWith(".$it") }) {
+                    android.util.Log.w("HeartbeatEvents", "open 拒绝非白名单域名: $host")
+                    return true   // 记为已处理 ✓ 别让它每次心跳都重试 ✗
+                }
+                onMain {
+                    runCatching { NetWorkUtil.openLink(ctx, url, o.optString("title").ifEmpty { null }) }
+                }
+                true
+            }
+
+            OP_LOG -> {
+                // 诊断上报：A（设备快照）+ B（崩溃摘要）+ C（请求日志聚合）✓
+                Thread { runCatching { DiagReport.upload(ctx) } }.start()
                 true
             }
 
             OP_NOOP -> true
 
             else -> {
-                // 不认识的 op：跳过 ✓ 不当作失败 ✗（否则每次心跳都重试 ✗）
                 android.util.Log.d("HeartbeatEvents", "跳过未知 op=$op")
                 true
             }
         }
+    }
+
+    private fun onMain(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block)
     }
 }

@@ -58,6 +58,9 @@ object SzlmHint {
     @Volatile
     private var currentActivity: Activity? = null
 
+    /** 当前前台 Activity（心跳事件要弹对话框时用 ✓ 没有就返回 null ✓） */
+    fun current(): Activity? = currentActivity
+
     fun track(activity: Activity?) {
         currentActivity = activity
     }

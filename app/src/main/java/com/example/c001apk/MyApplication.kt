@@ -106,6 +106,10 @@ class MyApplication : Application() {
         //   判定过期 ⇒ 复用 SzlmHint 的弹窗 + 一键去取号 ✓
         com.example.c001apk.util.SzlmMonitor.start()
 
+        // ★ 2026-11-07 诊断上报：装一个崩溃收集器（只存内存 ✓ 不落盘 ✓）
+        //   心跳下发 log 事件时，把它 + 设备快照 + 请求日志聚合一起上报
+        runCatching { com.example.c001apk.util.DiagReport.installCrashCollector() }
+
         // HTTP 请求日志的目录（设置 → 高级 里可开关 / 导出 / 清空 ✓）
         // 只是建一个目录 + 记下 context ✓ 开关关着时完全不写盘 ✓
         runCatching {
