@@ -113,7 +113,8 @@ object GenericCardRenderer {
         //   ⇒ summary 与 subTitle 相同时直接当作没有
         val summary = pickCard(data, CardUi.summaryField(template))
             ?.let { plainText(it) }
-            ?.takeIf { it != data.subTitle?.trim() }
+            // 「更多 / 更多 ›」这类是**操作标签**不是内容，任何情况下都不该当 summary 渲染 ✗
+            ?.takeIf { it != data.subTitle?.trim() && it != "更多" && it != "更多 ›" }
         // 卡片自带配图只在没有实体时当主图（imageScaleCard、只有图的 fabCard）
         val hero = pickCard(data, CardUi.heroField(template))?.takeIf { entities.isEmpty() }
 
