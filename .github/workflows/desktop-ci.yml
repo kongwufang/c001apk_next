@@ -4,7 +4,7 @@
 # ⇒ 触发入口已收窄为 **仅手动 workflow_dispatch** ✓（推分支不再自动跑 ✗）
 # ⇒ 代码保留在仓库里（desktop/ 目录）作为历史 ✓ 想再拾起来就手动跑一次 ✓
 #
-﻿name: Desktop CI
+name: Desktop CI
 
 # 桌面端（Windows）实验性构建线。
 #
