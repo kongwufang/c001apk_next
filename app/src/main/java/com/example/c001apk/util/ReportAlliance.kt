@@ -168,6 +168,7 @@ object ReportAlliance {
                 .header("X-Client-SSaid", PrefManager.ssaid)
                 .header("X-App-userrandomid", PrefManager.userRandomId)
                 .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
+                .header(ServerIdentity.HEADER_API, ServerIdentity.API_VERSION.toString())
                 .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
                 .header("X-Client-Platform", "android")
                 .header("User-Agent", com.example.c001apk.constant.Constants.USER_AGENT)

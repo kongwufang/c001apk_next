@@ -128,6 +128,7 @@ object UpdateChecker {
             "X-Install-Time" to info.firstInstallTime.toString(),
             "X-Update-Time" to info.lastUpdateTime.toString(),
             "X-Client-Version" to BuildConfig.VERSION_NAME,
+            "X-Client-Api" to ServerIdentity.API_VERSION.toString(),
             "X-Client-Code" to BuildConfig.VERSION_CODE.toString(),
             // 本包真实签名证书的 SHA-256：服务端据此核验是不是官方包
             // （不是就直接拒，连升级信息都不给），见接口里的 verify_client_signature()

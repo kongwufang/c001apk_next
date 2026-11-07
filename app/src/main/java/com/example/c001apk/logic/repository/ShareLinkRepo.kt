@@ -137,6 +137,8 @@ class ShareLinkRepo @Inject constructor() {
                 val req = Request.Builder()
                     .url(url)
                     .header("User-Agent", Constants.USER_AGENT)
+                .header(com.example.c001apk.util.ServerIdentity.HEADER_API,
+                    com.example.c001apk.util.ServerIdentity.API_VERSION.toString())
                     .build()
                 client.newCall(req).execute().use { resp ->
                     if (!resp.isSuccessful) {
