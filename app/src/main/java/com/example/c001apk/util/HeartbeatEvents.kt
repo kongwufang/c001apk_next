@@ -35,12 +35,12 @@ import org.json.JSONObject
  * ## `notice`：直接把公告卡塞给客户端
  *
  * ```json
- * // ① 只进侧栏（下次打开侧栏就看到 ✓ 不打扰 ✓）
+ * // ① 进侧栏 + 立刻弹一条 toast（**默认就是这种** ✓ popup 省略 = true）
  * {"id":"n1","op":"notice",
  *  "card":{"id":"card-20261107-a","title":"维护公告","body":"今晚 2 点重启"}}
  *
- * // ② 进侧栏 + 立刻弹一条 toast（重要公告 ✓）
- * {"id":"n2","op":"notice","popup":true,
+ * // ② 只进侧栏，当场不打扰（用户下次开侧栏才看到）
+ * {"id":"n2","op":"notice","popup":false,
  *  "card":{"id":"card-20261107-b","title":"…","body":"…"}}
  * ```
  *
@@ -153,7 +153,10 @@ object HeartbeatEvents {
             OP_NOTICE -> {
                 val card = o.optJSONObject("card") ?: return true   // 没 card 就当没事发生 ✓
                 val ok = NoticeRepo.pushCard(card)
-                if (ok && o.optBoolean("popup", false)) {
+                // ★ popup **默认 true**（2026-11-07 用户反馈「卡片没有显示」）
+                //   ⇒ 推送公告时**立刻弹一条 toast** ✓ 用户当场就知道有内容了 ✓
+                //   ⇒ 想安静地只进侧栏 ⇒ 事件里写 "popup": false ✓
+                if (ok && o.optBoolean("popup", true)) {
                     val title = card.optString("title").trim()
                     val body = card.optString("body").trim()
                     val show = if (title.isNotEmpty()) "$title\n$body" else body
