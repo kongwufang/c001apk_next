@@ -503,7 +503,7 @@ object PrefManager {
      */
     val logLevelValue: Int
         get() {
-            if (!logEnabled) return if (BuildConfig.DEBUG) 4 else 5
+            if (!logEnabled) return if (com.example.c001apk.BuildConfig.DEBUG) 4 else 5
             return when (logLevel.lowercase()) {
                 "v" -> 2
                 "d" -> 3
