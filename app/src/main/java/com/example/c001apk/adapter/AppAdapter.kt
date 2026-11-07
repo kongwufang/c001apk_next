@@ -439,7 +439,12 @@ class AppAdapter(
             binding.title.text = data.title
             binding.title.isVisible = !data.title.isNullOrEmpty()
             // 右上角是接口下发的（「榜单」这类），点了跳卡片自己的 url
-            binding.subTitle.text = data.subTitle.orEmpty()
+            // ★ 2026-11-08：这里原来只写「更多」，和标题行的「更多 ›」不一致
+            //   ⇒ 补箭头，两种卡看起来才是一套（用户截图指出）
+            val subTitleText = data.subTitle.orEmpty()
+            binding.subTitle.text =
+                if (subTitleText.isEmpty() || subTitleText.contains("›")) subTitleText
+                else "$subTitleText ›"
             binding.subTitle.isVisible = !data.subTitle.isNullOrEmpty()
             binding.subTitle.setOnClickListener {
                 if (!data.url.isNullOrEmpty()) listener.onOpenLink(it, data.url, data.title)
