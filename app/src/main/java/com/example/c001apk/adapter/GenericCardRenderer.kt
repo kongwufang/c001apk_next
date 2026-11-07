@@ -33,6 +33,8 @@ import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardProductRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.dp
@@ -58,7 +60,9 @@ object GenericCardRenderer {
     fun render(
         binding: ItemHomeGenericCardBinding,
         data: HomeFeedResponse.Data,
-        listener: ItemListener
+        listener: ItemListener,
+        /** 列表位置：0 = 第一张卡（日志里标 FIRST，方便定位「第一屏」问题） */
+        positionHint: Int = -1,
     ) {
         val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
@@ -96,6 +100,26 @@ object GenericCardRenderer {
         }
 
         val spec = CardUi.layout(template, entities.size)
+
+        // ★ 2026-11-08 卡片加载日志（用户要求）：
+        //   一条日志回答四个问题——哪个类渲染的、哪个模板、走哪套布局、内容是什么
+        //   `first=true` 标记列表第一张卡（最常被用来定位「第一屏哪里不对」）
+        val firstCard = positionHint == 0
+        AppLog.d(LogModule.CARD, "GenericCardRenderer") {
+            "CARD_RENDER ${'$'}{if (firstCard) "FIRST " else ""}" +
+                    "renderer=GenericCardRenderer tpl=${'$'}{template} type=${'$'}{data.entityType} " +
+                    "layout=${'$'}{spec.layout} span=${'$'}{spec.span} horizontal=${'$'}{spec.horizontal} " +
+                    "hidden=${'$'}{spec.hidden} official=${'$'}{spec.official} ents=${'$'}{entities.size} " +
+                    "title=${'$'}{(data.title ?: "").take(30)} url=${'$'}{(data.url ?: "").take(60)} " +
+                    "page=${'$'}{AppLog.page}"
+        }
+        // 第一张卡额外把内容摘出来（用户要「加载的内容是什么」）
+        if (firstCard) {
+            AppLog.i(LogModule.CARD, "GenericCardRenderer") {
+                "CARD_CONTENT tpl=${'$'}{template} " +
+                        "data=${'$'}{data.toString().take(600)}"
+            }
+        }
 
         // 照官方重画的卡片（续航卡 / 跑分卡）：官方这几张是专门写的 Compose 布局（电池刻度条、
         // 2x2 品牌渐变格），按通用骨架摊成「名称 值」完全不像，所以和 topContent 一样单独画。
@@ -176,6 +200,13 @@ object GenericCardRenderer {
         // 排障提示，模板都映射完了就撤掉 —— 这种技术字样不该出现在界面上
         val renderable = !title.isNullOrEmpty() || !summary.isNullOrEmpty() ||
                 entities.isNotEmpty() || hero != null || stats.isNotEmpty()
+        if (!renderable) {
+            // 整卡不占位的原因也记下来（这类「卡片消失了」最难查）
+            AppLog.w(
+                LogModule.CARD, "GenericCardRenderer",
+                "CARD_EMPTY tpl=${template} type=${data.entityType} reason=无标题/无说明/无实体/无配图 page=${AppLog.page}"
+            )
+        }
         binding.root.isVisible = renderable && !spec.hidden
 
         val url: String? = data.url

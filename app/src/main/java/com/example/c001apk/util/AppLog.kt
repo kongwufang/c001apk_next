@@ -68,6 +68,15 @@ object AppLog {
 
     private val buffer = ArrayDeque<Entry>(CAPACITY)
 
+    /**
+     * 当前正在加载的列表/页面的标识（2026-11-08）
+     *
+     * 卡片日志要能回答「这张卡是哪个请求来的」⇒ 各 ViewModel 拉数据前把它设成
+     * 请求 url（或 `HOME_TAB_FOLLOW/type=product` 这种短标识），卡片渲染时带上 ✓
+     */
+    @Volatile
+    var page: String = ""
+
     /** 文件 sink（B 步由 HttpLog 那套实现挂进来；为空表示只走内存 + logcat） */
     @Volatile
     var fileSink: ((Entry) -> Unit)? = null

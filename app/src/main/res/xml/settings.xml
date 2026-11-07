@@ -274,15 +274,9 @@
                 android:key="joinImprovePlan"
                 android:summary="@string/settings_improve_plan_summary"
                 android:title="@string/settings_improve_plan" />
-        <!-- ★ 2026-11-08：HTTP 日志与 App 日志**合并成一个开关**，操作全在「日志」页里 -->
-        <rikka.material.preference.MaterialSwitchPreference
-            android:defaultValue="false"
-            android:icon="@drawable/ic_bug"
-            android:key="logUnified"
-            android:summary="App 日志 + HTTP 请求日志，开关一起控制"
-            android:title="记录日志" />
+        <!-- ★ 2026-11-08 用户要求：外面不再放开关，所有日志操作都在「日志」页里 -->
         <Preference
-            android:icon="@drawable/ic_more"
+            android:icon="@drawable/ic_bug"
             android:key="logCenter"
             android:summary="级别 / 模块 / 查看 / 导出 / 清空"
             android:title="日志" />

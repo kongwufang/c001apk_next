@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import androidx.databinding.ViewDataBinding
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BR
 import com.example.c001apk.R
@@ -789,7 +790,11 @@ class AppAdapter(
         val listener: ItemListener
     ) : BaseViewHolder<ViewDataBinding>(binding) {
         override fun bind(data: HomeFeedResponse.Data) {
-            GenericCardRenderer.render(binding, data, listener)
+            GenericCardRenderer.render(
+                binding, data, listener,
+                positionHint = if (bindingAdapterPosition != RecyclerView.NO_POSITION)
+                    bindingAdapterPosition else position
+            )
         }
     }
 
