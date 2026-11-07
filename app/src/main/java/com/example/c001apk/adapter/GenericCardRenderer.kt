@@ -1419,4 +1419,4 @@ private fun HomeFeedResponse.Entities.hasContent(): Boolean =
             !message.isNullOrEmpty() || !description.isNullOrEmpty() ||
             // ★ 2026-11-08 修「优质酷友」卡：user 实体只有 username/avatar，没有 title/logo/pic ✗
             //   原来会被这条过滤直接丢掉 ⇒ 卡片只剩标题行 ✗
-            !username.isNullOrEmpty() || !avatar.isNullOrEmpty() || !userAvatar.isNullOrEmpty()
+            !username.isNullOrEmpty() || !avatar.isNullOrEmpty()
