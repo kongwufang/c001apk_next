@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  通用卡片里的「产品行」—— 对齐官方 item_product_view.xml（2026-11-08）
+
+  官方结构（_rev/ref_res/res/layout/item_product_view.xml）：
+    CoolapkCardView(cardStyle=2)
+    └ LinearLayout 横排 · padding 12dp
+       ├ FrameLayout 60×60 · ImageView 60dp（+ 未发布蒙版 + 排行角标）
+       ├ 竖排 · weight=1 · marginStart 10dp
+       │   ├ 标题 16sp · maxLines=2 · 行高 22sp
+       │   └ 横排（marginTop 4dp）：🔥16dp + 热度 12sp + 讨论 12sp（marginStart 8dp）
+       └ FrameLayout 78dp · minHeight 41dp
+            三选一：发布时间 / 「暂无人评分」/ 评分（大分 + 五星）
+
+  这里：火苗用 TextView 的 🔥（项目里没有 ic_fire；emoji 在各机型都稳定 ✓）
+        评分用框架 RatingBar（small + indicator）+ 大号分数，视觉接近官方 Compose 那颗 ✓
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="12dp">
+
+    <ImageView
+        android:id="@+id/icon"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        tools:src="@mipmap/ic_launcher" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:lineSpacingExtra="5sp"
+            android:maxLines="2"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
+            tools:text="REDMI K100 Pro Max" />
+
+        <LinearLayout
+            android:id="@+id/subtitleContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/hotIcon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🔥"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/hotNum"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="118.4万热度" />
+
+            <TextView
+                android:id="@+id/discussNum"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="2.9万讨论" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/scoreContainer"
+        android:layout_width="78dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:gravity="center"
+        android:minHeight="41dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/score"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            tools:text="9.0" />
+
+        <RatingBar
+            android:id="@+id/scoreBar"
+            style="?android:attr/ratingBarStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:isIndicator="true"
+            android:numStars="5"
+            android:progressTint="?attr/colorPrimary"
+            android:stepSize="0.5"
+            tools:rating="4.5" />
+
+        <TextView
+            android:id="@+id/noRating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="暂无人评分"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

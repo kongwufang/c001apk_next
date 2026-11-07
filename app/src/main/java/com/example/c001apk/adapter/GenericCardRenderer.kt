@@ -30,6 +30,7 @@ import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardProductRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.CardUi
@@ -1144,10 +1145,20 @@ class GenericCardEntityAdapter(
     class UserRowViewHolder(val binding: ItemHomeGenericCardUserRowBinding) :
         RecyclerView.ViewHolder(binding.root)
 
+    /**
+     * 产品行（对齐官方 item_product_view.xml ✓ 2026-11-08）
+     *
+     * 「热门数码」这类 iconListCard 的实体全是 product：
+     *   图 60dp + 标题 16sp 两行 + 「🔥热度 讨论」12sp + 右侧 78dp 评分（大分 + 五星）
+     */
+    class ProductRowViewHolder(val binding: ItemHomeGenericCardProductRowBinding) :
+        RecyclerView.ViewHolder(binding.root)
+
     override fun getItemViewType(position: Int): Int = when {
         CardUi.entityLayout(entityTemplateOf(entities[position])) != null -> VIEW_TYPE_OFFICIAL
         // 全是 user 实体（「优质酷友」那类）⇒ 官方行布局 ✓
         entities[position].entityType == "user" -> VIEW_TYPE_USER_ROW
+        entities[position].entityType == "product" -> VIEW_TYPE_PRODUCT_ROW
         else -> VIEW_TYPE_DEFAULT
     }
 
@@ -1160,6 +1171,10 @@ class GenericCardEntityAdapter(
         } else if (viewType == VIEW_TYPE_USER_ROW) {
             UserRowViewHolder(
                 ItemHomeGenericCardUserRowBinding.inflate(inflater, parent, false)
+            )
+        } else if (viewType == VIEW_TYPE_PRODUCT_ROW) {
+            ProductRowViewHolder(
+                ItemHomeGenericCardProductRowBinding.inflate(inflater, parent, false)
             )
         } else {
             EntityViewHolder(
@@ -1178,6 +1193,10 @@ class GenericCardEntityAdapter(
         }
         if (holder is UserRowViewHolder) {
             bindUserRow(holder.binding, entity, listener)
+            return
+        }
+        if (holder is ProductRowViewHolder) {
+            bindProductRow(holder.binding, entity, listener)
             return
         }
         val binding = (holder as EntityViewHolder).binding
@@ -1360,6 +1379,9 @@ class GenericCardEntityAdapter(
         /** user 实体行（官方 item_user 那种：头像 + 昵称 + 关注按钮） */
         const val VIEW_TYPE_USER_ROW = 2
 
+        /** product 实体行（官方 item_product_view 那种：图 + 标题 + 热度 + 评分） */
+        const val VIEW_TYPE_PRODUCT_ROW = 3
+
         /** 专属布局里图标区自带的固定子 view 数（头像、用户名、占位 Space），追加图标前保留 */
         const val ICON_LIST_FIXED_CHILDREN = 3
 
@@ -1434,6 +1456,61 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
+/** 产品行绑定（照官方 item_product_view.xml ✓） */
+private fun bindProductRow(
+    b: ItemHomeGenericCardProductRowBinding,
+    entity: HomeFeedResponse.Entities,
+    listener: ItemListener,
+) {
+    val image = entity.logo ?: entity.pic
+    if (!image.isNullOrEmpty()) {
+        runCatching { com.bumptech.glide.Glide.with(b.icon).load(image).into(b.icon) }
+    }
+    val title = entity.title ?: entity.aliasTitle.orEmpty()
+    b.title.text = title
+
+    val hot = entity.hotNumTxt
+    val comments = entity.commentnumTxt
+    val hasHot = !hot.isNullOrEmpty()
+    val hasComments = !comments.isNullOrEmpty()
+    b.hotIcon.isVisible = hasHot
+    b.hotNum.isVisible = hasHot
+    b.hotNum.text = hot.orEmpty()
+    b.discussNum.isVisible = hasComments
+    b.discussNum.text = comments.orEmpty()
+    b.subtitleContainer.isVisible = hasHot || hasComments
+
+    // 右侧评分：有分 ⇒ 大分 + 五星；没分 ⇒ 「暂无人评分」
+    val score = entity.starAverageScore?.toFloatOrNull()
+    if (score != null && score > 0f) {
+        b.scoreContainer.isVisible = true
+        b.noRating.isVisible = false
+        b.score.isVisible = true
+        b.scoreBar.isVisible = true
+        b.score.text = entity.starAverageScore
+        // 官方是五分制小数：9.0 分 ⇒ 4.5 星（10 分制换算）
+        val stars = if (score > 5f) score / 2f else score
+        runCatching {
+            b.scoreBar.setIsIndicator(true)
+            b.scoreBar.rating = stars.coerceIn(0f, 5f)
+        }
+    } else {
+        b.scoreContainer.isVisible = true
+        b.score.isVisible = false
+        b.scoreBar.isVisible = false
+        b.noRating.isVisible = true
+    }
+
+    // 整行点击 ⇒ 产品页（url=/product/<id>，openLink 已有分支 ✓）
+    val url = entity.url?.takeIf { it.isNotEmpty() }
+    b.root.isClickable = !url.isNullOrEmpty()
+    b.root.isFocusable = !url.isNullOrEmpty()
+    b.root.setOnClickListener(
+        if (!url.isNullOrEmpty()) View.OnClickListener { listener.onOpenLink(it, url, title) }
+        else null
+    )
+}
+
 /** 用户行绑定（照官方 item_user.xml 的字段与字号 ✓） */
 private fun bindUserRow(
     b: ItemHomeGenericCardUserRowBinding,
