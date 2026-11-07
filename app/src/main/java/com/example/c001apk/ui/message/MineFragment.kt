@@ -153,6 +153,12 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             sideCardAdapter.setData(notices, update)
         }
 
+        // ★ 2026-11-07：心跳**直接推**了一张公告卡 ⇒ 侧栏活着就立刻刷出来 ✓
+        //   不用等用户「退出再进我的」✓ 卡本身已经存本机 ✓ 这里只是提前刷新
+        com.example.c001apk.util.NoticeRepo.pushedSignal.observe(viewLifecycleOwner) {
+            viewModel.fetchSideCards()
+        }
+
         viewModel.loadingState.observe(viewLifecycleOwner) {
             when (it) {
                 is LoadingState.LoadingDone -> {

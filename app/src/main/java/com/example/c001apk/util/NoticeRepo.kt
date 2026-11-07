@@ -50,6 +50,14 @@ object NoticeRepo {
     /** 最多同时显示几张 */
     private const val MAX_CARDS = 3
 
+    /**
+     * 收到一条心跳推送卡时打个信号 ✓（2026-11-07）
+     *
+     * 谁在听：[com.example.c001apk.ui.message.MineFragment] —— 侧栏活着就立刻重拉一次 ✓
+     * 没人听：卡已经存本机 ✓ 下次打开侧栏照样能看到 ✓（信号不丢 ✓）
+     */
+    val pushedSignal = androidx.lifecycle.MutableLiveData<Long>()
+
     data class Button(val text: String, val url: String)
 
     data class Card(
@@ -134,6 +142,8 @@ object NoticeRepo {
         val trimmed = JSONArray()
         for (i in start until kept.length()) trimmed.put(kept.opt(i))
         PrefManager.pushedNotices = trimmed.toString()
+        // ★ 通知侧栏「有新卡了」✓ 侧栏活着就立刻刷新（不用等用户退出再进）
+        pushedSignal.postValue(System.currentTimeMillis())
         return true
     }
 
