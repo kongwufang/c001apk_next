@@ -129,6 +129,13 @@ class MyApplication : Application() {
             )
         }
 
+        // 启动打一条（级别/模块开关都过才写）：这条是「日志到底通不通」的自检点 ✓
+        com.example.c001apk.util.AppLog.i(
+            com.example.c001apk.util.LogModule.APP, "Boot",
+            "onCreate 完成 level=" + com.example.c001apk.util.PrefManager.logLevel +
+                    " enabled=" + com.example.c001apk.util.PrefManager.logEnabled
+        )
+
         // 云端配置（用户认证表 / 可信链接白名单）：先用上次缓存，再后台刷新一次。
         // 放在这里而不是各页面里拉，是因为认证标散落在列表、详情、消息各处，
         // 每处各拉一次没必要，而且首次进入时未必已经有表。
