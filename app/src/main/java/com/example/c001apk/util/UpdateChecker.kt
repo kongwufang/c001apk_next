@@ -85,6 +85,43 @@ object UpdateChecker {
     }
 
     /**
+     * 把心跳 `update` 事件里**内联**的更新信息解析成 [UpdateInfo]（2026-11-07）
+     *
+     * 为什么要它：心跳是有下行通道的 ✓ 服务器可以直接把版本信息塞过来 ✓
+     *   · 不占用 `/update/` 的 60 秒缓存 ✓
+     *   · 立刻弹窗（用户当场就能看到）✓
+     *   · 服务器挂了也能推（因为不用请求接口 ✓）
+     *
+     * 期望的 JSON（都是 `/update/` 那套字段名 ✓ 方便直接复制）：
+     * ```json
+     * {"versionName":"V1.1.0","versionCode":10110,"changelog":"…",
+     *  "lines":[{"name":"GitHub","url":"https://…"}]}
+     * ```
+     *
+     * @return 必填项缺了 / 不合法 ⇒ null ✓（调用方当失败处理 ✓）
+     */
+    fun parsePushedUpdate(o: JSONObject): UpdateInfo? = runCatching {
+        val verName = o.optString("versionName").trim()
+        val verCode = o.optLong("versionCode", 0L)
+        if (verName.isEmpty() || verCode <= 0L) return null
+
+        val changelog = o.optString("changelog").trim()
+        val lines = ArrayList<DownloadLine>(3)
+        o.optJSONArray("lines")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                if (lines.size >= 3) break
+                val it = arr.optJSONObject(i) ?: continue
+                val url = it.optString("url").trim()
+                if (url.isEmpty()) continue
+                val name = it.optString("name").trim().ifEmpty { "下载" }
+                lines.add(DownloadLine(name, url))
+            }
+        }
+        if (lines.isEmpty()) return null      // 没下载地址 ⇒ 弹了也没用 ✗
+        UpdateInfo(verName, verCode, changelog, lines)
+    }.getOrNull()
+
+    /**
      * 独立客户端：不挂 Cookie / 日志拦截器 —— 更新接口是自建服务，
      * 不该把酷安的登录凭证带过去。
      *

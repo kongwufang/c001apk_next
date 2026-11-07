@@ -24,13 +24,46 @@ import org.json.JSONObject
  * | `toast` | 弹一条 toast | `text` | 低 |
  * | `dialog` | 弹一个对话框（标题+正文+「知道了」）| `title` `text` | 低 |
  * | `gates` | 立刻重拉云控开关 | — | 低 |
- * | `notice` | 预留（公告每次开侧栏都拉 ✓）| — | 低 |
- * | `update` | 立刻检查更新并弹更新框 | — | 低 |
+ * | `notice` | **直接下发一条公告卡**（进侧栏 ✓ 可选立刻弹一下）| `card` | 低 |
+ * | `update` | **直接下发更新信息**（不请求接口 ✓）或触发查更新 | `update`（可选）| 低 |
  * | `clearCache` | 清 Glide 图片缓存 | — | 低 |
  * | `reload` | 重建当前页面（recreate）| — | 中 |
  * | `open` | 打开一个链接（**只允许白名单域名** ✗）| `url` `title` | **中高** |
  * | `log` | 上报诊断信息（A+B+C 三层 ✓）| — | 低 |
  * | `noop` | 什么都不做（服务器试探 / 埋点）| — | 无 |
+ *
+ * ## `notice`：直接把公告卡塞给客户端
+ *
+ * ```json
+ * // ① 只进侧栏（下次打开侧栏就看到 ✓ 不打扰 ✓）
+ * {"id":"n1","op":"notice",
+ *  "card":{"id":"card-20261107-a","title":"维护公告","body":"今晚 2 点重启"}}
+ *
+ * // ② 进侧栏 + 立刻弹一条 toast（重要公告 ✓）
+ * {"id":"n2","op":"notice","popup":true,
+ *  "card":{"id":"card-20261107-b","title":"…","body":"…"}}
+ * ```
+ *
+ * ⚠️ 卡片 id 必须**唯一且稳定** ✓
+ *   · 客户端按 id 去重、也按 id 记「已读」（用户点叉后不再显示 ✓）
+ *   · 想再推一次同样的内容 ⇒ **换 id** ✓（例如带上日期）
+ *   · 卡片字段与 `/notice/` 的卡完全一致（title/body/bgColor/accent/buttons/time/priority ✓）
+ *   · 推送的卡会**持久保存在本机** ✓ 和服务器下发的卡合并显示 ✓
+ *
+ * ## `update`：直接把更新信息塞给客户端
+ *
+ * ```json
+ * // ① 直接下发（推荐：不占用 /update/ 的 60 秒缓存 ✓ 立刻弹窗）
+ * {"id":"u1","op":"update",
+ *  "update":{"versionName":"V1.1.0","versionCode":10110,"changelog":"…",
+ *            "lines":[{"name":"GitHub","url":"https://…"}]}}
+ *
+ * // ② 只说「去查一下」（沿用 /update/ 的缓存与签名校验）
+ * {"id":"u2","op":"update"}
+ * ```
+ *
+ * ⚠️ `versionCode` 必须**大于**当前包才会弹 ✓
+ *   （推了个比当前还旧的会被静默忽略 ✓ 防止手滑把用户"降级提示"）
  *
  * ## 四条原则
  * · **按 id 去重** ✓ 同一条只执行一次（`PrefManager` 存最近 50 个 ✓）
@@ -116,19 +149,48 @@ object HeartbeatEvents {
                 true
             }
 
-            OP_NOTICE -> true   // 预留：公告本身无缓存，开侧栏就是新的 ✓
-
-            OP_UPDATE -> {
-                // 后台拉一次更新信息；有新版本才弹框 ✓
-                Thread {
-                    runCatching {
-                        val info = kotlinx.coroutines.runBlocking { UpdateChecker.fetchUpdate() }
-                            ?: return@Thread
-                        if (!info.isNewer) return@Thread
-                        val act = SzlmHint.current() ?: return@Thread
-                        onMain { runCatching { UpdateChecker.showUpdateDialog(act, info) } }
+            // ---------- 直接下发一条公告卡（不请求 /notice/ ✓） ----------
+            OP_NOTICE -> {
+                val card = o.optJSONObject("card") ?: return true   // 没 card 就当没事发生 ✓
+                val ok = NoticeRepo.pushCard(card)
+                if (ok && o.optBoolean("popup", false)) {
+                    val title = card.optString("title").trim()
+                    val body = card.optString("body").trim()
+                    val show = if (title.isNotEmpty()) "$title\n$body" else body
+                    if (show.isNotBlank()) {
+                        onMain { Toast.makeText(ctx, show, Toast.LENGTH_LONG).show() }
                     }
-                }.start()
+                }
+                ok
+            }
+
+            // ---------- 直接下发更新信息（不请求 /update/ ✓）或只说"去查" ----------
+            OP_UPDATE -> {
+                val inline = o.optJSONObject("update")
+                if (inline == null) {
+                    // 只说「去查一下」⇒ 走原有流程（有新版本才弹 ✓）
+                    Thread {
+                        runCatching {
+                            val info = kotlinx.coroutines.runBlocking { UpdateChecker.fetchUpdate() }
+                                ?: return@Thread
+                            if (!info.isNewer) return@Thread
+                            val act = SzlmHint.current() ?: return@Thread
+                            onMain { runCatching { UpdateChecker.showUpdateDialog(act, info) } }
+                        }
+                    }.start()
+                    return true
+                }
+                val info = UpdateChecker.parsePushedUpdate(inline)
+                if (info == null) return false
+                if (!info.isNewer) return true   // 推了个比当前旧的 ⇒ 忽略 ✓
+                val act = SzlmHint.current()
+                if (act == null) {
+                    onMain {
+                        Toast.makeText(ctx, "发现新版本 ${info.versionName}", Toast.LENGTH_LONG).show()
+                    }
+                    return true
+                }
+                onMain { runCatching { UpdateChecker.showUpdateDialog(act, info) } }
                 true
             }
 

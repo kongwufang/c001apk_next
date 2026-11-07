@@ -478,6 +478,20 @@ object PrefManager {
     var recordHttpLog: Boolean
         get() = pref.getBoolean("recordHttpLog", false)
         set(value) = pref.edit().putBoolean("recordHttpLog", value).apply()
+
+    /**
+     * 心跳 `notice` 事件推送过来的公告卡（2026-11-07）
+     *
+     * 存成一个 **JSON 数组字符串** ✓ 由 `NoticeRepo.pushCard` 维护 ✓
+     * · 和 `/notice/` 下发的卡合并显示 ✓
+     * · 用户点叉（已读）后按 id 隐藏 ✓
+     * · 卡里带 `until` 的过期自动丢 ✓
+     * · 接口挂掉/断网时仍然显示 ✓（这是它比服务器公告强的地方）
+     */
+    var pushedNotices: String
+        get() = pref.getString("pushedNotices", "[]").orEmpty()
+        set(value) = pref.edit().putString("pushedNotices", value).apply()
+
     var isVerifySsl: Boolean
         get() = pref.getBoolean("verifySsl", true)
         set(value) = pref.edit().putBoolean("verifySsl", value).apply()

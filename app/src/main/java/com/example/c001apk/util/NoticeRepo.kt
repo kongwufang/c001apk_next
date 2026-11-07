@@ -1,6 +1,7 @@
 package com.example.c001apk.util
 
 import android.content.Context
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -66,23 +67,98 @@ object NoticeRepo {
 
     /**
      * 拉公告。失败返回空表 ✓（不抛 ✗ 不弹提示 ✗）
+     *
+     * ⚠️ 2026-11-07：**拉不到也要显示心跳推送的卡** ✓
+     *   （推送卡存在本机 ✓ 断网 / 接口挂了照样能看到 ✓）
      */
     suspend fun fetch(): List<Card> {
-        val json = runCatching { UpdateChecker.fetchConfig(URL) }.getOrNull() ?: return emptyList()
+        val json = runCatching { UpdateChecker.fetchConfig(URL) }.getOrNull()
+        if (json == null) {
+            return pushedCards()
+                .filter { !PrefManager.isNoticeDismissed(it.id) }
+                .sortedByDescending { it.priority }
+                .take(MAX_CARDS)
+        }
         return parse(json)
     }
 
     fun parse(json: String): List<Card> = runCatching {
         val root = JSONObject(json)
-        val arr = root.optJSONArray("cards") ?: return emptyList()
-        val out = ArrayList<Card>(arr.length())
+        val arr = root.optJSONArray("cards") ?: JSONArray()
+        val out = ArrayList<Card>(arr.length() + 3)
+        // ★ 2026-11-07：先放「心跳推送的卡」✓ 再放服务器下发的 ✓
+        //   两边都可能出现同一个 id ⇒ 用 LinkedHashMap 按 id 去重（推送优先 ✓）
+        val seen = HashSet<String>()
+        pushedCards().forEach { c ->
+            if (seen.add(c.id) && !PrefManager.isNoticeDismissed(c.id)) out.add(c)
+        }
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
             val card = parseOne(o) ?: continue
-            if (!PrefManager.isNoticeDismissed(card.id)) out.add(card)
+            if (seen.add(card.id) && !PrefManager.isNoticeDismissed(card.id)) out.add(card)
         }
         out.sortedByDescending { it.priority }.take(MAX_CARDS)
     }.getOrDefault(emptyList())
+
+    // ---------------- 心跳推送的公告卡（2026-11-07） ----------------
+
+    /** 推送卡最多保留几张（防 prefs 无限涨 ✗） */
+    private const val MAX_PUSHED = 5
+
+    /**
+     * 心跳 `notice` 事件把一张卡**直接塞进来** ✓（不需要请求 `/notice/` ✓）
+     *
+     * 存哪儿：`PrefManager.pushedNotices`（一个 JSON 数组字符串 ✓）
+     * 什么时候消失：
+     *   · 用户在侧栏点叉（已读）⇒ 按 id 隐藏 ✓
+     *   · 卡里带 `until`（yyyy-MM-dd）且过期 ⇒ 自动丢弃 ✓
+     *   · 超过 [MAX_PUSHED] 张 ⇒ 丢最旧的 ✓
+     *
+     * @return true = 收下了（心跳那边据此记为"已处理"✓）；false = 卡不合法 ✓
+     */
+    fun pushCard(o: JSONObject): Boolean {
+        val card = parseOne(o) ?: return false
+        val arr = runCatching { JSONArray(PrefManager.pushedNotices) }.getOrNull() ?: JSONArray()
+
+        val kept = JSONArray()
+        // 先按 id 覆盖旧的 ✓（同 id 再推一次 = 更新内容 ✓）
+        for (i in 0 until arr.length()) {
+            val old = arr.optJSONObject(i) ?: continue
+            if (old.optString("id").trim() == card.id) continue
+            if (isExpired(old)) continue
+            kept.put(old)
+        }
+        kept.put(o)
+        // 只留最近 MAX_PUSHED 张
+        val start = if (kept.length() > MAX_PUSHED) kept.length() - MAX_PUSHED else 0
+        val trimmed = JSONArray()
+        for (i in start until kept.length()) trimmed.put(kept.opt(i))
+        PrefManager.pushedNotices = trimmed.toString()
+        return true
+    }
+
+    /** 读出推送卡（已过滤过期 / 已读 ✓） */
+    private fun pushedCards(): List<Card> = runCatching {
+        val arr = JSONArray(PrefManager.pushedNotices)
+        val out = ArrayList<Card>(arr.length())
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            if (isExpired(o)) continue
+            parseOne(o)?.let { out.add(it) }
+        }
+        out
+    }.getOrDefault(emptyList())
+
+    /** 卡里的 until（yyyy-MM-dd）过期了吗 ✓ 没写 = 不过期 ✓ */
+    private fun isExpired(o: JSONObject): Boolean = runCatching {
+        val until = o.optString("until").trim()
+        if (until.isEmpty()) return false
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val end = fmt.parse(until) ?: return false
+        val today = fmt.parse(fmt.format(java.util.Date())) ?: return false
+        today.after(end)
+    }.getOrDefault(false)
+
 
     private fun parseOne(o: JSONObject): Card? {
         val id = o.optString("id").trim()
