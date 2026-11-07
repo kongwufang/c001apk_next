@@ -354,6 +354,35 @@ object PrefManager {
     fun isNoticeDismissed(id: String): Boolean =
         pref.getStringSet("dismissedNotices", null)?.contains(id) == true
 
+    // ---------------- 心跳「顺带下发」的事件去重（2026-11-07） ----------------
+
+    /**
+     * 这条心跳事件是不是已经执行过 ✓
+     *
+     * 为什么要去重：心跳 30~60 秒一次 ✓ 同一条 `toast` 指令会被反复看到 ✗
+     * 服务器那边每 30 秒就要判一次「谁做过」也太重 ✗ ⇒ 客户端记一笔最省 ✓
+     */
+    fun isHeartbeatEventDone(id: String): Boolean =
+        pref.getStringSet("heartbeatEventsDone", null)?.contains(id) == true
+
+    /**
+     * 记下「这些心跳事件已执行」✓
+     *
+     * @param maxKeep 最多保留多少条（超了就从旧到新砍 ✓ 防 prefs 无限涨 ✗）
+     */
+    fun markHeartbeatEventsDone(ids: Collection<String>, maxKeep: Int = 50) {
+        if (ids.isEmpty()) return
+        val cur = pref.getStringSet("heartbeatEventsDone", null)?.toMutableSet() ?: mutableSetOf()
+        cur.addAll(ids)
+        if (cur.size > maxKeep) {
+            // LinkedHashSet 无序 ✗ 直接截断（数量少 ✓ 丢几个旧 id 不影响 ✓）
+            val trimmed = cur.toList().takeLast(maxKeep).toMutableSet()
+            pref.edit().putStringSet("heartbeatEventsDone", trimmed).apply()
+        } else {
+            pref.edit().putStringSet("heartbeatEventsDone", cur).apply()
+        }
+    }
+
     /** 记下「这条公告已读」✓ 只增不减（服务端换 id 就等于新公告 ✓） */
     fun dismissNotice(id: String) {
         val cur = pref.getStringSet("dismissedNotices", null)?.toMutableSet() ?: mutableSetOf()

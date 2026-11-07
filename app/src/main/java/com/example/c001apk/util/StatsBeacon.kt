@@ -178,9 +178,13 @@ class StatsBeacon @Inject constructor(
             }
         }.getOrNull() ?: return FAIL_BACKOFF_SEC
 
-        val interval = runCatching {
-            JSONObject(body).optInt("interval", DEFAULT_INTERVAL_SEC)
-        }.getOrDefault(DEFAULT_INTERVAL_SEC)
+        val root = runCatching { JSONObject(body) }.getOrNull()
+        val interval = root?.optInt("interval", DEFAULT_INTERVAL_SEC) ?: DEFAULT_INTERVAL_SEC
+
+        // ★ 2026-11-07：心跳是**双向通道** ✓ 顺带下发的事件在这里执行
+        //   ⇒ 服务器可以在任何一次心跳响应里塞 toast / gates / notice 等指令 ✓
+        //   ⚠️ 失败静默 ✓ 绝不影响心跳本身 ✓（dispatch 内部全 runCatching ✓）
+        runCatching { root?.let { HeartbeatEvents.dispatch(ctx, it) } }
 
         // 服务器给的 interval 如果明显不合理（<=0 / 过大），也别当真的用 ✗ 走退避 ✓
         if (interval < MIN_INTERVAL_SEC || interval > MAX_INTERVAL_SEC) return FAIL_BACKOFF_SEC

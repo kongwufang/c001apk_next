@@ -135,6 +135,16 @@ object CloudGates {
 
     private val fetching = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    /**
+     * 让下次读开关时**立刻**重新拉一次（心跳下发 `gates` 事件时用 ✓）
+     *
+     * 实现：把 CloudGates 的「上次拉取时间」清零 ⇒ [needFetch] 立刻 true ✓
+     * 不动当前值 ✗（拉失败时还能退回旧值 ✓ 不会因为一次网络抖动把功能关掉 ✗）
+     */
+    fun invalidate() {
+        runCatching { PrefManager.cloudGatesTs = 0L }
+    }
+
     /** 该拉了吗（超过 TTL ✓）*/
     private fun needFetch(): Boolean {
         val last = PrefManager.cloudGatesTs
