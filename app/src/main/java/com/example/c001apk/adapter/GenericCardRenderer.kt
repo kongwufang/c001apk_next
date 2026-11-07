@@ -108,7 +108,7 @@ object GenericCardRenderer {
         AppLog.d(LogModule.CARD, "GenericCardRenderer") {
             "CARD_RENDER ${if (firstCard) "FIRST " else ""}" +
                     "renderer=GenericCardRenderer tpl=${template} type=${data.entityType} " +
-                    "layout=${spec.layout} span=${spec.span} horizontal=${spec.horizontal} " +
+                    "layout=${CardUi.rule(template)?.layout} span=${spec.span} horizontal=${spec.horizontal} " +
                     "hidden=${spec.hidden} official=${spec.official} ents=${entities.size} " +
                     "title=${(data.title ?: "").take(30)} url=${(data.url ?: "").take(60)} " +
                     "page=${AppLog.page}"
