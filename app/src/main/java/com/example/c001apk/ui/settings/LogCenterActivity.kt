@@ -182,7 +182,7 @@ class LogCenterActivity : AppCompatActivity() {
             textSize = 12f
             setPadding(dp(4), dp(10), 0, dp(6))
             setTextColor(
-                MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary)
+                MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary)
             )
         })
     }
@@ -238,7 +238,7 @@ class LogCenterActivity : AppCompatActivity() {
 
     private fun pickModules() {
         val modules = LogModule.values()
-        val checked = BooleanArray(modules.size) { PrefManager.logModules.contains(modules[i].key) }
+        val checked = BooleanArray(modules.size) { i -> PrefManager.logModules.contains(modules[i].key) }
         MaterialAlertDialogBuilder(this)
             .setTitle("日志模块（全不选 = 全部）")
             .setMultiChoiceItems(modules.map { it.key }.toTypedArray(), checked) { _, which, isChecked ->
