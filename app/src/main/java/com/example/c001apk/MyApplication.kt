@@ -119,6 +119,16 @@ class MyApplication : Application() {
             com.example.c001apk.util.HttpLog.init(this)
         }
 
+        // ★ 2026-11-08 全局分模块日志（B 步）：建目录 + 按开关挂文件 sink
+        //   开关关着时 fileSink 是 null ⇒ 写盘开销为 0 ✓
+        //   内存环形缓冲（2000 条）不受开关影响，崩溃时 DiagReport 能拿到现场 ✓
+        runCatching {
+            com.example.c001apk.util.LogFileSink.init(this)
+            com.example.c001apk.util.LogFileSink.install(
+                com.example.c001apk.util.PrefManager.logEnabled
+            )
+        }
+
         // 云端配置（用户认证表 / 可信链接白名单）：先用上次缓存，再后台刷新一次。
         // 放在这里而不是各页面里拉，是因为认证标散落在列表、详情、消息各处，
         // 每处各拉一次没必要，而且首次进入时未必已经有表。

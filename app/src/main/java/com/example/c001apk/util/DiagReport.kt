@@ -219,7 +219,26 @@ object DiagReport {
         // ---------- C. 请求日志聚合（只有用户开了才有） ----------
         root.put("http", httpSummary(ctx))
 
+        // ---------- D. 全局日志（2026-11-08 B 步）----------
+        // 只带最近 200 行的**文本**（已脱敏，文件 sink 落盘时做过了）；
+        // 加上丢弃计数，能判断这段日志是否缺片 ✓
+        root.put("applog", appLogSummary())
+
         return root
+    }
+
+    /** 全局日志概要：最近 200 行 + 丢弃计数（D 段） */
+    private fun appLogSummary(): JSONObject {
+        val o = JSONObject()
+        return runCatching {
+            val lines = LogFileSink.tail(200)
+            o.put("dropped", LogFileSink.droppedCount())
+            o.put("lines", JSONArray(lines))
+            // 内存环也带一份（文件开关没开时，只有这个有内容 ✓）
+            val mem = AppLog.snapshot().takeLast(100).map { it.format().take(500) }
+            o.put("memory", JSONArray(mem))
+            o
+        }.getOrElse { o.put("error", it.message ?: "unknown"); o }
     }
 
     private fun httpSummary(ctx: Context): JSONObject {
