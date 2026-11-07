@@ -1441,7 +1441,7 @@ private fun bindUserRow(
     listener: ItemListener,
 ) {
     val context = b.root.context
-    val avatar = entity.avatar ?: entity.userAvatar
+    val avatar = entity.avatar
     if (!avatar.isNullOrEmpty()) {
         runCatching {
             com.bumptech.glide.Glide.with(b.avatar).load(avatar)
