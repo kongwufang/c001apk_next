@@ -421,7 +421,7 @@ object GenericCardRenderer {
             CardUi.SUBTAB_PRICE -> bindPriceCard(binding, extra, listener)
             CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
             CardUi.LINKS -> bindLinksCard(binding, entities, listener)
-            CardUi.SECTION -> bindSectionCard(binding, template, data)
+            CardUi.SECTION -> bindSectionCard(binding, template, data, listener)
             CardUi.ICON_BUTTONS -> bindIconButtonsCard(binding, entities, listener)
             CardUi.LINK_TABS -> bindLinkTabsCard(binding, entities, listener)
             CardUi.CAPSULES -> bindCapsulesCard(binding, template, data, entities, listener)
@@ -704,7 +704,8 @@ object GenericCardRenderer {
     private fun bindSectionCard(
         binding: ItemHomeGenericCardBinding,
         template: String?,
-        data: HomeFeedResponse.Data
+        data: HomeFeedResponse.Data,
+        listener: ItemListener
     ): View {
         val context = binding.root.context
         val card = ItemHomeGenericCardSectionBinding.inflate(
@@ -712,8 +713,16 @@ object GenericCardRenderer {
         )
         card.sectionTitle.text = pickCard(data, CardUi.titleField(template))
         val more = pickCard(data, CardUi.summaryField(template))
-        card.sectionMore.isVisible = !more.isNullOrEmpty() && !data.url.isNullOrEmpty()
-        card.sectionMore.text = more
+        val moreUrl = data.url?.takeIf { it.isNotBlank() }
+        card.sectionMore.isVisible = !more.isNullOrEmpty() && moreUrl != null
+        // 与标题行保持一致：带箭头 ✓（官方 section 卡的「更多」在右侧，同样带 › ）
+        card.sectionMore.text = if (more.isNullOrEmpty()) "" else "$more ›"
+        card.sectionMore.isClickable = moreUrl != null
+        card.sectionMore.setOnClickListener(
+            if (moreUrl != null) View.OnClickListener { v ->
+                listener.onOpenLink(v, moreUrl, pickCard(data, CardUi.titleField(template)))
+            } else null
+        )
         return card.root
     }
 
