@@ -342,14 +342,14 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
      */
     private fun openRecentFollow() {
         val list = viewModel.dataList.value.orEmpty()
-        val items = ArrayList<RecentFollowActivity.Item>()
+        val items = ArrayList<RecentFollowCache.Item>()
         val seen = HashSet<String>()
         list.forEach { d ->
             if (d.entityType != "feed") return@forEach
             val uid = d.uid.orEmpty()
             if (uid.isEmpty() || !seen.add(uid)) return@forEach
             items.add(
-                RecentFollowActivity.Item(
+                RecentFollowCache.Item(
                     uid = uid,
                     name = d.username.orEmpty(),
                     avatar = d.userAvatar.orEmpty(),
