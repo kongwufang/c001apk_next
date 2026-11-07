@@ -114,7 +114,7 @@ object GenericCardRenderer {
         // ★ 2026-11-08 对齐官方 item_title_list：
         //   官方那张卡**自身没有内边距**，留白都在行里（user 行 16dp、product 行 12dp）
         //   ⇒ LIST 骨架把外层 padding 清成 0，标题行自己补 16dp 水平内边距 ✓
-        if (spec.layout == CardUi.LIST) {
+        if (CardUi.rule(template)?.layout == CardUi.LIST) {
             binding.content.setPadding(0, 8.dp, 0, 6.dp)
             binding.titleRow.setPadding(16.dp, 0, 16.dp, 6.dp)
         } else {
