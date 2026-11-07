@@ -166,6 +166,26 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
             }
         }
+
+        // ★ 关注 tab 的头部：从动态里反推「最近更新」的人 + 同步当前分组高亮
+        //   （2026-11-07 ✓ 顺序 = 列表顺序 ⇒ 天然按时间新→旧 ✓）
+        if (viewModel.type == "follow") {
+            viewModel.dataList.observe(viewLifecycleOwner) { list ->
+                val header = followHeader ?: return@observe
+                val authors = list.asSequence()
+                    .filter { it.entityType == "feed" && !it.username.isNullOrEmpty() }
+                    .map {
+                        FollowHeaderAdapter.Author(
+                            uid = it.uid.orEmpty(),
+                            name = it.username.orEmpty(),
+                            avatar = it.userAvatar.orEmpty(),
+                        )
+                    }
+                    .toList()
+                header.setAuthors(authors)
+                header.setSelected(PrefManager.FOLLOWTYPE)
+            }
+        }
     }
 
     @SuppressLint("InflateParams")
@@ -309,27 +329,6 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
                 dialog.dismiss()
             }
             show()
-        }
-    }
-
-    override fun initObserve() {
-        super.initObserve()
-        if (viewModel.type != "follow") return
-        viewModel.dataList.observe(viewLifecycleOwner) { list ->
-            val header = followHeader ?: return@observe
-            // 从动态里反推「最近更新」的人 ✓ 顺序 = 列表顺序 ✓ 天然按时间新→旧
-            val authors = list.asSequence()
-                .filter { it.entityType == "feed" && !it.username.isNullOrEmpty() }
-                .map {
-                    FollowHeaderAdapter.Author(
-                        uid = it.uid.orEmpty(),
-                        name = it.username.orEmpty(),
-                        avatar = it.userAvatar.orEmpty(),
-                    )
-                }
-                .toList()
-            header.setAuthors(authors)
-            header.setSelected(PrefManager.FOLLOWTYPE)
         }
     }
 

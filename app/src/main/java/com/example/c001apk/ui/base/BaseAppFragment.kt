@@ -70,6 +70,14 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
             ConcatAdapter(HeaderAdapter(), appAdapter, footerAdapter)
     }
 
+    /**
+     * 列表**最顶部**的额外适配器（可选 ✓ 默认没有）
+     *
+     * 用途：首页「关注」那种「最近更新头像 + 分组 chips」的头部 ✓
+     * 位置：排在 HeaderAdapter **之前** ⇒ 跟着列表一起滚动 ✓（官方也是这个行为 ✓）
+     */
+    protected open fun topAdapter(): androidx.recyclerview.widget.RecyclerView.Adapter<*>? = null
+
     inner class ReloadListener : FooterAdapter.FooterListener {
         override fun onReLoad() {
             viewModel.isEnd = false
