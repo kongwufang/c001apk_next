@@ -260,7 +260,8 @@ class HomeFeedViewModel @AssistedInject constructor(
      * 原来是从**已加载动态**里反推作者 ✗ ⇒ 只有第一屏的人、切分组也不变 ✗
      * 现在独立请求 ✓ 切分组 / 下拉刷新都会重拉 ✓
      */
-    val recentUsers = MutableLiveData<List<HomeFeedResponse.Data>>()
+    val recentUsers =
+        androidx.lifecycle.MutableLiveData<List<com.example.c001apk.logic.model.HomeFeedResponse.Data>>()
 
     fun fetchRecentUsers() {
         viewModelScope.launch(Dispatchers.IO) {
