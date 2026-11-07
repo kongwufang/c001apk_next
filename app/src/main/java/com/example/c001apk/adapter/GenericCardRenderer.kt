@@ -1212,7 +1212,11 @@ class GenericCardEntityAdapter(
         binding.container.addView(binding.desc, if (row) 1 else 2)
 
         // 点击：有 url 走链接分发，apk 实体没有 url 时进应用详情
-        val url: String? = entity.url
+        // ★ 2026-11-07 用户反馈「卡片目前是无效的」：
+        //   热门话题宫格（iconGridCard）的 topic 实体**没有 url** ✗ 只有 id + title
+        //   ⇒ 原来 hasAction=false ⇒ 点了没反应 ✗
+        //   ⇒ 用 title 拼官方的 /t/<urlencoded title> 兜底 ✓
+        val url: String? = entity.url?.takeIf { it.isNotEmpty() } ?: topicFallbackUrl(entity)
         val apkId: String? = if (entity.entityType == "apk") entity.id else null
         val hasAction = !url.isNullOrEmpty() || !apkId.isNullOrEmpty()
         binding.root.isClickable = hasAction
@@ -1403,6 +1407,13 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
+/** topic 实体常常不带 url（只有 id/title）⇒ 按官方规则拼 /t/<urlencoded title> 兜底 */
+private fun topicFallbackUrl(entity: HomeFeedResponse.Entities): String? {
+    if (entity.entityType != "topic") return null
+    val title = entity.title?.takeIf { it.isNotEmpty() } ?: return null
+    return "/t/" + java.net.URLEncoder.encode(title, "UTF-8")
+}
+
 private fun HomeFeedResponse.Entities.hasContent(): Boolean =
     !title.isNullOrEmpty() || !logo.isNullOrEmpty() || !pic.isNullOrEmpty() ||
             !message.isNullOrEmpty() || !description.isNullOrEmpty()

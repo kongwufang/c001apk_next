@@ -253,7 +253,28 @@ class HomeFeedViewModel @AssistedInject constructor(
     var dataListTitle: String? = null
 
     /**
-     * 切换关注分组（2026-11-07 ✓ 用户反馈「切分组时头像那行先消失、下面挤上来再挤回去」）
+     * 「最近更新」那排头像的数据（2026-11-07 ✓ 用户反馈"切 tab 不跟着变"）
+     *
+     * 真源：官方同一个接口
+     *   `/UserHelper/getFollowRows?type=user&getDataRowsByCard=1&sort=lastFeed&title=有更新的酷友`
+     * 原来是从**已加载动态**里反推作者 ✗ ⇒ 只有第一屏的人、切分组也不变 ✗
+     * 现在独立请求 ✓ 切分组 / 下拉刷新都会重拉 ✓
+     */
+    val recentUsers = MutableLiveData<List<HomeFeedResponse.Data>>()
+
+    fun fetchRecentUsers() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val url = "/UserHelper/getFollowRows?type=user&getDataRowsByCard=1&sort=lastFeed" +
+                    "&title=" + java.net.URLEncoder.encode("有更新的酷友", "UTF-8")
+            networkRepo.getDataList(url, "有更新的酷友", null, null, 1).collect { result ->
+                val list = result.getOrNull()?.data.orEmpty()
+                    .filter { it.entityType == "user" && !it.username.isNullOrEmpty() }
+                recentUsers.postValue(list)
+            }
+        }
+    }
+
+    /** 切换关注分组（2026-11-07 ✓ 用户反馈「切分组时头像那行先消失、下面挤上来再挤回去」）
      *
      * ## 为什么不能像原来那样干
      * 原来：`dataList = emptyList()` + `loadingState = Loading`
@@ -275,6 +296,7 @@ class HomeFeedViewModel @AssistedInject constructor(
         isRefreshing = true
         isLoadMore = false
         fetchData()
+        fetchRecentUsers()   // 切分组 ⇒ 顶部那排头像也重拉 ✓
     }
     private fun fetchDataList() {
         viewModelScope.launch(Dispatchers.IO) {

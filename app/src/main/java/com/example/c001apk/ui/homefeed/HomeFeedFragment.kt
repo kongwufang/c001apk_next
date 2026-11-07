@@ -164,21 +164,21 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
         // ★ 关注 tab 的头部：从动态里反推「最近更新」的人 + 同步当前分组高亮
         //   （2026-11-07 ✓ 顺序 = 列表顺序 ⇒ 天然按时间新→旧 ✓）
         if (viewModel.type == "follow") {
-            viewModel.dataList.observe(viewLifecycleOwner) { list ->
+            // 头像行用**独立接口**的数据（不再从已加载动态里反推 ✗）
+            viewModel.recentUsers.observe(viewLifecycleOwner) { list ->
                 val header = followHeader ?: return@observe
-                val authors = list.asSequence()
-                    .filter { it.entityType == "feed" && !it.username.isNullOrEmpty() }
-                    .map {
+                header.setAuthors(
+                    list.map {
                         FollowHeaderAdapter.Author(
                             uid = it.uid.orEmpty(),
                             name = it.username.orEmpty(),
                             avatar = it.userAvatar.orEmpty(),
                         )
                     }
-                    .toList()
-                header.setAuthors(authors)
+                )
                 header.setSelected(PrefManager.FOLLOWTYPE)
             }
+            viewModel.fetchRecentUsers()
         }
     }
 

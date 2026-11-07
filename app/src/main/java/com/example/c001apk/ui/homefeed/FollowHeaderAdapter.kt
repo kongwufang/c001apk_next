@@ -127,7 +127,7 @@ class FollowHeaderAdapter(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
-        return Holder(root, authorRow, chipRow)
+        return Holder(root, authorScroll, authorRow, chipRow)
     }
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
@@ -136,12 +136,16 @@ class FollowHeaderAdapter(
 
     inner class Holder(
         private val root: LinearLayout,
+        private val authorScroll: HorizontalScrollView,
         private val authorRow: LinearLayout,
         private val chipRow: LinearLayout,
     ) : RecyclerView.ViewHolder(root) {
 
         fun bind() {
             val ctx = root.context
+            // ★ 2026-11-07 用户反馈「刷新时头像横排会乱飘」：
+            //   重建子 View 会丢 HorizontalScrollView 的滚动位置 ⇒ 存一下再还原 ✓
+            val keepScroll = authorScroll.scrollX
             authorRow.removeAllViews()
             chipRow.removeAllViews()
 
@@ -183,6 +187,9 @@ class FollowHeaderAdapter(
                     authorRow.addView(makeAuthor(ctx, a))
                 }
             }
+
+            // 还原横向滚动位置（子 View 重建之后再还原 ✓）
+            authorScroll.post { authorScroll.scrollTo(keepScroll, 0) }
 
             // ---------- 第二行：分组 chips ----------
             GROUPS.forEachIndexed { index, (key, name) ->
