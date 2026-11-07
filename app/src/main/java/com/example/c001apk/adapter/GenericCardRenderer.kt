@@ -30,6 +30,7 @@ import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
@@ -1134,15 +1135,31 @@ class GenericCardEntityAdapter(
     class OfficialEntityViewHolder(val album: ItemHomeGenericCardAlbumExpandBinding) :
         RecyclerView.ViewHolder(album.root)
 
-    override fun getItemViewType(position: Int): Int =
-        if (CardUi.entityLayout(entityTemplateOf(entities[position])) != null) VIEW_TYPE_OFFICIAL
-        else VIEW_TYPE_DEFAULT
+    /**
+     * 用户行（对齐官方 item_user.xml ✓ 2026-11-08）
+     *
+     * 「优质酷友」这类 iconListCard 的实体全是 user：
+     *   头像 40dp + 昵称 16sp + 「x关注 y粉丝 z活跃」12sp + 右侧「关注/已关注」56×28dp
+     */
+    class UserRowViewHolder(val binding: ItemHomeGenericCardUserRowBinding) :
+        RecyclerView.ViewHolder(binding.root)
+
+    override fun getItemViewType(position: Int): Int = when {
+        CardUi.entityLayout(entityTemplateOf(entities[position])) != null -> VIEW_TYPE_OFFICIAL
+        // 全是 user 实体（「优质酷友」那类）⇒ 官方行布局 ✓
+        entities[position].entityType == "user" -> VIEW_TYPE_USER_ROW
+        else -> VIEW_TYPE_DEFAULT
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return if (viewType == VIEW_TYPE_OFFICIAL) {
             OfficialEntityViewHolder(
                 ItemHomeGenericCardAlbumExpandBinding.inflate(inflater, parent, false)
+            )
+        } else if (viewType == VIEW_TYPE_USER_ROW) {
+            UserRowViewHolder(
+                ItemHomeGenericCardUserRowBinding.inflate(inflater, parent, false)
             )
         } else {
             EntityViewHolder(
@@ -1157,6 +1174,10 @@ class GenericCardEntityAdapter(
         val entity = entities[position]
         if (holder is OfficialEntityViewHolder) {
             bindAlbumExpandEntity(holder.album, entity)
+            return
+        }
+        if (holder is UserRowViewHolder) {
+            bindUserRow(holder.binding, entity, listener)
             return
         }
         val binding = (holder as EntityViewHolder).binding
@@ -1336,6 +1357,9 @@ class GenericCardEntityAdapter(
         /** 走专属布局的实体（见 [CardUi.entityLayout]） */
         const val VIEW_TYPE_OFFICIAL = 1
 
+        /** user 实体行（官方 item_user 那种：头像 + 昵称 + 关注按钮） */
+        const val VIEW_TYPE_USER_ROW = 2
+
         /** 专属布局里图标区自带的固定子 view 数（头像、用户名、占位 Space），追加图标前保留 */
         const val ICON_LIST_FIXED_CHILDREN = 3
 
@@ -1410,6 +1434,51 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
+/** 用户行绑定（照官方 item_user.xml 的字段与字号 ✓） */
+private fun bindUserRow(
+    b: ItemHomeGenericCardUserRowBinding,
+    entity: HomeFeedResponse.Entities,
+    listener: ItemListener,
+) {
+    val context = b.root.context
+    val avatar = entity.avatar ?: entity.userAvatar
+    if (!avatar.isNullOrEmpty()) {
+        runCatching {
+            com.bumptech.glide.Glide.with(b.avatar).load(avatar)
+                .apply(com.bumptech.glide.request.RequestOptions.circleCropTransform())
+                .into(b.avatar)
+        }
+    }
+    b.title.text = entity.username ?: entity.title.orEmpty()
+
+    val follow = entity.follow
+    val fans = entity.fans
+    b.followCount.isVisible = !follow.isNullOrEmpty() && follow != "0"
+    b.followCount.text = "${follow}关注"
+    b.fansCount.isVisible = !fans.isNullOrEmpty() && fans != "0"
+    b.fansCount.text = "${fans}粉丝"
+    val active = entity.logintime?.takeIf { it > 0 }?.let {
+        runCatching { com.example.c001apk.util.DateUtils.fromToday(it) + "活跃" }.getOrNull()
+    }
+    b.activeTime.isVisible = !active.isNullOrEmpty()
+    b.activeTime.text = active.orEmpty()
+    b.detailContainer.isVisible = b.followCount.isVisible || b.fansCount.isVisible || b.activeTime.isVisible
+
+    // 右侧「关注 / 已关注」按钮
+    // ⚠️ 渲染层拿不到回调，统一走 ItemListener.onFollowUser(uid, followAuthor)
+    //   followAuthor: 0 = 去关注，1 = 取消关注（与 AppAdapter 里那套一致 ✓）
+    var followed = (entity.isFollow ?: 0) == 1
+    val uid = entity.uid.orEmpty()
+    b.followBtn.isVisible = com.example.c001apk.util.PrefManager.isLogin && uid.isNotEmpty()
+    b.followBtn.text = if (followed) "已关注" else "关注"
+    b.followBtn.setOnClickListener {
+        val want = if (followed) 1 else 0
+        listener.onFollowUser(uid, want)
+        followed = !followed
+        (it as? android.widget.TextView)?.text = if (followed) "已关注" else "关注"
+    }
+}
+
 /** 列表行的次要信息（官方样式：user=关注/粉丝/活跃；product=热度/讨论） */
 private fun composedSubtitle(entity: HomeFeedResponse.Entities): String? {
     val parts = ArrayList<String>(3)

@@ -455,6 +455,8 @@ data class HomeFeedResponse(
         val fans: String? = null,
         val follow: String? = null,
         val logintime: Long? = null,
+        // 关注态（1 = 已关注）—— 「关注」按钮初始文案要用
+        val isFollow: Int? = null,
         // feedListCard（最新点评）下发的就是完整 feed 结构，这里补上点评用得到的几个
         // （message / username / id / url 主构造函数里已经有了，别再声明一遍）
         val ttitle: String? = null,
