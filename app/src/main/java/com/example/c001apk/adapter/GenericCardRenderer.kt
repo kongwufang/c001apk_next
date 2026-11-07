@@ -106,18 +106,18 @@ object GenericCardRenderer {
         //   `first=true` 标记列表第一张卡（最常被用来定位「第一屏哪里不对」）
         val firstCard = positionHint == 0
         AppLog.d(LogModule.CARD, "GenericCardRenderer") {
-            "CARD_RENDER ${'$'}{if (firstCard) "FIRST " else ""}" +
-                    "renderer=GenericCardRenderer tpl=${'$'}{template} type=${'$'}{data.entityType} " +
-                    "layout=${'$'}{spec.layout} span=${'$'}{spec.span} horizontal=${'$'}{spec.horizontal} " +
-                    "hidden=${'$'}{spec.hidden} official=${'$'}{spec.official} ents=${'$'}{entities.size} " +
-                    "title=${'$'}{(data.title ?: "").take(30)} url=${'$'}{(data.url ?: "").take(60)} " +
-                    "page=${'$'}{AppLog.page}"
+            "CARD_RENDER ${if (firstCard) "FIRST " else ""}" +
+                    "renderer=GenericCardRenderer tpl=${template} type=${data.entityType} " +
+                    "layout=${spec.layout} span=${spec.span} horizontal=${spec.horizontal} " +
+                    "hidden=${spec.hidden} official=${spec.official} ents=${entities.size} " +
+                    "title=${(data.title ?: "").take(30)} url=${(data.url ?: "").take(60)} " +
+                    "page=${AppLog.page}"
         }
         // 第一张卡额外把内容摘出来（用户要「加载的内容是什么」）
         if (firstCard) {
             AppLog.i(LogModule.CARD, "GenericCardRenderer") {
-                "CARD_CONTENT tpl=${'$'}{template} " +
-                        "data=${'$'}{data.toString().take(600)}"
+                "CARD_CONTENT tpl=${template} " +
+                        "data=${data.toString().take(600)}"
             }
         }
 

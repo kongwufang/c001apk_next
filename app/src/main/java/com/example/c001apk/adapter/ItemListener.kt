@@ -141,7 +141,7 @@ interface ItemListener {
     fun onOpenLink(view: View, url: String?, title: String?) {
         // ★ 2026-11-08 点击日志：点了什么、从哪个页面点的（跳转失败也有据可查）
         AppLog.i(LogModule.UI, "ItemListener") {
-            "CLICK_OPEN url=${'$'}{(url ?: "").take(120)} title=${'$'}{(title ?: "").take(30)} page=${'$'}{AppLog.page}"
+            "CLICK_OPEN url=${(url ?: "").take(120)} title=${(title ?: "").take(30)} page=${AppLog.page}"
         }
         url?.let {
             openLink(view.context, it, title)
