@@ -334,6 +334,14 @@ class HomeFeedViewModel @AssistedInject constructor(
                                 currentList.clear()
                             if (isRefreshing || isLoadMore) {
                                 feed.data.forEach {
+                                    // ★ 2026-11-07 用户要求：话题关注 tab 里那张
+                                    //   「我关注的话题」卡（textLinkListCard / adminCard-topic-…）
+                                    //   不显示 ✓ 只在这一页隐藏；好友关注那页的「我关注的酷友」保留 ✓
+                                    if (it.entityTemplate == "textLinkListCard" &&
+                                        dataListUrl?.contains("type=topic") == true
+                                    ) {
+                                        return@forEach
+                                    }
                                     when (it.entityType) {
                                         "card" -> when (it.entityTemplate) {
                                             "iconLinkGridCard" -> currentList.add(it)
