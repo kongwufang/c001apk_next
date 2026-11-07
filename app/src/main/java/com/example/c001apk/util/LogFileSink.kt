@@ -51,7 +51,11 @@ object LogFileSink {
         ArrayBlockingQueue(QUEUE),
         { r -> Thread(r, "app-log").apply { isDaemon = true } },
         ThreadPoolExecutor.DiscardPolicy() // 满了直接丢，DiscardPolicy 不抛异常 ✓
-    ).apply { allowCoreThreadTimeOut(true) }
+    )
+    // ⚠️ 2026-11-08 真机实测崩溃：ThreadPoolExecutor.allowCoreThreadTimeOut(true) 要求
+    //   keepAliveTime > 0，这里传的是 0L ⇒ 直接抛 IllegalArgumentException
+    //   "Core threads must have nonzero keep alive times"，App 一启动就挂 ✗
+    //   日志线程常驻完全可接受（一个空闲守护线程）⇒ 干脆不调它 ✓
 
     @Volatile
     private var dir: File? = null
