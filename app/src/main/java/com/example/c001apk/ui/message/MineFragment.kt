@@ -79,11 +79,14 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             initLogin()
             initScroll()
             initRefresh()
-            initObserve()
-            // ★ 侧栏卡片（公告 + 升级）2026-11-01
-            //   每次进侧栏都拉一次 ✓ 公告是时效性的 ✓ 服务端 60 秒缓存兜底 ✓
-            viewModel.fetchSideCards()
         }
+        // ★ 2026-11-07 修：观察者**必须每次建视图都注册** ✗ 不能塞进上面那个 if
+        //   原因：`isInit` 默认 true、第一次 onResume 才置 false
+        //   ⇒ 之后视图重建（切 tab / 返回）时 observers 早跟着旧 viewLifecycleOwner 死了
+        //   ⇒ 再也不会注册 ⇒ 心跳推送的卡只能重启 App 才看到 ✗（用户实测踩到）
+        initObserve()
+        // 每次进侧栏都拉一次 ✓ 公告是时效性的 ✓ 服务端 60 秒缓存兜底 ✓
+        viewModel.fetchSideCards()
     }
 
     private fun initView() {
@@ -242,11 +245,11 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             initLogin()
             initScroll()
             initRefresh()
-            initObserve()
-            // ★ 侧栏卡片（公告 + 升级）2026-11-01
-            //   每次进侧栏都拉一次 ✓ 公告是时效性的 ✓ 服务端 60 秒缓存兜底 ✓
-            viewModel.fetchSideCards()
         }
+        // ★ 2026-11-07：每次回到「我的」都刷一次侧栏卡片 ✓
+        //   · 心跳推送的卡到了 ⇒ 切回来就能看到（不用重启 ✓）
+        //   · 观察者已在 onViewCreated 里注册 ✓ 这里只管数据 ✓
+        viewModel.fetchSideCards()
     }
 
     private fun initMenu() {
