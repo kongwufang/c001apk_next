@@ -62,7 +62,12 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
             feedCoverAsFeed = viewModel.feedCoverAsFeed
         }
         footerAdapter = FooterAdapter(ReloadListener())
-        mAdapter = ConcatAdapter(HeaderAdapter(), appAdapter, footerAdapter)
+        // ★ 2026-11-07：子类可以在列表最上面塞自己的头部（首页「关注」的分组 chips 用 ✓）
+        val top = topAdapter()
+        mAdapter = if (top != null)
+            ConcatAdapter(top, HeaderAdapter(), appAdapter, footerAdapter)
+        else
+            ConcatAdapter(HeaderAdapter(), appAdapter, footerAdapter)
     }
 
     inner class ReloadListener : FooterAdapter.FooterListener {
