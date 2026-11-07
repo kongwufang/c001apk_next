@@ -474,7 +474,7 @@
             android:name=".ui.settings.LogViewerActivity"
             android:exported="false"
             android:label="最近日志"
-            android:theme="@style/Theme.c001apk" />
+            android:theme="@style/Theme.C001apk" />
 
         <activity
             android:name=".ui.follow.FFFListActivity"
