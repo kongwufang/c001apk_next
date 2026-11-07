@@ -43,7 +43,8 @@ import com.google.android.material.color.MaterialColors
  */
 class FollowHeaderAdapter(
     private val onPickGroup: (String) -> Unit,
-    private val onPickUser: (String, String) -> Unit,
+    /** 点头像 = 筛选（再点一次取消 ✓ 2026-11-07 用户要求） */
+    private val onToggleUser: (String) -> Unit,
     /** 点「最近更新」⇒ 进「最近更新」页（官方就是两级结构 ✓ 2026-11-07） */
     private val onOpenRecent: () -> Unit,
 ) : RecyclerView.Adapter<FollowHeaderAdapter.Holder>() {
@@ -66,6 +67,9 @@ class FollowHeaderAdapter(
     private val authors = ArrayList<Author>()
     private var selected = "all"
 
+    /** 当前被选中用于**筛选**的作者 uid（null = 不筛选 ✓） */
+    private var selectedUid: String? = null
+
     fun setAuthors(list: List<Author>) {
         val cut = list.distinctBy { it.uid }.take(MAX_AUTHORS)
         if (cut == authors) return
@@ -77,6 +81,13 @@ class FollowHeaderAdapter(
     fun setSelected(type: String) {
         if (type == selected) return
         selected = type
+        notifyItemChanged(0)
+    }
+
+    /** 外部同步「当前筛选的作者」（例如切换分组后清空筛选） */
+    fun setSelectedUid(uid: String?) {
+        if (uid == selectedUid) return
+        selectedUid = uid
         notifyItemChanged(0)
     }
 
@@ -186,12 +197,28 @@ class FollowHeaderAdapter(
                 gravity = Gravity.CENTER_HORIZONTAL
                 setPadding(dp(ctx, 6), 0, dp(ctx, 6), 0)
                 isClickable = true
-                setOnClickListener { onPickUser(a.uid, a.name) }
+                setOnClickListener {
+                    // 再点一次同一个 = 取消筛选 ✓
+                    val next = if (selectedUid == a.uid) null else a.uid
+                    selectedUid = next
+                    notifyItemChanged(0)
+                    onToggleUser(next ?: "")
+                }
             }
+            val picked = selectedUid == a.uid
+            val accent = MaterialColors.getColor(root, androidx.appcompat.R.attr.colorPrimary)
+            val ringColor = if (picked) accent else Color.TRANSPARENT
             val avatar = ImageView(ctx).apply {
                 val size = dp(ctx, 46)
                 layoutParams = LinearLayout.LayoutParams(size, size)
                 scaleType = ImageView.ScaleType.CENTER_CROP
+                // 选中：外面套一圈主题色（官方是加粗描边 ✓ 这里用 padding + 圆底实现）
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setStroke(dp(ctx, 2), ringColor)
+                    setColor(Color.TRANSPARENT)
+                }
+                if (picked) setPadding(dp(ctx, 2), dp(ctx, 2), dp(ctx, 2), dp(ctx, 2))
                 // 圆形：用 background 画不出来 ⇒ 交给 Glide 的 circleCrop ✓
                 runCatching {
                     Glide.with(ctx)
@@ -203,7 +230,7 @@ class FollowHeaderAdapter(
             val name = TextView(ctx).apply {
                 text = if (a.name.length > 6) a.name.substring(0, 6) else a.name
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
+                setTextColor(if (picked) accent else MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
                 gravity = Gravity.CENTER
                 maxLines = 1
                 setPadding(0, dp(ctx, 4), 0, 0)

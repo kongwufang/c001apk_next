@@ -29,7 +29,9 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
 
         viewModel.dataList.observe(viewLifecycleOwner) {
             viewModel.listSize = it.size
-            appAdapter.submitList(it)
+            // ★ 2026-11-07：子类可以过滤（首页「关注」点头像只显示那个人的动态 ✓）
+            //   listSize 仍用**原始**条数 ✓ 否则上拉加载判断会错 ✗
+            appAdapter.submitList(mapList(it))
             if (binding.vfContainer.displayedChild != it.size)
                 binding.vfContainer.displayedChild = it.size
         }
@@ -77,6 +79,15 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
      * 位置：排在 HeaderAdapter **之前** ⇒ 跟着列表一起滚动 ✓（官方也是这个行为 ✓）
      */
     protected open fun topAdapter(): androidx.recyclerview.widget.RecyclerView.Adapter<*>? = null
+
+    /**
+     * 列表过滤钩子（可选 ✓ 默认原样返回）
+     *
+     * 用途：首页「关注」点了某个头像 ⇒ 只显示那个作者的动态 ✓
+     */
+    protected open fun mapList(
+        list: List<com.example.c001apk.logic.model.HomeFeedResponse.Data>
+    ): List<com.example.c001apk.logic.model.HomeFeedResponse.Data> = list
 
     inner class ReloadListener : FooterAdapter.FooterListener {
         override fun onReLoad() {
