@@ -111,8 +111,21 @@ object GenericCardRenderer {
         // 卡片自带配图只在没有实体时当主图（imageScaleCard、只有图的 fabCard）
         val hero = pickCard(data, CardUi.heroField(template))?.takeIf { entities.isEmpty() }
 
+        // 标题行：「标题 + 更多 ›」同一行（官方样式 ✓ 2026-11-08）
+        val moreLabel = data.subTitle?.takeIf { it.isNotBlank() } ?: "更多"
+        val moreUrl = data.url?.takeIf { it.isNotBlank() }
+        val showMore = moreUrl != null && !title.isNullOrEmpty()
+        binding.titleRow.isVisible = !title.isNullOrEmpty() || showMore
         binding.title.isVisible = !title.isNullOrEmpty()
         binding.title.text = title
+        binding.moreText.isVisible = showMore
+        binding.moreText.text = "$moreLabel ›"
+        binding.moreText.setOnClickListener(
+            if (moreUrl != null) View.OnClickListener { v ->
+                listener.onOpenLink(v, moreUrl, title)
+            } else null
+        )
+        binding.moreText.isClickable = moreUrl != null
         binding.summary.isVisible = !summary.isNullOrEmpty()
         binding.summary.text = summary
         binding.hero.isVisible = hero != null
@@ -180,6 +193,7 @@ object GenericCardRenderer {
         listener: ItemListener,
     ) {
         binding.title.isVisible = false
+        binding.titleRow.isVisible = false
         binding.summary.isVisible = false
         binding.hero.isVisible = false
         binding.stats.removeAllViews()
@@ -258,6 +272,7 @@ object GenericCardRenderer {
         listener: ItemListener
     ) {
         binding.title.isVisible = false
+        binding.titleRow.isVisible = false
         binding.summary.isVisible = false
         binding.hero.isVisible = false
         binding.stats.removeAllViews()
@@ -370,6 +385,7 @@ object GenericCardRenderer {
         entities: List<HomeFeedResponse.Entities>
     ) {
         binding.title.isVisible = false
+        binding.titleRow.isVisible = false
         binding.summary.isVisible = false
         binding.hero.isVisible = false
         binding.stats.removeAllViews()
