@@ -241,7 +241,13 @@ object CardUi {
         m["sponsorArticleNews"] = Rule(layout = AUTO)
 
         HSCROLL_TEMPLATES.forEach { m[it] = Rule(layout = HSCROLL) }
-        LIST_TEMPLATES.forEach { m[it] = Rule(layout = LIST) }
+        // ★ 2026-11-08 对齐官方：LIST 族（iconListCard「优质酷友」「热门数码」等）
+        //   官方是**横排行**：左图标 + 右文字（+ 右侧按钮）✓
+        //   原来用 SHAPE_AUTO ⇒ shapeOf() 有图就判成 SHAPE_TILE（竖排居中）
+        //   ⇒ 变成单列大图标 + 居中标题 ✗（用户截图指出）
+        LIST_TEMPLATES.forEach {
+            m[it] = Rule(layout = LIST, item = ItemRule(shape = SHAPE_ROW))
+        }
         GRID_TEMPLATES.forEach { (t, span) -> m[t] = Rule(layout = GRID, span = span) }
 
         // ★ 2026-11-07 首页「关注」tab 实测补的两条（数据见 _rev/follow/tab_*.json）：

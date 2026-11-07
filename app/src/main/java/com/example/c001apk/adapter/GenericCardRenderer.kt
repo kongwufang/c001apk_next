@@ -1203,7 +1203,10 @@ class GenericCardEntityAdapter(
         binding.title.text = title
         binding.title.gravity = if (row) Gravity.START else Gravity.CENTER
 
+        // 官方列表行下面的次要信息：user 是「x关注 y粉丝 z活跃」，
+        // product 是「🔥热度 N讨论」——这些字段不在 subtitle 链里，单独拼装 ✓
         val desc = pickEntity(entity, rule.subtitleChain)?.let { plainText(it) }
+            ?: composedSubtitle(entity)
         binding.desc.isVisible = !desc.isNullOrEmpty()
         binding.desc.text = desc
         binding.desc.gravity = if (row) Gravity.START else Gravity.CENTER
@@ -1407,6 +1410,25 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
+/** 列表行的次要信息（官方样式：user=关注/粉丝/活跃；product=热度/讨论） */
+private fun composedSubtitle(entity: HomeFeedResponse.Entities): String? {
+    val parts = ArrayList<String>(3)
+    val follow = entity.follow
+    val fans = entity.fans
+    if (!follow.isNullOrEmpty() && follow != "0") parts.add("${follow}关注")
+    if (!fans.isNullOrEmpty() && fans != "0") parts.add("${fans}粉丝")
+    entity.logintime?.takeIf { it > 0 }?.let {
+        runCatching { parts.add(com.example.c001apk.util.DateUtils.fromToday(it) + "活跃") }
+    }
+    if (parts.isEmpty()) {
+        val hot = entity.hotNumTxt
+        val comments = entity.commentnumTxt
+        if (!hot.isNullOrEmpty()) parts.add("🔥$hot")
+        if (!comments.isNullOrEmpty()) parts.add("${comments}讨论")
+    }
+    return if (parts.isEmpty()) null else parts.joinToString("  ")
+}
+
 /** topic 实体常常不带 url（只有 id/title）⇒ 按官方规则拼 /t/<urlencoded title> 兜底 */
 private fun topicFallbackUrl(entity: HomeFeedResponse.Entities): String? {
     if (entity.entityType != "topic") return null

@@ -450,6 +450,11 @@ data class HomeFeedResponse(
         // 评分条数（游戏评分卡片显示「N 条」）
         @SerializedName("rating_total_num") val ratingTotalNum: String? = null,
         @SerializedName("commentnum_txt") val commentnumTxt: String? = null,
+        // ★ 2026-11-08：iconListCard「优质酷友」下的 user 实体带这三个
+        //   官方那行「85关注 56粉丝 1小时前活跃」就是拼它们 ✓
+        val fans: String? = null,
+        val follow: String? = null,
+        val logintime: Long? = null,
         // feedListCard（最新点评）下发的就是完整 feed 结构，这里补上点评用得到的几个
         // （message / username / id / url 主构造函数里已经有了，别再声明一遍）
         val ttitle: String? = null,
