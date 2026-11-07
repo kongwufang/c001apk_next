@@ -274,59 +274,18 @@
                 android:key="joinImprovePlan"
                 android:summary="@string/settings_improve_plan_summary"
                 android:title="@string/settings_improve_plan" />
+        <!-- ★ 2026-11-08：HTTP 日志与 App 日志**合并成一个开关**，操作全在「日志」页里 -->
         <rikka.material.preference.MaterialSwitchPreference
             android:defaultValue="false"
             android:icon="@drawable/ic_bug"
-            android:key="recordHttpLog"
-            android:summary="@string/settings_http_log_summary"
-            android:title="@string/settings_http_log" />
-        <Preference
-            android:icon="@drawable/ic_clean"
-            android:key="httpLogStats"
-            android:title="@string/settings_http_log_stats" />
+            android:key="logUnified"
+            android:summary="App 日志 + HTTP 请求日志，开关一起控制"
+            android:title="记录日志" />
         <Preference
             android:icon="@drawable/ic_more"
-            android:key="httpLogExport"
-            android:title="@string/settings_http_log_export" />
-        <Preference
-            android:icon="@drawable/ic_clean"
-            android:key="httpLogClear"
-            android:title="@string/settings_http_log_clear" />
-
-        <!-- ★ 2026-11-08 全局分模块日志（A/B/C 三步的 C） -->
-        <rikka.material.preference.MaterialSwitchPreference
-            android:defaultValue="false"
-            android:icon="@drawable/ic_bug"
-            android:key="logEnabled"
-            android:summary="打开后按模块落盘，可在「最近日志」里查看、导出。默认关闭"
-            android:title="记录 App 日志" />
-        <ListPreference
-            android:defaultValue="i"
-            android:dependency="logEnabled"
-            android:entries="@array/log_level_entries"
-            android:entryValues="@array/log_level_values"
-            android:icon="@drawable/ic_more"
-            android:key="logLevel"
-            android:summary="INFO"
-            android:title="日志级别" />
-        <Preference
-            android:dependency="logEnabled"
-            android:icon="@drawable/ic_more"
-            android:key="logModules"
-            android:summary="全部模块"
-            android:title="日志模块" />
-        <Preference
-            android:icon="@drawable/ic_more"
-            android:key="logView"
-            android:title="查看最近日志" />
-        <Preference
-            android:icon="@drawable/ic_more"
-            android:key="logExport"
-            android:title="导出日志 zip" />
-        <Preference
-            android:icon="@drawable/ic_clean"
-            android:key="logClear"
-            android:title="清空日志" />
+            android:key="logCenter"
+            android:summary="级别 / 模块 / 查看 / 导出 / 清空"
+            android:title="日志" />
 
     </PreferenceScreen>
 

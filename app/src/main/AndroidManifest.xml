@@ -471,6 +471,12 @@
 
         <!-- 全局日志查看/导出（2026-11-08 C 步） -->
         <activity
+            android:name=".ui.settings.LogCenterActivity"
+            android:exported="false"
+            android:label="日志"
+            android:theme="@style/Theme.C001apk" />
+
+        <activity
             android:name=".ui.settings.LogViewerActivity"
             android:exported="false"
             android:label="最近日志"

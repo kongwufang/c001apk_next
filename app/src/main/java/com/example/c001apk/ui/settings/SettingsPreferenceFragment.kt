@@ -194,6 +194,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             return when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog
                 "logEnabled" -> PrefManager.logEnabled
+                "recordHttpLog" -> PrefManager.recordHttpLog
+                "logUnified" -> PrefManager.logEnabled || PrefManager.recordHttpLog
                 "joinImprovePlan" -> PrefManager.joinImprovePlan
                 "blackDarkTheme" -> PrefManager.blackDarkTheme
                 "followSystemAccent" -> PrefManager.followSystemAccent
@@ -213,7 +215,12 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "recordHttpLog" -> PrefManager.recordHttpLog = value
                 "logEnabled" -> {
                     PrefManager.logEnabled = value
-                    // 开关一动就立刻挂/摘文件 sink（不用重启 App ✓）
+                    com.example.c001apk.util.LogFileSink.install(value)
+                }
+                "logUnified" -> {
+                    // 一个开关同时控制两套日志 ✓
+                    PrefManager.logEnabled = value
+                    PrefManager.recordHttpLog = value
                     com.example.c001apk.util.LogFileSink.install(value)
                 }
                 "joinImprovePlan" -> PrefManager.joinImprovePlan = value
@@ -447,143 +454,10 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
 
-        // ── HTTP 请求日志（2026-10-18）──────────────────
-        // 开关走 PreferenceDataStore（见 getBoolean 分支 ✓）；这三项是「动作」
-        fun httpLogSummary(): String {
-            val (bytes, files, lineCount) = HttpLog.stats(requireContext())
-            if (bytes <= 0L) return getString(R.string.settings_http_log_empty)
-            val kb = bytes / 1024.0
-            val size = if (kb < 1024) String.format(Locale.US, "%.1f KB", kb)
-            else String.format(Locale.US, "%.2f MB", kb / 1024)
-            return "$size · $files 个文件 · $lineCount 条"
-        }
-
-        findPreference<Preference>("httpLogStats")?.apply {
-            summary = httpLogSummary()
+        // ---------- 日志（2026-11-08：合并成一个入口，操作都在 LogCenterActivity）----------
+        findPreference<Preference>("logCenter")?.apply {
             setOnPreferenceClickListener {
-                summary = httpLogSummary()
-                true
-            }
-        }
-
-        findPreference<Preference>("httpLogExport")?.apply {
-            setOnPreferenceClickListener {
-                val (bytes, _, _) = HttpLog.stats(requireContext())
-                if (bytes <= 0L) {
-                    Toast.makeText(requireContext(), R.string.settings_http_log_empty, Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                // 导出前必须说清会包含什么 ✓
-                MaterialAlertDialogBuilder(requireContext()).apply {
-                    setTitle(R.string.settings_http_log_export_title)
-                    setMessage(R.string.settings_http_log_export_message)
-                    setNegativeButton(android.R.string.cancel, null)
-                    setPositiveButton(android.R.string.ok) { _, _ ->
-                        val (name, content) = HttpLog.exportAll(requireContext())
-                        pendingExport = name to content
-                        startActivityForResult(
-                            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TITLE, name)
-                            },
-                            REQ_EXPORT_HTTP_LOG
-                        )
-                    }
-                    show()
-                }
-                true
-            }
-        }
-
-        findPreference<Preference>("httpLogClear")?.apply {
-            setOnPreferenceClickListener {
-                val (bytes, files, lineCount) = HttpLog.stats(requireContext())
-                if (bytes <= 0L) {
-                    Toast.makeText(requireContext(), R.string.settings_http_log_empty, Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                MaterialAlertDialogBuilder(requireContext()).apply {
-                    setTitle(R.string.settings_http_log_clear)
-                    setMessage("将删除 $files 个文件、$lineCount 条记录。此操作不可撤销。")
-                    setNegativeButton(android.R.string.cancel, null)
-                    setPositiveButton(android.R.string.ok) { _, _ ->
-                        val n = HttpLog.clear(requireContext())
-                        Toast.makeText(
-                            requireContext(),
-                            getString(R.string.settings_http_log_cleared, n),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        findPreference<Preference>("httpLogStats")?.summary = httpLogSummary()
-                    }
-                    show()
-                }
-                true
-            }
-        }
-
-        // ---------- 全局日志（A/B/C 三步的 C）----------
-        findPreference<Preference>("logModules")?.apply {
-            summary = logModulesSummary()
-            setOnPreferenceClickListener {
-                showLogModulesDialog()
-                true
-            }
-        }
-
-        findPreference<Preference>("logView")?.apply {
-            setOnPreferenceClickListener {
-                startActivity(Intent(requireContext(), LogViewerActivity::class.java))
-                true
-            }
-        }
-
-        findPreference<Preference>("logExport")?.apply {
-            setOnPreferenceClickListener {
-                val file = com.example.c001apk.util.LogFileSink.export(requireContext())
-                if (file == null) {
-                    Toast.makeText(requireContext(), "还没有落盘的日志", Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                val uri = runCatching {
-                    androidx.core.content.FileProvider.getUriForFile(
-                        requireContext(), requireContext().packageName + ".fileprovider", file
-                    )
-                }.getOrNull()
-                if (uri == null) {
-                    Toast.makeText(requireContext(), "分享失败", Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                startActivity(
-                    Intent.createChooser(
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "application/zip"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }, "导出日志"
-                    )
-                )
-                true
-            }
-        }
-
-        findPreference<Preference>("logClear")?.apply {
-            setOnPreferenceClickListener {
-                val files = com.example.c001apk.util.LogFileSink.files()
-                if (files.isEmpty()) {
-                    Toast.makeText(requireContext(), "还没有落盘的日志", Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                MaterialAlertDialogBuilder(requireContext()).apply {
-                    setTitle("清空日志")
-                    setMessage("将删除 ${files.size} 个日志文件并清空内存缓冲。此操作不可撤销。")
-                    setNegativeButton(android.R.string.cancel, null)
-                    setPositiveButton(android.R.string.ok) { _, _ ->
-                        com.example.c001apk.util.LogFileSink.clear()
-                        Toast.makeText(requireContext(), "已清空", Toast.LENGTH_SHORT).show()
-                    }
-                    show()
-                }
+                startActivity(Intent(requireContext(), LogCenterActivity::class.java))
                 true
             }
         }
