@@ -1491,7 +1491,12 @@ private fun bindProductRow(
     val hasComments = !comments.isNullOrEmpty()
     b.hotIcon.isVisible = hasHot
     b.hotNum.isVisible = hasHot
-    b.hotNum.text = hot.orEmpty()
+    // hot_num_txt 只有数字（"118.4万"）⇒ 补上官方那个「热度」后缀 ✓
+    b.hotNum.text = when {
+        hot.isNullOrEmpty() -> ""
+        hot.contains("热度") -> hot
+        else -> "${hot}热度"
+    }
     b.discussNum.isVisible = hasComments
     b.discussNum.text = comments.orEmpty()
     b.subtitleContainer.isVisible = hasHot || hasComments
