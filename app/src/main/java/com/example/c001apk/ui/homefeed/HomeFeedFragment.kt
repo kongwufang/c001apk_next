@@ -140,7 +140,14 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
         return FollowHeaderAdapter(
             onPickGroup = { key -> switchFollowGroup(key) },
             onOpenRecent = { openRecentFollow() },
-            onToggleUser = { uid -> setAuthorFilter(uid) }
+            onPickUser = { uid, _ ->
+                if (uid.isNotEmpty()) runCatching {
+                    com.example.c001apk.util.IntentUtil.startActivity<
+                        com.example.c001apk.ui.user.UserActivity>(requireContext()) {
+                        putExtra("id", uid)
+                    }
+                }
+            }
         ).also { followHeader = it }
     }
 
@@ -326,31 +333,6 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
         }
     }
 
-    /** 当前筛选的作者 uid（null = 显示全部 ✓） */
-    private var filterUid: String? = null
-
-    /**
-     * 点头像 = 只看这个人的动态；再点一次 = 取消（2026-11-07 用户要求）
-     *
-     * ⚠️ 不改 viewModel.dataList 本身 ✗
-     *   只是把它重新 assign 一个新 list 实例 ⇒ 触发 observer ⇒ [mapList] 过滤 ✓
-     *   （这样上拉加载 / 分页 lastItem 完全不受影响 ✓）
-     */
-    private fun setAuthorFilter(uid: String) {
-        filterUid = uid.ifEmpty { null }
-        followHeader?.setSelectedUid(filterUid)
-        val cur = viewModel.dataList.value ?: return
-        viewModel.dataList.value = ArrayList(cur)
-    }
-
-    override fun mapList(
-        list: List<com.example.c001apk.logic.model.HomeFeedResponse.Data>
-    ): List<com.example.c001apk.logic.model.HomeFeedResponse.Data> {
-        val uid = filterUid ?: return list
-        if (viewModel.type != "follow") return list
-        return list.filter { it.entityType == "feed" && it.uid == uid }
-    }
-
     /** 进「有更新的酷友」页（官方就是这么点进去的 ✓ 2026-11-07） */
     private fun openRecentFollow() {
         startActivity(android.content.Intent(requireContext(), RecentFollowActivity::class.java))
@@ -373,11 +355,6 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
             else -> "应用关注"
         }
         if (viewModel.dataListUrl == url) return
-        // 切换分组 ⇒ 清掉作者筛选（否则换了分组却还只看某个人 ✗ 会误以为没数据）
-        if (filterUid != null) {
-            filterUid = null
-            followHeader?.setSelectedUid(null)
-        }
         PrefManager.FOLLOWTYPE = key
         followHeader?.setSelected(key)
         // ★ 不清空列表、不切 loading ⇒ 头部两行不会闪一下消失 ✓
