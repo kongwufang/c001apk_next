@@ -154,6 +154,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "animCurve" -> PrefManager.animCurve
                 "animType" -> PrefManager.animType
                 "animDuration" -> PrefManager.animDuration.toString()
+                "logLevel" -> PrefManager.logLevel
                 else -> throw IllegalArgumentException("Invalid key: $key")
             }
         }
@@ -167,13 +168,32 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
                 "animType" -> PrefManager.animType = value ?: TransitionAnim.TYPE_SLIDE
                 "animDuration" -> PrefManager.animDuration = value?.toIntOrNull() ?: 300
+                "logLevel" -> PrefManager.logLevel = value ?: "i"
                 else -> throw IllegalArgumentException("Invalid key: $key")
+            }
+        }
+
+        override fun getStringSet(
+            key: String?,
+            defValues: MutableSet<String>?
+        ): MutableSet<String>? {
+            return when (key) {
+                "logModules" -> PrefManager.logModules.toMutableSet()
+                else -> defValues
+            }
+        }
+
+        override fun putStringSet(key: String?, values: MutableSet<String>?) {
+            when (key) {
+                "logModules" -> PrefManager.logModules = values ?: emptySet()
+                else -> {}
             }
         }
 
         override fun getBoolean(key: String?, defValue: Boolean): Boolean {
             return when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog
+                "logEnabled" -> PrefManager.logEnabled
                 "joinImprovePlan" -> PrefManager.joinImprovePlan
                 "blackDarkTheme" -> PrefManager.blackDarkTheme
                 "followSystemAccent" -> PrefManager.followSystemAccent
@@ -191,6 +211,11 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         override fun putBoolean(key: String?, value: Boolean) {
             when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog = value
+                "logEnabled" -> {
+                    PrefManager.logEnabled = value
+                    // 开关一动就立刻挂/摘文件 sink（不用重启 App ✓）
+                    com.example.c001apk.util.LogFileSink.install(value)
+                }
                 "joinImprovePlan" -> PrefManager.joinImprovePlan = value
                 "blackDarkTheme" -> PrefManager.blackDarkTheme = value
                 "followSystemAccent" -> PrefManager.followSystemAccent = value
@@ -497,6 +522,72 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             }
         }
 
+        // ---------- 全局日志（A/B/C 三步的 C）----------
+        findPreference<Preference>("logModules")?.apply {
+            summary = logModulesSummary()
+            setOnPreferenceClickListener {
+                showLogModulesDialog()
+                true
+            }
+        }
+
+        findPreference<Preference>("logView")?.apply {
+            setOnPreferenceClickListener {
+                startActivity(Intent(requireContext(), LogViewerActivity::class.java))
+                true
+            }
+        }
+
+        findPreference<Preference>("logExport")?.apply {
+            setOnPreferenceClickListener {
+                val file = com.example.c001apk.util.LogFileSink.export(requireContext())
+                if (file == null) {
+                    Toast.makeText(requireContext(), "还没有落盘的日志", Toast.LENGTH_SHORT).show()
+                    return@setOnPreferenceClickListener true
+                }
+                val uri = runCatching {
+                    androidx.core.content.FileProvider.getUriForFile(
+                        requireContext(), requireContext().packageName + ".fileprovider", file
+                    )
+                }.getOrNull()
+                if (uri == null) {
+                    Toast.makeText(requireContext(), "分享失败", Toast.LENGTH_SHORT).show()
+                    return@setOnPreferenceClickListener true
+                }
+                startActivity(
+                    Intent.createChooser(
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "application/zip"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }, "导出日志"
+                    )
+                )
+                true
+            }
+        }
+
+        findPreference<Preference>("logClear")?.apply {
+            setOnPreferenceClickListener {
+                val files = com.example.c001apk.util.LogFileSink.files()
+                if (files.isEmpty()) {
+                    Toast.makeText(requireContext(), "还没有落盘的日志", Toast.LENGTH_SHORT).show()
+                    return@setOnPreferenceClickListener true
+                }
+                MaterialAlertDialogBuilder(requireContext()).apply {
+                    setTitle("清空日志")
+                    setMessage("将删除 ${files.size} 个日志文件并清空内存缓冲。此操作不可撤销。")
+                    setNegativeButton(android.R.string.cancel, null)
+                    setPositiveButton(android.R.string.ok) { _, _ ->
+                        com.example.c001apk.util.LogFileSink.clear()
+                        Toast.makeText(requireContext(), "已清空", Toast.LENGTH_SHORT).show()
+                    }
+                    show()
+                }
+                true
+            }
+        }
+
         findPreference<Preference>("clearCache")?.apply {
             summary = CacheDataManager.getTotalCacheSize(requireContext())
             setOnPreferenceClickListener {
@@ -669,5 +760,36 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             ).show()
         }
     }
+
+    /** 日志模块摘要：「全部模块」或「net, card」 */
+    private fun logModulesSummary(): String {
+        val set = PrefManager.logModules
+        return if (set.isEmpty()) "全部模块" else set.sorted().joinToString(", ")
+    }
+
+    /** 模块多选对话框（勾选 = 只记这些模块；全不选 = 全部） */
+    private fun showLogModulesDialog() {
+        val modules = com.example.c001apk.util.LogModule.values()
+        val checked = BooleanArray(modules.size) { i ->
+            PrefManager.logModules.contains(modules[i].key)
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("日志模块")
+            .setMultiChoiceItems(
+                modules.map { "${it.key}" }.toTypedArray(), checked
+            ) { _, which, isChecked -> checked[which] = isChecked }
+            .setNeutralButton("全选") { _, _ ->
+                PrefManager.logModules = modules.map { it.key }.toSet()
+                findPreference<Preference>("logModules")?.summary = logModulesSummary()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                PrefManager.logModules = modules.filterIndexed { i, _ -> checked[i] }
+                    .map { it.key }.toSet()
+                findPreference<Preference>("logModules")?.summary = logModulesSummary()
+            }
+            .show()
+    }
+
 
 }

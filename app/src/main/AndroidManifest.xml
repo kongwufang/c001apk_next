@@ -469,6 +469,13 @@
             android:exported="false"
             android:label="最近更新" />
 
+        <!-- 全局日志查看/导出（2026-11-08 C 步） -->
+        <activity
+            android:name=".ui.settings.LogViewerActivity"
+            android:exported="false"
+            android:label="最近日志"
+            android:theme="@style/Theme.c001apk" />
+
         <activity
             android:name=".ui.follow.FFFListActivity"
             android:exported="false" />
