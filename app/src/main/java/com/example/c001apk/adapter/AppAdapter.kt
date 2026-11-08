@@ -69,8 +69,15 @@ private const val TYPE_BLOCKED = -1001
 private const val TYPE_BLOCKED_TOPIC = -1002
 
 class AppAdapter(
-    private val listener: ItemListener
+    rawListener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
+
+    /**
+     * ★ 2026-11-08 用户要求「每一次卡片点击都要有日志」
+     * ⇒ 统一在这里套一层装饰器，所有经过 AppAdapter 的点击都记 ITEM_CLICK ✓
+     *   （onOpenLink 自己已经打 CLICK_OPEN，不重复）
+     */
+    private val listener: ItemListener = LoggedItemListener(rawListener)
 
     /**
      * 用户内容列表里的 feedCover 也按完整动态卡排。
