@@ -80,7 +80,7 @@ class OnboardingActivity : AppCompatActivity() {
         stepLabel = TextView(this).apply {
             textSize = 12f
             setTextColor(
-                MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary)
+                MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary)
             )
         }
         root.addView(stepLabel)
