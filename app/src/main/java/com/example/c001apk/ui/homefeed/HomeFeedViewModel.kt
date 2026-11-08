@@ -332,6 +332,17 @@ class HomeFeedViewModel @AssistedInject constructor(
                             lastItem = feed.data.last().id
                             if (isRefreshing)
                                 currentList.clear()
+                            // ★ 2026-11-08 页面级日志：这次请求到底下发了哪些卡片
+                            //   （只看 CARD_RENDER 会有盲区：feed 卡不走通用渲染 ✗）
+                            runCatching {
+                                val hist = feed.data.groupingBy { it.entityTemplate ?: it.entityType ?: "?" }
+                                    .eachCount().entries.sortedByDescending { it.value }
+                                    .joinToString(", ") { "${it.key}=${it.value}" }
+                                com.example.c001apk.util.AppLog.i(
+                                    com.example.c001apk.util.LogModule.CARD, "HomeFeedViewModel",
+                                    "PAGE_LOAD page=${dataListUrl ?: ""} n=${feed.data.size} templates={$hist}"
+                                )
+                            }
                             if (isRefreshing || isLoadMore) {
                                 feed.data.forEach {
                                     // ★ 2026-11-07 用户要求：话题关注 tab 里那张

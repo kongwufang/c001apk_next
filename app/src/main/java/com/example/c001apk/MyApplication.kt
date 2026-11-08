@@ -132,7 +132,8 @@ class MyApplication : Application() {
         // 启动打一条（级别/模块开关都过才写）：这条是「日志到底通不通」的自检点 ✓
         com.example.c001apk.util.AppLog.i(
             com.example.c001apk.util.LogModule.APP, "Boot",
-            "onCreate 完成 level=" + com.example.c001apk.util.PrefManager.logLevel +
+            "onCreate 完成 ver=" + com.example.c001apk.util.PrefManager.VERSION_NAME +
+                    " level=" + com.example.c001apk.util.PrefManager.logLevel +
                     " enabled=" + com.example.c001apk.util.PrefManager.logEnabled
         )
 
