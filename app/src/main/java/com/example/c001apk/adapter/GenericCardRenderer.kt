@@ -57,6 +57,10 @@ import java.util.Locale
  */
 object GenericCardRenderer {
 
+    /** 已经打过 CARD_CONTENT 的那个 page（每个请求只打一次，避免刷屏） */
+    @Volatile
+    private var contentLoggedFor: String = "" 
+
     fun render(
         binding: ItemHomeGenericCardBinding,
         data: HomeFeedResponse.Data,
@@ -104,7 +108,8 @@ object GenericCardRenderer {
         // ★ 2026-11-08 卡片加载日志（用户要求）：
         //   一条日志回答四个问题——哪个类渲染的、哪个模板、走哪套布局、内容是什么
         //   `first=true` 标记列表第一张卡（最常被用来定位「第一屏哪里不对」）
-        val firstCard = positionHint == 0
+        var firstCard = positionHint == 0
+        val page = AppLog.page
         // 用 i 级：默认级别（INFO）就能看到，不用先切 VERBOSE ✓
         AppLog.i(LogModule.CARD, "GenericCardRenderer") {
             "CARD_RENDER ${if (firstCard) "FIRST " else ""}" +
@@ -114,7 +119,13 @@ object GenericCardRenderer {
                     "title=${(data.title ?: "").take(30)} url=${(data.url ?: "").take(60)} " +
                     "page=${AppLog.page}"
         }
-        // 第一张卡额外把内容摘出来（用户要「加载的内容是什么」）
+        // 每个请求（page 变化）的第一张通用卡额外把内容摘出来 ——
+        // ⚠️ 不能只看 positionHint==0：列表第 0 位常常是 feed 卡（不是通用卡），
+        //    那样 CARD_CONTENT 永远不触发 ✗（真机实测踩到）
+        if (page !== contentLoggedFor) {
+            contentLoggedFor = page
+            firstCard = true
+        }
         if (firstCard) {
             AppLog.i(LogModule.CARD, "GenericCardRenderer") {
                 "CARD_CONTENT tpl=${template} " +
