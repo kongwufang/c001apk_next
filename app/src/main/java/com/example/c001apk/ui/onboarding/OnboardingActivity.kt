@@ -129,6 +129,18 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun dp(v: Int) = (v * dp).toInt()
 
+    /**
+     * 回到前台就刷新一次（2026-11-08 用户反馈）
+     *
+     * 取号流程会跳到别的界面（授权页 / 网页取号 / 设置页），回来时 **onDismiss 不一定触发** ✗
+     * ⇒ 之前第 3 步停在「开始取号 →」、按钮还是灰的，用户点不动「下一步」✗
+     * ⇒ 在 onResume 里按当前步骤重画一次，取号成功回来立刻变成「✓ 已取到号」+ 按钮可用 ✓
+     */
+    override fun onResume() {
+        super.onResume()
+        if (step == 2) render()
+    }
+
     private fun onPrimary() {
         when (step) {
             0 -> { step = 1; render() }

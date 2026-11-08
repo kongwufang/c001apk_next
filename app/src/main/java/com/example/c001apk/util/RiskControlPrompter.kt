@@ -98,6 +98,13 @@ object RiskControlPrompter {
     }
 
     private fun show() {
+        // ★ 2026-11-08 用户反馈：ID 为空时 App 一启动就自动弹取号窗 ✗
+        //   ⇒ 首次启动的引导流程（OnboardingActivity）没走完之前，一律不自动弹 ✓
+        //     引导第 3 步会自己弹一次，用户在引导里就能取号
+        if (!PrefManager.onboarded) {
+            showing = false
+            return
+        }
         val activity = currentActivity.get()
         if (activity == null || activity.isFinishing || activity.isDestroyed) {
             showing = false

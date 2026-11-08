@@ -92,6 +92,9 @@ object SzlmHint {
 
     /** 真正弹窗（节流在这里 ✓ 两个入口共用） */
     private fun maybeShowDialog(context: Context?, message: String?) {
+        // 2026-11-08：引导流程没走完前不弹任何取号/风控提示（第 3 步会自己弹 ✓）
+        if (!PrefManager.onboarded) return
+
         val now = System.currentTimeMillis()
         if (now - lastShownAt < COOLDOWN_MS) return
         lastShownAt = now
