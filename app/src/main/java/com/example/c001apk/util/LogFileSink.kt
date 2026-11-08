@@ -150,12 +150,28 @@ object LogFileSink {
     /** 被丢弃的条数（诊断包里带上，方便判断日志是否缺片） */
     fun droppedCount(): Long = dropped.get()
 
+    /**
+     * 导出 zip 里附带的设备概要（2026-11-08 修两个问题）
+     *
+     * ⚠️ 之前写成 `app = PrefManager.VERSION_NAME`：
+     *   那是**酷安客户端版本号**（16.7.0，伪造客户端用的），不是本 App 的版本 ✗
+     *   ⇒ 改成 PackageManager 拿真实 versionName/versionCode ✓
+     * ⚠️ 之前带 `uid=`：那是账号标识，属于敏感信息，导出的日志会流传出去 ✗
+     *   ⇒ 去掉，设备信息里不出现任何账号/令牌字段 ✓
+     */
     private fun deviceInfo(): String = buildString {
         appendLine("brand=" + android.os.Build.BRAND)
         appendLine("model=" + android.os.Build.MODEL)
         appendLine("sdk=" + android.os.Build.VERSION.SDK_INT)
-        appendLine("app=" + runCatching { PrefManager.VERSION_NAME }.getOrDefault(""))
-        appendLine("uid=" + runCatching { PrefManager.uid }.getOrDefault(""))
+        val ctx = AppContextHolder.context
+        runCatching {
+            val pm = ctx?.packageManager ?: return@runCatching
+            @Suppress("DEPRECATION")
+            val info = pm.getPackageInfo(ctx.packageName, 0)
+            appendLine("app=" + (info.versionName ?: ""))
+            @Suppress("DEPRECATION")
+            appendLine("appCode=" + info.versionCode)
+        }
         appendLine("logLevel=" + runCatching { PrefManager.logLevel }.getOrDefault(""))
         appendLine("modules=" + runCatching { PrefManager.logModules }.getOrDefault(emptySet()).joinToString(","))
         appendLine("dropped=" + droppedCount())
