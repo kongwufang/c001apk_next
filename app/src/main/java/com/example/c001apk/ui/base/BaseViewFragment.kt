@@ -1,5 +1,7 @@
 package com.example.c001apk.ui.base
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.SystemClock
@@ -136,8 +138,7 @@ abstract class BaseViewFragment<VM : BaseViewModel> : Fragment() {
         lastReturnTopTapTime = now
         recyclerView.stopScroll()
         val atTop = isAtTop()
-        Log.d(
-            TAG, "returnTopOrRefresh ${javaClass.simpleName} type=${arguments?.getString("type")}" +
+        AppLog.d(LogModule.UI, "BaseViewFragment", "returnTopOrRefresh ${javaClass.simpleName} type=${arguments?.getString("type")}" +
                     " atTop=$atTop doubleTap=$isDoubleTap first=${firstVisibleItemPosition()}" +
                     " canUp=${recyclerView.canScrollVertically(-1)}" +
                     " offset=${recyclerView.computeVerticalScrollOffset()}"

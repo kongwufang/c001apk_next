@@ -103,7 +103,7 @@ object SslVerify {
             index++
         }
         check(anchors.isNotEmpty()) { "内置 CA 证书库为空，请检查 res/raw/cacert_*.pem" }
-        Log.i(TAG, "内置 Mozilla CA 库加载完成：${anchors.size} 张根证书")
+        AppLog.i(LogModule.NET, "SslVerify", "内置 Mozilla CA 库加载完成：${anchors.size} 张根证书")
         anchors
     }
 
@@ -172,7 +172,7 @@ object SslVerify {
 
                 // 平台校验收不了（旧系统缺新根证书等）：回退到只用内置 CA 的完整 PKIX 校验，
                 // 校验不过会抛 CertificateException
-                Log.w(TAG, "平台校验未通过，改用内置 Mozilla CA 库校验")
+                AppLog.w(LogModule.NET, "SslVerify", "平台校验未通过，改用内置 Mozilla CA 库校验")
                 bundledTrustManager.checkServerTrusted(chain, authType)
             }
 
@@ -197,7 +197,7 @@ object SslVerify {
 
     /** 调试模式：跳过全部校验（证书链 + 域名） */
     fun applyDebug(builder: OkHttpClient.Builder): OkHttpClient.Builder {
-        Log.w(TAG, "网络传输调试模式：OkHttp 跳过全部 SSL 校验")
+        AppLog.w(LogModule.NET, "SslVerify", "网络传输调试模式：OkHttp 跳过全部 SSL 校验")
         val sslContext = SSLContext.getInstance("TLS").apply {
             init(null, arrayOf<TrustManager>(trustingTrustManager), SecureRandom())
         }
@@ -221,8 +221,8 @@ object SslVerify {
             }
             HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.socketFactory)
             HttpsURLConnection.setDefaultHostnameVerifier(trustingHostnameVerifier)
-            Log.w(TAG, "网络传输调试模式：HttpsURLConnection 默认栈跳过全部 SSL 校验")
-        }.onFailure { Log.w(TAG, "放开 HttpsURLConnection 默认校验失败", it) }
+            AppLog.w(LogModule.NET, "SslVerify", "网络传输调试模式：HttpsURLConnection 默认栈跳过全部 SSL 校验")
+        }.onFailure { AppLog.w(LogModule.NET, "SslVerify", "放开 HttpsURLConnection 默认校验失败", it) }
     }
 
     /**

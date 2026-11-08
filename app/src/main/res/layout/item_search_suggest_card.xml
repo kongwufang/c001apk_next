@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  搜索联想的「列表卡」（官方 iconListCard → item_title_list）
+
+  官方结构：CoolapkCardView(cardStyle=2) + 内嵌 RecyclerView + 1dp 分隔线。
+  我们卡内只有 1~3 条，不嵌套 RecyclerView（省一层滚动），
+  直接用一个垂直 LinearLayout，运行时往里 inflate item_search_suggest_row。
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginBottom="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:id="@+id/rows"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+</com.google.android.material.card.MaterialCardView>

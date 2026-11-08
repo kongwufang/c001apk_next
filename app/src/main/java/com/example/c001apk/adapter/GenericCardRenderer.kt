@@ -30,7 +30,11 @@ import com.example.c001apk.databinding.ItemHomeGenericCardScoreBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardProductRowBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import com.example.c001apk.util.CardUi
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.dp
@@ -53,10 +57,16 @@ import java.util.Locale
  */
 object GenericCardRenderer {
 
+    /** 已经打过 CARD_CONTENT 的那个 page（每个请求只打一次，避免刷屏） */
+    @Volatile
+    private var contentLoggedFor: String = "" 
+
     fun render(
         binding: ItemHomeGenericCardBinding,
         data: HomeFeedResponse.Data,
-        listener: ItemListener
+        listener: ItemListener,
+        /** 列表位置：0 = 第一张卡（日志里标 FIRST，方便定位「第一屏」问题） */
+        positionHint: Int = -1,
     ) {
         val template = data.entityTemplate
         val entities = data.entities.orEmpty().filter { it.hasContent() }
@@ -95,6 +105,34 @@ object GenericCardRenderer {
 
         val spec = CardUi.layout(template, entities.size)
 
+        // ★ 2026-11-08 卡片加载日志（用户要求）：
+        //   一条日志回答四个问题——哪个类渲染的、哪个模板、走哪套布局、内容是什么
+        //   `first=true` 标记列表第一张卡（最常被用来定位「第一屏哪里不对」）
+        var firstCard = positionHint == 0
+        val page = AppLog.page
+        // 用 i 级：默认级别（INFO）就能看到，不用先切 VERBOSE ✓
+        AppLog.i(LogModule.CARD, "GenericCardRenderer") {
+            "CARD_RENDER ${if (firstCard) "FIRST " else ""}" +
+                    "renderer=GenericCardRenderer tpl=${template} type=${data.entityType} " +
+                    "layout=${CardUi.rule(template)?.layout} span=${spec.span} horizontal=${spec.horizontal} " +
+                    "hidden=${spec.hidden} official=${spec.official} ents=${entities.size} " +
+                    "title=${(data.title ?: "").take(30)} url=${(data.url ?: "").take(60)} " +
+                    "page=${AppLog.page}"
+        }
+        // 每个请求（page 变化）的第一张通用卡额外把内容摘出来 ——
+        // ⚠️ 不能只看 positionHint==0：列表第 0 位常常是 feed 卡（不是通用卡），
+        //    那样 CARD_CONTENT 永远不触发 ✗（真机实测踩到）
+        if (page !== contentLoggedFor) {
+            contentLoggedFor = page
+            firstCard = true
+        }
+        if (firstCard) {
+            AppLog.i(LogModule.CARD, "GenericCardRenderer") {
+                "CARD_CONTENT tpl=${template} " +
+                        "data=${data.toString().take(600)}"
+            }
+        }
+
         // 照官方重画的卡片（续航卡 / 跑分卡）：官方这几张是专门写的 Compose 布局（电池刻度条、
         // 2x2 品牌渐变格），按通用骨架摊成「名称 值」完全不像，所以和 topContent 一样单独画。
         // 反编译记录与尺寸表见 _rev/SUBTAB_CARDS_SPEC.md。
@@ -105,12 +143,42 @@ object GenericCardRenderer {
 
         // 卡片自身四块（取哪些字段可以被规则表改，默认还是原来那套）
         val title = pickCard(data, CardUi.titleField(template))
-        val summary = pickCard(data, CardUi.summaryField(template))?.let { plainText(it) }
+        // ★ 2026-11-08 修「一张卡出现两个更多」：
+        //   卡片 subTitle 就是「更多」，而 summaryField 链里也含 subTitle
+        //   ⇒ 标题行右边已经画了「更多 ›」，下面又冒出一个「更多」✗
+        //   ⇒ summary 与 subTitle 相同时直接当作没有
+        val summary = pickCard(data, CardUi.summaryField(template))
+            ?.let { plainText(it) }
+            // 「更多 / 更多 ›」这类是**操作标签**不是内容，任何情况下都不该当 summary 渲染 ✗
+            ?.takeIf { it != data.subTitle?.trim() && it != "更多" && it != "更多 ›" }
         // 卡片自带配图只在没有实体时当主图（imageScaleCard、只有图的 fabCard）
         val hero = pickCard(data, CardUi.heroField(template))?.takeIf { entities.isEmpty() }
 
+        // ★ 2026-11-08 对齐官方 item_title_list：
+        //   官方那张卡**自身没有内边距**，留白都在行里（user 行 16dp、product 行 12dp）
+        //   ⇒ LIST 骨架把外层 padding 清成 0，标题行自己补 16dp 水平内边距 ✓
+        if (CardUi.rule(template)?.layout == CardUi.LIST) {
+            binding.content.setPadding(0, 8.dp, 0, 6.dp)
+            binding.titleRow.setPadding(16.dp, 0, 16.dp, 6.dp)
+        } else {
+            binding.titleRow.setPadding(0, 0, 0, 0)
+        }
+
+        // 标题行：「标题 + 更多 ›」同一行（官方样式 ✓ 2026-11-08）
+        val moreLabel = data.subTitle?.takeIf { it.isNotBlank() } ?: "更多"
+        val moreUrl = data.url?.takeIf { it.isNotBlank() }
+        val showMore = moreUrl != null && !title.isNullOrEmpty()
+        binding.titleRow.isVisible = !title.isNullOrEmpty() || showMore
         binding.title.isVisible = !title.isNullOrEmpty()
         binding.title.text = title
+        binding.moreText.isVisible = showMore
+        binding.moreText.text = "$moreLabel ›"
+        binding.moreText.setOnClickListener(
+            if (moreUrl != null) View.OnClickListener { v ->
+                listener.onOpenLink(v, moreUrl, title)
+            } else null
+        )
+        binding.moreText.isClickable = moreUrl != null
         binding.summary.isVisible = !summary.isNullOrEmpty()
         binding.summary.text = summary
         binding.hero.isVisible = hero != null
@@ -144,6 +212,13 @@ object GenericCardRenderer {
         // 排障提示，模板都映射完了就撤掉 —— 这种技术字样不该出现在界面上
         val renderable = !title.isNullOrEmpty() || !summary.isNullOrEmpty() ||
                 entities.isNotEmpty() || hero != null || stats.isNotEmpty()
+        if (!renderable) {
+            // 整卡不占位的原因也记下来（这类「卡片消失了」最难查）
+            AppLog.w(
+                LogModule.CARD, "GenericCardRenderer",
+                "CARD_EMPTY tpl=${template} type=${data.entityType} reason=无标题/无说明/无实体/无配图 page=${AppLog.page}"
+            )
+        }
         binding.root.isVisible = renderable && !spec.hidden
 
         val url: String? = data.url
@@ -178,6 +253,7 @@ object GenericCardRenderer {
         listener: ItemListener,
     ) {
         binding.title.isVisible = false
+        binding.titleRow.isVisible = false
         binding.summary.isVisible = false
         binding.hero.isVisible = false
         binding.stats.removeAllViews()
@@ -256,6 +332,7 @@ object GenericCardRenderer {
         listener: ItemListener
     ) {
         binding.title.isVisible = false
+        binding.titleRow.isVisible = false
         binding.summary.isVisible = false
         binding.hero.isVisible = false
         binding.stats.removeAllViews()
@@ -368,6 +445,7 @@ object GenericCardRenderer {
         entities: List<HomeFeedResponse.Entities>
     ) {
         binding.title.isVisible = false
+        binding.titleRow.isVisible = false
         binding.summary.isVisible = false
         binding.hero.isVisible = false
         binding.stats.removeAllViews()
@@ -386,7 +464,7 @@ object GenericCardRenderer {
             CardUi.SUBTAB_PRICE -> bindPriceCard(binding, extra, listener)
             CardUi.SUBTAB_SCORE -> bindScoreCard(binding, extra)
             CardUi.LINKS -> bindLinksCard(binding, entities, listener)
-            CardUi.SECTION -> bindSectionCard(binding, template, data)
+            CardUi.SECTION -> bindSectionCard(binding, template, data, listener)
             CardUi.ICON_BUTTONS -> bindIconButtonsCard(binding, entities, listener)
             CardUi.LINK_TABS -> bindLinkTabsCard(binding, entities, listener)
             CardUi.CAPSULES -> bindCapsulesCard(binding, template, data, entities, listener)
@@ -669,7 +747,8 @@ object GenericCardRenderer {
     private fun bindSectionCard(
         binding: ItemHomeGenericCardBinding,
         template: String?,
-        data: HomeFeedResponse.Data
+        data: HomeFeedResponse.Data,
+        listener: ItemListener
     ): View {
         val context = binding.root.context
         val card = ItemHomeGenericCardSectionBinding.inflate(
@@ -677,8 +756,16 @@ object GenericCardRenderer {
         )
         card.sectionTitle.text = pickCard(data, CardUi.titleField(template))
         val more = pickCard(data, CardUi.summaryField(template))
-        card.sectionMore.isVisible = !more.isNullOrEmpty() && !data.url.isNullOrEmpty()
-        card.sectionMore.text = more
+        val moreUrl = data.url?.takeIf { it.isNotBlank() }
+        card.sectionMore.isVisible = !more.isNullOrEmpty() && moreUrl != null
+        // 与标题行保持一致：带箭头 ✓（官方 section 卡的「更多」在右侧，同样带 › ）
+        card.sectionMore.text = if (more.isNullOrEmpty()) "" else "$more ›"
+        card.sectionMore.isClickable = moreUrl != null
+        card.sectionMore.setOnClickListener(
+            if (moreUrl != null) View.OnClickListener { v ->
+                listener.onOpenLink(v, moreUrl, pickCard(data, CardUi.titleField(template)))
+            } else null
+        )
         return card.root
     }
 
@@ -1134,15 +1221,45 @@ class GenericCardEntityAdapter(
     class OfficialEntityViewHolder(val album: ItemHomeGenericCardAlbumExpandBinding) :
         RecyclerView.ViewHolder(album.root)
 
-    override fun getItemViewType(position: Int): Int =
-        if (CardUi.entityLayout(entityTemplateOf(entities[position])) != null) VIEW_TYPE_OFFICIAL
-        else VIEW_TYPE_DEFAULT
+    /**
+     * 用户行（对齐官方 item_user.xml ✓ 2026-11-08）
+     *
+     * 「优质酷友」这类 iconListCard 的实体全是 user：
+     *   头像 40dp + 昵称 16sp + 「x关注 y粉丝 z活跃」12sp + 右侧「关注/已关注」56×28dp
+     */
+    class UserRowViewHolder(val binding: ItemHomeGenericCardUserRowBinding) :
+        RecyclerView.ViewHolder(binding.root)
+
+    /**
+     * 产品行（对齐官方 item_product_view.xml ✓ 2026-11-08）
+     *
+     * 「热门数码」这类 iconListCard 的实体全是 product：
+     *   图 60dp + 标题 16sp 两行 + 「🔥热度 讨论」12sp + 右侧 78dp 评分（大分 + 五星）
+     */
+    class ProductRowViewHolder(val binding: ItemHomeGenericCardProductRowBinding) :
+        RecyclerView.ViewHolder(binding.root)
+
+    override fun getItemViewType(position: Int): Int = when {
+        CardUi.entityLayout(entityTemplateOf(entities[position])) != null -> VIEW_TYPE_OFFICIAL
+        // 全是 user 实体（「优质酷友」那类）⇒ 官方行布局 ✓
+        entities[position].entityType == "user" -> VIEW_TYPE_USER_ROW
+        entities[position].entityType == "product" -> VIEW_TYPE_PRODUCT_ROW
+        else -> VIEW_TYPE_DEFAULT
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return if (viewType == VIEW_TYPE_OFFICIAL) {
             OfficialEntityViewHolder(
                 ItemHomeGenericCardAlbumExpandBinding.inflate(inflater, parent, false)
+            )
+        } else if (viewType == VIEW_TYPE_USER_ROW) {
+            UserRowViewHolder(
+                ItemHomeGenericCardUserRowBinding.inflate(inflater, parent, false)
+            )
+        } else if (viewType == VIEW_TYPE_PRODUCT_ROW) {
+            ProductRowViewHolder(
+                ItemHomeGenericCardProductRowBinding.inflate(inflater, parent, false)
             )
         } else {
             EntityViewHolder(
@@ -1157,6 +1274,14 @@ class GenericCardEntityAdapter(
         val entity = entities[position]
         if (holder is OfficialEntityViewHolder) {
             bindAlbumExpandEntity(holder.album, entity)
+            return
+        }
+        if (holder is UserRowViewHolder) {
+            bindUserRow(holder.binding, entity, listener)
+            return
+        }
+        if (holder is ProductRowViewHolder) {
+            bindProductRow(holder.binding, entity, listener)
             return
         }
         val binding = (holder as EntityViewHolder).binding
@@ -1203,7 +1328,10 @@ class GenericCardEntityAdapter(
         binding.title.text = title
         binding.title.gravity = if (row) Gravity.START else Gravity.CENTER
 
+        // 官方列表行下面的次要信息：user 是「x关注 y粉丝 z活跃」，
+        // product 是「🔥热度 N讨论」——这些字段不在 subtitle 链里，单独拼装 ✓
         val desc = pickEntity(entity, rule.subtitleChain)?.let { plainText(it) }
+            ?: composedSubtitle(entity)
         binding.desc.isVisible = !desc.isNullOrEmpty()
         binding.desc.text = desc
         binding.desc.gravity = if (row) Gravity.START else Gravity.CENTER
@@ -1212,7 +1340,11 @@ class GenericCardEntityAdapter(
         binding.container.addView(binding.desc, if (row) 1 else 2)
 
         // 点击：有 url 走链接分发，apk 实体没有 url 时进应用详情
-        val url: String? = entity.url
+        // ★ 2026-11-07 用户反馈「卡片目前是无效的」：
+        //   热门话题宫格（iconGridCard）的 topic 实体**没有 url** ✗ 只有 id + title
+        //   ⇒ 原来 hasAction=false ⇒ 点了没反应 ✗
+        //   ⇒ 用 title 拼官方的 /t/<urlencoded title> 兜底 ✓
+        val url: String? = entity.url?.takeIf { it.isNotEmpty() } ?: topicFallbackUrl(entity)
         val apkId: String? = if (entity.entityType == "apk") entity.id else null
         val hasAction = !url.isNullOrEmpty() || !apkId.isNullOrEmpty()
         binding.root.isClickable = hasAction
@@ -1329,6 +1461,12 @@ class GenericCardEntityAdapter(
         /** 走专属布局的实体（见 [CardUi.entityLayout]） */
         const val VIEW_TYPE_OFFICIAL = 1
 
+        /** user 实体行（官方 item_user 那种：头像 + 昵称 + 关注按钮） */
+        const val VIEW_TYPE_USER_ROW = 2
+
+        /** product 实体行（官方 item_product_view 那种：图 + 标题 + 热度 + 评分） */
+        const val VIEW_TYPE_PRODUCT_ROW = 3
+
         /** 专属布局里图标区自带的固定子 view 数（头像、用户名、占位 Space），追加图标前保留 */
         const val ICON_LIST_FIXED_CHILDREN = 3
 
@@ -1403,6 +1541,142 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
+/** 产品行绑定（照官方 item_product_view.xml ✓） */
+private fun bindProductRow(
+    b: ItemHomeGenericCardProductRowBinding,
+    entity: HomeFeedResponse.Entities,
+    listener: ItemListener,
+) {
+    val image = entity.logo ?: entity.pic
+    if (!image.isNullOrEmpty()) {
+        runCatching { com.bumptech.glide.Glide.with(b.icon).load(image).into(b.icon) }
+    }
+    val title = entity.title ?: entity.aliasTitle.orEmpty()
+    b.title.text = title
+
+    val hot = entity.hotNumTxt
+    val comments = entity.commentnumTxt
+    val hasHot = !hot.isNullOrEmpty()
+    val hasComments = !comments.isNullOrEmpty()
+    b.hotIcon.isVisible = hasHot
+    b.hotNum.isVisible = hasHot
+    // hot_num_txt 只有数字（"118.4万"）⇒ 补上官方那个「热度」后缀 ✓
+    b.hotNum.text = when {
+        hot.isNullOrEmpty() -> ""
+        hot.contains("热度") -> hot
+        else -> "${hot}热度"
+    }
+    b.discussNum.isVisible = hasComments
+    b.discussNum.text = comments.orEmpty()
+    b.subtitleContainer.isVisible = hasHot || hasComments
+
+    // 右侧评分：有分 ⇒ 大分 + 五星；没分 ⇒ 「暂无人评分」
+    val score = entity.starAverageScore?.toFloatOrNull()
+    if (score != null && score > 0f) {
+        b.scoreContainer.isVisible = true
+        b.noRating.isVisible = false
+        b.score.isVisible = true
+        b.scoreBar.isVisible = true
+        b.score.text = entity.starAverageScore
+        // 官方是五分制小数：9.0 分 ⇒ 4.5 星（10 分制换算）
+        val stars = if (score > 5f) score / 2f else score
+        runCatching {
+            b.scoreBar.setIsIndicator(true)
+            b.scoreBar.rating = stars.coerceIn(0f, 5f)
+        }
+    } else {
+        b.scoreContainer.isVisible = true
+        b.score.isVisible = false
+        b.scoreBar.isVisible = false
+        b.noRating.isVisible = true
+    }
+
+    // 整行点击 ⇒ 产品页（url=/product/<id>，openLink 已有分支 ✓）
+    val url = entity.url?.takeIf { it.isNotEmpty() }
+    b.root.isClickable = !url.isNullOrEmpty()
+    b.root.isFocusable = !url.isNullOrEmpty()
+    b.root.setOnClickListener(
+        if (!url.isNullOrEmpty()) View.OnClickListener { listener.onOpenLink(it, url, title) }
+        else null
+    )
+}
+
+/** 用户行绑定（照官方 item_user.xml 的字段与字号 ✓） */
+private fun bindUserRow(
+    b: ItemHomeGenericCardUserRowBinding,
+    entity: HomeFeedResponse.Entities,
+    listener: ItemListener,
+) {
+    val context = b.root.context
+    // 头像：三种字段都可能（avatar / userAvatar / userSmallAvatar）⇒ 依次兜底 ✓
+    val avatar = entity.avatar ?: entity.userAvatar ?: entity.userSmallAvatar
+    if (!avatar.isNullOrEmpty()) {
+        runCatching {
+            com.bumptech.glide.Glide.with(b.avatar).load(avatar)
+                .apply(com.bumptech.glide.request.RequestOptions.circleCropTransform())
+                .into(b.avatar)
+        }
+    }
+    b.title.text = entity.username ?: entity.title.orEmpty()
+
+    val follow = entity.follow
+    val fans = entity.fans
+    b.followCount.isVisible = !follow.isNullOrEmpty() && follow != "0"
+    b.followCount.text = "${follow}关注"
+    b.fansCount.isVisible = !fans.isNullOrEmpty() && fans != "0"
+    b.fansCount.text = "${fans}粉丝"
+    val active = entity.logintime?.takeIf { it > 0 }?.let {
+        runCatching { com.example.c001apk.util.DateUtils.fromToday(it) + "活跃" }.getOrNull()
+    }
+    b.activeTime.isVisible = !active.isNullOrEmpty()
+    b.activeTime.text = active.orEmpty()
+    b.detailContainer.isVisible = b.followCount.isVisible || b.fansCount.isVisible || b.activeTime.isVisible
+
+    // 右侧「关注 / 已关注」按钮
+    // ⚠️ 渲染层拿不到回调，统一走 ItemListener.onFollowUser(uid, followAuthor)
+    //   followAuthor: 0 = 去关注，1 = 取消关注（与 AppAdapter 里那套一致 ✓）
+    var followed = (entity.isFollow ?: 0) == 1
+    val uid = entity.uid.orEmpty()
+    b.followBtn.isVisible = com.example.c001apk.util.PrefManager.isLogin && uid.isNotEmpty()
+    b.followBtn.text = if (followed) "已关注" else "关注"
+    b.followBtn.setOnClickListener {
+        val want = if (followed) 1 else 0
+        listener.onFollowUser(uid, want)
+        followed = !followed
+        (it as? android.widget.TextView)?.text = if (followed) "已关注" else "关注"
+    }
+}
+
+/** 列表行的次要信息（官方样式：user=关注/粉丝/活跃；product=热度/讨论） */
+private fun composedSubtitle(entity: HomeFeedResponse.Entities): String? {
+    val parts = ArrayList<String>(3)
+    val follow = entity.follow
+    val fans = entity.fans
+    if (!follow.isNullOrEmpty() && follow != "0") parts.add("${follow}关注")
+    if (!fans.isNullOrEmpty() && fans != "0") parts.add("${fans}粉丝")
+    entity.logintime?.takeIf { it > 0 }?.let {
+        runCatching { parts.add(com.example.c001apk.util.DateUtils.fromToday(it) + "活跃") }
+    }
+    if (parts.isEmpty()) {
+        val hot = entity.hotNumTxt
+        val comments = entity.commentnumTxt
+        if (!hot.isNullOrEmpty()) parts.add("🔥$hot")
+        if (!comments.isNullOrEmpty()) parts.add("${comments}讨论")
+    }
+    return if (parts.isEmpty()) null else parts.joinToString("  ")
+}
+
+/** topic 实体常常不带 url（只有 id/title）⇒ 按官方规则拼 /t/<urlencoded title> 兜底 */
+private fun topicFallbackUrl(entity: HomeFeedResponse.Entities): String? {
+    if (entity.entityType != "topic") return null
+    val title = entity.title?.takeIf { it.isNotEmpty() } ?: return null
+    return "/t/" + java.net.URLEncoder.encode(title, "UTF-8")
+}
+
 private fun HomeFeedResponse.Entities.hasContent(): Boolean =
     !title.isNullOrEmpty() || !logo.isNullOrEmpty() || !pic.isNullOrEmpty() ||
-            !message.isNullOrEmpty() || !description.isNullOrEmpty()
+            !message.isNullOrEmpty() || !description.isNullOrEmpty() ||
+            // ★ 2026-11-08 修「优质酷友」卡：user 实体只有 username/avatar，没有 title/logo/pic ✗
+            //   原来会被这条过滤直接丢掉 ⇒ 卡片只剩标题行 ✗
+            !username.isNullOrEmpty() || !avatar.isNullOrEmpty() ||
+            !userAvatar.isNullOrEmpty() || !userSmallAvatar.isNullOrEmpty()

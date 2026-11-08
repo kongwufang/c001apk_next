@@ -439,6 +439,9 @@ data class HomeFeedResponse(
         val subTitle: String? = null,
         // iconListCard 里的实体给的是 icon 而不是 logo
         val icon: String? = null,
+        // ★ 2026-11-08：iconListCard「优质酷友」下的 user 实体头像字段叫 `avatar`
+        //   （不是 userAvatar ✗ 实测见 _rev/follow/digital_v15_product.json）
+        val avatar: String? = null,
         // ---- 游戏频道（/v6/page/dataList?url=V15_YOUXI）下发的 topic 实体字段 ----
         // 讨论热度文本（热门新游卡片右下角那个数字）
         @SerializedName("hot_num_txt") val hotNumTxt: String? = null,
@@ -447,6 +450,17 @@ data class HomeFeedResponse(
         // 评分条数（游戏评分卡片显示「N 条」）
         @SerializedName("rating_total_num") val ratingTotalNum: String? = null,
         @SerializedName("commentnum_txt") val commentnumTxt: String? = null,
+        // ★ 2026-11-08：iconListCard「优质酷友」下的 user 实体带这三个
+        //   官方那行「85关注 56粉丝 1小时前活跃」就是拼它们 ✓
+        val fans: String? = null,
+        val follow: String? = null,
+        val logintime: Long? = null,
+        // 关注态（1 = 已关注）—— 「关注」按钮初始文案要用
+        val isFollow: Int? = null,
+        // user 实体的 uid（关注接口要；avatar 那条也在上面）
+        val uid: String? = null,
+        @SerializedName("userAvatar") val userAvatar: String? = null,
+        @SerializedName("userSmallAvatar") val userSmallAvatar: String? = null,
         // feedListCard（最新点评）下发的就是完整 feed 结构，这里补上点评用得到的几个
         // （message / username / id / url 主构造函数里已经有了，别再声明一遍）
         val ttitle: String? = null,

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「查看最近日志」工具栏菜单（2026-11-08 C 步） -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_log_copy"
+        android:icon="@drawable/ic_clean"
+        android:showAsAction="never"
+        android:title="复制全部" />
+
+    <item
+        android:id="@+id/action_log_share"
+        android:icon="@drawable/ic_more"
+        android:showAsAction="never"
+        android:title="导出 zip" />
+
+    <item
+        android:id="@+id/action_log_clear"
+        android:icon="@drawable/ic_clean"
+        android:showAsAction="never"
+        android:title="清空日志" />
+
+</menu>

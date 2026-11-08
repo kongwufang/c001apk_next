@@ -1,4 +1,10 @@
-﻿name: Desktop CI
+# 🗄 **桌面端已归档（2026-11-07）** —— 不再维护 ✗
+#
+# 用户决定：桌面端（Windows）这条线**从此不再维护** ✗
+# ⇒ 触发入口已收窄为 **仅手动 workflow_dispatch** ✓（推分支不再自动跑 ✗）
+# ⇒ 代码保留在仓库里（desktop/ 目录）作为历史 ✓ 想再拾起来就手动跑一次 ✓
+#
+name: Desktop CI
 
 # 桌面端（Windows）实验性构建线。
 #
@@ -18,14 +24,11 @@
 # ⚠️ 注意：step 的 `if:` 里**不能**引用 secrets 上下文（GitHub 限制），
 #    所以这里统一用 `env:` 把 secret 传进步骤，在 shell 内判断。
 #
-# 触发：推 debug2 分支，或手动 workflow_dispatch。
+# 触发：🗄 已归档 ⇒ **只能手动** workflow_dispatch（不再跟分支 ✗）
 on:
+  # 🗄 桌面端已归档（2026-11-07）⇒ 只保留手动触发 ✓
+  #   原来 push debug2 会自动跑 ✗ 现在必须手动 workflow_dispatch ✓
   workflow_dispatch:
-  push:
-    branches: [ debug2 ]
-    paths-ignore:
-      - '**.md'
-
 permissions:
   contents: read
 

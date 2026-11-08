@@ -138,7 +138,7 @@ object ReportAlliance {
         note: String?,
     ): String? {
         if (!enabled) {
-            Log.w(TAG, "联盟开关未开启，忽略")
+            AppLog.w(LogModule.GATES, "ReportAlliance", "联盟开关未开启，忽略")
             return null
         }
         // 申诉（type=appeal）不需要原因 ✓ 举报才需要 ✓
@@ -147,7 +147,7 @@ object ReportAlliance {
         //   `feed` 的动态举报不受这个闸（它是主功能 ✓）
         //   申诉也不受闸（用户主动申诉必须能发出去 ✓）
         if (type != "feed" && type != "appeal" && !CloudGates.reportOther) {
-            Log.d(TAG, "云控已关闭「其他卡片上报」，跳过 type=$type")
+            AppLog.d(LogModule.GATES, "ReportAlliance", "云控已关闭「其他卡片上报」，跳过 type=$type")
             return null
         }
         return runCatching {
@@ -168,6 +168,7 @@ object ReportAlliance {
                 .header("X-Client-SSaid", PrefManager.ssaid)
                 .header("X-App-userrandomid", PrefManager.userRandomId)
                 .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
+                .header(ServerIdentity.HEADER_API, ServerIdentity.API_VERSION.toString())
                 .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
                 .header("X-Client-Platform", "android")
                 .header("User-Agent", com.example.c001apk.constant.Constants.USER_AGENT)
@@ -176,7 +177,7 @@ object ReportAlliance {
             client.newCall(req).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
-                    Log.w(TAG, "上报失败 HTTP ${resp.code}: ${text.take(120)}")
+                    AppLog.w(LogModule.GATES, "ReportAlliance", "上报失败 HTTP ${resp.code}: ${text.take(120)}")
                     return@use null
                 }
                 val j = runCatching { JSONObject(text) }.getOrNull()
@@ -184,15 +185,15 @@ object ReportAlliance {
                 CloudGates.applyFrom(j)
                 if (j?.optInt("status") == 1) {
                     val rid = j.optString("rid", "")
-                    Log.i(TAG, "举报已提交 rid=$rid")
+                    AppLog.i(LogModule.GATES, "ReportAlliance", "举报已提交 rid=$rid")
                     return@use rid
                 }
-                Log.w(TAG, "上报被拒: ${text.take(120)}")
+                AppLog.w(LogModule.GATES, "ReportAlliance", "上报被拒: ${text.take(120)}")
                 null
             }
         }.onFailure {
             // ⚠️ NetworkOnMainThreadException 的 message 是 null ✗ 必须打类名 ✓
-            Log.w(TAG, "上报异常: ${it.javaClass.simpleName}: ${it.message}", it)
+            AppLog.w(LogModule.GATES, "ReportAlliance", "上报异常: ${it.javaClass.simpleName}: ${it.message}", it)
         }.getOrNull()
     }
 
@@ -213,6 +214,6 @@ object ReportAlliance {
     fun join(ctx: Context) {
         joined = true
         enabled = true      // 加入即开启 ✓ 之后可在设置里随时关 ✓
-        Log.i(TAG, "已加入匿名举报联盟（package=${ctx.packageName}）")
+        AppLog.i(LogModule.GATES, "ReportAlliance", "已加入匿名举报联盟（package=${ctx.packageName}）")
     }
 }

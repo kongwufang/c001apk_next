@@ -113,7 +113,7 @@ object HttpLog {
                 // 1/20 概率清理过期文件 ✓
                 if (System.currentTimeMillis() % 20 == 0L) prune(d)
             } catch (e: Throwable) {
-                Log.w(TAG, "record 失败: $e") // 不影响主流程 ✓
+                AppLog.w(LogModule.NET, "HttpLog", "record 失败: $e") // 不影响主流程 ✓
             }
         }
     }

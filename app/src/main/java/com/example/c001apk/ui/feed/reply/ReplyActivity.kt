@@ -1,5 +1,7 @@
 package com.example.c001apk.ui.feed.reply
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -340,7 +342,7 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
                     ossUpload(
                         this@ReplyActivity, responseData, uriList, typeList, md5List,
                         iOnSuccess = { index ->
-                            Log.i("OSSUpload", "uploadSuccess")
+                            AppLog.i(LogModule.FEED, "ReplyActivity", "uploadSuccess")
                             if (index == uriList.lastIndex) {
                                 if (type == "createFeed" || type == "rating")
                                     viewModel.onPostCreateFeed()
@@ -349,7 +351,7 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
                             }
                         },
                         iOnFailure = {
-                            Log.i("OSSUpload", "uploadFailed")
+                            AppLog.i(LogModule.FEED, "ReplyActivity", "uploadFailed")
                             runOnUiThread {
                                 closeDialog()
                                 Toast.makeText(this@ReplyActivity, "图片上传失败", Toast.LENGTH_SHORT)

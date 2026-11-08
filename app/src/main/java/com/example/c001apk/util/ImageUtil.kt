@@ -488,7 +488,7 @@ object ImageUtil {
                     if (fragmentActivity != null) {
                         showSaveImgDialog(fragmentActivity, originList[position], originList)
                     } else {
-                        Log.i("Mojito", "fragmentActivity is null, skip save image")
+                        AppLog.i(LogModule.UI, "ImageUtil", "fragmentActivity is null, skip save image")
                     }
                 }
             })
@@ -539,7 +539,7 @@ object ImageUtil {
                     if (fragmentActivity != null) {
                         showSaveImgDialog(fragmentActivity, originList[position], originList)
                     } else {
-                        Log.i("Mojito", "fragmentActivity is null, skip save image")
+                        AppLog.i(LogModule.UI, "ImageUtil", "fragmentActivity is null, skip save image")
                     }
                 }
             })
@@ -565,7 +565,7 @@ object ImageUtil {
                     if (fragmentActivity != null) {
                         showSaveImgDialog(fragmentActivity, url.imageUrl, null)
                     } else {
-                        Log.i("Mojito", "fragmentActivity is null, skip save image")
+                        AppLog.i(LogModule.UI, "ImageUtil", "fragmentActivity is null, skip save image")
                     }
                 }
             })
@@ -686,14 +686,14 @@ object ImageUtil {
         options.inJustDecodeBounds = true
         BitmapFactory.decodeFile(path, options)
         var type = options.outMimeType
-        Log.d("getImageTypeWithMime", "getImageTypeWithMime: path = $path, type1 = $type")
+        AppLog.d(LogModule.UI, "ImageUtil", "getImageTypeWithMime: path = $path, type1 = $type")
         // ”image/png”、”image/jpeg”、”image/gif”
         type = if (TextUtils.isEmpty(type)) {
             ""
         } else {
             type.substring(6)
         }
-        Log.d("getImageTypeWithMime", "getImageTypeWithMime: path = $path, type2 = $type")
+        AppLog.d(LogModule.UI, "ImageUtil", "getImageTypeWithMime: path = $path, type2 = $type")
         return type
     }
 

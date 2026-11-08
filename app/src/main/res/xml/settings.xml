@@ -267,24 +267,19 @@
             android:title="@string/image_quality" />
 
         <!-- HTTP 请求日志（默认关 ✓ 打开后全局记录，可导出/清空 ✓） -->
-        <rikka.material.preference.MaterialSwitchPreference
-            android:defaultValue="false"
+            <!-- 加入用户改善计划（默认关 ✓ 开了才接受心跳下发的事件 ✓ 2026-11-07） -->
+            <rikka.material.preference.MaterialSwitchPreference
+                android:defaultValue="false"
+                android:icon="@drawable/ic_bug"
+                android:key="joinImprovePlan"
+                android:summary="@string/settings_improve_plan_summary"
+                android:title="@string/settings_improve_plan" />
+        <!-- ★ 2026-11-08 用户要求：外面不再放开关，所有日志操作都在「日志」页里 -->
+        <Preference
             android:icon="@drawable/ic_bug"
-            android:key="recordHttpLog"
-            android:summary="@string/settings_http_log_summary"
-            android:title="@string/settings_http_log" />
-        <Preference
-            android:icon="@drawable/ic_clean"
-            android:key="httpLogStats"
-            android:title="@string/settings_http_log_stats" />
-        <Preference
-            android:icon="@drawable/ic_more"
-            android:key="httpLogExport"
-            android:title="@string/settings_http_log_export" />
-        <Preference
-            android:icon="@drawable/ic_clean"
-            android:key="httpLogClear"
-            android:title="@string/settings_http_log_clear" />
+            android:key="logCenter"
+            android:summary="级别 / 模块 / 查看 / 导出 / 清空"
+            android:title="日志" />
 
     </PreferenceScreen>
 

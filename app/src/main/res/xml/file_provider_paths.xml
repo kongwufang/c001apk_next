@@ -3,4 +3,6 @@
     <external-cache-path name="imageShare" path="imageShare/" />
     <!-- APK 下载：Android/data/<包名>/files/apk/ -->
     <external-files-path name="apkDownload" path="apk/" />
+    <!-- App 日志导出 zip：cacheDir/export/（2026-11-08 C 步） -->
+    <cache-path name="app-log-export" path="export/" />
 </paths>

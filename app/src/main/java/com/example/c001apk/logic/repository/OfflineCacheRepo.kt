@@ -1,5 +1,7 @@
 package com.example.c001apk.logic.repository
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.LiveData
@@ -202,10 +204,10 @@ class OfflineCacheRepo @Inject constructor(
                 val data = feedDataOf(e) ?: return@runCatching
                 val imgs = localImageFiles(fid)
                 val r = shareLinkRepo.createShare(data, imgs)
-                r.onSuccess { android.util.Log.i("OfflineCache", "上云成功 $fid -> ${it.url}") }
-                    .onFailure { android.util.Log.w("OfflineCache", "上云失败 $fid: ${it.message}") }
+                r.onSuccess { AppLog.i(LogModule.NET, "OfflineCacheRepo", "上云成功 $fid -> ${it.url}") }
+                    .onFailure { AppLog.w(LogModule.NET, "OfflineCacheRepo", "上云失败 $fid: ${it.message}") }
             }.onFailure {
-                android.util.Log.w("OfflineCache", "上云异常 $fid: ${it.message}")
+                AppLog.w(LogModule.NET, "OfflineCacheRepo", "上云异常 $fid: ${it.message}")
             }
         }
     }

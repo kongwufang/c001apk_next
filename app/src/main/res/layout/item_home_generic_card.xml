@@ -31,16 +31,41 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <TextView
-                android:id="@+id/title"
+            <!--
+                ★ 2026-11-08 对齐官方 item_title_list / item_title_card：
+                  标题在左、「更多 ›」在**同一行右对齐**（官方就是这样，不要挤到第二行 ✗）
+                  标题 16sp 加粗
+            -->
+            <LinearLayout
+                android:id="@+id/titleRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:visibility="gone"
-                tools:text="热门应用" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="热门应用" />
+
+                <TextView
+                    android:id="@+id/moreText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="更多 ›"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/summary"

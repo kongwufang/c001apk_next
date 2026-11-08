@@ -1,5 +1,6 @@
 package com.example.c001apk.util
 
+import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
@@ -354,6 +355,35 @@ object PrefManager {
     fun isNoticeDismissed(id: String): Boolean =
         pref.getStringSet("dismissedNotices", null)?.contains(id) == true
 
+    // ---------------- 心跳「顺带下发」的事件去重（2026-11-07） ----------------
+
+    /**
+     * 这条心跳事件是不是已经执行过 ✓
+     *
+     * 为什么要去重：心跳 30~60 秒一次 ✓ 同一条 `toast` 指令会被反复看到 ✗
+     * 服务器那边每 30 秒就要判一次「谁做过」也太重 ✗ ⇒ 客户端记一笔最省 ✓
+     */
+    fun isHeartbeatEventDone(id: String): Boolean =
+        pref.getStringSet("heartbeatEventsDone", null)?.contains(id) == true
+
+    /**
+     * 记下「这些心跳事件已执行」✓
+     *
+     * @param maxKeep 最多保留多少条（超了就从旧到新砍 ✓ 防 prefs 无限涨 ✗）
+     */
+    fun markHeartbeatEventsDone(ids: Collection<String>, maxKeep: Int = 50) {
+        if (ids.isEmpty()) return
+        val cur = pref.getStringSet("heartbeatEventsDone", null)?.toMutableSet() ?: mutableSetOf()
+        cur.addAll(ids)
+        if (cur.size > maxKeep) {
+            // LinkedHashSet 无序 ✗ 直接截断（数量少 ✓ 丢几个旧 id 不影响 ✓）
+            val trimmed = cur.toList().takeLast(maxKeep).toMutableSet()
+            pref.edit().putStringSet("heartbeatEventsDone", trimmed).apply()
+        } else {
+            pref.edit().putStringSet("heartbeatEventsDone", cur).apply()
+        }
+    }
+
     /** 记下「这条公告已读」✓ 只增不减（服务端换 id 就等于新公告 ✓） */
     fun dismissNotice(id: String) {
         val cur = pref.getStringSet("dismissedNotices", null)?.toMutableSet() ?: mutableSetOf()
@@ -430,9 +460,101 @@ object PrefManager {
      *
      * ⚠️ 关着时拦截器只做一次 bool 判断 ✓ **零开销** ✓
      */
+    /**
+     * 是否加入「用户改善计划」（设置 → 高级，**默认关闭** ✓ 2026-11-07）
+     *
+     * 开着的含义（用户要求）：
+     *   · **接受心跳接口下发的事件**（toast / dialog / gates / log …）
+     *   · 心跳请求头带 `X-Client-Improve: 1` ⇒ 服务器知道这台设备愿意配合 ✓
+     *
+     * 关着时：
+     *   · 心跳照常上报（统计不受影响 ✓）
+     *   · 但**不执行**任何下发事件 ✗（连 toast 都不弹 ✓）
+     *   · 请求头带 `X-Client-Improve: 0` ✓
+     */
+    var joinImprovePlan: Boolean
+        get() = pref.getBoolean("joinImprovePlan", false)
+        set(value) = pref.edit().putBoolean("joinImprovePlan", value).apply()
+
     var recordHttpLog: Boolean
         get() = pref.getBoolean("recordHttpLog", false)
         set(value) = pref.edit().putBoolean("recordHttpLog", value).apply()
+
+    // ---------------- 全局日志（2026-11-08 A 步）----------------
+    // 全部默认关闭：release 上只让 W/E 走 logcat（见 logLevelValue 的兜底）✓
+    // 用户在「设置→高级」里打开后，才按模块落盘/进内存环（C 步接界面）
+
+    /** 总开关 */
+    var logEnabled: Boolean
+        get() = pref.getBoolean("logEnabled", false)
+        set(value) = pref.edit().putBoolean("logEnabled", value).apply()
+
+    /** 级别：v / d / i / w / e（存的字符串，方便设置页直接绑） */
+    var logLevel: String
+        get() = pref.getString("logLevel", "i") ?: "i"
+        set(value) = pref.edit().putString("logLevel", value).apply()
+
+    /**
+     * 生效的最低级别（int，与 logcat 对齐）
+     *
+     * 开关没开时不返回 0（那样日志会全开），而是：
+     * · debug 包：INFO（约等于原来 Log.i 那批，不会突然变吵）
+     * · release 包：WARN（只留异常与警告）
+     */
+    val logLevelValue: Int
+        get() {
+            if (!logEnabled) {
+                // 用 debuggable 标志判断，不依赖 BuildConfig（见提交说明：那行 import 和
+                // BuildConfig.MODE_PRIVATE 会打架，CI 直接报 Unresolved ✗）
+                val debuggable = runCatching {
+                    (context.applicationInfo.flags and
+                            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                }.getOrDefault(false)
+                return if (debuggable) 4 else 5
+            }
+            return when (logLevel.lowercase()) {
+                "v" -> 2
+                "d" -> 3
+                "i" -> 4
+                "w" -> 5
+                "e" -> 6
+                else -> 4
+            }
+        }
+
+    /**
+     * 模块白名单（空集 = 全部允许）
+     *
+     * 存成 StringSet，元素是 [LogModule.key]（如 "net" / "card"）
+     */
+    var logModules: Set<String>
+        get() = pref.getStringSet("logModules", emptySet()) ?: emptySet()
+        set(value) = pref.edit().putStringSet("logModules", value).apply()
+
+    /** 这个模块要不要记日志 */
+    fun isLogModuleEnabled(key: String): Boolean {
+        val set = logModules
+        return set.isEmpty() || set.contains(key)
+    }
+
+    /** 文件日志保留天数（B 步落盘时用） */
+    var logFileDays: Int
+        get() = pref.getInt("logFileDays", 3)
+        set(value) = pref.edit().putInt("logFileDays", value).apply()
+
+    /**
+     * 心跳 `notice` 事件推送过来的公告卡（2026-11-07）
+     *
+     * 存成一个 **JSON 数组字符串** ✓ 由 `NoticeRepo.pushCard` 维护 ✓
+     * · 和 `/notice/` 下发的卡合并显示 ✓
+     * · 用户点叉（已读）后按 id 隐藏 ✓
+     * · 卡里带 `until` 的过期自动丢 ✓
+     * · 接口挂掉/断网时仍然显示 ✓（这是它比服务器公告强的地方）
+     */
+    var pushedNotices: String
+        get() = pref.getString("pushedNotices", "[]").orEmpty()
+        set(value) = pref.edit().putString("pushedNotices", value).apply()
+
     var isVerifySsl: Boolean
         get() = pref.getBoolean("verifySsl", true)
         set(value) = pref.edit().putBoolean("verifySsl", value).apply()
@@ -512,6 +634,16 @@ object PrefManager {
      *
      * 用户 2026-10-31 需求：「首次点击会跳出弹窗 ... 用户同意后先保存他的偏好」
      */
+    /**
+     * 首次启动的欢迎/激活流程是否走完（2026-11-08）
+     *
+     * 四步：欢迎 → 机型参数 → 取号 → 开关确认
+     * 只有走完（点「完成」）才置 true；之后再也进不去 ✓
+     */
+    var onboarded: Boolean
+        get() = pref.getBoolean("onboarded", false)
+        set(value) = pref.edit().putBoolean("onboarded", value).apply()
+
     var reportAllianceJoined: Boolean
         get() = pref.getBoolean("report_alliance_joined", false)
         set(value) {

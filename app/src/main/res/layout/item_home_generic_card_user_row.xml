@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  通用卡片里的「用户行」—— 对齐官方 item_user.xml（2026-11-08）
+
+  官方结构（_rev/ref_res/res/layout/item_user.xml）：
+    CoolapkCardView(cardStyle=3)
+    └ LinearLayout 横排 · padding 水平 16dp / 垂直 10dp
+       ├ UserAvatarView 40×40dp · marginTop 2dp
+       ├ 竖排 · marginLeft 16dp · weight=1
+       │   ├ 昵称 16sp maxLines=1
+       │   └ detail 12sp（「85关注」「56粉丝」「1小时前活跃」三段）
+       └ ActionButtonFrameLayout minWidth 56dp / minHeight 28dp · marginTop 8dp
+           └ 按钮文字 12sp · padding 左右 8dp      ← 关注 / 已关注
+
+  这里用 MaterialButton（已在本项目多处使用，跟 M3 主题最稳）代替 ActionButtonFrameLayout，
+  尺寸/字号照官方：56×28dp、12sp。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="10dp">
+
+    <ImageView
+        android:id="@+id/avatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        tools:src="@mipmap/ic_launcher" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
+            tools:text="KoCleo" />
+
+        <LinearLayout
+            android:id="@+id/detailContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/followCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="85关注" />
+
+            <TextView
+                android:id="@+id/fansCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="56粉丝" />
+
+            <TextView
+                android:id="@+id/activeTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp"
+                tools:text="1小时前活跃" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/followBtn"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="28dp"
+        android:layout_marginStart="8dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:minWidth="56dp"
+        android:minHeight="28dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="关注"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+</LinearLayout>

@@ -9,11 +9,7 @@
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- 扫码登录（阶段 ④）：调用摄像头扫描桌面端二维码 -->
-    <uses-permission android:name="android.permission.CAMERA" />
     <!-- 没有摄像头的设备也能装（扫码入口内部会提示不支持） -->
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="false" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
@@ -464,14 +460,34 @@
             <activity
                 android:name=".ui.account.AccountManagerActivity"
                 android:exported="false" />
-            <activity
-                android:name=".ui.account.ScanActivity"
-                android:exported="false"
-                android:screenOrientation="portrait"
-                android:theme="@style/Theme.C001apk" />
         <activity
             android:name=".ui.follow.LocalFollowActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".ui.homefeed.RecentFollowActivity"
+            android:exported="false"
+            android:label="最近更新" />
+
+        <!-- 全局日志查看/导出（2026-11-08 C 步） -->
+        <!-- 首次启动的欢迎/激活流程（2026-11-08） -->
+        <activity
+            android:name=".ui.onboarding.OnboardingActivity"
+            android:exported="false"
+            android:label="欢迎"
+            android:theme="@style/Theme.C001apk" />
+
+        <activity
+            android:name=".ui.settings.LogCenterActivity"
+            android:exported="false"
+            android:label="日志"
+            android:theme="@style/Theme.C001apk" />
+
+        <activity
+            android:name=".ui.settings.LogViewerActivity"
+            android:exported="false"
+            android:label="最近日志"
+            android:theme="@style/Theme.C001apk" />
 
         <activity
             android:name=".ui.follow.FFFListActivity"

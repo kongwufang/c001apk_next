@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  搜索联想的横幅卡（官方 imageScaleCard → item_image_list_card）
+
+  官方是 Banner 轮播 + 3% aspectRatio + 4dp 圆点指示器。
+  实测这个位置只有 1 条（抖音广告位），所以用单张 ImageView，
+  宽度撑满、高度按 5.4:1 的比例给一个保守值（官方图是 @1080x200 ≈ 5.4:1）。
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginBottom="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <ImageView
+        android:id="@+id/banner_image"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:background="?attr/selectableItemBackground"
+        android:minHeight="64dp"
+        android:scaleType="centerCrop" />
+</com.google.android.material.card.MaterialCardView>

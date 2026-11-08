@@ -55,6 +55,9 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
     private val fabViewBehavior by lazy { HideBottomViewOnScrollBehavior<FloatingActionButton>() }
     private val placeHolderAdapter by lazy { PlaceHolderAdapter() }
 
+    /** 「关注」tab 顶部的「最近更新 + 分组 chips」（其它 tab 为 null ✓） */
+    private var followHeader: FollowHeaderAdapter? = null
+
     companion object {
         @JvmStatic
         fun newInstance(type: String) =
@@ -126,6 +129,28 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
 
     }
 
+    /**
+     * 「关注」tab 的头部（2026-11-07 ✓ 对照官方 App 补的）
+     *
+     * 官方关注页在动态列表前有两行：最近更新头像 + 分组 chips ✓
+     * 这里用 [FollowHeaderAdapter] 插到 ConcatAdapter 最前面 ✓
+     */
+    override fun topAdapter(): androidx.recyclerview.widget.RecyclerView.Adapter<*>? {
+        if (viewModel.type != "follow") return null
+        return FollowHeaderAdapter(
+            onPickGroup = { key -> switchFollowGroup(key) },
+            onOpenRecent = { openRecentFollow() },
+            onPickUser = { uid, _ ->
+                if (uid.isNotEmpty()) runCatching {
+                    com.example.c001apk.util.IntentUtil.startActivity<
+                        com.example.c001apk.ui.user.UserActivity>(requireContext()) {
+                        putExtra("id", uid)
+                    }
+                }
+            }
+        ).also { followHeader = it }
+    }
+
     override fun initView() {
         super.initView()
 
@@ -141,6 +166,26 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
             event.getContentIfNotHandledOrReturnNull()?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
             }
+        }
+
+        // ★ 关注 tab 的头部：从动态里反推「最近更新」的人 + 同步当前分组高亮
+        //   （2026-11-07 ✓ 顺序 = 列表顺序 ⇒ 天然按时间新→旧 ✓）
+        if (viewModel.type == "follow") {
+            // 头像行用**独立接口**的数据（不再从已加载动态里反推 ✗）
+            viewModel.recentUsers.observe(viewLifecycleOwner) { list ->
+                val header = followHeader ?: return@observe
+                header.setAuthors(
+                    list.map {
+                        FollowHeaderAdapter.Author(
+                            uid = it.uid.orEmpty(),
+                            name = it.username.orEmpty(),
+                            avatar = it.userAvatar.orEmpty(),
+                        )
+                    }
+                )
+                header.setSelected(PrefManager.FOLLOWTYPE)
+            }
+            viewModel.fetchRecentUsers()
         }
     }
 
@@ -286,6 +331,34 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
             }
             show()
         }
+    }
+
+    /** 进「有更新的酷友」页（官方就是这么点进去的 ✓ 2026-11-07） */
+    private fun openRecentFollow() {
+        startActivity(android.content.Intent(requireContext(), RecentFollowActivity::class.java))
+    }
+
+    /** 切换关注分组（chips 点击 ⇒ 换 url 重新拉 ✓ 逻辑与原来的弹窗一致） */
+    private fun switchFollowGroup(key: String) {
+        val url = when (key) {
+            "all" -> "/page?url=V9_HOME_TAB_FOLLOW"
+            "circle" -> "/page?url=V9_HOME_TAB_FOLLOW&type=circle"
+            "topic" -> "/page?url=V9_HOME_TAB_FOLLOW&type=topic"
+            "product" -> "/page?url=V9_HOME_TAB_FOLLOW&type=product"
+            else -> "/page?url=V9_HOME_TAB_FOLLOW&type=apk"
+        }
+        val title = when (key) {
+            "all" -> "全部关注"
+            "circle" -> "好友关注"
+            "topic" -> "话题关注"
+            "product" -> "数码关注"
+            else -> "应用关注"
+        }
+        if (viewModel.dataListUrl == url) return
+        PrefManager.FOLLOWTYPE = key
+        followHeader?.setSelected(key)
+        // ★ 不清空列表、不切 loading ⇒ 头部两行不会闪一下消失 ✓
+        viewModel.switchGroup(url, title)
     }
 
     override fun fetchData() {

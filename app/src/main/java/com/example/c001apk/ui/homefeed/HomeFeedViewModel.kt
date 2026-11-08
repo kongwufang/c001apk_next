@@ -251,6 +251,54 @@ class HomeFeedViewModel @AssistedInject constructor(
 
     var dataListUrl: String? = null
     var dataListTitle: String? = null
+
+    /**
+     * 「最近更新」那排头像的数据（2026-11-07 ✓ 用户反馈"切 tab 不跟着变"）
+     *
+     * 真源：官方同一个接口
+     *   `/UserHelper/getFollowRows?type=user&getDataRowsByCard=1&sort=lastFeed&title=有更新的酷友`
+     * 原来是从**已加载动态**里反推作者 ✗ ⇒ 只有第一屏的人、切分组也不变 ✗
+     * 现在独立请求 ✓ 切分组 / 下拉刷新都会重拉 ✓
+     */
+    val recentUsers =
+        androidx.lifecycle.MutableLiveData<List<com.example.c001apk.logic.model.HomeFeedResponse.Data>>()
+
+    fun fetchRecentUsers() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val url = "/UserHelper/getFollowRows?type=user&getDataRowsByCard=1&sort=lastFeed" +
+                    "&title=" + java.net.URLEncoder.encode("有更新的酷友", "UTF-8")
+            networkRepo.getDataList(url, "有更新的酷友", null, null, 1).collect { result ->
+                val list = result.getOrNull()?.data.orEmpty()
+                    .filter { it.entityType == "user" && !it.username.isNullOrEmpty() }
+                recentUsers.postValue(list)
+            }
+        }
+    }
+
+    /** 切换关注分组（2026-11-07 ✓ 用户反馈「切分组时头像那行先消失、下面挤上来再挤回去」）
+     *
+     * ## 为什么不能像原来那样干
+     * 原来：`dataList = emptyList()` + `loadingState = Loading`
+     *   ⇒ 列表清空 + 页面切到 loading
+     *   ⇒ 顶部「最近更新 + chips」跟着列表一起消失 ✗ 视觉上就是"跳一下"✗
+     *
+     * ## 现在的做法
+     * 列表**不清空** ✓ 只改 url 并从第 1 页重拉 ✓
+     *   `isRefreshing = true` ⇒ fetchDataList 里会 `currentList.clear()` 再填 ✓
+     *   新数据到达才替换 ✓ 期间旧列表 + 头部都还在 ✓ 不跳动 ✓
+     */
+    fun switchGroup(url: String, title: String) {
+        if (dataListUrl == url) return
+        dataListUrl = url
+        dataListTitle = title
+        page = 1
+        lastItem = null
+        isEnd = false
+        isRefreshing = true
+        isLoadMore = false
+        fetchData()
+        fetchRecentUsers()   // 切分组 ⇒ 顶部那排头像也重拉 ✓
+    }
     private fun fetchDataList() {
         viewModelScope.launch(Dispatchers.IO) {
             networkRepo.getDataList(
@@ -284,8 +332,27 @@ class HomeFeedViewModel @AssistedInject constructor(
                             lastItem = feed.data.last().id
                             if (isRefreshing)
                                 currentList.clear()
+                            // ★ 2026-11-08 页面级日志：这次请求到底下发了哪些卡片
+                            //   （只看 CARD_RENDER 会有盲区：feed 卡不走通用渲染 ✗）
+                            runCatching {
+                                val hist = feed.data.groupingBy { it.entityTemplate ?: it.entityType ?: "?" }
+                                    .eachCount().entries.sortedByDescending { it.value }
+                                    .joinToString(", ") { "${it.key}=${it.value}" }
+                                com.example.c001apk.util.AppLog.i(
+                                    com.example.c001apk.util.LogModule.CARD, "HomeFeedViewModel",
+                                    "PAGE_LOAD page=${dataListUrl ?: ""} n=${feed.data.size} templates={$hist}"
+                                )
+                            }
                             if (isRefreshing || isLoadMore) {
                                 feed.data.forEach {
+                                    // ★ 2026-11-07 用户要求：话题关注 tab 里那张
+                                    //   「我关注的话题」卡（textLinkListCard / adminCard-topic-…）
+                                    //   不显示 ✓ 只在这一页隐藏；好友关注那页的「我关注的酷友」保留 ✓
+                                    if (it.entityTemplate == "textLinkListCard" &&
+                                        dataListUrl?.contains("type=topic") == true
+                                    ) {
+                                        return@forEach
+                                    }
                                     when (it.entityType) {
                                         "card" -> when (it.entityTemplate) {
                                             "iconLinkGridCard" -> currentList.add(it)

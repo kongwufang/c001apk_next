@@ -8,7 +8,7 @@ object ActivityCollector {
 
     fun addActivity(activity: Activity) {
         activities.add(activity)
-        // Log.i("ActivityCollector", "addActivity: ${activity.javaClass.name}")
+        // AppLog.i(LogModule.UI, "ActivityCollector", "addActivity: ${activity.javaClass.name}")
     }
 
     fun removeActivity(activity: Activity) {

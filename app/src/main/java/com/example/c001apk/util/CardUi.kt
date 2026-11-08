@@ -131,8 +131,11 @@ object CardUi {
      * `entityTypeName` 一律排最后：它多半是 `pear_goods`、`product` 这类内部名，
      * 有真实描述时不该把它顶出来（京东商品卡以前就显示成「商品名 / pear_goods」）。
      */
-    const val DEFAULT_ICON = "logo|pic|goods_pic|icon|tpic|userAvatar|cover"
-    const val DEFAULT_ITEM_TITLE = "title|goods_title|device_title|alias_title|config_name|name"
+    // ★ 2026-11-08：user 实体的头像字段叫 avatar（iconListCard「优质酷友」）
+    const val DEFAULT_ICON = "logo|pic|goods_pic|icon|tpic|userAvatar|avatar|cover"
+    // ★ 2026-11-08：user 实体没有 title，只有 username / displayUsername
+    const val DEFAULT_ITEM_TITLE =
+        "title|goods_title|device_title|alias_title|config_name|username|displayUsername|name"
     const val DEFAULT_ITEM_SUBTITLE =
         "sub_title|subTitle|description|message|goods_promo_title|goods_promo_price|entityTypeName"
 
@@ -238,8 +241,24 @@ object CardUi {
         m["sponsorArticleNews"] = Rule(layout = AUTO)
 
         HSCROLL_TEMPLATES.forEach { m[it] = Rule(layout = HSCROLL) }
-        LIST_TEMPLATES.forEach { m[it] = Rule(layout = LIST) }
+        // ★ 2026-11-08 对齐官方：LIST 族（iconListCard「优质酷友」「热门数码」等）
+        //   官方是**横排行**：左图标 + 右文字（+ 右侧按钮）✓
+        //   原来用 SHAPE_AUTO ⇒ shapeOf() 有图就判成 SHAPE_TILE（竖排居中）
+        //   ⇒ 变成单列大图标 + 居中标题 ✗（用户截图指出）
+        LIST_TEMPLATES.forEach {
+            m[it] = Rule(layout = LIST, item = ItemRule(shape = SHAPE_ROW))
+        }
         GRID_TEMPLATES.forEach { (t, span) -> m[t] = Rule(layout = GRID, span = span) }
+
+        // ★ 2026-11-07 首页「关注」tab 实测补的两条（数据见 _rev/follow/tab_*.json）：
+        //   textLinkListCard：好友关注 / 话题关注里下发的那种「一行文字链接」卡，
+        //     实体是 textLink（例：{entityType:textLink, title:"我关注的酷友", url:"/user/myFollowList"}）
+        //     官方就是一行「标题 + 右箭头」整行可点 ⇒ 走 LINKS 的单条分支（renderTopContent 那套行布局）✓
+        //   注意：必须在 HSCROLL/LIST/GRID 三个循环**之后**配，否则会被后面的批量赋值盖掉 ✗
+        m["textLinkListCard"] = Rule(layout = LINKS)
+        //   iconGridCard：热门话题宫格（实体是 topic：logo + title）
+        //     数码/应用关注里各出现 1 次；原来自动推断会排成 2 列 ✗ 官方是 3 列 ✓
+        m["iconGridCard"] = Rule(layout = GRID, span = 3)
 
         // 下面两条是实测过的例外，必须排在上面几个批量模板之后才不会被盖掉
         // 图片放大卡：实测是整宽大图 + 标题，按实体数推断会排成宫格

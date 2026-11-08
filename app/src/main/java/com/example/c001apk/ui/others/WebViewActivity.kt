@@ -1,5 +1,7 @@
 package com.example.c001apk.ui.others
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
@@ -428,7 +430,7 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
                         startActivity(intent)
                     } catch (e: ActivityNotFoundException) {
                         Toast.makeText(this, "打开失败", Toast.LENGTH_SHORT).show()
-                        Log.w("error", "Activity was not found for intent, $intent")
+                        AppLog.w(LogModule.UI, "WebViewActivity", "Activity was not found for intent, $intent")
                     }
                 }
             }

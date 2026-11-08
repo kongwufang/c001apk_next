@@ -124,9 +124,7 @@ object CloudGates {
             PrefManager.cloudGatesTs = System.currentTimeMillis()
         }
         if (changed) {
-            Log.i(
-                TAG,
-                "云控开关已更新 alliance=$alliance reportOther=$reportOther cardAssoc=$cardAssoc"
+            AppLog.i(LogModule.GATES, "CloudGates", "云控开关已更新 alliance=$alliance reportOther=$reportOther cardAssoc=$cardAssoc"
             )
         }
     }
@@ -134,6 +132,16 @@ object CloudGates {
     // ---------------------------------------------------------------- 拉取
 
     private val fetching = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * 让下次读开关时**立刻**重新拉一次（心跳下发 `gates` 事件时用 ✓）
+     *
+     * 实现：把 CloudGates 的「上次拉取时间」清零 ⇒ [needFetch] 立刻 true ✓
+     * 不动当前值 ✗（拉失败时还能退回旧值 ✓ 不会因为一次网络抖动把功能关掉 ✗）
+     */
+    fun invalidate() {
+        runCatching { PrefManager.cloudGatesTs = 0L }
+    }
 
     /** 该拉了吗（超过 TTL ✓）*/
     private fun needFetch(): Boolean {
@@ -157,6 +165,7 @@ object CloudGates {
                     .header("X-Client-SSaid", PrefManager.ssaid)
                     .header("X-App-userrandomid", PrefManager.userRandomId)
                     .header("X-Client-Version", com.example.c001apk.BuildConfig.VERSION_NAME)
+                .header(ServerIdentity.HEADER_API, ServerIdentity.API_VERSION.toString())
                     .header("X-Client-Code", com.example.c001apk.BuildConfig.VERSION_CODE.toString())
                     .header("X-Client-Platform", "android")
                     .header("User-Agent", Constants.USER_AGENT)
@@ -164,26 +173,24 @@ object CloudGates {
                 client.newCall(req).execute().use { resp ->
                     val text = resp.body?.string().orEmpty()
                     if (!resp.isSuccessful || text.isEmpty()) {
-                        Log.d(TAG, "云控拉取失败 HTTP ${resp.code}，沿用上次")
+                        AppLog.d(LogModule.GATES, "CloudGates", "云控拉取失败 HTTP ${resp.code}，沿用上次")
                         return@use
                     }
                     val j = runCatching { JSONObject(text) }.getOrNull()
                     if (j?.optInt("status") != 1) {
-                        Log.d(TAG, "云控返回异常，沿用上次: ${text.take(80)}")
+                        AppLog.d(LogModule.GATES, "CloudGates", "云控返回异常，沿用上次: ${text.take(80)}")
                         return@use
                     }
                     applyFrom(j)
                     PrefManager.cloudGatesTs = System.currentTimeMillis()
                     // ★ 2026-11-01 加一条「拉到了」的日志 ✓
                     //   原来只在「变化 / 失败」时打 ✗ ⇒ logcat 干净得像没跑 ✓（踩过）
-                    Log.i(
-                        TAG,
-                        "云控已拉取 alliance=$alliance reportOther=$reportOther " +
+                    AppLog.i(LogModule.GATES, "CloudGates", "云控已拉取 alliance=$alliance reportOther=$reportOther " +
                             "cardAssoc=$cardAssoc（下次 ${TTL_MS / 3600000}h 后）"
                     )
                 }
             }.onFailure {
-                Log.d(TAG, "云控拉取异常（沿用上次）：${it.javaClass.simpleName}")
+                AppLog.d(LogModule.GATES, "CloudGates", "云控拉取异常（沿用上次）：${it.javaClass.simpleName}")
             }
             fetching.set(false)
         }

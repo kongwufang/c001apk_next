@@ -29,6 +29,8 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
 
         viewModel.dataList.observe(viewLifecycleOwner) {
             viewModel.listSize = it.size
+            // ★ 2026-11-07：子类可以过滤（首页「关注」点头像只显示那个人的动态 ✓）
+            //   listSize 仍用**原始**条数 ✓ 否则上拉加载判断会错 ✗
             appAdapter.submitList(it)
             if (binding.vfContainer.displayedChild != it.size)
                 binding.vfContainer.displayedChild = it.size
@@ -62,8 +64,21 @@ abstract class BaseAppFragment<VM : BaseAppViewModel> : BaseViewFragment<VM>(),
             feedCoverAsFeed = viewModel.feedCoverAsFeed
         }
         footerAdapter = FooterAdapter(ReloadListener())
-        mAdapter = ConcatAdapter(HeaderAdapter(), appAdapter, footerAdapter)
+        // ★ 2026-11-07：子类可以在列表最上面塞自己的头部（首页「关注」的分组 chips 用 ✓）
+        val top = topAdapter()
+        mAdapter = if (top != null)
+            ConcatAdapter(top, HeaderAdapter(), appAdapter, footerAdapter)
+        else
+            ConcatAdapter(HeaderAdapter(), appAdapter, footerAdapter)
     }
+
+    /**
+     * 列表**最顶部**的额外适配器（可选 ✓ 默认没有）
+     *
+     * 用途：首页「关注」那种「最近更新头像 + 分组 chips」的头部 ✓
+     * 位置：排在 HeaderAdapter **之前** ⇒ 跟着列表一起滚动 ✓（官方也是这个行为 ✓）
+     */
+    protected open fun topAdapter(): androidx.recyclerview.widget.RecyclerView.Adapter<*>? = null
 
     inner class ReloadListener : FooterAdapter.FooterListener {
         override fun onReLoad() {

@@ -154,6 +154,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "animCurve" -> PrefManager.animCurve
                 "animType" -> PrefManager.animType
                 "animDuration" -> PrefManager.animDuration.toString()
+                "logLevel" -> PrefManager.logLevel
                 else -> throw IllegalArgumentException("Invalid key: $key")
             }
         }
@@ -167,13 +168,35 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
                 "animType" -> PrefManager.animType = value ?: TransitionAnim.TYPE_SLIDE
                 "animDuration" -> PrefManager.animDuration = value?.toIntOrNull() ?: 300
+                "logLevel" -> PrefManager.logLevel = value ?: "i"
                 else -> throw IllegalArgumentException("Invalid key: $key")
+            }
+        }
+
+        override fun getStringSet(
+            key: String?,
+            defValues: MutableSet<String>?
+        ): MutableSet<String>? {
+            return when (key) {
+                "logModules" -> PrefManager.logModules.toMutableSet()
+                else -> defValues
+            }
+        }
+
+        override fun putStringSet(key: String?, values: MutableSet<String>?) {
+            when (key) {
+                "logModules" -> PrefManager.logModules = values ?: emptySet()
+                else -> {}
             }
         }
 
         override fun getBoolean(key: String?, defValue: Boolean): Boolean {
             return when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog
+                "logEnabled" -> PrefManager.logEnabled
+                "recordHttpLog" -> PrefManager.recordHttpLog
+                "logUnified" -> PrefManager.logEnabled || PrefManager.recordHttpLog
+                "joinImprovePlan" -> PrefManager.joinImprovePlan
                 "blackDarkTheme" -> PrefManager.blackDarkTheme
                 "followSystemAccent" -> PrefManager.followSystemAccent
                 "showEmoji" -> PrefManager.showEmoji
@@ -190,6 +213,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         override fun putBoolean(key: String?, value: Boolean) {
             when (key) {
                 "recordHttpLog" -> PrefManager.recordHttpLog = value
+                "logEnabled" -> {
+                    PrefManager.logEnabled = value
+                    com.example.c001apk.util.LogFileSink.install(value)
+                }
+                "logUnified" -> {
+                    // 一个开关同时控制两套日志 ✓
+                    PrefManager.logEnabled = value
+                    PrefManager.recordHttpLog = value
+                    com.example.c001apk.util.LogFileSink.install(value)
+                }
+                "joinImprovePlan" -> PrefManager.joinImprovePlan = value
                 "blackDarkTheme" -> PrefManager.blackDarkTheme = value
                 "followSystemAccent" -> PrefManager.followSystemAccent = value
                 "showEmoji" -> PrefManager.showEmoji = value
@@ -205,6 +239,23 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
     }
 
     @SuppressLint("SetTextI18n", "InflateParams")
+    /**
+     * 延迟重建 Activity（**给开关动画让路** ✓）。
+     *
+     * 2026-11-06 用户反馈：设置 → 外观 里的开关**没有滑动动画**（推荐流相关里的有 ✓）。
+     * 原因不是动画被关 ✗ 而是这几个开关的监听里直接调了 `activity.recreate()` ✗
+     * ⇒ Activity 立刻重建 ⇒ 开关的 ValueAnimator 被中断 ⇒ 圆点直接跳 ✗
+     *
+     * 修法：post 延迟 220ms（Material 开关动画约 150~200ms ✓）再重建 ✓
+     * 偏好值在 onPreferenceChange 里已经落盘 ✓ 延迟不影响正确性 ✓
+     */
+    private fun recreateDelayed() {
+        val act = activity ?: return
+        act.window?.decorView?.postDelayed({
+            if (!act.isFinishing && !act.isDestroyed) act.recreate()
+        }, 220)
+    }
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         preferenceManager.preferenceDataStore = SettingsPreferenceDataStore()
         setPreferencesFromResource(R.xml.settings, rootKey)
@@ -219,7 +270,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
         findPreference<MaterialSwitchPreference>("blackDarkTheme")?.setOnPreferenceChangeListener { _, _ ->
             if (ResourceUtils.isNightMode(requireContext().resources.configuration))
-                activity?.recreate()
+                recreateDelayed()
             true
         }
 
@@ -277,17 +328,17 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
         findPreference<MaterialSwitchPreference>("followSystemAccent")?.setOnPreferenceChangeListener { _, _ ->
-            activity?.recreate()
+            recreateDelayed()
             true
         }
 
         findPreference<SimpleMenuPreference>("themeColor")?.setOnPreferenceChangeListener { _, _ ->
-            activity?.recreate()
+            recreateDelayed()
             true
         }
 
         findPreference<MaterialSwitchPreference>("showEmoji")?.setOnPreferenceChangeListener { _, _ ->
-            activity?.recreate()
+            recreateDelayed()
             true
         }
 
@@ -403,77 +454,10 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
 
 
-        // ── HTTP 请求日志（2026-10-18）──────────────────
-        // 开关走 PreferenceDataStore（见 getBoolean 分支 ✓）；这三项是「动作」
-        fun httpLogSummary(): String {
-            val (bytes, files, lineCount) = HttpLog.stats(requireContext())
-            if (bytes <= 0L) return getString(R.string.settings_http_log_empty)
-            val kb = bytes / 1024.0
-            val size = if (kb < 1024) String.format(Locale.US, "%.1f KB", kb)
-            else String.format(Locale.US, "%.2f MB", kb / 1024)
-            return "$size · $files 个文件 · $lineCount 条"
-        }
-
-        findPreference<Preference>("httpLogStats")?.apply {
-            summary = httpLogSummary()
+        // ---------- 日志（2026-11-08：合并成一个入口，操作都在 LogCenterActivity）----------
+        findPreference<Preference>("logCenter")?.apply {
             setOnPreferenceClickListener {
-                summary = httpLogSummary()
-                true
-            }
-        }
-
-        findPreference<Preference>("httpLogExport")?.apply {
-            setOnPreferenceClickListener {
-                val (bytes, _, _) = HttpLog.stats(requireContext())
-                if (bytes <= 0L) {
-                    Toast.makeText(requireContext(), R.string.settings_http_log_empty, Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                // 导出前必须说清会包含什么 ✓
-                MaterialAlertDialogBuilder(requireContext()).apply {
-                    setTitle(R.string.settings_http_log_export_title)
-                    setMessage(R.string.settings_http_log_export_message)
-                    setNegativeButton(android.R.string.cancel, null)
-                    setPositiveButton(android.R.string.ok) { _, _ ->
-                        val (name, content) = HttpLog.exportAll(requireContext())
-                        pendingExport = name to content
-                        startActivityForResult(
-                            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TITLE, name)
-                            },
-                            REQ_EXPORT_HTTP_LOG
-                        )
-                    }
-                    show()
-                }
-                true
-            }
-        }
-
-        findPreference<Preference>("httpLogClear")?.apply {
-            setOnPreferenceClickListener {
-                val (bytes, files, lineCount) = HttpLog.stats(requireContext())
-                if (bytes <= 0L) {
-                    Toast.makeText(requireContext(), R.string.settings_http_log_empty, Toast.LENGTH_SHORT).show()
-                    return@setOnPreferenceClickListener true
-                }
-                MaterialAlertDialogBuilder(requireContext()).apply {
-                    setTitle(R.string.settings_http_log_clear)
-                    setMessage("将删除 $files 个文件、$lineCount 条记录。此操作不可撤销。")
-                    setNegativeButton(android.R.string.cancel, null)
-                    setPositiveButton(android.R.string.ok) { _, _ ->
-                        val n = HttpLog.clear(requireContext())
-                        Toast.makeText(
-                            requireContext(),
-                            getString(R.string.settings_http_log_cleared, n),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        findPreference<Preference>("httpLogStats")?.summary = httpLogSummary()
-                    }
-                    show()
-                }
+                startActivity(Intent(requireContext(), LogCenterActivity::class.java))
                 true
             }
         }
@@ -526,7 +510,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
 
         findPreference<MaterialSwitchPreference>("isColorFilter")?.setOnPreferenceChangeListener { _, _ ->
             if (ResourceUtils.isNightMode(requireContext().resources.configuration))
-                activity?.recreate()
+                recreateDelayed()
             true
         }
 
@@ -579,7 +563,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         val intent = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
         if (intent == null) {
             // 拿不到启动 Intent（极罕见）：退化为重建当前 Activity，至少刷新界面
-            activity?.recreate()
+            recreateDelayed()
             return
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -650,5 +634,36 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             ).show()
         }
     }
+
+    /** 日志模块摘要：「全部模块」或「net, card」 */
+    private fun logModulesSummary(): String {
+        val set = PrefManager.logModules
+        return if (set.isEmpty()) "全部模块" else set.sorted().joinToString(", ")
+    }
+
+    /** 模块多选对话框（勾选 = 只记这些模块；全不选 = 全部） */
+    private fun showLogModulesDialog() {
+        val modules = com.example.c001apk.util.LogModule.values()
+        val checked = BooleanArray(modules.size) { i ->
+            PrefManager.logModules.contains(modules[i].key)
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("日志模块")
+            .setMultiChoiceItems(
+                modules.map { "${it.key}" }.toTypedArray(), checked
+            ) { _, which, isChecked -> checked[which] = isChecked }
+            .setNeutralButton("全选") { _, _ ->
+                PrefManager.logModules = modules.map { it.key }.toSet()
+                findPreference<Preference>("logModules")?.summary = logModulesSummary()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                PrefManager.logModules = modules.filterIndexed { i, _ -> checked[i] }
+                    .map { it.key }.toSet()
+                findPreference<Preference>("logModules")?.summary = logModulesSummary()
+            }
+            .show()
+    }
+
 
 }

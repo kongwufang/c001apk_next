@@ -1,5 +1,7 @@
 package com.example.c001apk
 
+import com.example.c001apk.util.AppLog
+import com.example.c001apk.util.LogModule
 import com.example.c001apk.util.SyncLocationBootstrap
 import android.annotation.SuppressLint
 import android.app.Application
@@ -106,12 +108,34 @@ class MyApplication : Application() {
         //   判定过期 ⇒ 复用 SzlmHint 的弹窗 + 一键去取号 ✓
         com.example.c001apk.util.SzlmMonitor.start()
 
+        // ★ 2026-11-07 诊断上报：装一个崩溃收集器（只存内存 ✓ 不落盘 ✓）
+        //   心跳下发 log 事件时，把它 + 设备快照 + 请求日志聚合一起上报
+        runCatching { com.example.c001apk.util.DiagReport.installCrashCollector() }
+
         // HTTP 请求日志的目录（设置 → 高级 里可开关 / 导出 / 清空 ✓）
         // 只是建一个目录 + 记下 context ✓ 开关关着时完全不写盘 ✓
         runCatching {
             com.example.c001apk.util.AppContextHolder.context = applicationContext
             com.example.c001apk.util.HttpLog.init(this)
         }
+
+        // ★ 2026-11-08 全局分模块日志（B 步）：建目录 + 按开关挂文件 sink
+        //   开关关着时 fileSink 是 null ⇒ 写盘开销为 0 ✓
+        //   内存环形缓冲（2000 条）不受开关影响，崩溃时 DiagReport 能拿到现场 ✓
+        runCatching {
+            com.example.c001apk.util.LogFileSink.init(this)
+            com.example.c001apk.util.LogFileSink.install(
+                com.example.c001apk.util.PrefManager.logEnabled
+            )
+        }
+
+        // 启动打一条（级别/模块开关都过才写）：这条是「日志到底通不通」的自检点 ✓
+        com.example.c001apk.util.AppLog.i(
+            com.example.c001apk.util.LogModule.APP, "Boot",
+            "onCreate 完成 ver=" + com.example.c001apk.util.PrefManager.VERSION_NAME +
+                    " level=" + com.example.c001apk.util.PrefManager.logLevel +
+                    " enabled=" + com.example.c001apk.util.PrefManager.logEnabled
+        )
 
         // 云端配置（用户认证表 / 可信链接白名单）：先用上次缓存，再后台刷新一次。
         // 放在这里而不是各页面里拉，是因为认证标散落在列表、详情、消息各处，
@@ -134,7 +158,7 @@ class MyApplication : Application() {
         // （那时单例已经建好）。这里冷启动时后台预热，把这份一次性开销从点开的瞬间挪走。
         Thread {
             runCatching { Sketch.with(this) }.onFailure {
-                android.util.Log.w("MyApplication", "Sketch 预热失败", it)
+                AppLog.w(LogModule.APP, "MyApplication", "Sketch 预热失败", it)
             }
         }.start()
 

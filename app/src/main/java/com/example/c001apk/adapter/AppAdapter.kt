@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import androidx.databinding.ViewDataBinding
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BR
 import com.example.c001apk.R
@@ -68,8 +69,15 @@ private const val TYPE_BLOCKED = -1001
 private const val TYPE_BLOCKED_TOPIC = -1002
 
 class AppAdapter(
-    private val listener: ItemListener
+    rawListener: ItemListener
 ) : BaseAdapter<ViewDataBinding>() {
+
+    /**
+     * ★ 2026-11-08 用户要求「每一次卡片点击都要有日志」
+     * ⇒ 统一在这里套一层装饰器，所有经过 AppAdapter 的点击都记 ITEM_CLICK ✓
+     *   （onOpenLink 自己已经打 CLICK_OPEN，不重复）
+     */
+    private val listener: ItemListener = LoggedItemListener(rawListener)
 
     /**
      * 用户内容列表里的 feedCover 也按完整动态卡排。
@@ -439,7 +447,12 @@ class AppAdapter(
             binding.title.text = data.title
             binding.title.isVisible = !data.title.isNullOrEmpty()
             // 右上角是接口下发的（「榜单」这类），点了跳卡片自己的 url
-            binding.subTitle.text = data.subTitle.orEmpty()
+            // ★ 2026-11-08：这里原来只写「更多」，和标题行的「更多 ›」不一致
+            //   ⇒ 补箭头，两种卡看起来才是一套（用户截图指出）
+            val subTitleText = data.subTitle.orEmpty()
+            binding.subTitle.text =
+                if (subTitleText.isEmpty() || subTitleText.contains("›")) subTitleText
+                else "$subTitleText ›"
             binding.subTitle.isVisible = !data.subTitle.isNullOrEmpty()
             binding.subTitle.setOnClickListener {
                 if (!data.url.isNullOrEmpty()) listener.onOpenLink(it, data.url, data.title)
@@ -784,7 +797,11 @@ class AppAdapter(
         val listener: ItemListener
     ) : BaseViewHolder<ViewDataBinding>(binding) {
         override fun bind(data: HomeFeedResponse.Data) {
-            GenericCardRenderer.render(binding, data, listener)
+            GenericCardRenderer.render(
+                binding, data, listener,
+                positionHint = if (bindingAdapterPosition != RecyclerView.NO_POSITION)
+                    bindingAdapterPosition else position
+            )
         }
     }
 

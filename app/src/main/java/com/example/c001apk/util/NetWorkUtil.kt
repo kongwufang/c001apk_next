@@ -13,6 +13,7 @@ import android.util.Log
 import android.widget.Toast
 import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.R
+import com.example.c001apk.ui.follow.FFFListActivity
 import com.example.c001apk.ui.app.AppActivity
 import com.example.c001apk.ui.carousel.CarouselActivity
 import com.example.c001apk.ui.coolpic.CoolPicActivity
@@ -173,10 +174,24 @@ object NetWorkUtil {
                     )
                 }
             }
-        } else if (replace.startsWith("#/feed/")) { // iconLinkGridCard-coolpic
+        } else if (replace.startsWith("/user/myFollowList") ||
+            replace.startsWith("#/user/myFollowList")
+        ) {
+            // ★ 2026-11-07 修：「我关注的酷友」卡（textLinkListCard）的 url 是 /user/myFollowList
+            //   实测服务端对这个 page url 直接回「无法访问该数据」✗（见 _rev/win_ref/_probe_cards.py）
+            //   ⇒ 别拿去请求，直接开我们自己的关注列表页 ✓
+            IntentUtil.startActivity<FFFListActivity>(context) {
+                putExtra("uid", PrefManager.uid)
+                putExtra("type", "follow")
+            }
+        } else if (replace.startsWith("#/feed/")) { // iconLinkGridCard-coolpic / titleCard 值得看
+            // ★ 2026-11-07 修：`#/feed/digestList?...`（「值得看」标题卡）里带 `#`
+            //   ⇒ 原样塞给 CarouselActivity 后，它拼出来的 /v6/page/dataList?url=#/feed/...
+            //     服务端认不出 ⇒ 界面只剩一个错误码 ✗
+            //   实测去掉 `#` 后（/feed/digestList?...）能正常返回 21 条 ✓
             IntentUtil.startActivity<CarouselActivity>(context) {
                 putExtra("title", title)
-                putExtra("url", url)
+                putExtra("url", replace.removePrefix("#"))
             }
         } else if (replace.startsWith("/apk/") || replace.startsWith("/game/")) {
             IntentUtil.startActivity<AppActivity>(context) {
@@ -239,9 +254,22 @@ object NetWorkUtil {
                 )
             }
         } else if (replace.startsWith("#/page?url=") || replace.startsWith("/page?url=")) {
-            IntentUtil.startActivity<CarouselActivity>(context) {
-                putExtra("url", replace.replace("#/page?url=", "").replace("/page?url=", ""))
-                putExtra("title", title)
+            // ★ 2026-11-06 安全（台账 AP-待办 2）：
+            //   `/page?url=` 里塞的是**任意地址** ✗ 之前直接进 CarouselActivity 的 WebView ✗
+            //   任何外部 App 都能 craft `coolmarket://page?url=https://任意站` 把我们当跳板 ✗
+            //   ⇒ 现在：域名在信任名单里才直接开 ✓ 否则**先问用户** ✓
+            val pageUrl = replace.replace("#/page?url=", "").replace("/page?url=", "")
+              // ⚠️ 实测：pageUrl 大多是**相对路径**（v9/page/...）✗ 没有 scheme/host ✗
+              //    LinkGuard.isTrusted 要 host ⇒ 一律判不信任 ⇒ 首页「今日酷安」卡一点就弹框 ✗
+              // ⇒ 相对路径 = 自家页面 ⇒ 直接进 Carousel ✓；只有绝对地址才过白名单 ✓
+              val absolute = pageUrl.startsWith("http://") || pageUrl.startsWith("https://")
+            if (!absolute || LinkGuard.isTrusted(pageUrl)) {
+                IntentUtil.startActivity<CarouselActivity>(context) {
+                    putExtra("url", pageUrl)
+                    putExtra("title", title)
+                }
+            } else {
+                confirmOpenWeb(context, pageUrl, title)
             }
         } else if (replace.startsWith("#/topic/") || replace.startsWith("/topic/")) {
             // 服务端下发的「栏目」url 必须整条交给 /v6/page/dataList，sort / keywords /
@@ -251,13 +279,32 @@ object NetWorkUtil {
             // 之前落到末尾的 else，只会弹「unsupported url」。
             // withConfigCard 那对参数是让服务端多下发一张空的 configCard（「默认配置」），
             // 通用列表渲染不了它、会多出一条空白卡片，所以剥掉（实测剥掉后正好 20 条榜单项）。
+            // ★ 2026-11-07：`#/topic/hotTagList?...`（热门话题宫格）也要先去掉前导 `#`
+            //   否则 CarouselActivity 拼出的 dataList url 带 `#` ⇒ 服务端报错 ⇒ 只剩错误码 ✗
+            val topicUrl = replace
+                .removePrefix("#")
+                .replace(Regex("[&?]withConfigCard=[^&]*"), "")
+                .replace(Regex("[&?]configCardExtraData=[^&]*"), "")
+            // ★ 2026-11-06 安全（台账 AP-待办 2）：这支持的是**自家**的栏目地址 ✓
+            //   但如果参数里挟带了外部 url ✗ 也要先问用户 ✓
+              val topicAbsolute = topicUrl.startsWith("http://") || topicUrl.startsWith("https://")
+            if (!topicAbsolute || LinkGuard.isTrusted(topicUrl)) {
+                IntentUtil.startActivity<CarouselActivity>(context) {
+                    putExtra("url", topicUrl)
+                    putExtra("title", title)
+                }
+            } else {
+                confirmOpenWeb(context, topicUrl, title)
+            }
+        } else if (replace.startsWith("#/")) {
+            // ★ 2026-11-08 修「点更多只会弹 unsupported url」：
+            //   「优质酷友」的更多是 #/member/rankList?…、「热门数码」是 #/product/hotProductList?…
+            //   这类内部路由都能当 page url 交给 /v6/page/dataList
+            //   （实测 rankList 21 条、hotProductList 20 条 ✓）
+            //   ⇒ 去掉前导 # 交给 CarouselActivity，别再落到末尾的 else ✗
+            val pageUrl = replace.removePrefix("#")
             IntentUtil.startActivity<CarouselActivity>(context) {
-                putExtra(
-                    "url",
-                    replace
-                        .replace(Regex("[&?]withConfigCard=[^&]*"), "")
-                        .replace(Regex("[&?]configCardExtraData=[^&]*"), "")
-                )
+                putExtra("url", pageUrl)
                 putExtra("title", title)
             }
         } else if (replace.startsWith("image.coolapk.com")) {
@@ -288,7 +335,7 @@ object NetWorkUtil {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(context, "打开失败", Toast.LENGTH_SHORT).show()
-            Log.w("error", "Activity was not found for intent, $intent")
+            AppLog.w(LogModule.UI, "NetWorkUtil", "Activity was not found for intent, $intent")
         }
     }
 
@@ -297,6 +344,35 @@ object NetWorkUtil {
      * 弹窗只能挂在 Activity 上，而 [openLink] 的调用方偶尔会传 Application context，
      * 所以这里解包一次；实在拿不到就退化成 Toast（至少别静默什么都不做）。
      */
+    /**
+     * ★ 2026-11-06（台账 AP-待办 2）：**不可信地址**在 App 内打开前的确认框。
+     *
+     * 和 [confirmLeaveApp] 的区别：这个是「**在 App 内**打开一个不可信网页」✗
+     * 那个是「离开 App 去浏览器」✓ 文案与确认后动作都不同 ✓
+     *
+     * 用户点「继续」⇒ 仍然用 WebViewActivity 打开 ✓（WebViewActivity 自己还有底部风险提示 ✓）
+     */
+    private fun confirmOpenWeb(context: Context, url: String, title: String?) {
+        val activity = context.findActivity()
+        val host = LinkGuard.hostOf(url)
+        val message = "这个页面来自 ${host.ifEmpty { "未知站点" }}，不是我们信任的站点。\n确定要打开吗？"
+        if (activity == null) {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            return
+        }
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.link_untrusted_title)
+            .setMessage(message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.link_external_confirm) { _, _ ->
+                IntentUtil.startActivity<WebViewActivity>(activity) {
+                    putExtra("url", url)
+                    if (!title.isNullOrEmpty()) putExtra("title", title)
+                }
+            }
+            .show()
+    }
+
     private fun confirmLeaveApp(context: Context, url: String) {
         val activity = context.findActivity()
         val message = "你即将离开 c001apk next，前往 ${LinkGuard.hostOf(url)}"

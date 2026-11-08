@@ -313,6 +313,9 @@ class NetworkRepo @Inject constructor(
     suspend fun getDataList(
         url: String, title: String, subTitle: String?, lastItem: String?, page: Int
     ) = fire {
+        // ★ 2026-11-08：卡片日志要能回答「这张卡是哪个请求来的」
+        com.example.c001apk.util.AppLog.page = url
+
         Result.success(apiService.getDataList(url, title, subTitle, lastItem, page).await())
     }
 

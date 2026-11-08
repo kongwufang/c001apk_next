@@ -80,9 +80,7 @@ suspend fun ossUpload(
             // 不要设 put.callbackParam：SDK 会用它自己生成一个 x-oss-callback 头盖掉上面手写的那个，
             // 而官方抓包（以及已验证跑通的流程）发的是上面那个带 {"bucket":..,"object":..} 的
             // callbackBody，服务端据此回 {data:{url:..}}。callbackUrl 只用来打日志。
-            Log.i(
-                "CoverDbg",
-                "oss put start: endPoint=" + endPoint + " bucket=" + bucket +
+            AppLog.i(LogModule.NET, "OSSUpload", "oss put start: endPoint=" + endPoint + " bucket=" + bucket +
                     " object=" + responseData.fileInfo[index].uploadFileName +
                     " contentType=" + typeList[index] +
                     " md5Null=" + (md5List[index] == null) +
@@ -136,16 +134,16 @@ class OSSCallBack(
         // Request exception
         if (clientException != null) {
             // Local exception, such as a network exception
-            Log.i("OSSUpload", "uploadFailed: clientException: ${clientException.message}")
+            AppLog.i(LogModule.NET, "OSSUpload", "uploadFailed: clientException: ${clientException.message}")
             clientException.printStackTrace()
         }
         if (serviceException != null) {
             // Service exception
-            Log.i("OSSUpload", "OSSUpload: serviceException: ${serviceException.message}")
-            Log.i("OSSUpload", "ErrorCode=" + serviceException.errorCode)
-            Log.i("OSSUpload", "RequestId=" + serviceException.requestId)
-            Log.i("OSSUpload", "HostId=" + serviceException.hostId)
-            Log.i("OSSUpload", "RawMessage=" + serviceException.rawMessage)
+            AppLog.i(LogModule.NET, "OSSUpload", "OSSUpload: serviceException: ${serviceException.message}")
+            AppLog.i(LogModule.NET, "OSSUpload", "ErrorCode=" + serviceException.errorCode)
+            AppLog.i(LogModule.NET, "OSSUpload", "RequestId=" + serviceException.requestId)
+            AppLog.i(LogModule.NET, "OSSUpload", "HostId=" + serviceException.hostId)
+            AppLog.i(LogModule.NET, "OSSUpload", "RawMessage=" + serviceException.rawMessage)
         }
     }
 }
