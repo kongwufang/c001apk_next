@@ -180,8 +180,9 @@ class LogViewerActivity : AppCompatActivity() {
         AppLog.snapshot().forEach { lines.add(it.format()) }
         val filtered = if (filter == null) lines
         else lines.filter { it.contains("/${filter}/") }
-        // 去重（文件与内存环会有重叠）
-        adapter.submit(filtered.distinct().takeLast(1500))
+        // 去重（文件与内存环会有重叠）→ 取最近 1500 条 → **反转成「新的在上」** ✓
+        // 2026-11-08 用户要求：从上到下 = 从新到旧，看一眼就是最新发生的
+        adapter.submit(filtered.distinct().takeLast(1500).asReversed())
         emptyView.visibility = if (filtered.isEmpty()) TextView.VISIBLE else TextView.GONE
         rv.visibility = if (filtered.isEmpty()) TextView.GONE else RecyclerView.VISIBLE
     }
