@@ -25,7 +25,20 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 object SzlmIdPrompt {
 
     /**
-     * 弹知情同意窗。
+     * 取号入口弹窗（2026-11-08 按用户要求简化）
+     *
+     * 原来是一大段「知情同意」正文，逐条列了要上传的机型参数 / SSAID / 版本 / UA。
+     * 用户的判断是：机型只是标记信息；Android 8+ 起系统对每个应用派发**各自独立**的
+     * SSAID，无法用来跨应用追踪设备 ⇒ 没必要拿一大段隐私说明吓用户。
+     *
+     * 现在只保留标题 + 两个动作：
+     * ```
+     *   获取数字联盟ID
+     *   [手动填入]   [自动获取（推荐）]
+     * ```
+     * · 自动获取（推荐）→ 打开内置网页换取 DUID（人机验证 + 签名校验都在网页侧）
+     * · 手动填入        → 弹输入框自己粘一个已有的 DUID
+     *
      * @param onDismiss 弹窗关闭（含两个按钮各自动作）后回调，调用方用它复位重入标记
      */
     fun showConsent(activity: Activity, onDismiss: (() -> Unit)? = null) {
@@ -35,12 +48,11 @@ object SzlmIdPrompt {
         }
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.szlm_id_consent_title)
-            .setMessage(R.string.szlm_id_consent_message)
-            .setNegativeButton(R.string.szlm_id_consent_manual) { d, _ ->
+            .setNegativeButton(R.string.szlm_id_get_manual) { d, _ ->
                 d.dismiss()
                 showManualInput(activity)
             }
-            .setPositiveButton(R.string.szlm_id_consent_agree) { d, _ ->
+            .setPositiveButton(R.string.szlm_id_get_auto) { d, _ ->
                 d.dismiss()
                 openWeb(activity)
             }
