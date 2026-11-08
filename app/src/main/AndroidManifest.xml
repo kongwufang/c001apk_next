@@ -470,6 +470,13 @@
             android:label="最近更新" />
 
         <!-- 全局日志查看/导出（2026-11-08 C 步） -->
+        <!-- 首次启动的欢迎/激活流程（2026-11-08） -->
+        <activity
+            android:name=".ui.onboarding.OnboardingActivity"
+            android:exported="false"
+            android:label="欢迎"
+            android:theme="@style/Theme.C001apk" />
+
         <activity
             android:name=".ui.settings.LogCenterActivity"
             android:exported="false"

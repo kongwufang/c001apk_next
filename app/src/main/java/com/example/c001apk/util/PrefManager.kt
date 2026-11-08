@@ -634,6 +634,16 @@ object PrefManager {
      *
      * 用户 2026-10-31 需求：「首次点击会跳出弹窗 ... 用户同意后先保存他的偏好」
      */
+    /**
+     * 首次启动的欢迎/激活流程是否走完（2026-11-08）
+     *
+     * 四步：欢迎 → 机型参数 → 取号 → 开关确认
+     * 只有走完（点「完成」）才置 true；之后再也进不去 ✓
+     */
+    var onboarded: Boolean
+        get() = pref.getBoolean("onboarded", false)
+        set(value) = pref.edit().putBoolean("onboarded", value).apply()
+
     var reportAllianceJoined: Boolean
         get() = pref.getBoolean("report_alliance_joined", false)
         set(value) {

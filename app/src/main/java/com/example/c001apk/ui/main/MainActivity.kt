@@ -1,5 +1,6 @@
 package com.example.c001apk.ui.main
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
@@ -14,6 +15,7 @@ import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
+import com.example.c001apk.ui.onboarding.OnboardingActivity
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivityMainBinding
 import com.example.c001apk.ui.base.BaseActivity
@@ -68,16 +70,17 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
         initMineDrawer()
 
         // 首次启动：告诉用户侧边栏在哪（否则☰太隐蔽，用户找不到 ✗）
+        // ★ 2026-11-08：首次启动先走「欢迎/激活」四步（OnboardingActivity），
+        //   里面的第 4 步已经把「加入匿名举报联盟」等开关问过了
+        //   ⇒ 这里原来那个「要不要加入匿名举报联盟」的弹窗**删掉** ✓
+        if (!PrefManager.onboarded) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
+            return
+        }
         if (!PrefManager.sidebarHintShown) {
             PrefManager.sidebarHintShown = true
-            // ★ 2026-11-01：「匿名举报联盟」改成首次进入主动问 ✓
-            //   ⚠️ 必须等新手提示**关掉之后**再问 ✗
-            //      两个 Dialog 同时弹会叠在一起 ✗ 用户一脸问号 ✗
-            //   ⇒ 在 showSidebarHint() 的 dismiss 回调里接着问 ✓
             binding.root.post { showSidebarHint() }
-        } else {
-            // 已经看过新手提示 ⇒ 直接问（同样是首次进入才问 ✓ 问过就置位 ✓）
-            binding.root.post { maybeAskReportAlliance() }
         }
     }
 
@@ -88,17 +91,15 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
      * 触发时机：新手提示 dismiss 之后 ✓（或本来就没有新手提示 ⇒ 启动即问 ✓）
      * 再等 400ms 让首页先画出来 ✓ 不然像连弹两个框 ✗
      */
+    /**
+     * 2026-11-08：「要不要加入匿名举报联盟」的弹窗已删除 ✗
+     * 这个开关改由首次启动的欢迎流程第 4 步询问（[OnboardingActivity]），
+     * 之后就只在「设置」里改，不再打扰用户 ✓
+     *
+     * 保留空函数：`showSidebarHint` 等处还引用过它，删掉函数会牵动一堆调用点。
+     */
     private fun maybeAskReportAlliance() {
-        if (PrefManager.reportAllianceAsked || com.example.c001apk.util.ReportAlliance.joined) {
-            return
-        }
-        PrefManager.reportAllianceAsked = true       // ★ 弹出前就置位 ✓ 中途被杀也不重复弹 ✓
-        binding.root.postDelayed({
-            if (isFinishing || isDestroyed) return@postDelayed
-            runCatching {
-                com.example.c001apk.util.ReportAllianceDialog.askJoin(this)
-            }
-        }, 400L)
+        // no-op：见上面的说明
     }
 
     /**
@@ -129,8 +130,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
             view.findViewById<android.view.View>(R.id.hintConfirm)
                 .setOnClickListener { dialog.dismiss() }
             // 关掉之后再问联盟 ⇒ 两个弹窗不会叠 ✓（见 maybeAskReportAlliance 注释）
-            dialog.setOnDismissListener { maybeAskReportAlliance() }
-            dialog.show()
+                dialog.show()
         }
     }
 
