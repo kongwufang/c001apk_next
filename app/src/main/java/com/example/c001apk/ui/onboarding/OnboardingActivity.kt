@@ -134,8 +134,10 @@ class OnboardingActivity : AppCompatActivity() {
             0 -> { step = 1; render() }
             1 -> { step = 2; render() }
             2 -> {
+                // 目标要求：**取号成功才可下一步** ✓ 未取到时按钮不可点（见 render 里 isEnabled）
                 if (!PrefManager.szlmIdConfigured) {
-                    Toast.makeText(this, "还没取到号，可以先去取，也可以稍后在设置里补", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "请先完成取号", Toast.LENGTH_SHORT).show()
+                    return
                 }
                 step = 3
                 render()
@@ -161,12 +163,14 @@ class OnboardingActivity : AppCompatActivity() {
         stepLabel.text = "第 ${step + 1} / 4 步"
         when (step) {
             0 -> {
+                primary.isEnabled = true
                 title.text = "欢迎使用 c001apk_next"
                 subtitle.text = "这是一个第三方酷安客户端。\n接下来有 3 个小步骤：选机型参数、取号、确认几个开关，很快就好。"
                 primary.text = "快速开始"
             }
 
             1 -> {
+                primary.isEnabled = true
                 title.text = "设置你的机型参数"
                 subtitle.text = "机型参数会随请求一起上报，用来让服务端按你的机型返回合适的内容（如机型话题、参数对比）。\n可以先去「设置 → 高级 → 机型参数」里挑一个，也可以稍后再设。"
                 primary.text = "下一步"
@@ -181,9 +185,11 @@ class OnboardingActivity : AppCompatActivity() {
                 title.text = "取号"
                 subtitle.text = "「数字联盟 ID」是酷安用来识别设备的一个标识。取号后请求里会带上它，否则个别接口可能被风控。\n\n点下面按钮授权并取号；取不到也可以先跳过。"
                 primary.text = "下一步"
+                // 未取到号 ⇒ 主按钮置灰（取号成功后 render() 会刷新成可用）
+                primary.isEnabled = PrefManager.szlmIdConfigured
                 body.addView(
                     actionText(
-                        if (PrefManager.szlmIdConfigured) "✓ 已取到号" else "开始取号 →"
+                        if (PrefManager.szlmIdConfigured) "✓ 已取到号（可以下一步了）" else "开始取号 →"
                     ) {
                         SzlmIdPrompt.showConsent(this) {
                             if (PrefManager.szlmIdConfigured) {
@@ -196,6 +202,7 @@ class OnboardingActivity : AppCompatActivity() {
             }
 
             else -> {
+                primary.isEnabled = true
                 title.text = "确认几个开关"
                 subtitle.text = "下面三个开关默认都是打开的，你可以逐个关掉。点「完成」才会保存。"
                 primary.text = "完成"
