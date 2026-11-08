@@ -174,9 +174,12 @@ class OnboardingActivity : AppCompatActivity() {
                 title.text = "设置你的机型参数"
                 subtitle.text = "机型参数会随请求一起上报，用来让服务端按你的机型返回合适的内容（如机型话题、参数对比）。\n可以先去「设置 → 高级 → 机型参数」里挑一个，也可以稍后再设。"
                 primary.text = "下一步"
+                // 2026-11-08 用户要求：直接跳「设置 → 高级 → 机型参数」那个页面
+                //   （原来是打开设置首页，还得自己点两下才到 ✗）
                 body.addView(
                     actionText("去设置机型参数 →") {
-                        startActivity(Intent(this, com.example.c001apk.ui.settings.SettingsActivity::class.java))
+                        com.example.c001apk.util.IntentUtil.startActivity<
+                            com.example.c001apk.ui.settings.params.ParamsActivity>(this) {}
                     }
                 )
             }
