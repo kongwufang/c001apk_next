@@ -105,7 +105,8 @@ object GenericCardRenderer {
         //   一条日志回答四个问题——哪个类渲染的、哪个模板、走哪套布局、内容是什么
         //   `first=true` 标记列表第一张卡（最常被用来定位「第一屏哪里不对」）
         val firstCard = positionHint == 0
-        AppLog.d(LogModule.CARD, "GenericCardRenderer") {
+        // 用 i 级：默认级别（INFO）就能看到，不用先切 VERBOSE ✓
+        AppLog.i(LogModule.CARD, "GenericCardRenderer") {
             "CARD_RENDER ${if (firstCard) "FIRST " else ""}" +
                     "renderer=GenericCardRenderer tpl=${template} type=${data.entityType} " +
                     "layout=${CardUi.rule(template)?.layout} span=${spec.span} horizontal=${spec.horizontal} " +

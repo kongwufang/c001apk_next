@@ -221,18 +221,25 @@ class LogCenterActivity : AppCompatActivity() {
         refresh()
     }
 
+    /**
+     * 级别选择
+     *
+     * ⚠️ 2026-11-08 踩坑：原来在 setSingleChoiceItems 的回调里直接 `d.dismiss()`
+     * ⇒ 点一下窗口立刻消失、看不到选中态，像「点了没反应」✗
+     * ⇒ 改成标准交互：单选只改临时变量，**点确定才生效**，取消则不变 ✓
+     */
     private fun pickLevel() {
         val keys = arrayOf("v", "d", "i", "w", "e")
         val labels = arrayOf("VERBOSE（最详细）", "DEBUG", "INFO（默认）", "WARN", "ERROR（只留错误）")
-        val cur = keys.indexOf(PrefManager.logLevel.lowercase()).coerceAtLeast(2)
+        var picked = keys.indexOf(PrefManager.logLevel.lowercase()).let { if (it < 0) 2 else it }
         MaterialAlertDialogBuilder(this)
             .setTitle("日志级别")
-            .setSingleChoiceItems(labels, cur) { d, which ->
-                PrefManager.logLevel = keys[which]
-                d.dismiss()
+            .setSingleChoiceItems(labels, picked) { _, which -> picked = which }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                PrefManager.logLevel = keys[picked]
                 refresh()
             }
-            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
