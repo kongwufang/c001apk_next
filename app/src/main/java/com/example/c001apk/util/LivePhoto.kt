@@ -51,4 +51,35 @@ object LivePhoto {
         if (url.isNullOrEmpty()) return null
         return url.removeSuffix(".s.jpg").removeSuffix(".thumbnail.jpg")
     }
+
+    /**
+     * 从 Motion Photo（JPEG + 尾部拼接 MP4）里截出视频字节（2026-11-13）
+     *
+     * 官方内置了这套解析器（dex 里的 livephoto/utils/MotionPhotoUtils、
+     * LIVEPHOTO_ENDDATA_LENGTH 等常量），说明实况图的**视频可以嵌在 JPEG 尾部**。
+     * 我们现在从 CDN 拿到的缩略图是被裁掉的（扫不到 ftyp），
+     * 所以这里做成「有就截、没有就返回 null」，将来拿到完整原图直接可用。
+     *
+     * 判定：在字节流里找第一个 `ftyp` 盒子（偏移 4 起的 `ftyp`），
+     * 它前面 4 字节是盒子长度；从 `ftyp` 前 4 字节开始算作 MP4 起点。
+     */
+    fun extractMotionVideo(jpeg: ByteArray?): ByteArray? {
+        if (jpeg == null || jpeg.size < 1024) return null
+        // 只在 JPEG 里找，避免把别的格式误判
+        if (jpeg[0] != 0xFF.toByte() || jpeg[1] != 0xD8.toByte()) return null
+        var i = 2
+        while (i + 8 < jpeg.size) {
+            if (jpeg[i] == 'f'.code.toByte() && jpeg[i + 1] == 't'.code.toByte() &&
+                jpeg[i + 2] == 'y'.code.toByte() && jpeg[i + 3] == 'p'.code.toByte()
+            ) {
+                val start = i - 4
+                if (start >= 0 && jpeg.size - start > 4096) {
+                    return jpeg.copyOfRange(start, jpeg.size)
+                }
+                return null
+            }
+            i++
+        }
+        return null
+    }
 }

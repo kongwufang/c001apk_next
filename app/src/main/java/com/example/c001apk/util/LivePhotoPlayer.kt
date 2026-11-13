@@ -41,8 +41,12 @@ object LivePhotoPlayer {
             }
             setOnErrorListener { _, what, extra ->
                 AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 失败 what=" + what + " extra=" + extra)
+                // 第一步失败（CDN 上没有独立 mp4）：兜底去解析 Motion Photo
+                if (runCatching { tryMotionPhoto(context, coverUrl, videoView) }.getOrDefault(false)) {
+                    return@setOnErrorListener true
+                }
                 runCatching { dialog.dismiss() }
-                Toast.makeText(context, "实况加载失败", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "该实况暂不支持播放，可先保存封面", Toast.LENGTH_SHORT).show()
                 true
             }
         }
@@ -210,6 +214,39 @@ object LivePhotoPlayer {
                 ).show()
             }
         }.start()
+        return true
+    }
+
+    /**
+     * 兜底：把封面下下来，看看尾部有没有拼接的 MP4（Motion Photo）
+     * 有 ⇒ 存成缓存文件并让 VideoView 播它；没有 ⇒ false
+     */
+    private fun tryMotionPhoto(
+        context: Context,
+        coverUrl: String?,
+        videoView: VideoView
+    ): Boolean {
+        val cover = LivePhoto.coverUrl(coverUrl) ?: return false
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        val req = okhttp3.Request.Builder().url(cover)
+            .header(
+                "User-Agent",
+                "Dalvik/2.1.0 (Linux; U; Android 13; PJZ110) +CoolMarket/16.7.3-2611121-universal"
+            )
+            .header("Referer", "https://www.coolapk.com/")
+            .build()
+        val bytes = client.newCall(req).execute().use { if (it.isSuccessful) it.body?.bytes() else null }
+            ?: return false
+        val mp4 = LivePhoto.extractMotionVideo(bytes) ?: return false
+        val f = java.io.File(context.cacheDir, "live_" + System.currentTimeMillis() + ".mp4")
+        f.outputStream().use { it.write(mp4) }
+        AppLog.i(LogModule.CARD, "LivePhoto", "MOTION 从 JPEG 尾部解析出视频 " + mp4.size + "B")
+        videoView.setVideoURI(android.net.Uri.fromFile(f))
+        videoView.setOnPreparedListener { mp -> mp.isLooping = true; mp.setVolume(0f, 0f); videoView.start() }
+        videoView.start()
         return true
     }
 }
