@@ -88,11 +88,11 @@ class NetworkRepo @Inject constructor(
 
     suspend fun getSearch(
         type: String, feedType: String, sort: String, keyWord: String, pageType: String?,
-        pageParam: String?, page: Int, lastItem: String?
+        pageParam: String?, page: Int, lastItem: String?, isStrict: Int = 0
     ) = fire {
         Result.success(
             apiService.getSearch(
-                type, feedType, sort, keyWord, pageType, pageParam, page, lastItem
+                type, feedType, sort, keyWord, pageType, pageParam, page, lastItem, isStrict
             ).await()
         )
     }
