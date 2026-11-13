@@ -61,8 +61,6 @@ class OnboardingActivity : AppCompatActivity() {
     // 第④步的三个开关（未点完成前只存内存 ✓）
     private var sslVerify = true
 
-    private val privacyUrl =
-        "https://raw.githubusercontent.com/kongwufang/c001apk_next/debug/docs/PRIVACY-IMPROVE-PLAN.md"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -224,13 +222,6 @@ class OnboardingActivity : AppCompatActivity() {
                 body.addView(switchRow("校验 SSL 证书", "更安全；抓包调试时需关闭", sslVerify) {
                     sslVerify = it
                 })
-                body.addView(
-                    actionText("查看隐私协议 ↗") {
-                        runCatching {
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl)))
-                        }
-                    }
-                )
             }
         }
     }
