@@ -276,16 +276,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         //   ⚠️ XML 里写了 persistent=false ⇒ 值由这里手动读写 PrefManager ✓
         //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
         //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
-        // 匿名举报联盟开关（2026-10-31）
-        // ⚠️ 用户没同意加入过联盟时开关显示为关且不可点 ✗
-        //    必须先从任意「举报」入口点一次「加入」✓
-            // ★ 2026-11-01 云控总闸：云控关了就把提示写清楚 ✓（开关本身仍归用户 ✓）
-            runCatching {
-                p?.summary = if (com.example.c001apk.util.CloudGates.alliance) {
-                    getString(com.example.c001apk.R.string.settings_report_alliance_on)
-                } else {
-                    getString(com.example.c001apk.R.string.settings_cloud_off)
-                }
             }
             isEnabled = joined
             summary = if (joined) {
