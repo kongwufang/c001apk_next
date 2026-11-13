@@ -412,3 +412,14 @@ fun avatarImage(imageView: ImageView, imageUrl: String?) {
     else
         ImageUtil.showIMG(imageView, imageUrl)
 }
+/**
+ * 实况图片角标（2026-11-13）
+ *
+ * 只要九宫格里有一张是实况图（URL 命中 livepic）就显示「实况」标签；
+ * 全部是普通图 ⇒ GONE（不占位）。
+ */
+@BindingAdapter("liveBadge")
+fun setLiveBadge(textView: TextView, picArr: List<String>?) {
+    val live = picArr != null && picArr.any { com.example.c001apk.util.LivePhoto.isLive(it) }
+    textView.visibility = if (live) android.view.View.VISIBLE else android.view.View.GONE
+}

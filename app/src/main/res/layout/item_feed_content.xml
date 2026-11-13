@@ -293,6 +293,24 @@
             app:pic="@{data.pic}"
             app:picArr="@{data.picArr}" />
 
+        <!-- 实况图片角标（官方 live_photo_tag）：九宫格里含 livepic 才显示 -->
+        <TextView
+            android:id="@+id/liveBadge"
+            android:tag="bl_body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#99000000"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:text="实况"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            app:liveBadge="@{data.picArr}"
+            app:layout_constraintEnd_toEndOf="@id/multiImage"
+            app:layout_constraintTop_toTopOf="@id/multiImage" />
+
         <!-- 媒体区下沿：视频槽和九图槽共用位置，谁可见由谁决定下面的扩展区从哪开始 -->
         <androidx.constraintlayout.widget.Barrier
             android:id="@+id/mediaBarrier"
