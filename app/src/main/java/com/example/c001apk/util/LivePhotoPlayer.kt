@@ -27,7 +27,7 @@ object LivePhotoPlayer {
     fun show(context: Context, coverUrl: String?) {
         val video = LivePhoto.videoUrl(coverUrl)
         if (video.isNullOrEmpty()) return
-        AppLog.i(LogModule.CARD, "LivePhoto") { "PLAY " + video }
+        AppLog.i(LogModule.CARD, "LivePhoto", "PLAY " + video)
 
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         val root = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
@@ -40,7 +40,7 @@ object LivePhotoPlayer {
                 start()
             }
             setOnErrorListener { _, what, extra ->
-                AppLog.w(LogModule.CARD, "LivePhoto") { "PLAY 失败 what=" + what + " extra=" + extra }
+                AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 失败 what=" + what + " extra=" + extra)
                 runCatching { dialog.dismiss() }
                 Toast.makeText(context, "实况加载失败", Toast.LENGTH_SHORT).show()
                 true
