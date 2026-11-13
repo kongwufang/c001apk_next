@@ -3,8 +3,10 @@ package com.example.c001apk.ui.search
 import android.os.Bundle
 import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.adapter.FooterState
 import com.example.c001apk.adapter.LoadingState
+import com.example.c001apk.adapter.ProductSortHeaderAdapter
 import com.example.c001apk.ui.base.BaseAppFragment
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -38,6 +40,26 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
             }
     }
 
+    /** 「动态」tab 顶部：官方那 5 个排序 chip（综合/实时/热度/评论/精确） */
+    private var sortHeader: ProductSortHeaderAdapter? = null
+
+    override fun topAdapter(): RecyclerView.Adapter<*>? {
+        if (viewModel.type != "feed") return null
+        val a = ProductSortHeaderAdapter(
+            viewModel.sort,
+            ProductSortHeaderAdapter.SEARCH_LABELS
+        ) { value ->
+            // 点 chip 等于换排序：sort + isStrict 一起改，然后重新加载
+            viewModel.sort = value
+            viewModel.isStrict = if (value == "none") 1 else 0
+            viewModel.dataList.value = emptyList()
+            viewModel.footerState.value = FooterState.LoadingDone
+            viewModel.loadingState.value = LoadingState.Loading
+        }
+        sortHeader = a
+        return a
+    }
+
     override fun onSearch(type: String, value: String, id: String?) {
         when (type) {
             "sort" -> {
@@ -50,6 +72,8 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
         viewModel.dataList.value = emptyList()
         viewModel.footerState.value = FooterState.LoadingDone
         viewModel.loadingState.value = LoadingState.Loading
+        // 菜单里也能换排序 ⇒ 让顶部 chip 跟着变（不触发回调）
+        sortHeader?.notifyDataSetChanged()
     }
 
     override fun onResume() {
