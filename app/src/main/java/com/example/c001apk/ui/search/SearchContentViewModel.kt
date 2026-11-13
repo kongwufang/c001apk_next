@@ -88,7 +88,9 @@ class SearchContentViewModel @AssistedInject constructor(
                             lastItem = search.data.last().id
                             if (isRefreshing)
                                 searchList.clear()
-                            if (isRefreshing || isLoadMore) {
+                            // ★ 2026-11-13：首次进入（既非 refresh 也非 loadMore）也必须入列
+                            //   原来只在 refresh/loadMore 时 add ⇒ 「综合」tab 永远空白 ✗
+                            run {
                                 if (type == "feed")
                                     search.data.forEach {
                                         if (it.entityType == "feed")
