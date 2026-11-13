@@ -70,6 +70,9 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
     override fun onResume() {
         super.onResume()
         window?.decorView?.post { enableTextSelection() }
+        // ★ 2026-11-13：Fragment 里的列表是异步加载的，onResume 时视图还不全 ⇒
+        //   再补一次延迟扫描（1.2s），否则动态详情/评论区的正文选不中 ✗
+        window?.decorView?.postDelayed({ enableTextSelection() }, 1200)
     }
 
     protected open val pageBackground: Boolean = true
