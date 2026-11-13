@@ -197,9 +197,14 @@ object NoticeRepo {
             for (i in 0 until arr.length()) {
                 if (buttons.size >= 3) break
                 val b = arr.optJSONObject(i) ?: continue
-                val t = b.optString("text").trim()
-                if (t.isEmpty()) continue
-                buttons.add(Button(t, b.optString("url").trim()))
+                // ★ 2026-11-13 修：服务端历史上用 `name`，客户端只认 `text`
+                //   ⇒ 卡片能显示但按钮丢失 ✗ 这里做双向兼容（text 优先，回退 name）✓
+                val label = b.optString("text").trim()
+                    .ifEmpty { b.optString("name").trim() }
+                if (label.isEmpty()) continue
+                val url = b.optString("url").trim()
+                if (!url.startsWith("https://") && !url.startsWith("http://")) continue
+                buttons.add(Button(label, url))
             }
         }
 
