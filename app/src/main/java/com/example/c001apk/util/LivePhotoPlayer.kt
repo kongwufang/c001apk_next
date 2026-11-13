@@ -172,7 +172,9 @@ object LivePhotoPlayer {
                     .setNotificationVisibility(
                         android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
                     )
-                    .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, name)
+                    .setDestinationInExternalFilesDir(
+                        context, android.os.Environment.DIRECTORY_DOWNLOADS, name
+                    )
                 dm.enqueue(req)
                 queued++
             }
