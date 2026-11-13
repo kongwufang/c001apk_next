@@ -103,6 +103,30 @@ object LivePhotoPlayer {
             ).apply { topMargin = 60; leftMargin = 30 }
         )
 
+        // 保存成对文件：封面 .jpg + 视频 .mp4（文件名沿用 hash 前缀，和官方一致）
+        val save = TextView(context).apply {
+            text = "保存"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            setPadding(40, 24, 40, 24)
+            setOnClickListener {
+                val ok = runCatching { savePair(context, coverUrl, video) }.getOrDefault(false)
+                Toast.makeText(
+                    context,
+                    if (ok) "已保存封面和实况视频" else "保存失败",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        root.addView(
+            save,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            ).apply { topMargin = 60 }
+        )
+
         val close = TextView(context).apply {
             text = "关闭"
             setTextColor(Color.WHITE)
@@ -124,5 +148,36 @@ object LivePhotoPlayer {
             runCatching { videoView.stopPlayback() }
         }
         dialog.show()
+    }
+
+    /**
+     * 成对保存（2026-11-13）
+     *
+     * 实况图 = 一张封面 jpg + 一段同 hash 前缀的 mp4，
+     * 官方下载也是两个文件，这里用系统 [DownloadManager] 各排一个任务，
+     * 文件名沿用 URL 里的 hash 前缀（例：44881806_cbfafce2_7304_3823_91-livepic）。
+     */
+    private fun savePair(context: Context, coverUrl: String?, videoUrl: String?): Boolean {
+        if (coverUrl.isNullOrEmpty() || videoUrl.isNullOrEmpty()) return false
+        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as? android.app.DownloadManager
+            ?: return false
+        val cover = LivePhoto.coverUrl(coverUrl) ?: return false
+        val base = cover.substringAfterLast('/').substringBefore('@').substringBeforeLast('.')
+        var queued = 0
+        listOf(cover to (base + ".jpg"), videoUrl to (base + ".mp4")).forEach { (url, name) ->
+            runCatching {
+                val req = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                    .setTitle(name)
+                    .setDescription("c001apk 实况图片")
+                    .setNotificationVisibility(
+                        android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                    )
+                    .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, name)
+                dm.enqueue(req)
+                queued++
+            }
+        }
+        AppLog.i(LogModule.CARD, "LivePhoto", "SAVE 成对下载 $queued 个文件 base=" + base)
+        return queued > 0
     }
 }
