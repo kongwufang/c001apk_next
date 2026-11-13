@@ -342,9 +342,6 @@
     <string name="report_submit_failed">提交失败，稍后再试</string>
     <string name="report_note_hint">补充说明（可选）</string>
     <!-- 设置项 -->
-    <string name="settings_report_alliance">匿名举报联盟</string>
-    <string name="settings_report_alliance_on">开启：举报按钮走自建匿名通道（不上报给酷安）</string>
-    <string name="settings_report_alliance_off">关闭：举报按钮点击后提示如何重新开启</string>
     <string name="report_no_id">这条内容缺少 ID，无法举报</string>
     <!-- 公共黑名单（2026-10-31） -->
     <string name="blocked_multi_report">该内容已被多人举报</string>
@@ -374,6 +371,4 @@
     <string name="update_no_changelog">无更新日志</string>
     <string name="update_open_link_failed">打开链接失败</string>
 
-    <string name="settings_improve_plan">加入用户改善计划</string>
-    <string name="settings_improve_plan_summary">开启后会接收服务器下发的提示与诊断请求，帮助我们更快定位你反馈的问题。默认关闭，随时可关。</string>
 </resources>
