@@ -55,6 +55,54 @@ object LivePhotoPlayer {
             )
         )
 
+        // 封面（点「静图」时显示；对应官方 live_photo_switch_view 的静图态）
+        val cover = android.widget.ImageView(context).apply {
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            visibility = android.view.View.GONE
+            runCatching {
+                com.example.c001apk.util.ImageUtil.showIMG(
+                    this, com.example.c001apk.util.LivePhoto.coverUrl(coverUrl)
+                )
+            }
+        }
+        root.addView(
+            cover,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER
+            )
+        )
+
+        // 「静图 / 视频」切换（官方 live_photo_switch_view）
+        val toggle = TextView(context).apply {
+            text = "静图"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            setPadding(40, 24, 40, 24)
+            setOnClickListener {
+                if (cover.visibility == android.view.View.VISIBLE) {
+                    // 切回视频
+                    cover.visibility = android.view.View.GONE
+                    text = "静图"
+                    runCatching { videoView.start() }
+                } else {
+                    // 切到静图
+                    cover.visibility = android.view.View.VISIBLE
+                    text = "视频"
+                    runCatching { videoView.pause() }
+                }
+            }
+        }
+        root.addView(
+            toggle,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.START
+            ).apply { topMargin = 60; leftMargin = 30 }
+        )
+
         val close = TextView(context).apply {
             text = "关闭"
             setTextColor(Color.WHITE)
