@@ -99,16 +99,30 @@ object NoticeRepo {
 
     fun parse(json: String): List<Card> = runCatching {
         val root = JSONObject(json)
-        val arr = root.optJSONArray("cards") ?: JSONArray()
-        val out = ArrayList<Card>(arr.length() + 3)
+        val arr = root.optJSONArray("cards")
+        // ★ 2026-11-13 用户要求：服务端撤下的卡片要**立刻**从本机消失
+        //   以前：推送卡存在 prefs 里，服务端删了它还在（要等到期或用户点叉）✗
+        //   现在：拿到公告池后按 id 对齐，本地有、池里没有的 ⇒ 删掉 ✓
+        //   ⚠️ 只有响应里**真的带了 cards 字段**才对齐，网络异常/旧服务端不乱删 ✗
+        if (arr != null) {
+            val serverIds = HashSet<String>(arr.length())
+            for (i in 0 until arr.length()) {
+                arr.optJSONObject(i)?.optString("id")?.trim()?.let {
+                    if (it.isNotEmpty()) serverIds.add(it)
+                }
+            }
+            pruneWithdrawn(serverIds)
+        }
+        val arr2 = arr ?: JSONArray()
+        val out = ArrayList<Card>(arr2.length() + 3)
         // ★ 2026-11-07：先放「心跳推送的卡」✓ 再放服务器下发的 ✓
         //   两边都可能出现同一个 id ⇒ 用 LinkedHashMap 按 id 去重（推送优先 ✓）
         val seen = HashSet<String>()
         pushedCards().forEach { c ->
             if (seen.add(c.id) && !PrefManager.isNoticeDismissed(c.id)) out.add(c)
         }
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
+        for (i in 0 until arr2.length()) {
+            val o = arr2.optJSONObject(i) ?: continue
             val card = parseOne(o) ?: continue
             if (seen.add(card.id) && !PrefManager.isNoticeDismissed(card.id)) out.add(card)
         }
@@ -152,6 +166,36 @@ object NoticeRepo {
         // ★ 通知侧栏「有新卡了」✓ 侧栏活着就立刻刷新（不用等用户退出再进）
         pushedSignal.postValue(System.currentTimeMillis())
         return true
+    }
+
+    /**
+     * 把「服务端已经撤回」的推送卡从本机删掉（2026-11-13）
+     *
+     * 判断依据：`pushedNotices` 里的卡，如果 id 不在本次公告池里 ⇒ 删除
+     * 例外：没有 id 的历史脏数据也一并清掉（反正没法展示/去重）
+     */
+    private fun pruneWithdrawn(serverIds: Set<String>) {
+        runCatching {
+            val arr = JSONArray(PrefManager.pushedNotices)
+            if (arr.length() == 0) return
+            val kept = JSONArray()
+            var removed = 0
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val id = o.optString("id").trim()
+                if (id.isEmpty() || !serverIds.contains(id)) {
+                    removed++
+                    continue
+                }
+                kept.put(o)
+            }
+            if (removed > 0) {
+                PrefManager.pushedNotices = kept.toString()
+                AppLog.i(LogModule.NOTICE, "NoticeRepo") {
+                    "PRUNE 服务端已撤回的卡片 " + removed + " 张（剩余 " + kept.length() + "）"
+                }
+            }
+        }
     }
 
     /** 读出推送卡（已过滤过期 / 已读 ✓） */
