@@ -61,7 +61,7 @@ object SzlmIdPrompt {
     }
 
     /** 手动填入框（不同意自动获取时走这里，与设置里的编辑框一致） */
-    fun showManualInput(activity: Activity) {
+    fun showManualInput(activity: Activity, onDone: (() -> Unit)? = null) {
         if (activity.isFinishing || activity.isDestroyed) return
         val view = LayoutInflater.from(activity).inflate(R.layout.item_x_app_token, null, false)
         val editText: EditText = view.findViewById(R.id.editText)
@@ -72,6 +72,7 @@ object SzlmIdPrompt {
             setNegativeButton(android.R.string.cancel, null)
             setPositiveButton(android.R.string.ok) { _, _ ->
                 save(editText.text.toString().trim())
+                onDone?.invoke()
             }
             if (BuildConfig.DEBUG) {
                 setNeutralButton(R.string.random_value) { _, _ ->

@@ -206,6 +206,9 @@ class OnboardingActivity : AppCompatActivity() {
                             if (PrefManager.szlmIdConfigured) {
                                 Toast.makeText(this, "取号成功", Toast.LENGTH_SHORT).show()
                                 render()
+                            } else {
+                                // 用户选了「手动填入」：弹窗关掉后再刷一次，填完就能点下一步 ✓
+                                window?.decorView?.postDelayed({ render() }, 800)
                             }
                         }
                     }
