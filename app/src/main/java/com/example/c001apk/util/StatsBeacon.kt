@@ -233,7 +233,10 @@ class StatsBeacon @Inject constructor(
                     val url = btn.optString("url", "")
                     // 按钮链接必须是 http(s)，其它 scheme 一律丢
                     if (name.isEmpty() || !(url.startsWith("https://") || url.startsWith("http://"))) continue
-                    out.put(JSONObject().put("name", name).put("url", url))
+                    // ★ 落盘时同时写 name + text：
+                    //   侧栏 parseOne 读 text（历史实现），新版兼容 name
+                    //   ⇒ 两个都存一份，任何版本都能取到按钮文字 ✓
+                    out.put(JSONObject().put("name", name).put("text", name).put("url", url))
                 }
                 if (out.length() > 0) clean.put("buttons", out)
             }
