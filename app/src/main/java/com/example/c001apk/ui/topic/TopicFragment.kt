@@ -18,7 +18,6 @@ import com.example.c001apk.ui.feed.reply.ReplyActivity
 import com.example.c001apk.ui.home.IOnTabClickListener
 import com.example.c001apk.ui.others.WebViewFragment
 import com.example.c001apk.ui.search.SearchActivity
-import com.example.c001apk.util.ReportAllianceDialog
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.PrefManager
@@ -427,8 +426,7 @@ class TopicFragment : BasePagerFragment() {
                         if (tid.isBlank()) {
                             return@setOnMenuItemClickListener true
                         }
-                        ReportAllianceDialog.start(requireActivity()) { reasons ->
-                            ReportAllianceDialog.submit(
+                        { _:
                                 requireActivity(), "topic", tid, tid, reasons
                             )
                         }

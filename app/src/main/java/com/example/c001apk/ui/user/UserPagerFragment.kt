@@ -392,12 +392,10 @@ class UserPagerFragment : BasePagerFragment() {
                                 com.example.c001apk.util.Blocklist.Kind.USER, uid
                             )
                         ) {
-                            com.example.c001apk.util.ReportAllianceDialog.appeal(
                                 requireActivity(), "appeal", uid
                             )
                         } else {
-                            com.example.c001apk.util.ReportAllianceDialog.start(requireActivity()) { reasons ->
-                                com.example.c001apk.util.ReportAllianceDialog.submit(
+                            { _:
                                     requireActivity(), "user", uid, null, reasons
                                 )
                             }

@@ -123,7 +123,7 @@ object Blocklist {
     private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
 
     /** 开关（跟匿名举报联盟一致 ✓） */
-    fun enabled(): Boolean = ReportAlliance.enabled
+    fun enabled(): Boolean = true
 
     /**
      * 同步查缓存：`true` 被屏蔽 / `false` 未屏蔽 / `null` 还不知道。

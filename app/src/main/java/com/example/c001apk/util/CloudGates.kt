@@ -67,7 +67,6 @@ object CloudGates {
     /**
      * 联盟总开关（云控侧）。
      *
-     * 生效 = `joined && PrefManager.reportAllianceEnabled && alliance` ✓
      * ⇒ 云控侧和用户侧**独立** ✓ 但必须**同时为 true** 才生效 ✓
      */
     val alliance: Boolean

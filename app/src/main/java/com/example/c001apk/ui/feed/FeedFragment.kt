@@ -1,6 +1,5 @@
 package com.example.c001apk.ui.feed
 
-import com.example.c001apk.util.ReportAllianceDialog
 import com.example.c001apk.util.ImageUtil.toHex
 import androidx.activity.result.PickVisualMediaRequest
 import com.example.c001apk.util.ImageUtil
@@ -960,7 +959,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                 com.example.c001apk.util.Blocklist.Kind.FEED, id
             )
         ) {
-            com.example.c001apk.util.ReportAllianceDialog.appeal(requireActivity(), "appeal", id)
+            android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         reportAnonymously("feed", id, null)
@@ -968,8 +967,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
     /** 统一的匿名举报流程：弹窗 → 选原因 → 上报 */
     private fun reportAnonymously(type: String, id: String, topicId: String?) {
-        ReportAllianceDialog.start(requireActivity()) { reasons ->
-            ReportAllianceDialog.submit(requireActivity(), type, id, topicId, reasons)
+        { _:
         }
     }
 

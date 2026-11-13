@@ -249,11 +249,9 @@ interface ItemListener {
                 com.example.c001apk.util.Blocklist.Kind.FEED, id
             )
         ) {
-            com.example.c001apk.util.ReportAllianceDialog.appeal(ctx, "appeal", id)
             return
         }
-        com.example.c001apk.util.ReportAllianceDialog.start(ctx) { reasons ->
-            com.example.c001apk.util.ReportAllianceDialog.submit(ctx, "feed", id, null, reasons)
+        { _ ->
         }
     }
 
