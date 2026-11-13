@@ -242,17 +242,8 @@ interface ItemListener {
         if (id.isNullOrBlank() || ctx !is Activity) {
             return
         }
-        // ★ 2026-10-31：被公共黑名单折叠的内容 => 点举报变成「申诉」✓
-        //   用户原话：「点进去之后如果再点击举报按钮，就是申诉功能，而不是举报功能了，
-        //             可以申诉误拉黑」
-        if (com.example.c001apk.util.Blocklist.isBlocked(
-                com.example.c001apk.util.Blocklist.Kind.FEED, id
-            )
-        ) {
-            return
-        }
-        { _ ->
-        }
+        // 2026-11-08 社区建议：匿名举报联盟已移除，举报入口只提示
+        android.widget.Toast.makeText(ctx, "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     fun onReply(
