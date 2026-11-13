@@ -159,27 +159,57 @@ object LivePhotoPlayer {
      */
     private fun savePair(context: Context, coverUrl: String?, videoUrl: String?): Boolean {
         if (coverUrl.isNullOrEmpty() || videoUrl.isNullOrEmpty()) return false
-        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as? android.app.DownloadManager
-            ?: return false
         val cover = LivePhoto.coverUrl(coverUrl) ?: return false
         val base = cover.substringAfterLast('/').substringBefore('@').substringBeforeLast('.')
-        var queued = 0
-        listOf(cover to (base + ".jpg"), videoUrl to (base + ".mp4")).forEach { (url, name) ->
-            runCatching {
-                val req = android.app.DownloadManager.Request(android.net.Uri.parse(url))
-                    .setTitle(name)
-                    .setDescription("c001apk 实况图片")
-                    .setNotificationVisibility(
-                        android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                    )
-                    .setDestinationInExternalFilesDir(
-                        context, android.os.Environment.DIRECTORY_DOWNLOADS, name
-                    )
-                dm.enqueue(req)
-                queued++
+        val dir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+            ?: context.filesDir
+        if (!dir.exists()) dir.mkdirs()
+        val jobs = listOf(cover to java.io.File(dir, base + ".jpg"),
+                          videoUrl to java.io.File(dir, base + ".mp4"))
+        // 图床对非 App 请求头会 403/567（我们实测过），
+        // DownloadManager 用的是它自己的 UA ⇒ 一定被拒 ✗
+        // ⇒ 这里用 App 侧 OkHttp 自己下载，带 CoolMarket UA + Referer ✓
+        Thread {
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                .build()
+            var ok = 0
+            jobs.forEach { (url, file) ->
+                runCatching {
+                    val req = okhttp3.Request.Builder().url(url)
+                        .header(
+                            "User-Agent",
+                            "Dalvik/2.1.0 (Linux; U; Android 13; PJZ110) +CoolMarket/16.7.3-2611121-universal"
+                        )
+                        .header("Referer", "https://www.coolapk.com/")
+                        .build()
+                    client.newCall(req).execute().use { resp ->
+                        if (resp.isSuccessful) {
+                            resp.body?.byteStream()?.use { input ->
+                                file.outputStream().use { out -> input.copyTo(out) }
+                            }
+                            ok++
+                            AppLog.i(LogModule.CARD, "LivePhoto",
+                                "SAVE ok " + file.name + " " + file.length() + "B")
+                        } else {
+                            AppLog.w(LogModule.CARD, "LivePhoto",
+                                "SAVE 失败 HTTP " + resp.code + " " + file.name)
+                        }
+                    }
+                }.onFailure {
+                    AppLog.w(LogModule.CARD, "LivePhoto",
+                        "SAVE 异常 " + it.javaClass.simpleName + ": " + it.message)
+                }
             }
-        }
-        AppLog.i(LogModule.CARD, "LivePhoto", "SAVE 成对下载 $queued 个文件 base=" + base)
-        return queued > 0
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(
+                    context,
+                    if (ok == 2) "已保存封面和实况视频" else "保存失败($ok/2)",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }.start()
+        return true
     }
 }
