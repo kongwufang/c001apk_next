@@ -111,7 +111,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-                android:text="@{DateUtils.fromToday(data.dateline)}"
+                android:text="@{DateUtils.fromToday(data.dateline) + (data.ipLocation == null || data.ipLocation.isEmpty() ? `` : ` · 发布于 ` + data.ipLocation)}"
                 android:textColor="@android:color/darker_gray"
                 android:textSize="13sp"
                 app:layout_constraintStart_toEndOf="@id/avatar"
