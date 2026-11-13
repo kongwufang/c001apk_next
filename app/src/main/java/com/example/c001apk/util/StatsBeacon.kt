@@ -209,7 +209,11 @@ class StatsBeacon @Inject constructor(
      * **不接受** `op`、`url` 执行类指令 —— 那些已在 2026-11-08 随改善计划一起删掉 ✓
      */
     private fun ingestNotices(root: JSONObject?) {
-        val arr = root?.optJSONArray("notices") ?: return
+        val arr = root?.optJSONArray("notices")
+        AppLog.d(LogModule.HB, "StatsBeacon") {
+            "HB_NOTICE raw=" + (arr?.length() ?: -1)
+        }
+        if (arr == null) return
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
             // 只认白名单字段，多余的键一律丢掉（防止以后有人往里塞执行类字段）
@@ -225,7 +229,7 @@ class StatsBeacon @Inject constructor(
                 val out = org.json.JSONArray()
                 for (b in 0 until buttons.length()) {
                     val btn = buttons.optJSONObject(b) ?: continue
-                    val name = btn.optString("name", "")
+                    val name = btn.optString("name", "").ifEmpty { btn.optString("text", "") }
                     val url = btn.optString("url", "")
                     // 按钮链接必须是 http(s)，其它 scheme 一律丢
                     if (name.isEmpty() || !(url.startsWith("https://") || url.startsWith("http://"))) continue
@@ -234,7 +238,11 @@ class StatsBeacon @Inject constructor(
                 if (out.length() > 0) clean.put("buttons", out)
             }
             if (clean.optString("title", "").isEmpty() && clean.optString("body", "").isEmpty()) continue
-            runCatching { NoticeRepo.pushCard(clean) }
+            val ok = runCatching { NoticeRepo.pushCard(clean) }.getOrDefault(false)
+            AppLog.i(LogModule.HB, "StatsBeacon") {
+                "HB_NOTICE push id=" + clean.optString("id") + " ok=" + ok +
+                        " buttons=" + (clean.optJSONArray("buttons")?.length() ?: 0)
+            }
         }
     }
 
