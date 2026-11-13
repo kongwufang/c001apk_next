@@ -167,7 +167,6 @@ object UpdateChecker {
             "X-Client-Version" to BuildConfig.VERSION_NAME,
             "X-Client-Api" to ServerIdentity.API_VERSION.toString(),
             // ★ 2026-11-07：用户改善计划开关状态（关着也带 ✓ 值为 "0" ✗ 不是不带）
-            "X-Client-Improve" to if (PrefManager.joinImprovePlan) "1" else "0",
             "X-Client-Code" to BuildConfig.VERSION_CODE.toString(),
             // 本包真实签名证书的 SHA-256：服务端据此核验是不是官方包
             // （不是就直接拒，连升级信息都不给），见接口里的 verify_client_signature()

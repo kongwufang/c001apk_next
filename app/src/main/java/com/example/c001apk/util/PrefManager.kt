@@ -355,35 +355,6 @@ object PrefManager {
     fun isNoticeDismissed(id: String): Boolean =
         pref.getStringSet("dismissedNotices", null)?.contains(id) == true
 
-    // ---------------- 心跳「顺带下发」的事件去重（2026-11-07） ----------------
-
-    /**
-     * 这条心跳事件是不是已经执行过 ✓
-     *
-     * 为什么要去重：心跳 30~60 秒一次 ✓ 同一条 `toast` 指令会被反复看到 ✗
-     * 服务器那边每 30 秒就要判一次「谁做过」也太重 ✗ ⇒ 客户端记一笔最省 ✓
-     */
-    fun isHeartbeatEventDone(id: String): Boolean =
-        pref.getStringSet("heartbeatEventsDone", null)?.contains(id) == true
-
-    /**
-     * 记下「这些心跳事件已执行」✓
-     *
-     * @param maxKeep 最多保留多少条（超了就从旧到新砍 ✓ 防 prefs 无限涨 ✗）
-     */
-    fun markHeartbeatEventsDone(ids: Collection<String>, maxKeep: Int = 50) {
-        if (ids.isEmpty()) return
-        val cur = pref.getStringSet("heartbeatEventsDone", null)?.toMutableSet() ?: mutableSetOf()
-        cur.addAll(ids)
-        if (cur.size > maxKeep) {
-            // LinkedHashSet 无序 ✗ 直接截断（数量少 ✓ 丢几个旧 id 不影响 ✓）
-            val trimmed = cur.toList().takeLast(maxKeep).toMutableSet()
-            pref.edit().putStringSet("heartbeatEventsDone", trimmed).apply()
-        } else {
-            pref.edit().putStringSet("heartbeatEventsDone", cur).apply()
-        }
-    }
-
     /** 记下「这条公告已读」✓ 只增不减（服务端换 id 就等于新公告 ✓） */
     fun dismissNotice(id: String) {
         val cur = pref.getStringSet("dismissedNotices", null)?.toMutableSet() ?: mutableSetOf()
@@ -460,21 +431,6 @@ object PrefManager {
      *
      * ⚠️ 关着时拦截器只做一次 bool 判断 ✓ **零开销** ✓
      */
-    /**
-     * 是否加入「用户改善计划」（设置 → 高级，**默认关闭** ✓ 2026-11-07）
-     *
-     * 开着的含义（用户要求）：
-     *   · **接受心跳接口下发的事件**（toast / dialog / gates / log …）
-     *   · 心跳请求头带 `X-Client-Improve: 1` ⇒ 服务器知道这台设备愿意配合 ✓
-     *
-     * 关着时：
-     *   · 心跳照常上报（统计不受影响 ✓）
-     *   · 但**不执行**任何下发事件 ✗（连 toast 都不弹 ✓）
-     *   · 请求头带 `X-Client-Improve: 0` ✓
-     */
-    var joinImprovePlan: Boolean
-        get() = pref.getBoolean("joinImprovePlan", false)
-        set(value) = pref.edit().putBoolean("joinImprovePlan", value).apply()
 
     var recordHttpLog: Boolean
         get() = pref.getBoolean("recordHttpLog", false)

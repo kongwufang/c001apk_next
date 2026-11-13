@@ -17,7 +17,7 @@ import java.util.Locale
  * ## 设计
  * · 三个 sink：
  *   ① logcat —— 始终跟着当前级别走（调试时最好用）
- *   ② 内存环形缓冲 —— [capacity] 条，常驻、极便宜；崩溃时 DiagReport 直接取现场 ✓
+ *   ② 内存环形缓冲 —— [capacity] 条，常驻、极便宜；崩溃时可直接取现场（App 内诊断页用）✓
  *   ③ 文件 —— 由 [fileSink] 承接（B 步接 HttpLog 那套轮转 + 脱敏）
  * · 开关：`PrefManager.logEnabled` / `logLevel` / `logModules`（全默认关，release 只有 W/E 走 logcat）
  * · 级别关闭时**不拼字符串**：用 `() -> String` 的重载

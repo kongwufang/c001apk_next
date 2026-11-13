@@ -110,7 +110,6 @@ class MyApplication : Application() {
 
         // ★ 2026-11-07 诊断上报：装一个崩溃收集器（只存内存 ✓ 不落盘 ✓）
         //   心跳下发 log 事件时，把它 + 设备快照 + 请求日志聚合一起上报
-        runCatching { com.example.c001apk.util.DiagReport.installCrashCollector() }
 
         // HTTP 请求日志的目录（设置 → 高级 里可开关 / 导出 / 清空 ✓）
         // 只是建一个目录 + 记下 context ✓ 开关关着时完全不写盘 ✓
@@ -121,7 +120,6 @@ class MyApplication : Application() {
 
         // ★ 2026-11-08 全局分模块日志（B 步）：建目录 + 按开关挂文件 sink
         //   开关关着时 fileSink 是 null ⇒ 写盘开销为 0 ✓
-        //   内存环形缓冲（2000 条）不受开关影响，崩溃时 DiagReport 能拿到现场 ✓
         runCatching {
             com.example.c001apk.util.LogFileSink.init(this)
             com.example.c001apk.util.LogFileSink.install(

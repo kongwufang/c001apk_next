@@ -196,7 +196,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 "logEnabled" -> PrefManager.logEnabled
                 "recordHttpLog" -> PrefManager.recordHttpLog
                 "logUnified" -> PrefManager.logEnabled || PrefManager.recordHttpLog
-                "joinImprovePlan" -> PrefManager.joinImprovePlan
                 "blackDarkTheme" -> PrefManager.blackDarkTheme
                 "followSystemAccent" -> PrefManager.followSystemAccent
                 "showEmoji" -> PrefManager.showEmoji
@@ -223,7 +222,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                     PrefManager.recordHttpLog = value
                     com.example.c001apk.util.LogFileSink.install(value)
                 }
-                "joinImprovePlan" -> PrefManager.joinImprovePlan = value
                 "blackDarkTheme" -> PrefManager.blackDarkTheme = value
                 "followSystemAccent" -> PrefManager.followSystemAccent = value
                 "showEmoji" -> PrefManager.showEmoji = value
@@ -283,16 +281,12 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         //    必须先从任意「举报」入口点一次「加入」✓
             // ★ 2026-11-01 云控总闸：云控关了就把提示写清楚 ✓（开关本身仍归用户 ✓）
             runCatching {
-                val p = findPreference<androidx.preference.Preference>("reportAllianceEnabled")
                 p?.summary = if (com.example.c001apk.util.CloudGates.alliance) {
                     getString(com.example.c001apk.R.string.settings_report_alliance_on)
                 } else {
                     getString(com.example.c001apk.R.string.settings_cloud_off)
                 }
             }
-        findPreference<MaterialSwitchPreference>("reportAllianceEnabled")?.apply {
-            val joined = PrefManager.reportAllianceJoined
-            isChecked = joined && PrefManager.reportAllianceEnabled
             isEnabled = joined
             summary = if (joined) {
                 getString(R.string.settings_report_alliance_on)
@@ -300,7 +294,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 getString(R.string.settings_report_alliance_off)
             }
             setOnPreferenceChangeListener { _, v ->
-                PrefManager.reportAllianceEnabled = v as Boolean
                 true
             }
         }

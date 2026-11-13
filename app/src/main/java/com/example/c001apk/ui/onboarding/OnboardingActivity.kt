@@ -60,8 +60,6 @@ class OnboardingActivity : AppCompatActivity() {
 
     // 第④步的三个开关（未点完成前只存内存 ✓）
     private var sslVerify = true
-    private var reportAlliance = true
-    private var improvePlan = true
 
     private val privacyUrl =
         "https://raw.githubusercontent.com/kongwufang/c001apk_next/debug/docs/PRIVACY-IMPROVE-PLAN.md"
@@ -160,8 +158,6 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun finishOnboarding() {
         PrefManager.isVerifySsl = sslVerify
-        PrefManager.reportAllianceJoined = reportAlliance
-        PrefManager.joinImprovePlan = improvePlan
         PrefManager.onboarded = true
         // App 日志/HTTP 日志统一开关跟随「用户体验改善计划」？不跟随：
         // 日志开关是排障用的独立开关，默认关，避免用户不知情地落盘 ✓
@@ -218,20 +214,13 @@ class OnboardingActivity : AppCompatActivity() {
 
             else -> {
                 primary.isEnabled = true
-                title.text = "确认几个开关"
-                subtitle.text = "下面三个开关默认都是打开的，你可以逐个关掉。点「完成」才会保存。"
+                title.text = "最后确认"
+                subtitle.text = "「校验 SSL 证书」默认打开；抓包调试需要关掉它。\n" +
+                        "本 App 不会上传日志或诊断数据，日志只存在你手机里，随时可导出/清空。"
                 primary.text = "完成"
-                body.addView(switchRow("校验 SSL 证书", "更安全，但抓包调试时需关掉", sslVerify) {
+                body.addView(switchRow("校验 SSL 证书", "更安全；抓包调试时需关闭", sslVerify) {
                     sslVerify = it
                 })
-                body.addView(switchRow("加入匿名举报联盟", "举报内容会匿名汇总到服务端", reportAlliance) {
-                    reportAlliance = it
-                })
-                body.addView(
-                    switchRow("加入用户体验改善计划", "开启后可收到诊断请求，帮我们定位问题", improvePlan) {
-                        improvePlan = it
-                    }
-                )
                 body.addView(
                     actionText("查看隐私协议 ↗") {
                         runCatching {
