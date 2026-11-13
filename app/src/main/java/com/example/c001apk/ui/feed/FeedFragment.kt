@@ -967,8 +967,8 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
     /** 统一的匿名举报流程：弹窗 → 选原因 → 上报 */
     private fun reportAnonymously(type: String, id: String, topicId: String?) {
-        { _:
-        }
+        // 2026-11-08 社区建议：匿名举报联盟已移除，这里只留提示
+        android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     inner class ItemClickListener : ItemListener {

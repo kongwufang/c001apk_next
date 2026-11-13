@@ -426,10 +426,7 @@ class TopicFragment : BasePagerFragment() {
                         if (tid.isBlank()) {
                             return@setOnMenuItemClickListener true
                         }
-                        { _:
-                                requireActivity(), "topic", tid, tid, reasons
-                            )
-                        }
+                        android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
                     }
 
                     R.id.block -> {

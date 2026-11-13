@@ -388,18 +388,7 @@ class UserPagerFragment : BasePagerFragment() {
                         if (uid.isBlank()) {
                             return@setOnMenuItemClickListener true
                         }
-                        if (com.example.c001apk.util.Blocklist.isBlocked(
-                                com.example.c001apk.util.Blocklist.Kind.USER, uid
-                            )
-                        ) {
-                                requireActivity(), "appeal", uid
-                            )
-                        } else {
-                            { _:
-                                    requireActivity(), "user", uid, null, reasons
-                                )
-                            }
-                        }
+                        android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
                 return@setOnMenuItemClickListener true
