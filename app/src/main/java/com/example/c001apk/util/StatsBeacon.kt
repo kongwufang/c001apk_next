@@ -181,13 +181,61 @@ class StatsBeacon @Inject constructor(
         val root = runCatching { JSONObject(body) }.getOrNull()
         val interval = root?.optInt("interval", DEFAULT_INTERVAL_SEC) ?: DEFAULT_INTERVAL_SEC
 
-        // ★ 2026-11-07：心跳是**双向通道** ✓ 顺带下发的事件在这里执行
-        //   ⇒ 服务器可以在任何一次心跳响应里塞 toast / gates / notice 等指令 ✓
-        //   ⚠️ 失败静默 ✓ 绝不影响心跳本身 ✓（dispatch 内部全 runCatching ✓）
+        // ★ 2026-11-08 用户要求：心跳可以**直接下发公告卡** ✓
+        //   `{"interval":30,"notices":[{...一条公告卡...}]}`
+        //   ⇒ 只是内容（标题/正文/按钮/颜色），不执行任何代码 ✓ 不涉及权限 ✓
+        //   ⇒ 也不需要用户同意，跟「取号/诊断上报」不是一回事 ✓
+        //   落进 NoticeRepo 的 pushedNotices，侧栏立刻能看到 ✓
+        //   ⚠️ 全程 runCatching：公告解析失败绝不影响心跳 ✓
+        runCatching { ingestNotices(root) }
 
         // 服务器给的 interval 如果明显不合理（<=0 / 过大），也别当真的用 ✗ 走退避 ✓
         if (interval < MIN_INTERVAL_SEC || interval > MAX_INTERVAL_SEC) return FAIL_BACKOFF_SEC
         return interval
+    }
+
+    /**
+     * 心跳响应里的公告卡（2026-11-08）
+     *
+     * 格式（服务器 `heartbeat/index.php` 从 `data/heartbeat_notice.json` 读出来的）：
+     * ```json
+     * { "interval": 30,
+     *   "notices": [ { "id":"n1", "title":"…", "body":"…", "bgColor":"#123456",
+     *                  "accent":"#ffffff", "dismissible":true,
+     *                  "buttons":[{"name":"去看看","url":"https://…"}],
+     *                  "until":1799999999 } ] }
+     * ```
+     * 只有「内容」字段：标题 / 正文 / 颜色 / 按钮 / 是否可关 / 过期时间。
+     * **不接受** `op`、`url` 执行类指令 —— 那些已在 2026-11-08 随改善计划一起删掉 ✓
+     */
+    private fun ingestNotices(root: JSONObject?) {
+        val arr = root?.optJSONArray("notices") ?: return
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            // 只认白名单字段，多余的键一律丢掉（防止以后有人往里塞执行类字段）
+            val clean = JSONObject()
+            listOf("id", "title", "body", "bgColor", "bgImage", "accent", "time",
+                   "priority", "showTime").forEach { k ->
+                if (o.has(k)) clean.put(k, o.get(k))
+            }
+            if (o.has("dismissible")) clean.put("dismissible", o.optBoolean("dismissible", true))
+            if (o.has("until")) clean.put("until", o.optLong("until", 0L))
+            val buttons = o.optJSONArray("buttons")
+            if (buttons != null) {
+                val out = org.json.JSONArray()
+                for (b in 0 until buttons.length()) {
+                    val btn = buttons.optJSONObject(b) ?: continue
+                    val name = btn.optString("name", "")
+                    val url = btn.optString("url", "")
+                    // 按钮链接必须是 http(s)，其它 scheme 一律丢
+                    if (name.isEmpty() || !(url.startsWith("https://") || url.startsWith("http://"))) continue
+                    out.put(JSONObject().put("name", name).put("url", url))
+                }
+                if (out.length() > 0) clean.put("buttons", out)
+            }
+            if (clean.optString("title", "").isEmpty() && clean.optString("body", "").isEmpty()) continue
+            runCatching { NoticeRepo.pushCard(clean) }
+        }
     }
 
     private fun buildRequest(): Request {
