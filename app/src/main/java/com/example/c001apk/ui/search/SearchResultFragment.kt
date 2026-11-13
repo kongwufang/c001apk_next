@@ -155,6 +155,7 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
                     "dateline" -> R.id.feedRealtime
                     "hot" -> R.id.feedHot
                     "reply" -> R.id.feedReply
+                    "none" -> R.id.feedExact
                     else -> throw IllegalArgumentException("type error")
                 }
             )?.isChecked = true
@@ -189,6 +190,12 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
                     R.id.feedReply -> {
                         viewModel.sort = "reply"
                         controller?.onSearch("sort", "reply", null)
+                    }
+
+                    R.id.feedExact -> {
+                        // 精确：sort=none 且 isStrict=1（HAR 实证）
+                        viewModel.sort = "none"
+                        controller?.onSearch("sort", "none", null)
                     }
 
                     R.id.typeAll -> {

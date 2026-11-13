@@ -56,13 +56,15 @@ class SearchContentViewModel @AssistedInject constructor(
     }
 
     var feedType: String = "all"
-    var sort: String = "default" //hot // reply
+    var sort: String = "default" //hot // reply // dateline // none(精确)
+    /** 「精确」排序：sort=none 且 isStrict=1（抓包实证） */
+    var isStrict: Int = 0
 
     override fun fetchData() {
         viewModelScope.launch(Dispatchers.IO) {
             networkRepo.getSearch(
                 type, feedType, sort, keyWord,
-                pageType, pageParam, page, lastItem
+                pageType, pageParam, page, lastItem, isStrict
             )
                 .onStart {
                     if (isLoadMore) {

@@ -40,7 +40,11 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
 
     override fun onSearch(type: String, value: String, id: String?) {
         when (type) {
-            "sort" -> viewModel.sort = value
+            "sort" -> {
+                viewModel.sort = value
+                // 「精确」= sort:none + isStrict:1（HAR 实证）
+                viewModel.isStrict = if (value == "none") 1 else 0
+            }
             "feedType" -> viewModel.feedType = value
         }
         viewModel.dataList.value = emptyList()

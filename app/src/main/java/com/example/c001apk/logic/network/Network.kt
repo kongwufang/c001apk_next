@@ -58,6 +58,7 @@ object Network {
         pageParam: String?,
         page: Int,
         lastItem: String?,
+        isStrict: Int = 0,
     ) = apiService.getSearch(
         type,
         feedType,

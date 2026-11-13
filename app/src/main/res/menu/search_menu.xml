@@ -66,6 +66,14 @@
                     android:title="实时" />
 
                 <item
+
+
+                    android:id="@+id/feedExact"
+
+
+                    android:title="精确" />
+
+                <item
                     android:id="@+id/feedHot"
                     android:title="@string/feed_hot" />
 

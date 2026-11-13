@@ -105,7 +105,9 @@ interface ApiService {
         @Query("pageParam") pageParam: String?,
         @Query("page") page: Int,
         @Query("lastItem") lastItem: String?,
-        @Query("showAnonymous") showAnonymous: Int = -1
+        @Query("showAnonymous") showAnonymous: Int = -1,
+        // ★ 2026-11-13：搜索「精确」需要 isStrict=1（抓包实证：sort=none&isStrict=1）
+        @Query("isStrict") isStrict: Int = 0
     ): Call<HomeFeedResponse>
 
     /** 搜索页默认态：热门搜索 + 热搜榜（refresh=1 强制刷新热门搜索） */
