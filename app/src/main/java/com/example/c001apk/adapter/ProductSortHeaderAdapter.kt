@@ -54,7 +54,7 @@ class ProductSortHeaderAdapter(
             var checkedId = View.NO_ID
             labels.forEach { (label, value) ->
                 val btn = MaterialButton(
-                    itemView.context,
+                    holder.itemView.context,
                     null,
                     com.google.android.material.R.attr.materialButtonOutlinedStyle
                 ).apply {
