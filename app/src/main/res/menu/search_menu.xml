@@ -58,6 +58,14 @@
                     android:title="@string/feed_default" />
 
                 <item
+
+
+                    android:id="@+id/feedRealtime"
+
+
+                    android:title="实时" />
+
+                <item
                     android:id="@+id/feedHot"
                     android:title="@string/feed_hot" />
 

@@ -61,40 +61,41 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
             when (position) {
                 0 -> SearchContentFragment.newInstance(
                     viewModel.keyWord,
+                    "all",          // ★ 综合 tab：混合卡片流（话题卡 / 用户卡 / 横幅）
+                    null,
+                    null
+                )
+                1 -> SearchContentFragment.newInstance(
+                    viewModel.keyWord,
                     "feed",
                     null,
                     null
                 )
-
-                1 -> SearchContentFragment.newInstance(
+                2 -> SearchContentFragment.newInstance(
                     viewModel.keyWord,
                     "apk",
                     null,
                     null
                 )
-
-                2 -> SearchContentFragment.newInstance(
+                3 -> SearchContentFragment.newInstance(
                     viewModel.keyWord,
                     "game",
                     null,
                     null
                 )
-
-                3 -> SearchContentFragment.newInstance(
+                4 -> SearchContentFragment.newInstance(
                     viewModel.keyWord,
                     "product",
                     null,
                     null
                 )
-
-                4 -> SearchContentFragment.newInstance(
+                5 -> SearchContentFragment.newInstance(
                     viewModel.keyWord,
                     "user",
                     null,
                     null
                 )
-
-                5 -> SearchContentFragment.newInstance(
+                6 -> SearchContentFragment.newInstance(
                     viewModel.keyWord,
                     "feedTopic",
                     null,
@@ -116,7 +117,7 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
     override fun initTabList() {
         tabList =
             if (viewModel.pageType.isEmpty())
-                listOf("动态", "应用", "游戏", "数码", "用户", "话题")
+                listOf("综合", "动态", "应用", "游戏", "数码", "用户", "话题")
             else {
                 binding.tabLayout.isVisible = false
                 listOf("")
@@ -151,6 +152,7 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
             menu.findItem(
                 when (viewModel.sort) {
                     "default" -> R.id.feedDefault
+                    "dateline" -> R.id.feedRealtime
                     "hot" -> R.id.feedHot
                     "reply" -> R.id.feedReply
                     else -> throw IllegalArgumentException("type error")
@@ -172,6 +174,11 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
                     R.id.feedDefault -> {
                         viewModel.sort = "default"
                         controller?.onSearch("sort", "default", null)
+                    }
+
+                    R.id.feedRealtime -> {
+                        viewModel.sort = "dateline"
+                        controller?.onSearch("sort", "dateline", null)
                     }
 
                     R.id.feedHot -> {
