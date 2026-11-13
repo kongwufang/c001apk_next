@@ -276,17 +276,6 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         //   ⚠️ XML 里写了 persistent=false ⇒ 值由这里手动读写 PrefManager ✓
         //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
         //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
-            }
-            isEnabled = joined
-            summary = if (joined) {
-                getString(R.string.settings_report_alliance_on)
-            } else {
-                getString(R.string.settings_report_alliance_off)
-            }
-            setOnPreferenceChangeListener { _, v ->
-                true
-            }
-        }
 
         findPreference<MaterialSwitchPreference>("saveCollectionToCloud")?.apply {
             isChecked = PrefManager.saveCollectionToCloud
