@@ -49,12 +49,10 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
             viewModel.sort,
             ProductSortHeaderAdapter.SEARCH_LABELS
         ) { value ->
-            // 点 chip 等于换排序：sort + isStrict 一起改，然后重新加载
-            viewModel.sort = value
+            // 点 chip 等于换排序：先改 sort/isStrict，再走和菜单完全同一条流程
+            // （直接改 LiveData 不会触发重新请求，必须调 onSearch ✓）
             viewModel.isStrict = if (value == "none") 1 else 0
-            viewModel.dataList.value = emptyList()
-            viewModel.footerState.value = FooterState.LoadingDone
-            viewModel.loadingState.value = LoadingState.Loading
+            onSearch("sort", value, null)
         }
         sortHeader = a
         return a
