@@ -29,7 +29,49 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
         applyPageBackground()
     }
 
+    /**
+     * 全局「长按选中文本」（2026-11-13 用户要求）
+     *
+     * 任意界面的文字，长按就能选中并调出系统的选择框（复制 / 全选 / 分享），
+     * 不用进「复制」菜单 —— 用户原话：「任意地方的文本，只要长按就可以选中，
+     * 调用系统的选择框，可以复制剪切那种选择框」
+     *
+     * ## 怎么做的
+     * · 遍历整个窗口的 View 树，给每个 **不可点击** 的 TextView 打开 `textIsSelectable`
+     *   （可点击的那些是「行/卡片」，长按本来是"长按菜单"之类的行为，不去抢 ✗）
+     * · EditText 本身就是可选的，跳过 ✓
+     * · 用 tag 标记处理过的 view，避免每次 onResume 重复遍历 ✓
+     *
+     * ## 为什么不用主题属性
+     * `textIsSelectable` 没有主题属性可设 ✗ 只能逐个 view 打开。
+     * 放在 BaseActivity 里 ⇒ 所有页面自动生效，不用改每个布局 ✓
+     */
+    protected fun enableTextSelection() {
+        val root = window?.peekDecorView() ?: return
+        runCatching { walkForSelection(root) }
+    }
+
+    private fun walkForSelection(v: android.view.View) {
+        if (TAG_SELECTABLE == v.tag) return
+        if (v is android.widget.EditText) return          // 已可选
+        if (v is android.widget.TextView) {
+            if (!v.isClickable && !v.hasOnClickListeners() && !v.text.isNullOrEmpty()) {
+                runCatching { v.isTextSelectable = true }
+            }
+            v.tag = TAG_SELECTABLE
+            return
+        }
+        if (v is android.view.ViewGroup) {
+            for (i in 0 until v.childCount) walkForSelection(v.getChildAt(i))
+        }
+    }
+
     /** 是否给窗口上页面底色；本身就是半透明浮层的页面（回复页）置 false */
+    override fun onResume() {
+        super.onResume()
+        window?.decorView?.post { enableTextSelection() }
+    }
+
     protected open val pageBackground: Boolean = true
 
     /**
@@ -104,4 +146,8 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
         TransitionAnim.applyReturn(this)
     }
 
+
+    private companion object {
+        const val TAG_SELECTABLE = "dsh_selectable"
+    }
 }
