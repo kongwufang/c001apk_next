@@ -52,13 +52,13 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
     }
 
     private fun walkForSelection(v: android.view.View) {
-        if (TAG_SELECTABLE == v.tag) return
+        if (TAG_SELECTABLE == v.getTag()) return
         if (v is android.widget.EditText) return          // 已可选
         if (v is android.widget.TextView) {
             if (!v.isClickable && !v.hasOnClickListeners() && !v.text.isNullOrEmpty()) {
                 runCatching { v.isTextSelectable = true }
             }
-            v.tag = TAG_SELECTABLE
+            v.setTag(TAG_SELECTABLE)
             return
         }
         if (v is android.view.ViewGroup) {
