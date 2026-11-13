@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
@@ -22,6 +22,240 @@
         -->
         <PreferenceCategory android:title="@string/settings_theme">
 
+            <rikka.material.preference.MaterialSwitchPreference
+                android:defaultValue="true"
+                android:disableDependentsState="true"
+                android:icon="@drawable/outline_palette_24"
+                android:key="followSystemAccent"
+                android:title="@string/settings_system_theme_color" />
+            <rikka.preference.SimpleMenuPreference
+                android:defaultValue="DEFAULT"
+                android:dependency="followSystemAccent"
+                android:entries="@array/color_texts"
+                android:entryValues="@array/color_values"
+                android:icon="@drawable/outline_format_color_fill_24"
+                android:key="themeColor"
+                android:summary="%s"
+                android:title="@string/settings_theme_color" />
+            <rikka.preference.SimpleMenuPreference
+                android:defaultValue="-1"
+                android:entries="@array/theme_texts"
+                android:entryValues="@array/theme_values"
+                android:icon="@drawable/outline_dark_mode_24"
+                android:key="darkTheme"
+                android:summary="%s"
+                android:title="@string/dark_theme" />
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/outline_invert_colors_24"
+                android:key="blackDarkTheme"
+                android:summary="@string/settings_pure_black_dark_theme_summary"
+                android:title="@string/settings_pure_black_dark_theme" />
+
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/settings_category_display">
+
+            <Preference
+                android:icon="@drawable/ic_text_fields"
+                android:key="fontScale"
+                android:title="@string/font_scale" />
+            <rikka.material.preference.MaterialSwitchPreference
+                android:defaultValue="true"
+                android:icon="@drawable/ic_emoji"
+                android:key="showEmoji"
+                android:title="@string/show_emoji" />
+            <!-- 2026-10-06：从「推荐流相关」挪过来——它只管深色模式下图片的显示，是外观项 -->
+            <rikka.material.preference.MaterialSwitchPreference
+                android:defaultValue="true"
+                android:icon="@drawable/ic_filter"
+                android:key="isColorFilter"
+                android:title="@string/color_filter_in_dark_mode" />
+
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/settings_category_layout">
+
+            <!-- 2026-10-05：首页工具栏那个位置让给了消息入口，编辑 Tab 挪到这儿 -->
+            <Preference
+                android:icon="@drawable/ic_menu"
+                android:key="editTab"
+                android:summary="@string/edit_tab_summary"
+                android:title="@string/edit_tab" />
+
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/settings_animation">
+
+            <!--
+                水平转场动画实验项（临时脚手架）：
+                三档组合由 tools/gen_transition_anim.py 预先烘成 res/anim/exp_*.xml，
+                运行时按这里的选择查表。手感定下来后，把赢家固化回 right_in / left_out
+                等正式资源，并删掉这三项 + TransitionAnim.kt + 那批 exp_* 资源。
+                改完直接返回即可看到「退出」动画，再进任意二级页看到「进入」动画。
+            -->
+            <PreferenceScreen
+                android:icon="@drawable/outline_system_update_24"
+                android:key="animation"
+                android:summary="@string/settings_animation_summary"
+                android:title="@string/settings_animation">
+
+                <rikka.preference.SimpleMenuPreference
+                    android:defaultValue="emph"
+                    android:entries="@array/anim_curve_texts"
+                    android:entryValues="@array/anim_curve_values"
+                    android:icon="@drawable/outline_system_update_24"
+                    android:key="animCurve"
+                    android:summary="%s"
+                    android:title="@string/settings_transition_curve" />
+                <rikka.preference.SimpleMenuPreference
+                    android:defaultValue="slide"
+                    android:entries="@array/anim_type_texts"
+                    android:entryValues="@array/anim_type_values"
+                    android:icon="@drawable/outline_widgets_24"
+                    android:key="animType"
+                    android:summary="%s"
+                    android:title="@string/settings_transition_type" />
+                <rikka.preference.SimpleMenuPreference
+                    android:defaultValue="300"
+                    android:entries="@array/anim_speed_texts"
+                    android:entryValues="@array/anim_speed_values"
+                    android:icon="@drawable/outline_system_update_24"
+                    android:key="animDuration"
+                    android:summary="%s"
+                    android:title="@string/settings_transition_speed" />
+
+            </PreferenceScreen>
+
+        </PreferenceCategory>
+
+    </PreferenceScreen>
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_feed"
+        android:key="recommendation"
+        android:title="@string/settings_recommendation">
+
+        <!--
+            数据保存位置（2026-10-25 ✓ 用户要求放这儿，不放外观 ✗）
+
+            收藏 / 关注 / 黑名单各自选「云端」还是「本地」✓
+            默认按登录态走 ✓（见 SyncLocationBootstrap）
+            用户手动改过之后不再自动覆盖 ✓ 只有登录态变化时才再对齐一次 ✓
+
+            ⚠️ persistent=false：不走 Preference 自己的 SharedPreferences ✗
+               实际值存在 PrefManager 里 ✓ 由 SettingsPreferenceFragment 手动读写 ✓
+        -->
+
+        <PreferenceCategory android:title="@string/settings_save_location">
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_star"
+                android:key="saveCollectionToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_collection_summary"
+                android:title="@string/settings_save_collection" />
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_add"
+                android:key="saveFollowToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_follow_summary"
+                android:title="@string/settings_save_follow" />
+
+            <rikka.material.preference.MaterialSwitchPreference
+                android:icon="@drawable/ic_mine_selector"
+                android:key="saveBlackListToCloud"
+                android:persistent="false"
+                android:summary="@string/settings_save_blacklist_summary"
+                android:title="@string/settings_save_blacklist" />
+
+        </PreferenceCategory>
+
+        <Preference
+            android:icon="@drawable/ic_block"
+            android:key="topicBlackList"
+            android:title="@string/topic_black_list" />
+        <Preference
+            android:icon="@drawable/ic_text_fields"
+            android:key="spamWord"
+            android:title="@string/spam_shield_word" />
+        <Preference
+            android:icon="@drawable/ic_block"
+            android:key="spamUser"
+            android:title="@string/spam_shield_user" />
+        <Preference
+            android:icon="@drawable/ic_block"
+            android:key="spamNode"
+            android:title="@string/spam_shield_node" />
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="false"
+            android:icon="@drawable/ic_explorer"
+            android:key="isOpenLinkOutside"
+            android:title="@string/open_link_outside" />
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:icon="@drawable/ic_feed"
+            android:key="isIconMiniCard"
+            android:title="@string/show_icon_mini_card" />
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:icon="@drawable/ic_history"
+            android:key="isRecordHistory"
+            android:title="@string/record_history" />
+
+    </PreferenceScreen>
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_block"
+        android:key="privacy"
+        android:title="@string/settings_privacy">
+
+        <Preference
+            android:icon="@drawable/ic_block"
+            android:key="userBlackList"
+            android:title="@string/user_black_list" />
+
+    </PreferenceScreen>
+
+    <PreferenceScreen
+        android:icon="@drawable/ic_dev_mode"
+        android:key="advanced"
+        android:title="@string/settings_advanced">
+
+
+        <!-- 备份：导出 / 导入本机偏好与本地数据（2026-10-25 ✓） -->
+        <Preference
+            android:icon="@drawable/ic_archive"
+            android:key="exportBackup"
+            android:summary="把本机偏好、关注、收藏、黑名单导出成 json 文件"
+            android:title="导出备份" />
+        <Preference
+            android:icon="@drawable/ic_history"
+            android:key="importBackup"
+            android:summary="从 json 文件恢复（会覆盖同名数据）"
+            android:title="导入备份" />
+        <!-- 默认开：不信任系统 CA，只用证书链固定公钥校验（关闭则回落到系统校验） -->
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:icon="@drawable/outline_verified_user_24"
+            android:key="verifySsl"
+            android:summary="@string/settings_verify_ssl_summary"
+            android:title="@string/settings_verify_ssl" />
+        <Preference
+            android:icon="@drawable/ic_phone"
+            android:key="szlmId"
+            android:summary="@string/szlmId_summary"
+            android:title="@string/szlmId" />
+        <Preference
+            android:icon="@drawable/ic_dev_mode"
+            android:key="params"
+            android:title="@string/params" />
+        <Preference
+            android:icon="@drawable/ic_image"
+            android:key="imageQuality"
+            android:title="@string/image_quality" />
+
+        <!-- HTTP 请求日志（默认关 ✓ 打开后全局记录，可导出/清空 ✓） -->
         <!-- ★ 2026-11-08 用户要求：外面不再放开关，所有日志操作都在「日志」页里 -->
         <Preference
             android:icon="@drawable/ic_bug"
