@@ -78,7 +78,6 @@ class NetworkRepo @Inject constructor(
                 page,
                 firstItem,
                 lastItem,
-                isStrict = 0,
                 discussMode,
                 feedType,
                 blockStatus,
