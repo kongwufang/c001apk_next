@@ -42,7 +42,7 @@ object LivePhotoPlayer {
             setOnErrorListener { _, what, extra ->
                 AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 失败 what=" + what + " extra=" + extra)
                 // 第一步失败（CDN 上没有独立 mp4）：兜底去解析 Motion Photo
-                if (runCatching { tryMotionPhoto(context, coverUrl, videoView) }.getOrDefault(false)) {
+                if (runCatching { tryMotionPhoto(context, coverUrl, this) }.getOrDefault(false)) {
                     return@setOnErrorListener true
                 }
                 runCatching { dialog.dismiss() }
