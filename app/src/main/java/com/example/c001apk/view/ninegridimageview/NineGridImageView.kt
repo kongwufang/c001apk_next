@@ -152,7 +152,14 @@ class NineGridImageView @JvmOverloads constructor(
             }
             urlList?.let { urlList ->
                 childrenView.setOnClickListener {
-                    ImageUtil.startBigImgView(this, childrenView, urlList, i)
+                    // ★ 2026-11-13：实况图片（URL 含 livepic）⇒ 播放配套 mp4；
+                    //   其它图保持原来的大图查看，行为完全不变 ✓
+                    val url = urlList.getOrNull(i)
+                    if (com.example.c001apk.util.LivePhoto.isLive(url)) {
+                        com.example.c001apk.util.LivePhotoPlayer.show(context, url)
+                    } else {
+                        ImageUtil.startBigImgView(this, childrenView, urlList, i)
+                    }
                 }
             }
             childrenView.layout(left, top, right, bottom)
