@@ -56,7 +56,7 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
         if (v is android.widget.EditText) return          // 已可选
         if (v is android.widget.TextView) {
             if (!v.isClickable && !v.hasOnClickListeners() && !v.text.isNullOrEmpty()) {
-                runCatching { v.isTextSelectable = true }
+                runCatching { v.setTextIsSelectable(true) }
             }
             v.setTag(TAG_SELECTABLE)
             return
