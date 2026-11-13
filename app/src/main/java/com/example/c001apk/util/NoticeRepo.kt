@@ -86,16 +86,19 @@ object NoticeRepo {
      * ⚠️ 2026-11-07：**拉不到也要显示心跳推送的卡** ✓
      *   （推送卡存在本机 ✓ 断网 / 接口挂了照样能看到 ✓）
      */
-    suspend fun fetch(): List<Card> {
-        val json = runCatching { UpdateChecker.fetchConfig(URL) }.getOrNull()
-        if (json == null) {
-            return pushedCards()
-                .filter { !PrefManager.isNoticeDismissed(it.id) }
-                .sortedByDescending { it.priority }
-                .take(MAX_CARDS)
-        }
-        return parse(json)
-    }
+    /**
+     * 侧栏卡片（2026-11-13 改）
+     *
+     * 用户要求：**只保留心跳下发这一条渠道**，不再额外请求 `/notice/`
+     *   —— 否则每次进「我的」/ 每次心跳推送都会多一份请求，服务器量凭空翻倍 ✗
+     *
+     * ⇒ 现在这里**不发任何网络请求**，只读本机已存的推送卡（NoticeRepo.pushCard 写入的）✓
+     *   · 卡从哪来：心跳响应里的 `notices[]`（服务端 data/heartbeat_notice.json）
+     *   · 升级卡不在这里：由 MineViewModel 单独调 UpdateChecker
+     */
+    fun fetch(): List<Card> = runCatching {
+        pushedCards().sortedByDescending { it.priority }.take(MAX_CARDS)
+    }.getOrDefault(emptyList())
 
     fun parse(json: String): List<Card> = runCatching {
         val root = JSONObject(json)
