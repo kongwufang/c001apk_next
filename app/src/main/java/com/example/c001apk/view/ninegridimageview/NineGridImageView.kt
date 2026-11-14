@@ -244,16 +244,15 @@ class NineGridImageView @JvmOverloads constructor(
                 addView(imageView, generateDefaultLayoutParams())
                 ImageUtil.showIMG(imageView, it)
 
-                // ★ 2026-11-14 用户反馈：打开带实况的帖子时**完全没有请求 mp4**
-                //   原因：resolve 只在「点图」时才发生 ⇒ 进详情页什么都不发 ✗
-                //   官方是进详情就先播一遍 ⇒ 这里先在后台把签名地址解析好（预热），
-                //   播放在 LivePhotoPlayer 里用这份缓存地址
-                if (urlList.size == 1 && com.example.c001apk.util.LivePhoto.isLive(it) &&
-                    com.example.c001apk.util.PrefManager.showLivePhoto
-                ) {
-                    Thread {
-                        runCatching { com.example.c001apk.util.LivePhotoResolver.resolve(it) }
-                    }.start()
+                // 详情页直接连接「签发 → ExoPlayer → 单次播放 → 恢复原图」，
+                // 不再只发一个与播放无关的预热请求；支持多张图片中的实况。
+                var pageContext: android.content.Context = context
+                while (pageContext is android.content.ContextWrapper &&
+                    pageContext !is android.app.Activity) {
+                    pageContext = pageContext.baseContext
+                }
+                if (pageContext is com.example.c001apk.ui.feed.FeedActivity) {
+                    com.example.c001apk.util.LivePhotoInline.bind(imageView, it)
                 }
             }
         }

@@ -3,4 +3,5 @@
 
     <item name="adapter_bottom_padding_id" type="id" />
 
+    <item name="live_photo_session" type="id" />
 </resources>
