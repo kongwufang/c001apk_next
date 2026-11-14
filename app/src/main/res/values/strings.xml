@@ -241,6 +241,7 @@
     <string name="settings_privacy">隐私</string>
     <string name="settings_recommendation">偏好设置</string>
     <string name="auto_refresh_szlm_id">自动刷新数字联盟ID</string>
+    <string name="szlm_id_auto_refresh_success">数字联盟ID刷新成功</string>
     <string name="auto_refresh_szlm_id_summary">每次进入应用时检查，距离上次获取满24小时后自动更新</string>
     <string name="settings_other">其他</string>
     <string name="settings_verify_ssl">校验 SSL 证书</string>

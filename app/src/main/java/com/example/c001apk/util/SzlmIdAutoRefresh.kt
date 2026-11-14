@@ -2,10 +2,17 @@ package com.example.c001apk.util
 
 import android.app.Activity
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import com.example.c001apk.R
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +23,7 @@ import kotlinx.coroutines.launch
 
 /** Checks on cold start/background return, never on ordinary in-app page changes. */
 internal object SzlmIdAutoRefresh {
+    private const val ACTION_REFRESH_SUCCESS = "com.example.c001apk.action.SZLM_ID_REFRESHED"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var pending: Job? = null
     private var installed = false
@@ -23,6 +31,14 @@ internal object SzlmIdAutoRefresh {
     fun install(app: Application) {
         if (installed || !isMainProcess(app)) return
         installed = true
+        // Main-process, app-private receiver: one short message, without opening a page.
+        ContextCompat.registerReceiver(app, object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != ACTION_REFRESH_SUCCESS) return
+                Toast.makeText(app, R.string.szlm_id_auto_refresh_success, Toast.LENGTH_SHORT).show()
+                AppLog.i(LogModule.NET, "SzlmIdAutoRefresh", "已显示刷新成功提示")
+            }
+        }, IntentFilter(ACTION_REFRESH_SUCCESS), ContextCompat.RECEIVER_NOT_EXPORTED)
         // Older versions saved an ID without its acquisition time. Keep it for a full first window.
         if (PrefManager.SZLMID.isNotEmpty() && PrefManager.szlmIdLastObtainedAt <= 0) {
             PrefManager.szlmIdLastObtainedAt = System.currentTimeMillis()
@@ -76,6 +92,13 @@ internal object SzlmIdAutoRefresh {
                     PrefManager.SZLMID == oldId && PrefManager.szlmIdLastObtainedAt == lastSuccess) {
                     SzlmIdPrompt.save(id)
                     AppLog.i(LogModule.NET, "SzlmIdAutoRefresh", "自动刷新成功，已记录获取时间")
+                    // Save first; never include the device identifier in the event.
+                    runCatching {
+                        app.sendBroadcast(Intent(ACTION_REFRESH_SUCCESS).setPackage(app.packageName))
+                        AppLog.i(LogModule.NET, "SzlmIdAutoRefresh", "已发送应用内刷新成功广播")
+                    }.onFailure { error ->
+                        AppLog.w(LogModule.NET, "SzlmIdAutoRefresh", "刷新成功广播发送失败：${error.javaClass.simpleName}")
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
