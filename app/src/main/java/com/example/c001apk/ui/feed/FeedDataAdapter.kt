@@ -96,6 +96,12 @@ class FeedDataAdapter(
             }
             binding.extraPart.bind(data)
             binding.executePendingBindings()
+            // 正文显式开启系统选择（长按选词、拖动手柄、原生复制菜单）。
+            // 不能只依赖布局里的 textIsSelectable：部分设备上重设文本后会退回不可选择状态，
+            // 表现就是评论能选、正文长按毫无反应。
+            binding.message.setTextIsSelectable(true)
+            binding.message.movementMethod =
+                android.text.method.ArrowKeyMovementMethod.getInstance()
             // 公共黑名单（2026-10-31）：渲染卡片的同时后台查 ✓
             //   用户原话：「进去的时候渲染卡片的同时后台请求一下服务器 ID 或者用户 ID，
             //             服务器返回结果后，如果是被屏蔽状态 UI 更新为卡片带个模糊，
@@ -162,6 +168,11 @@ class FeedDataAdapter(
             // 标题已经不在 0/1 位上，按位置判断的话标题就永远不加粗了
             binding.textView.paint.isFakeBoldText = data?.title == "true"
             binding.executePendingBindings()
+            // 图文正文：同样在绑定后显式开启系统选择（富文本由 BindingAdapter 设置，
+            // 之后的重设会把选择模式顶掉，所以这里再落一次）。
+            binding.textView.setTextIsSelectable(true)
+            binding.textView.movementMethod =
+                android.text.method.ArrowKeyMovementMethod.getInstance()
         }
     }
 
