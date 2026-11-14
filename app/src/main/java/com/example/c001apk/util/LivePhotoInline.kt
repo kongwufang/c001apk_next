@@ -20,16 +20,32 @@ object LivePhotoInline {
     /** 在全屏菜单关闭实况时，同时停止详情页和全屏的所有播放会话。 */
     fun stopAll() { sessions.toList().forEach { it.stop() } }
 
-    fun bind(image: ImageView, url: String) {
+    fun stop(image: ImageView) {
+        (image.getTag(R.id.live_photo_session) as? Session)?.stop()
+    }
+
+    fun replay(image: ImageView) {
+        (image.getTag(R.id.live_photo_session) as? Session)?.let { it.stop(); it.play() }
+    }
+
+    fun bind(image: ImageView, url: String, handleLongPress: Boolean = true) {
         if (!LivePhoto.isLive(url)) return
+        (image.getTag(R.id.live_photo_session) as? Session)?.let {
+            if (it.url == url) { replay(image); return }
+            it.stop()
+            image.removeOnAttachStateChangeListener(it)
+            sessions.remove(it)
+        }
         val session = Session(image, url)
         sessions.add(session)
         image.setTag(R.id.live_photo_session, session)
         image.addOnAttachStateChangeListener(session)
-        image.setOnLongClickListener {
-            if (!PrefManager.showLivePhoto) false else {
-                session.play()
-                true
+        if (handleLongPress) {
+            image.setOnLongClickListener {
+                if (!PrefManager.showLivePhoto) false else {
+                    replay(image)
+                    true
+                }
             }
         }
         image.post { session.play() }
@@ -72,6 +88,15 @@ object LivePhotoInline {
                 exo.repeatMode = Player.REPEAT_MODE_OFF
                 exo.setVideoTextureView(view)
                 exo.addListener(object : Player.Listener {
+                    override fun onVideoSizeChanged(size: androidx.media3.common.VideoSize) {
+                        if (size.width <= 0 || size.height <= 0) return
+                        val ratio = size.width * size.pixelWidthHeightRatio / size.height
+                        val width = minOf(image.width.toFloat(), image.height * ratio).toInt()
+                        val height = (width / ratio).toInt()
+                        val left = image.left + (image.width - width) / 2
+                        val top = image.top + (image.height - height) / 2
+                        view.layout(left, top, left + width, top + height)
+                    }
                     override fun onRenderedFirstFrame() {
                         AppLog.i(LogModule.CARD, "LivePhoto", "INLINE first frame rendered")
                     }

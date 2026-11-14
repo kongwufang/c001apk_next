@@ -353,9 +353,15 @@ object ImageUtil {
         }
     }
 
-    private fun showSaveImgDialog(context: Context, url: String, urlList: List<String>?) {
+    private fun showSaveImgDialog(
+        context: Context, url: String, urlList: List<String>?, liveImage: ImageView? = null,
+    ) {
         MaterialAlertDialogBuilder(context).apply {
-            val items = arrayOf("保存图片", "保存全部图片", "图片分享", "复制图片地址")
+            val live = LivePhoto.isLive(url)
+            val items = arrayOf("保存图片", "保存全部图片", "图片分享", "复制图片地址") +
+                if (live) arrayOf("保存实况照片（封面和视频）", "重新播放",
+                    if (PrefManager.showLivePhoto) "关闭实况" else "开启实况") else emptyArray()
+            if (live) AppLog.i(LogModule.CARD, "LivePhoto", "FULLSCREEN long-press menu")
             setItems(items) { _: DialogInterface?, position: Int ->
                 when (position) {
                     0 -> {
@@ -414,64 +420,29 @@ object ImageUtil {
                     3 -> {
                         copyText(context, url)
                     }
+                    4 -> LivePhotoPlayer.savePair(context, url)
+                    5 -> if (liveImage != null && PrefManager.showLivePhoto) {
+                        LivePhotoInline.bind(liveImage, url, handleLongPress = false)
+                        AppLog.i(LogModule.CARD, "LivePhoto", "FULLSCREEN replay requested")
+                    }
+                    6 -> {
+                        PrefManager.showLivePhoto = !PrefManager.showLivePhoto
+                        LivePhotoInline.stopAll()
+                        context.makeToast(if (PrefManager.showLivePhoto) "已开启实况" else "已全局关闭实况")
+                    }
                 }
             }
             show()
         }
     }
 
-    /** 实况图复用普通图片查看器：同样的放大过渡、单图/多图布局和长按入口。 */
+    /** 所有图片共用同一查看器、原图策略、转场与长按菜单。 */
     fun startLivePhotoView(
         nineGridView: NineGridImageView,
         imageView: ImageView,
         urlList: List<String>,
         position: Int,
-    ) {
-        val thumbs = urlList.map { if (it.isLocalImage) it.imageUrl else it.http2https }
-        val origins = urlList.map { it.removeSuffix(".s.jpg").imageUrl }
-        Mojito.start(imageView.context) {
-            urls(thumbs, origins)
-            position(position)
-            views(nineGridView.getImageViews().toTypedArray())
-            progressLoader { DefaultPercentProgress() }
-            fragmentCoverLoader { DefaultTargetFragmentCover() }
-            setOnMojitoListener(object : SimpleMojitoViewCallback() {
-                override fun onLongClick(
-                    fragmentActivity: FragmentActivity?,
-                    view: View,
-                    x: Float,
-                    y: Float,
-                    selected: Int,
-                ) {
-                    val current = origins.getOrNull(selected) ?: return
-                    if (!LivePhoto.isLive(current)) {
-                        showSaveImgDialog(view.context, current, origins)
-                        return
-                    }
-                    // 全屏状态下长按才打开实况更多菜单；普通图片仍走既有保存菜单。
-                    androidx.appcompat.widget.PopupMenu(view.context, view).apply {
-                        menu.add("重新播放")
-                        menu.add(if (PrefManager.showLivePhoto) "关闭实况" else "开启实况")
-                        setOnMenuItemClickListener { item ->
-                            when (item.title.toString()) {
-                                "重新播放" -> {
-                                    if (view is ImageView && PrefManager.showLivePhoto)
-                                        LivePhotoInline.bind(view, current)
-                                }
-                                "关闭实况" -> {
-                                    PrefManager.showLivePhoto = false
-                                    LivePhotoInline.stopAll()
-                                }
-                                "开启实况" -> PrefManager.showLivePhoto = true
-                            }
-                            true
-                        }
-                    }.show()
-                }
-            })
-        }
-    }
-
+    ) = startBigImgView(nineGridView, imageView, urlList, position)
 
     fun startBigImgView(
         nineGridView: NineGridImageView,
@@ -486,6 +457,16 @@ object ImageUtil {
             // 网络图维持原样（原图摘掉缩略后缀，缩略图直接给带后缀的那条）
             originList.add(it.removeSuffix(".s.jpg").imageUrl)
             thumbList.add(if (it.isLocalImage) it.imageUrl else it.http2https)
+        }
+        var currentPosition = position
+        val fullscreenImages = HashMap<Int, ImageView>()
+        fun playFullscreen(index: Int) {
+            val image = fullscreenImages[index] ?: return
+            val url = originList.getOrNull(index) ?: return
+            if (LivePhoto.isLive(url) && PrefManager.showLivePhoto) {
+                AppLog.i(LogModule.CARD, "LivePhoto", "FULLSCREEN play after transition position=$index")
+                LivePhotoInline.bind(image, url, handleLongPress = false)
+            }
         }
         Mojito.start(imageView.context) {
             urls(thumbList, originList)
@@ -511,7 +492,21 @@ object ImageUtil {
                 DefaultTargetFragmentCover()
             }
             setOnMojitoListener(object : SimpleMojitoViewCallback() {
+                override fun onShowFinish(mojitoView: net.mikaelzero.mojito.MojitoView, showImmediately: Boolean) {
+                    val readyPosition = originList.indexOf(mojitoView.contentOriginUrl)
+                    val content = mojitoView.contentRealView as? ImageView ?: return
+                    if (readyPosition < 0) return
+                    fullscreenImages[readyPosition] = content
+                    if (readyPosition == currentPosition) playFullscreen(readyPosition)
+                }
+
+                override fun onDrag(view: net.mikaelzero.mojito.MojitoView, moveX: Float, moveY: Float) {
+                    fullscreenImages[currentPosition]?.let { LivePhotoInline.stop(it) }
+                }
+
                 override fun onStartAnim(position: Int) {
+                    // 缩略图上的视频层不能盖住全屏转场。
+                    nineGridView.getImageViews().forEach { LivePhotoInline.stop(it) }
                     nineGridView.getImageViewAt(position)?.apply {
                         postDelayed({
                             this.isVisible = false
@@ -520,12 +515,19 @@ object ImageUtil {
                 }
 
                 override fun onMojitoViewFinish(pagePosition: Int) {
+                    fullscreenImages.values.forEach { LivePhotoInline.stop(it) }
+                    fullscreenImages.clear()
                     nineGridView.getImageViews().forEach {
                         it.isVisible = true
                     }
                 }
 
                 override fun onViewPageSelected(position: Int) {
+                    if (currentPosition != position) {
+                        fullscreenImages[currentPosition]?.let { LivePhotoInline.stop(it) }
+                        currentPosition = position
+                        playFullscreen(position)
+                    }
                     nineGridView.getImageViews().forEachIndexed { index, imageView ->
                         imageView.isVisible = position != index
                     }
@@ -539,7 +541,9 @@ object ImageUtil {
                     position: Int
                 ) {
                     if (fragmentActivity != null) {
-                        showSaveImgDialog(fragmentActivity, originList[position], originList)
+                        val content = fullscreenImages[position] ?: (view as? ImageView)
+                        content?.let { LivePhotoInline.stop(it) }
+                        showSaveImgDialog(fragmentActivity, originList[position], originList, content)
                     } else {
                         AppLog.i(LogModule.UI, "ImageUtil", "fragmentActivity is null, skip save image")
                     }

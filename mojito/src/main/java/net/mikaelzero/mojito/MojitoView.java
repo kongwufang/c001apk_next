@@ -635,7 +635,19 @@ public class MojitoView extends FrameLayout {
         return y >= top && y <= bottom && x >= left && x <= right;
     }
 
+    /** 当前全屏内容的真实图片视图，供宿主接入额外播放层。 */
+    public View getContentRealView() {
+        return contentLoader == null ? null : contentLoader.providerRealView();
+    }
+
+    private String contentOriginUrl;
+
+    public String getContentOriginUrl() {
+        return contentOriginUrl;
+    }
+
     public void setContentLoader(ContentLoader view, String originUrl, String targetUrl) {
+        this.contentOriginUrl = originUrl;
         this.contentLoader = view;
         this.contentLoader.init(getContext(), originUrl, targetUrl, onMojitoViewCallback);
         contentLayout.addView(contentLoader.providerView());
