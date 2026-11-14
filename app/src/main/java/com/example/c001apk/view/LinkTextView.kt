@@ -55,6 +55,9 @@ class LinkTextView : FakeFontWeightMaterialTextView {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         linkHit = false
         val res = super.onTouchEvent(event)
+        // 正文/评论显式开启 textIsSelectable 时，必须把完整触摸序列交给 TextView，
+        // 否则非链接 ACTION_DOWN 会返回 false，系统选择框永远不会出现。
+        if (isTextSelectable) return res
         return if (dontConsumeNonUrlClicks) linkHit else res
     }
 
