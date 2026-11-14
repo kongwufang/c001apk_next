@@ -25,14 +25,20 @@ import android.widget.VideoView
 object LivePhotoPlayer {
 
     fun show(context: Context, coverUrl: String?) {
-        // 先拿「带 sign 的签名地址」（官方 302 接口），拿不到就不播
-        val signed = LivePhotoResolver.resolve(coverUrl)
-        if (signed.isNullOrEmpty()) {
-            AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 无签名地址，放弃播放")
-            Toast.makeText(context, "该实况暂不支持播放，可先保存封面", Toast.LENGTH_SHORT).show()
-            return
+        if (!PrefManager.showLivePhoto) return
+        LivePhotoResolver.resolveAsync(coverUrl) { signed ->
+            val activity = context as? android.app.Activity
+            if (activity != null && (activity.isFinishing || activity.isDestroyed)) return@resolveAsync
+            if (signed.isNullOrEmpty()) {
+                Toast.makeText(context, "实况地址获取失败", Toast.LENGTH_SHORT).show()
+            } else if (PrefManager.showLivePhoto) {
+                showResolved(context, coverUrl, signed)
+            }
         }
-        AppLog.i(LogModule.CARD, "LivePhoto", "PLAY " + signed)
+    }
+
+    private fun showResolved(context: Context, coverUrl: String?, signed: String) {
+        AppLog.i(LogModule.CARD, "LivePhoto", "PLAY signed video requested")
 
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         val root = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
@@ -46,10 +52,6 @@ object LivePhotoPlayer {
             }
             setOnErrorListener { _, what, extra ->
                 AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 失败 what=" + what + " extra=" + extra)
-                // 第一步失败（CDN 上没有独立 mp4）：兜底去解析 Motion Photo
-                if (runCatching { tryMotionPhoto(context, coverUrl, this) }.getOrDefault(false)) {
-                    return@setOnErrorListener true
-                }
                 runCatching { dialog.dismiss() }
                 Toast.makeText(context, "该实况暂不支持播放，可先保存封面", Toast.LENGTH_SHORT).show()
                 true
@@ -122,7 +124,7 @@ object LivePhotoPlayer {
                 val ok = runCatching { savePair(context, coverUrl, signed) }.getOrDefault(false)
                 Toast.makeText(
                     context,
-                    if (ok) "已保存封面和实况视频" else "保存失败",
+                    if (ok) "正在保存封面和实况视频" else "保存失败",
                     Toast.LENGTH_SHORT
                 ).show()
             }
