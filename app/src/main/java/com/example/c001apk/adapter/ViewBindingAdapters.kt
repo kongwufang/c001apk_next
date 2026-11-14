@@ -420,6 +420,8 @@ fun avatarImage(imageView: ImageView, imageUrl: String?) {
  */
 @BindingAdapter("liveBadge")
 fun setLiveBadge(textView: TextView, picArr: List<String>?) {
-    val live = picArr != null && picArr.any { com.example.c001apk.util.LivePhoto.isLive(it) }
+    // 用户关掉「展示实况照片」⇒ 角标也不显示（全局开关）
+    val live = com.example.c001apk.util.PrefManager.showLivePhoto &&
+            picArr != null && picArr.any { com.example.c001apk.util.LivePhoto.isLive(it) }
     textView.visibility = if (live) android.view.View.VISIBLE else android.view.View.GONE
 }

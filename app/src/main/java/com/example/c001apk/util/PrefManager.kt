@@ -667,4 +667,14 @@ object PrefManager {
             pref.edit().putLong("cloud_gates_ts", value).apply()
         }
 
+
+    /**
+     * 展示实况照片（2026-11-14，默认 **true**）
+     *
+     * 关掉之后：详情页不再自动播放、图片上的「实况」角标也不显示。
+     * 官方把这个开关叫「关闭实况」，是全局生效的；我们放在 设置 → 推荐流相关。
+     */
+    var showLivePhoto: Boolean
+        get() = pref.getBoolean("showLivePhoto", true)
+        set(value) = pref.edit().putBoolean("showLivePhoto", value).apply()
 }

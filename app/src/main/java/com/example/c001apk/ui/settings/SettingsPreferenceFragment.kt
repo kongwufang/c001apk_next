@@ -277,6 +277,15 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
         //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
 
+        // 展示实况照片（全局开关，默认开）
+        findPreference<MaterialSwitchPreference>("showLivePhoto")?.apply {
+            isChecked = PrefManager.showLivePhoto
+            setOnPreferenceChangeListener { _, v ->
+                PrefManager.showLivePhoto = v as Boolean
+                true
+            }
+        }
+
         findPreference<MaterialSwitchPreference>("saveCollectionToCloud")?.apply {
             isChecked = PrefManager.saveCollectionToCloud
             setOnPreferenceChangeListener { _, v ->

@@ -146,6 +146,13 @@
                实际值存在 PrefManager 里 ✓ 由 SettingsPreferenceFragment 手动读写 ✓
         -->
 
+        <Preference
+            android:icon="@drawable/ic_image"
+            android:key="showLivePhoto"
+            android:persistent="false"
+            android:summary="关掉后详情页不再自动播放，也不显示「实况」角标"
+            android:title="展示实况照片" />
+
         <PreferenceCategory android:title="@string/settings_save_location">
 
             <rikka.material.preference.MaterialSwitchPreference
