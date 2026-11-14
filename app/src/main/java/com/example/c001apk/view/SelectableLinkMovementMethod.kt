@@ -101,7 +101,7 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
                         rect.set(view.totalPaddingLeft, view.totalPaddingTop + layout.getLineTop(line),
                             view.width - view.totalPaddingRight, view.totalPaddingTop + layout.getLineBottom(line))
                     }
-                }, android.view.ActionMode.TYPE_FLOATING)
+                }, android.view.ActionMode.TYPE_PRIMARY)
                 true
             }
         }
