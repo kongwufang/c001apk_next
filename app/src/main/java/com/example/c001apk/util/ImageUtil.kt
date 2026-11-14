@@ -354,7 +354,7 @@ object ImageUtil {
     }
 
     private fun showSaveImgDialog(
-        context: Context, url: String, urlList: List<String>?, liveImage: ImageView? = null,
+        context: Context, url: String, urlList: List<String>?, liveImage: View? = null,
     ) {
         MaterialAlertDialogBuilder(context).apply {
             val live = LivePhoto.isLive(url)
@@ -459,7 +459,7 @@ object ImageUtil {
             thumbList.add(if (it.isLocalImage) it.imageUrl else it.http2https)
         }
         var currentPosition = position
-        val fullscreenImages = HashMap<Int, ImageView>()
+        val fullscreenImages = HashMap<Int, View>()
         fun playFullscreen(index: Int) {
             val image = fullscreenImages[index] ?: return
             val url = originList.getOrNull(index) ?: return
@@ -494,10 +494,12 @@ object ImageUtil {
             setOnMojitoListener(object : SimpleMojitoViewCallback() {
                 override fun onShowFinish(mojitoView: net.mikaelzero.mojito.MojitoView, showImmediately: Boolean) {
                     val readyPosition = originList.indexOf(mojitoView.contentOriginUrl)
-                    val content = mojitoView.contentRealView as? ImageView ?: return
-                    if (readyPosition < 0) return
+                        .takeIf { it >= 0 } ?: currentPosition
+                    val content: View = mojitoView.contentRealView ?: return
                     fullscreenImages[readyPosition] = content
-                    if (readyPosition == currentPosition) playFullscreen(readyPosition)
+                    if (readyPosition == currentPosition) {
+                        content.post { playFullscreen(readyPosition) }
+                    }
                 }
 
                 override fun onDrag(view: net.mikaelzero.mojito.MojitoView, moveX: Float, moveY: Float) {
@@ -541,7 +543,7 @@ object ImageUtil {
                     position: Int
                 ) {
                     if (fragmentActivity != null) {
-                        val content = fullscreenImages[position] ?: (view as? ImageView)
+                        val content = fullscreenImages[position] ?: view
                         content?.let { LivePhotoInline.stop(it) }
                         showSaveImgDialog(fragmentActivity, originList[position], originList, content)
                     } else {
