@@ -61,49 +61,12 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
     companion object {
         fun applyTo(view: TextView) {
             if (!view.isTextSelectable) return
-            // 强制保留系统选择能力，避免 DataBinding/自定义 setText 覆盖属性。
+            // 原生 TextView Editor 负责选词、拖动手柄和浮动菜单。
             view.setTextIsSelectable(true)
             view.isLongClickable = true
             view.isFocusableInTouchMode = true
-            if (view.movementMethod !is SelectableLinkMovementMethod) {
-                view.movementMethod = SelectableLinkMovementMethod()
-            }
-            view.setOnLongClickListener {
-                view.requestFocus()
-                // 使用 TextView 原生菜单动作启动系统 ActionMode 和选择手柄。
-                // 首次默认选中这段正文/评论，随后仍可拖动手柄调整范围。
-                view.onTextContextMenuItem(android.R.id.selectAll)
-                com.example.c001apk.util.AppLog.i(
-                    com.example.c001apk.util.LogModule.UI, "TextSelection",
-                    "selectAll focused=${view.hasFocus()} selection=${view.selectionStart}:${view.selectionEnd}"
-                )
-                view.startActionMode(object : android.view.ActionMode.Callback2() {
-                    override fun onCreateActionMode(mode: android.view.ActionMode, menu: android.view.Menu): Boolean {
-                        menu.add(0, android.R.id.copy, 0, android.R.string.copy)
-                            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
-                        menu.add(0, android.R.id.selectAll, 1, android.R.string.selectAll)
-                            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
-                        return true
-                    }
-                    override fun onPrepareActionMode(mode: android.view.ActionMode, menu: android.view.Menu) = false
-                    override fun onActionItemClicked(mode: android.view.ActionMode, item: android.view.MenuItem): Boolean {
-                        val handled = view.onTextContextMenuItem(item.itemId)
-                        if (item.itemId == android.R.id.copy) mode.finish()
-                        return handled
-                    }
-                    override fun onDestroyActionMode(mode: android.view.ActionMode) {
-                        (view.text as? Spannable)?.let { android.text.Selection.removeSelection(it) }
-                    }
-                    override fun onGetContentRect(mode: android.view.ActionMode, target: android.view.View, rect: android.graphics.Rect) {
-                        val layout = view.layout ?: return super.onGetContentRect(mode, target, rect)
-                        val offset = view.selectionStart.coerceIn(0, view.text.length)
-                        val line = layout.getLineForOffset(offset)
-                        rect.set(view.totalPaddingLeft, view.totalPaddingTop + layout.getLineTop(line),
-                            view.width - view.totalPaddingRight, view.totalPaddingTop + layout.getLineBottom(line))
-                    }
-                }, android.view.ActionMode.TYPE_PRIMARY)
-                true
-            }
+            view.movementMethod = ArrowKeyMovementMethod.getInstance()
+            view.setOnLongClickListener(null)
         }
     }
 }
