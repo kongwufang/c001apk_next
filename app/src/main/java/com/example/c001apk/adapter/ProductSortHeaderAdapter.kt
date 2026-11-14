@@ -64,7 +64,13 @@ class ProductSortHeaderAdapter(
                     isAllCaps = false
                     minWidth = 0
                     minHeight = 0
-                    setPadding(28, 12, 28, 12)
+                    // 与 item_product_sort_header.xml 里写死的三段按钮保持一致的外观 ✓
+                    setPadding(
+                        (12 * resources.displayMetrics.density).toInt(),
+                        (4 * resources.displayMetrics.density).toInt(),
+                        (12 * resources.displayMetrics.density).toInt(),
+                        (4 * resources.displayMetrics.density).toInt()
+                    )
                     tag = value
                 }
                 sortGroup.addView(btn)
