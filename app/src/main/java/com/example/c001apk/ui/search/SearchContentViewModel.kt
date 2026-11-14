@@ -84,8 +84,7 @@ class SearchContentViewModel @AssistedInject constructor(
         footerState.value = FooterState.LoadingDone
         loadingState.value = LoadingState.Loading
     }
-
-
+    override fun fetchData() {
         viewModelScope.launch(Dispatchers.IO) {
             networkRepo.getSearch(
                 type, feedType, sort, keyWord,
