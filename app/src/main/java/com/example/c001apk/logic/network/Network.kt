@@ -68,6 +68,7 @@ object Network {
         pageParam,
         page,
         lastItem,
+        isStrict = isStrict,
     ).await()
 
     suspend fun getReply2Reply(id: String, page: Int, lastItem: String?) =

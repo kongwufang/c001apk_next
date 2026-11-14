@@ -92,7 +92,8 @@ class NetworkRepo @Inject constructor(
     ) = fire {
         Result.success(
             apiService.getSearch(
-                type, feedType, sort, keyWord, pageType, pageParam, page, lastItem, isStrict
+                type, feedType, sort, keyWord, pageType, pageParam, page, lastItem,
+                isStrict = isStrict
             ).await()
         )
     }

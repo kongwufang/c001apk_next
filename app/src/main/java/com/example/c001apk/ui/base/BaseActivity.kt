@@ -52,7 +52,6 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
     }
 
     private fun walkForSelection(v: android.view.View) {
-        if (TAG_SELECTABLE == v.getTag()) return
         if (v is android.widget.EditText) return          // 已可选
         if (v is android.widget.TextView) {
             // ★ 2026-11-14 用户反馈：帖子正文 / 评论这些「真正需要长按复制」的地方
@@ -63,7 +62,6 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
             if (selectable && txt.isNotEmpty()) {
                 runCatching { v.setTextIsSelectable(true) }
             }
-            v.setTag(TAG_SELECTABLE)
             return
         }
         if (v is android.view.ViewGroup) {

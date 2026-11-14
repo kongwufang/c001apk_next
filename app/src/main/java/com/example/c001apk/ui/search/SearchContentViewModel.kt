@@ -123,8 +123,18 @@ class SearchContentViewModel @AssistedInject constructor(
                                 ).collect { r2 ->
                                     val extra = r2.getOrNull()?.data
                                     if (!extra.isNullOrEmpty()) {
-                                        val merged = dataList.value?.toMutableList() ?: ArrayList()
-                                        merged.addAll(extra)
+                                        // postValue 异步发布，不能再从 value 读回尚未发布的卡片列表。
+                                        val merged = searchList.toMutableList()
+                                        extra.filter { item ->
+                                            item.entityType == "feed" &&
+                                                !blackListRepo.checkUid(item.userInfo?.uid.toString()) &&
+                                                !blackListRepo.checkTopic(item.tags + item.ttitle +
+                                                    item.relationRows?.getOrNull(0)?.title)
+                                        }.forEach { item ->
+                                            if (merged.none { it.entityType == "feed" && it.id == item.id }) {
+                                                merged.add(item)
+                                            }
+                                        }
                                         dataList.postValue(merged)
                                     }
                                 }

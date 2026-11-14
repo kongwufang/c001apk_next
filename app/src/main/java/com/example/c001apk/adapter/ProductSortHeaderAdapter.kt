@@ -23,7 +23,7 @@ import com.google.android.material.button.MaterialButton
  * [onSort] 只在用户点击时回调，恢复选中态不会触发。
  */
 class ProductSortHeaderAdapter(
-    private val currentSort: String,
+    private var currentSort: String,
     private val labels: List<Pair<String, String>> = DEFAULT_LABELS,
     private val onSort: (String) -> Unit
 ) : RecyclerView.Adapter<ProductSortHeaderAdapter.ViewHolder>() {
@@ -32,6 +32,11 @@ class ProductSortHeaderAdapter(
         RecyclerView.ViewHolder(binding.root)
 
     private var suppressCallback = false
+
+    fun select(value: String) {
+        currentSort = value
+        notifyItemChanged(0)
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
         ViewHolder(
@@ -85,6 +90,7 @@ class ProductSortHeaderAdapter(
                 if (!isChecked || suppressCallback) return@addOnButtonCheckedListener
                 val v = sortGroup.findViewById<View>(id)?.tag as? String
                     ?: return@addOnButtonCheckedListener
+                currentSort = v
                 onSort(v)
             }
         }

@@ -71,7 +71,7 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
         viewModel.footerState.value = FooterState.LoadingDone
         viewModel.loadingState.value = LoadingState.Loading
         // 菜单里也能换排序 ⇒ 让顶部 chip 跟着变（不触发回调）
-        sortHeader?.notifyDataSetChanged()
+        sortHeader?.select(viewModel.sort)
     }
 
     override fun onResume() {
