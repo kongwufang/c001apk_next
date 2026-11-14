@@ -420,12 +420,59 @@ object ImageUtil {
         }
     }
 
-    fun startBigImgView(
+    /** 实况图复用普通图片查看器：同样的放大过渡、单图/多图布局和长按入口。 */
+    fun startLivePhotoView(
         nineGridView: NineGridImageView,
         imageView: ImageView,
         urlList: List<String>,
-        position: Int
+        position: Int,
     ) {
+        val thumbs = urlList.map { if (it.isLocalImage) it.imageUrl else it.http2https }
+        val origins = urlList.map { it.removeSuffix(".s.jpg").imageUrl }
+        Mojito.start(imageView.context) {
+            urls(thumbs, origins)
+            position(position)
+            views(nineGridView.getImageViews().toTypedArray())
+            progressLoader { DefaultPercentProgress() }
+            fragmentCoverLoader { DefaultTargetFragmentCover() }
+            setOnMojitoListener(object : SimpleMojitoViewCallback() {
+                override fun onLongClick(
+                    fragmentActivity: FragmentActivity?,
+                    view: View,
+                    x: Float,
+                    y: Float,
+                    selected: Int,
+                ) {
+                    val current = origins.getOrNull(selected) ?: return
+                    if (!LivePhoto.isLive(current)) {
+                        showSaveImgDialog(fragmentActivity, current, origins)
+                        return
+                    }
+                    // 全屏状态下长按才打开实况更多菜单；普通图片仍走既有保存菜单。
+                    androidx.appcompat.widget.PopupMenu(view.context, view).apply {
+                        menu.add("重新播放")
+                        menu.add(if (PrefManager.showLivePhoto) "关闭实况" else "开启实况")
+                        setOnMenuItemClickListener { item ->
+                            when (item.title.toString()) {
+                                "重新播放" -> {
+                                    if (view is ImageView && PrefManager.showLivePhoto)
+                                        LivePhotoInline.bind(view, current)
+                                }
+                                "关闭实况" -> {
+                                    PrefManager.showLivePhoto = false
+                                    LivePhotoInline.stopAll()
+                                }
+                                "开启实况" -> PrefManager.showLivePhoto = true
+                            }
+                            true
+                        }
+                    }.show()
+                }
+            })
+        }
+    }
+
+
         val thumbList: MutableList<String> = ArrayList()
         val originList: MutableList<String> = ArrayList()
         urlList.forEach {

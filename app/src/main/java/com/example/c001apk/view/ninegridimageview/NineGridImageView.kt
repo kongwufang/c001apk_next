@@ -156,7 +156,9 @@ class NineGridImageView @JvmOverloads constructor(
                     //   其它图保持原来的大图查看，行为完全不变 ✓
                     val url = urlList.getOrNull(i)
                     if (com.example.c001apk.util.LivePhoto.isLive(url)) {
-                        com.example.c001apk.util.LivePhotoPlayer.show(context, url)
+                        com.example.c001apk.util.ImageUtil.startLivePhotoView(
+                            this, childrenView, urlList, i
+                        )
                     } else {
                         ImageUtil.startBigImgView(this, childrenView, urlList, i)
                     }
