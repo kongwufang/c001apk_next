@@ -184,6 +184,8 @@ data class HomeFeedResponse(
         @SerializedName("price_max") val priceMax: String? = null,
         @SerializedName("star_average_score") val starAverageScore: String? = null,
         @SerializedName("star_total_count") val starTotalCount: String? = null,
+        @SerializedName("follow_num") val followNum: String? = null,
+        @SerializedName("discuss_num") val discussNum: String? = null,
         @SerializedName("config_name") val configName: String? = null,
         val productSpecs: List<String>? = null,
         // 服务端可能下发对象（有评分项）或空数组 []（没有评分项），见 ProductRatingSpecsAdapter
@@ -427,6 +429,8 @@ data class HomeFeedResponse(
         @SerializedName("price_max") val priceMax: String? = null,
         @SerializedName("star_average_score") val starAverageScore: String? = null,
         @SerializedName("star_total_count") val starTotalCount: String? = null,
+        @SerializedName("follow_num") val followNum: String? = null,
+        @SerializedName("discuss_num") val discussNum: String? = null,
         @SerializedName("config_name") val configName: String? = null,
         val productSpecs: List<String>? = null,
         // 服务端可能下发对象（有评分项）或空数组 []（没有评分项），见 ProductRatingSpecsAdapter
