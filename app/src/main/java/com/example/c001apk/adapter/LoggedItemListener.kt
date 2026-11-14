@@ -87,7 +87,11 @@ class LoggedItemListener(
         delegate.onShareFeed(id)
     }
 
-    override fun onFollowUser(uid: String, followAuthor: Int) {
+    override fun onSearchSort(value: String) {
+        log("onSearchSort", "value" to value)
+        delegate.onSearchSort(value)
+    }
+
         log("onFollowUser", "uid" to uid, "followAuthor" to followAuthor)
         delegate.onFollowUser(uid, followAuthor)
     }
