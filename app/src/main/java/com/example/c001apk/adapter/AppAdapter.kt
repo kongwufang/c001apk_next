@@ -44,6 +44,7 @@ import com.example.c001apk.databinding.ItemProductSelectRowBinding
 import com.example.c001apk.databinding.ItemUserNodeRatingBinding
 import com.example.c001apk.databinding.ItemRecentHistoryBinding
 import com.example.c001apk.databinding.ItemSearchApkBinding
+import com.example.c001apk.databinding.ItemSearchResultCardBinding
 import com.example.c001apk.databinding.ItemSearchTopicBinding
 import com.example.c001apk.databinding.ItemSearchUserBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
@@ -69,6 +70,7 @@ private const val TYPE_BLOCKED = -1001
  */
 private const val TYPE_BLOCKED_TOPIC = -1002
 private const val TYPE_SEARCH_SORT = 28
+private const val TYPE_SEARCH_RESULT_CARD = 29
 
 class AppAdapter(
     rawListener: ItemListener
@@ -891,6 +893,29 @@ class AppAdapter(
     }
 
     // 产品页「参数」tab：同价位 / 同SoC / 同系列机型（横向列表）
+    /** 搜索的 listCard 是纵向产品/话题行，与产品参数页的横向比较卡分开。 */
+    class SearchResultCardViewHolder(
+        val binding: ItemSearchResultCardBinding,
+        val listener: ItemListener
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+        override fun bind(data: HomeFeedResponse.Data) {
+            (itemView.layoutParams as? androidx.recyclerview.widget.StaggeredGridLayoutManager.LayoutParams)
+                ?.isFullSpan = true
+            binding.title.text = data.title
+            binding.more.text = data.description
+            binding.more.setOnClickListener {
+                listener.onSearchTab(data.url.orEmpty().removePrefix("tab://"))
+            }
+            binding.recyclerView.apply {
+                layoutManager = LinearLayoutManager(context)
+                adapter = GenericCardEntityAdapter(
+                    data.entities.orEmpty(), listener, false,
+                    com.example.c001apk.util.CardUi.ItemRule(shape = com.example.c001apk.util.CardUi.SHAPE_ROW)
+                )
+            }
+        }
+    }
+
     class ProductListCardViewHolder(
         val binding: ItemProductListCardBinding,
         val listener: ItemListener
@@ -1261,6 +1286,12 @@ class AppAdapter(
                 )
             }
 
+            TYPE_SEARCH_RESULT_CARD -> SearchResultCardViewHolder(
+                ItemSearchResultCardBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                ), listener
+            )
+
             TYPE_SEARCH_SORT -> SearchSortViewHolder(
                 ItemProductSortHeaderBinding.inflate(
                     LayoutInflater.from(parent.context), parent, false
@@ -1385,6 +1416,8 @@ class AppAdapter(
     override fun getItemViewType(position: Int): Int {
         val item = currentList[position]
         if (item.entityId == "c001apk-search-sort") return TYPE_SEARCH_SORT
+        if (item.entityTemplate == "listCard" &&
+            item.url in setOf("tab://product", "tab://feedTopic")) return TYPE_SEARCH_RESULT_CARD
 
         // ★★ 2026-10-31 专用「被屏蔽卡片」（用户提的终极方案）★★
         //   命中公共黑名单 ⇒ 直接返回 TYPE_BLOCKED

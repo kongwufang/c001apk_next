@@ -92,6 +92,11 @@ class LoggedItemListener(
         delegate.onSearchSort(value)
     }
 
+    override fun onSearchTab(value: String) {
+        log("onSearchTab", "value" to value)
+        delegate.onSearchTab(value)
+    }
+
     override fun onFollowUser(uid: String, followAuthor: Int) {
         log("onFollowUser", "uid" to uid, "followAuthor" to followAuthor)
         delegate.onFollowUser(uid, followAuthor)

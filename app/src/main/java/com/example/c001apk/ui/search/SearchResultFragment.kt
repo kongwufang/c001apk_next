@@ -29,6 +29,16 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
     private lateinit var order: MenuItem
     override var controller: IOnSearchMenuClickListener? = null
 
+    fun selectSearchTab(value: String) {
+        if (viewModel.pageType.isNotEmpty()) return
+        val position = when (value) {
+            "product" -> 4
+            "feedTopic" -> 6
+            else -> return
+        }
+        binding.viewPager.setCurrentItem(position, false)
+    }
+
     companion object {
         @JvmStatic
         fun newInstance(keyWord: String, pageType: String?, pageParam: String?, title: String?) =

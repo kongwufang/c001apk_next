@@ -32,7 +32,7 @@ import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardProductRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
-import com.example.c001apk.databinding.ItemHomeGenericCardTopicRowBinding
+import com.example.c001apk.databinding.ItemSearchTopicRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.AppLog
 import com.example.c001apk.util.LogModule
@@ -1239,14 +1239,15 @@ class GenericCardEntityAdapter(
      */
     class ProductRowViewHolder(val binding: ItemHomeGenericCardProductRowBinding) :
         RecyclerView.ViewHolder(binding.root)
-    class TopicRowViewHolder(val binding: ItemHomeGenericCardTopicRowBinding) :
+    class TopicRowViewHolder(val binding: ItemSearchTopicRowBinding) :
         RecyclerView.ViewHolder(binding.root)
 
     override fun getItemViewType(position: Int): Int = when {
         CardUi.entityLayout(entityTemplateOf(entities[position])) != null -> VIEW_TYPE_OFFICIAL
         // 全是 user 实体（「优质酷友」那类）⇒ 官方行布局 ✓
         entities[position].entityType == "user" -> VIEW_TYPE_USER_ROW
-        entities[position].entityType == "feedTopic" -> VIEW_TYPE_TOPIC_ROW
+        entities[position].entityType == "feedTopic" ||
+            (entities[position].entityType == "topic" && !horizontal && rule.shape == CardUi.SHAPE_ROW) -> VIEW_TYPE_TOPIC_ROW
         entities[position].entityType == "product" -> VIEW_TYPE_PRODUCT_ROW
         else -> VIEW_TYPE_DEFAULT
     }
@@ -1262,7 +1263,7 @@ class GenericCardEntityAdapter(
                 ItemHomeGenericCardUserRowBinding.inflate(inflater, parent, false)
             )
         } else if (viewType == VIEW_TYPE_TOPIC_ROW) {
-            TopicRowViewHolder(ItemHomeGenericCardTopicRowBinding.inflate(inflater, parent, false))
+            TopicRowViewHolder(ItemSearchTopicRowBinding.inflate(inflater, parent, false))
         } else if (viewType == VIEW_TYPE_PRODUCT_ROW) {
             ProductRowViewHolder(
                 ItemHomeGenericCardProductRowBinding.inflate(inflater, parent, false)
@@ -1552,15 +1553,27 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
-/** 官方 item_topic_view.xml 对应的feedTopic行。 */
-private fun bindTopicRow(b: ItemHomeGenericCardTopicRowBinding, entity: HomeFeedResponse.Entities, listener: ItemListener) {
-    val image = entity.logo ?: entity.icon ?: entity.pic
-    if (!image.isNullOrEmpty()) ImageUtil.showIMG(b.logo, image, onFail = { b.logo.isVisible = false })
-    b.title.text = entity.title ?: entity.aliasTitle.orEmpty()
-    val info = listOfNotNull(entity.followNum?.takeIf { it.isNotBlank() }?.let { "${it}关注" }, entity.discussNum?.takeIf { it.isNotBlank() }?.let { "${it}讨论" }).joinToString(" ")
-    b.description.text = info; b.description.isVisible = info.isNotEmpty()
-    b.rating.text = entity.starAverageScore?.takeIf { it.isNotBlank() }?.let { "${it}分" } ?: "暂无人评分"
-    val url = entity.url?.takeIf { it.isNotBlank() } ?: entity.id?.let { "/t/$it" }
+/** 官方 item_topic_view.xml 对应的 topic/feedTopic 行。 */
+private fun bindTopicRow(b: ItemSearchTopicRowBinding, entity: HomeFeedResponse.Entities, listener: ItemListener) {
+    b.logo.isVisible = true
+    ImageUtil.showIMG(b.logo, pickEntity(entity, listOf("pic", "logo", "icon")))
+    b.title.text = pickEntity(entity, listOf("title", "alias_title")).orEmpty()
+    val hot = entity.hotNumTxt?.takeIf { it.isNotBlank() }
+    val comments = entity.commentnumTxt?.takeIf { it.isNotBlank() } ?: entity.discussNum
+    b.description.text = listOfNotNull(hot?.let { "${it}热度" }, comments?.let { "${it}讨论" }).joinToString(" ")
+    b.hotIcon.isVisible = hot != null
+    b.subtitleContainer.isVisible = !b.description.text.isNullOrEmpty()
+    // 官方 TopicViewHolder：allow_rating=0 时只显示箭头；可评分但还没有分时显示占位文字。
+    val rated = entity.raw?.jsonString("allow_rating") == "1"
+    val score = pickEntity(entity, listOf("rating_average_score", "star_average_score"))?.toFloatOrNull() ?: 0f
+    b.arrow.isVisible = !rated
+    b.scoreContainer.isVisible = rated
+    b.score.isVisible = score > 0f
+    b.scoreBar.isVisible = score > 0f
+    b.noRating.isVisible = score <= 0f
+    b.score.text = formatSearchScore(score)
+    b.scoreBar.score = score
+    val url = entity.url?.takeIf { it.isNotBlank() } ?: topicFallbackUrl(entity)
     b.root.setOnClickListener { if (url != null) listener.onOpenLink(it, url, b.title.text.toString()) }
 }
 
@@ -1574,11 +1587,11 @@ private fun bindProductRow(
     if (!image.isNullOrEmpty()) {
         runCatching { com.bumptech.glide.Glide.with(b.icon).load(image).into(b.icon) }
     }
-    val title = entity.title ?: entity.aliasTitle.orEmpty()
+    val title = pickEntity(entity, listOf("title", "alias_title")).orEmpty()
     b.title.text = title
 
     val hot = entity.hotNumTxt
-    val comments = entity.commentnumTxt
+    val comments = pickEntity(entity, listOf("feed_comment_num_txt", "commentnum_txt", "discuss_num"))
     val hasHot = !hot.isNullOrEmpty()
     val hasComments = !comments.isNullOrEmpty()
     b.hotIcon.isVisible = hasHot
@@ -1590,23 +1603,18 @@ private fun bindProductRow(
         else -> "${hot}热度"
     }
     b.discussNum.isVisible = hasComments
-    b.discussNum.text = comments.orEmpty()
+    b.discussNum.text = comments?.let { if (it.endsWith("讨论")) it else "${it}讨论" }.orEmpty()
     b.subtitleContainer.isVisible = hasHot || hasComments
 
     // 右侧评分：有分 ⇒ 大分 + 五星；没分 ⇒ 「暂无人评分」
-    val score = entity.starAverageScore?.toFloatOrNull()
+    val score = pickEntity(entity, listOf("rating_average_score", "star_average_score"))?.toFloatOrNull()
     if (score != null && score > 0f) {
         b.scoreContainer.isVisible = true
         b.noRating.isVisible = false
         b.score.isVisible = true
         b.scoreBar.isVisible = true
-        b.score.text = entity.starAverageScore
-        // 官方是五分制小数：9.0 分 ⇒ 4.5 星（10 分制换算）
-        val stars = if (score > 5f) score / 2f else score
-        runCatching {
-            b.scoreBar.setIsIndicator(true)
-            b.scoreBar.rating = stars.coerceIn(0f, 5f)
-        }
+        b.score.text = formatSearchScore(score)
+        b.scoreBar.score = score
     } else {
         b.scoreContainer.isVisible = true
         b.score.isVisible = false
@@ -1623,6 +1631,9 @@ private fun bindProductRow(
         else null
     )
 }
+
+private fun formatSearchScore(score: Float): String =
+    if (score % 1f == 0f) score.toInt().toString() else String.format(Locale.ROOT, "%.1f", score)
 
 /** 用户行绑定（照官方 item_user.xml 的字段与字号 ✓） */
 private fun bindUserRow(

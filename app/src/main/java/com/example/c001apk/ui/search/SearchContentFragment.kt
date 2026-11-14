@@ -75,6 +75,11 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
 
     override fun initObserve() {
         super.initObserve()
+        viewModel.searchTabEvent.observe(viewLifecycleOwner) { event ->
+            event.getContentIfNotHandledOrReturnNull()?.let {
+                (parentFragment as? SearchResultFragment)?.selectSearchTab(it)
+            }
+        }
 
         viewModel.toastText.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {

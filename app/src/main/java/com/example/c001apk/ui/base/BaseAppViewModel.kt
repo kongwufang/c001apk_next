@@ -58,10 +58,12 @@ abstract class BaseAppViewModel(
     open fun showCollection(id: String, title: String) {}
 
     open fun onSearchSort(value: String) {}
+    open fun onSearchTab(value: String) {}
 
     inner class ItemClickListener : ItemListener {
 
         override fun onSearchSort(value: String) { this@BaseAppViewModel.onSearchSort(value) }
+        override fun onSearchTab(value: String) { this@BaseAppViewModel.onSearchTab(value) }
 
         override fun onShowCollection(id: String, title: String) {
             showCollection(id, title)

@@ -12,13 +12,15 @@
        └ FrameLayout 78dp · minHeight 41dp
             三选一：发布时间 / 「暂无人评分」/ 评分（大分 + 五星）
 
-  这里：火苗用 TextView 的 🔥（项目里没有 ic_fire；emoji 在各机型都稳定 ✓）
-        评分用框架 RatingBar（small + indicator）+ 大号分数，视觉接近官方 Compose 那颗 ✓
+  火苗复用官方矢量；评分由 ProductRatingBar 按官方 ProductComposeUI / ComposeRatingBar
+  的 14dp 槽位、方形底、白色星形及分数区间映射绘制。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="12dp"
@@ -41,12 +43,12 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <TextView
+        <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:lineSpacingExtra="5sp"
+            app:lineHeight="22sp"
             android:maxLines="2"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
@@ -60,12 +62,13 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
+            <ImageView
                 android:id="@+id/hotIcon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🔥"
-                android:textSize="11sp" />
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_search_fire"
+                app:tint="?attr/colorError" />
 
             <TextView
                 android:id="@+id/hotNum"
@@ -95,7 +98,6 @@
         android:id="@+id/scoreContainer"
         android:layout_width="78dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="6dp"
         android:gravity="center"
         android:minHeight="41dp"
         android:orientation="vertical">
@@ -105,21 +107,15 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:textSize="23sp"
             tools:text="9.0" />
 
-        <RatingBar
+        <com.example.c001apk.view.ProductRatingBar
             android:id="@+id/scoreBar"
-            style="?android:attr/ratingBarStyleSmall"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:isIndicator="true"
-            android:numStars="5"
-            android:progressTint="?attr/colorPrimary"
-            android:stepSize="0.5"
-            tools:rating="4.5" />
+            android:layout_width="70dp"
+            android:layout_height="14dp"
+            android:layout_marginTop="4dp" />
 
         <TextView
             android:id="@+id/noRating"

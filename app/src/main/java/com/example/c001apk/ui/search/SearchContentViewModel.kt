@@ -1,6 +1,7 @@
 package com.example.c001apk.ui.search
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.c001apk.adapter.FooterState
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.c001apk.util.ApiError
+import com.example.c001apk.util.Event
 import com.google.gson.Gson
 
 class SearchContentViewModel @AssistedInject constructor(
@@ -65,6 +67,11 @@ class SearchContentViewModel @AssistedInject constructor(
     var sort: String = "default" //hot // reply // dateline // none(精确)
     /** 「精确」排序：sort=none 且 isStrict=1（抓包实证） */
     var isStrict: Int = 0
+    val searchTabEvent = MutableLiveData<Event<String>>()
+
+    override fun onSearchTab(value: String) {
+        if (value == "product" || value == "feedTopic") searchTabEvent.value = Event(value)
+    }
 
     private var searchJob: Job? = null
     private var keepSearchCards = false
