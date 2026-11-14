@@ -445,7 +445,7 @@ object ImageUtil {
                 ) {
                     val current = origins.getOrNull(selected) ?: return
                     if (!LivePhoto.isLive(current)) {
-                        fragmentActivity?.let { showSaveImgDialog(it, current, origins) }
+                        showSaveImgDialog(view.context, current, origins)
                         return
                     }
                     // 全屏状态下长按才打开实况更多菜单；普通图片仍走既有保存菜单。
