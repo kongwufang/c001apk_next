@@ -31,6 +31,7 @@ import com.example.c001apk.databinding.ItemHomeGenericCardSectionBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardProductRowBinding
+import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopicRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.AppLog
@@ -1236,6 +1237,8 @@ class GenericCardEntityAdapter(
      * 「热门数码」这类 iconListCard 的实体全是 product：
      *   图 60dp + 标题 16sp 两行 + 「🔥热度 讨论」12sp + 右侧 78dp 评分（大分 + 五星）
      */
+    class ProductRowViewHolder(val binding: ItemHomeGenericCardProductRowBinding) :
+        RecyclerView.ViewHolder(binding.root)
     class TopicRowViewHolder(val binding: ItemHomeGenericCardTopicRowBinding) :
         RecyclerView.ViewHolder(binding.root)
 
@@ -1259,9 +1262,7 @@ class GenericCardEntityAdapter(
                 ItemHomeGenericCardUserRowBinding.inflate(inflater, parent, false)
             )
         } else if (viewType == VIEW_TYPE_TOPIC_ROW) {
-            TopicRowViewHolder(
-                ItemHomeGenericCardTopicRowBinding.inflate(inflater, parent, false)
-            )
+            TopicRowViewHolder(ItemHomeGenericCardTopicRowBinding.inflate(inflater, parent, false))
         } else if (viewType == VIEW_TYPE_PRODUCT_ROW) {
             ProductRowViewHolder(
                 ItemHomeGenericCardProductRowBinding.inflate(inflater, parent, false)
@@ -1474,6 +1475,7 @@ class GenericCardEntityAdapter(
         const val VIEW_TYPE_USER_ROW = 2
 
         /** product 实体行（官方 item_product_view 那种：图 + 标题 + 热度 + 评分） */
+        const val VIEW_TYPE_PRODUCT_ROW = 3
         const val VIEW_TYPE_TOPIC_ROW = 4
 
         /** 专属布局里图标区自带的固定子 view 数（头像、用户名、占位 Space），追加图标前保留 */
@@ -1550,33 +1552,19 @@ private fun JsonObject.jsonString(name: String): String? =
  * `title` / `pic` / `url` 虽然声明成非空，但 Gson 不走构造器（本项目踩过这个坑），
  * 运行时可能是 null，所以这里全部按可空判。
  */
-/** 话题行绑定（照官方 item_topic_view.xml：56dp图标、标题、关注/讨论、右侧评分区）。 */
-private fun bindTopicRow(
-    b: ItemHomeGenericCardTopicRowBinding,
-    entity: HomeFeedResponse.Entities,
-    listener: ItemListener,
-) {
+/** 官方 item_topic_view.xml 对应的feedTopic行。 */
+private fun bindTopicRow(b: ItemHomeGenericCardTopicRowBinding, entity: HomeFeedResponse.Entities, listener: ItemListener) {
     val image = entity.logo ?: entity.icon ?: entity.pic
-    if (!image.isNullOrEmpty()) {
-        runCatching { ImageUtil.showIMG(b.logo, image, onFail = { b.logo.isVisible = false }) }
-    }
+    if (!image.isNullOrEmpty()) ImageUtil.showIMG(b.logo, image, onFail = { b.logo.isVisible = false })
     b.title.text = entity.title ?: entity.aliasTitle.orEmpty()
-    val info = listOfNotNull(
-        entity.followNum?.takeIf { it.isNotBlank() }?.let { "${it}关注" },
-        entity.discussNum?.takeIf { it.isNotBlank() }?.let { "${it}讨论" },
-    ).joinToString(" ")
-    b.description.text = info
-    b.description.isVisible = info.isNotEmpty()
-    val score = entity.starAverageScore?.takeIf { it.isNotBlank() }
-    b.rating.text = score?.let { "${it}分" } ?: "暂无人评分"
-    val title = b.title.text.toString()
-    val url = entity.url?.takeIf { it.isNotBlank() }
-        ?: entity.id?.takeIf { it.isNotBlank() }?.let { "/t/$it" }
-    b.root.isClickable = url != null
-    b.root.setOnClickListener { if (url != null) listener.onOpenLink(it, url, title) }
+    val info = listOfNotNull(entity.followNum?.takeIf { it.isNotBlank() }?.let { "${it}关注" }, entity.discussNum?.takeIf { it.isNotBlank() }?.let { "${it}讨论" }).joinToString(" ")
+    b.description.text = info; b.description.isVisible = info.isNotEmpty()
+    b.rating.text = entity.starAverageScore?.takeIf { it.isNotBlank() }?.let { "${it}分" } ?: "暂无人评分"
+    val url = entity.url?.takeIf { it.isNotBlank() } ?: entity.id?.let { "/t/$it" }
+    b.root.setOnClickListener { if (url != null) listener.onOpenLink(it, url, b.title.text.toString()) }
 }
 
-
+/** 产品行绑定（照官方 item_product_view.xml ✓） */
 private fun bindProductRow(
     b: ItemHomeGenericCardProductRowBinding,
     entity: HomeFeedResponse.Entities,
