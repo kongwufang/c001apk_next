@@ -61,10 +61,13 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
     companion object {
         fun applyTo(view: TextView) {
             if (!view.isTextSelectable) return
+            // 强制保留系统选择能力，避免 DataBinding/自定义 setText 覆盖属性。
+            view.setTextIsSelectable(true)
+            view.isLongClickable = true
+            view.isFocusableInTouchMode = true
             if (view.movementMethod !is SelectableLinkMovementMethod) {
                 view.movementMethod = SelectableLinkMovementMethod()
             }
-            view.isLongClickable = true
         }
     }
 }
