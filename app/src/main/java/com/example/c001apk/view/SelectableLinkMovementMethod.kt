@@ -68,6 +68,17 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
             if (view.movementMethod !is SelectableLinkMovementMethod) {
                 view.movementMethod = SelectableLinkMovementMethod()
             }
+            view.setOnLongClickListener {
+                view.requestFocus()
+                // 使用 TextView 原生菜单动作启动系统 ActionMode 和选择手柄。
+                // 首次默认选中这段正文/评论，随后仍可拖动手柄调整范围。
+                view.onTextContextMenuItem(android.R.id.selectAll)
+                com.example.c001apk.util.AppLog.i(
+                    com.example.c001apk.util.LogModule.UI, "TextSelection",
+                    "selectAll focused=${view.hasFocus()} selection=${view.selectionStart}:${view.selectionEnd}"
+                )
+                false
+            }
         }
     }
 }
