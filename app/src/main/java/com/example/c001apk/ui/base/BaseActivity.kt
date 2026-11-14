@@ -55,7 +55,12 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
         if (TAG_SELECTABLE == v.getTag()) return
         if (v is android.widget.EditText) return          // 已可选
         if (v is android.widget.TextView) {
-            if (!v.isClickable && !v.hasOnClickListeners() && !v.text.isNullOrEmpty()) {
+            // ★ 2026-11-14 用户反馈：帖子正文 / 评论这些「真正需要长按复制」的地方
+            //   以前因为所在行可点击被跳过 ⇒ 选不中 ✗
+            //   ⇒ 改成：只要有足够长的文字就打开可选中（短标签、按钮文字仍跳过）
+            val txt = v.text?.toString().orEmpty()
+            val selectable = (!v.isClickable && !v.hasOnClickListeners()) || txt.length >= 12
+            if (selectable && txt.isNotEmpty()) {
                 runCatching { v.setTextIsSelectable(true) }
             }
             v.setTag(TAG_SELECTABLE)

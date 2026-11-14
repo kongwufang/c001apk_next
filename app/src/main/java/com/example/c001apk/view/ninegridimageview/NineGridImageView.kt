@@ -230,9 +230,14 @@ class NineGridImageView @JvmOverloads constructor(
                     val isGif = replace.endsWith("gif")
                     val isHdr = replace.contains("-uhdr", ignoreCase = true)
                     val isLongPic = imgHeight > imgWidth * 22f / 9f
+                    // 实况图：URL 含 livepic 标记（官方同名标识，见 util/LivePhoto）
+                    // 用户要求「实况」角标复用 GIF/HDR 这套样式与位置 ✓
+                    val isLive = com.example.c001apk.util.LivePhoto.isLive(replace) &&
+                            com.example.c001apk.util.PrefManager.showLivePhoto
                     when {
                         isGif -> setBadge("GIF")
                         isHdr -> setBadge("HDR")
+                        isLive -> setBadge("实况")
                         isLongPic -> setBadge("长图")
                     }
                 }
