@@ -34,7 +34,7 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:background="@color/cover"
-            app:setImage="@{data.logo}"
+            app:setImage="@{data.logo != null &amp;&amp; !data.logo.isEmpty ? data.logo : data.userAvatar}"
             app:shapeAppearance="@style/circleImageStyle"
             tools:ignore="ContentDescription" />
 
@@ -46,7 +46,7 @@
             android:ellipsize="end"
             android:gravity="center_horizontal"
             android:maxLines="1"
-            android:text="@{data.title}"
+            android:text="@{data.title != null &amp;&amp; !data.title.isEmpty ? data.title : data.username}"
             android:textSize="12sp"
             tools:text="王者荣耀世界" />
 
