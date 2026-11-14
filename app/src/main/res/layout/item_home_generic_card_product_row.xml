@@ -28,12 +28,13 @@
     android:paddingEnd="12dp"
     android:paddingBottom="12dp">
 
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/icon"
         android:layout_width="60dp"
         android:layout_height="60dp"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop"
+        app:shapeAppearance="@style/SearchProductLogoShape"
         tools:src="@mipmap/ic_launcher" />
 
     <LinearLayout

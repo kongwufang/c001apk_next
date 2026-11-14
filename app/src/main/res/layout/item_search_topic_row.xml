@@ -10,12 +10,13 @@
     android:paddingTop="8dp"
     android:paddingEnd="16dp"
     android:paddingBottom="8dp">
-    <ImageView
+    <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/logo"
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:importantForAccessibility="no"
-        android:scaleType="centerCrop" />
+        android:scaleType="centerCrop"
+        app:shapeAppearance="@style/SearchTopicLogoShape" />
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

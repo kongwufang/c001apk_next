@@ -21,6 +21,7 @@
 | 评分 | `_rev/search_card_official/tuc.java`（ProductComposeUI.kt） | 产品/话题都调用 `tuc.m17345`，分数23sp、星徽槽14dp、右侧78dp/41dp |
 | 徽章 | `_rev/search_card_official/m31.java`（ComposeRatingBar.kt） | 方形底为槽的0.75倍、星形0.44倍、圆角2dp；使用官方 `ic_rating_star_16dp.xml` |
 | 星级 | `_rev/search_card_official/lyc.java`（ProductGlobalData.kt）`m15220` | 分数按区间映射，不是除以二：9.2→5，8.4→4.5，7.6→4，6.8→3.5，6→3，5→2.5，4→2，3→1.5，1→1，否则0 |
+| 图标圆角 | 官方 `ls7.java` / `dz7.java` 调用 `gji.m9227`，该函数调用 `kki.m10348` | 产品4dp、话题12dp；按绑定实现补齐，而非根据截图估计 |
 | 热度字段 | `k7d.java:308` / `wlh.java:222` 及真实响应 | 产品 `hot_num_txt` + `feed_comment_num_txt`；话题 `hot_num_txt` + `commentnum_txt` |
 
 反编译输出保存在 `_rev/search_card_official/`。原始 C7 只含绑定实现，ViewHolder / Compose 在 classes08.dex；徽章 Compose 在 classes06.dex。调用 JDK17 的 `java -cp jadx-1.5.6-all.jar jadx.cli.JadxCLI --single-class ...` 导出；直接 `-jar` 的入口为 GUI，不会按预期输出单类，已改用 CLI。未做本地 Android 编译。
