@@ -3,257 +3,95 @@ package com.example.c001apk.util
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
-import android.net.Uri
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.VideoView
+import java.io.File
+import java.util.concurrent.Executors
 
-/**
- * 实况图片播放器（2026-11-13）
- *
- * 官方做法（逆向）：点实况图 ⇒ 播放与封面同 hash 前缀的 .mp4，
- * 默认静音循环，右上角可切「静图 / 视频」（live_photo_switch_view）。
- *
- * 这里用系统自带 [VideoView]（不引新依赖）：
- * · 全屏黑底 Dialog
- * · 循环播放 + 静音（`liveSoundEnable` 默认关）
- * · 右上角「关闭」；播放失败 ⇒ 关掉并提示（对应官方 render_live_picture_fail）
- */
+/** 全屏始终先展示封面；播放、重播复用详情页的单次 ExoPlayer 会话。 */
 object LivePhotoPlayer {
+    private val downloads = Executors.newSingleThreadExecutor()
 
     fun show(context: Context, coverUrl: String?) {
-        if (!PrefManager.showLivePhoto) return
-        LivePhotoResolver.resolveAsync(coverUrl) { signed ->
-            val activity = context as? android.app.Activity
-            if (activity != null && (activity.isFinishing || activity.isDestroyed)) return@resolveAsync
-            if (signed.isNullOrEmpty()) {
-                Toast.makeText(context, "实况地址获取失败", Toast.LENGTH_SHORT).show()
-            } else if (PrefManager.showLivePhoto) {
-                showResolved(context, coverUrl, signed)
-            }
-        }
-    }
-
-    private fun showResolved(context: Context, coverUrl: String?, signed: String) {
-        AppLog.i(LogModule.CARD, "LivePhoto", "PLAY signed video requested")
-
+        val original = LivePhoto.coverUrl(coverUrl) ?: return
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         val root = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
+        val cover = ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
+        root.addView(cover, FrameLayout.LayoutParams(-1, -1))
+        ImageUtil.showIMG(cover, original)
+        LivePhotoInline.bind(cover, original)
 
-        val videoView = VideoView(context).apply {
-            setVideoURI(Uri.parse(signed))
-            setOnPreparedListener { mp ->
-                mp.isLooping = true
-                mp.setVolume(0f, 0f)          // 静音：官方默认不带声音
-                start()
+        fun button(label: String, gravity: Int, action: (TextView) -> Unit) {
+            val text = TextView(context).apply {
+                this.text = label
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                setPadding(16.dp, 12.dp, 16.dp, 12.dp)
+                setOnClickListener { action(this) }
             }
-            setOnErrorListener { _, what, extra ->
-                AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 失败 what=" + what + " extra=" + extra)
-                runCatching { dialog.dismiss() }
-                Toast.makeText(context, "该实况暂不支持播放，可先保存封面", Toast.LENGTH_SHORT).show()
-                true
-            }
+            root.addView(text, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or gravity).apply { topMargin = 24.dp })
         }
-        root.addView(
-            videoView,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER
-            )
-        )
-
-        // 封面（点「静图」时显示；对应官方 live_photo_switch_view 的静图态）
-        val cover = android.widget.ImageView(context).apply {
-            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-            visibility = android.view.View.GONE
-            runCatching {
-                com.example.c001apk.util.ImageUtil.showIMG(
-                    this, com.example.c001apk.util.LivePhoto.coverUrl(coverUrl)
-                )
-            }
-        }
-        root.addView(
-            cover,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER
-            )
-        )
-
-        // 「静图 / 视频」切换（官方 live_photo_switch_view）
-        val toggle = TextView(context).apply {
-            text = "静图"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setPadding(40, 24, 40, 24)
-            setOnClickListener {
-                if (cover.visibility == android.view.View.VISIBLE) {
-                    // 切回视频
-                    cover.visibility = android.view.View.GONE
-                    text = "静图"
-                    runCatching { videoView.start() }
-                } else {
-                    // 切到静图
-                    cover.visibility = android.view.View.VISIBLE
-                    text = "视频"
-                    runCatching { videoView.pause() }
+        button("返回", Gravity.START) { dialog.dismiss() }
+        button("保存", Gravity.CENTER_HORIZONTAL) { savePair(context, original) }
+        button("实况 ⋮", Gravity.END) { anchor ->
+            PopupMenu(context, anchor).apply {
+                menu.add(0, 1, 0, if (PrefManager.showLivePhoto) "关闭实况" else "开启实况")
+                menu.add(0, 2, 1, "重新播放").isEnabled = PrefManager.showLivePhoto
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        1 -> {
+                            PrefManager.showLivePhoto = !PrefManager.showLivePhoto
+                            LivePhotoInline.stopAll()
+                            Toast.makeText(context,
+                                if (PrefManager.showLivePhoto) "已开启实况" else "已全局关闭实况，可在设置中重新开启",
+                                Toast.LENGTH_SHORT).show()
+                        }
+                        2 -> cover.performLongClick()
+                    }
+                    true
                 }
-            }
+            }.show()
         }
-        root.addView(
-            toggle,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP or Gravity.START
-            ).apply { topMargin = 60; leftMargin = 30 }
-        )
-
-        // 保存成对文件：封面 .jpg + 视频 .mp4（文件名沿用 hash 前缀，和官方一致）
-        val save = TextView(context).apply {
-            text = "保存"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setPadding(40, 24, 40, 24)
-            setOnClickListener {
-                val ok = runCatching { savePair(context, coverUrl, signed) }.getOrDefault(false)
-                Toast.makeText(
-                    context,
-                    if (ok) "正在保存封面和实况视频" else "保存失败",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-        root.addView(
-            save,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            ).apply { topMargin = 60 }
-        )
-
-        val close = TextView(context).apply {
-            text = "关闭"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setPadding(40, 24, 40, 24)
-            setOnClickListener { runCatching { dialog.dismiss() } }
-        }
-        root.addView(
-            close,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP or Gravity.END
-            ).apply { topMargin = 60; rightMargin = 30 }
-        )
-
         dialog.setContentView(root)
-        dialog.setOnDismissListener {
-            runCatching { videoView.stopPlayback() }
-        }
         dialog.show()
     }
 
-    /**
-     * 成对保存（2026-11-13）
-     *
-     * 实况图 = 一张封面 jpg + 一段同 hash 前缀的 mp4，
-     * 官方下载也是两个文件，这里用系统 [DownloadManager] 各排一个任务，
-     * 文件名沿用 URL 里的 hash 前缀（例：44881806_cbfafce2_7304_3823_91-livepic）。
-     */
-    private fun savePair(context: Context, coverUrl: String?, videoUrl: String?): Boolean {
-        if (coverUrl.isNullOrEmpty() || videoUrl.isNullOrEmpty()) return false
-        val cover = LivePhoto.coverUrl(coverUrl) ?: return false
-        val base = cover.substringAfterLast('/').substringBefore('@').substringBeforeLast('.')
-        val dir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
-            ?: context.filesDir
-        if (!dir.exists()) dir.mkdirs()
-        val jobs = listOf(cover to java.io.File(dir, base + ".jpg"),
-                          videoUrl to java.io.File(dir, base + ".mp4"))
-        // 图床对非 App 请求头会 403/567（我们实测过），
-        // DownloadManager 用的是它自己的 UA ⇒ 一定被拒 ✗
-        // ⇒ 这里用 App 侧 OkHttp 自己下载，带 CoolMarket UA + Referer ✓
-        Thread {
-            val client = okhttp3.OkHttpClient.Builder()
-                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
-            var ok = 0
-            jobs.forEach { (url, file) ->
-                runCatching {
-                    val req = okhttp3.Request.Builder().url(url)
-                        .header(
-                            "User-Agent",
-                            "Dalvik/2.1.0 (Linux; U; Android 13; PJZ110) +CoolMarket/16.7.3-2611121-universal"
-                        )
-                        .header("Referer", "https://www.coolapk.com/")
-                        .build()
-                    client.newCall(req).execute().use { resp ->
-                        if (resp.isSuccessful) {
-                            resp.body?.byteStream()?.use { input ->
-                                file.outputStream().use { out -> input.copyTo(out) }
-                            }
-                            ok++
-                            AppLog.i(LogModule.CARD, "LivePhoto",
-                                "SAVE ok " + file.name + " " + file.length() + "B")
-                        } else {
-                            AppLog.w(LogModule.CARD, "LivePhoto",
-                                "SAVE 失败 HTTP " + resp.code + " " + file.name)
-                        }
+    /** 只有两个流均写入成功才提示成功；签名每次保存时重新取，避免过期。 */
+    private fun savePair(context: Context, original: String) {
+        val app = context.applicationContext
+        Toast.makeText(context, "正在保存封面和实况视频", Toast.LENGTH_SHORT).show()
+        downloads.execute {
+            val result = runCatching {
+                val signed = LivePhotoResolver.resolve(original) ?: error("签名地址获取失败")
+                val dir = app.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: app.filesDir
+                check(dir.exists() || dir.mkdirs())
+                val base = original.substringAfterLast('/').substringBefore('@').substringBeforeLast('.')
+                val client = SslVerify.apply(okhttp3.OkHttpClient.Builder()).build()
+                listOf(original to "$base.jpg", signed to "$base.mp4").forEach { (url, name) ->
+                    val file = File(dir, name)
+                    val request = okhttp3.Request.Builder().url(url)
+                        .header("User-Agent", PrefManager.USER_AGENT)
+                        .header("Referer", "https://www.coolapk.com/").build()
+                    client.newCall(request).execute().use { response ->
+                        check(response.isSuccessful) { "HTTP ${response.code}" }
+                        val body = response.body ?: error("空响应")
+                        body.byteStream().use { input -> file.outputStream().use { input.copyTo(it) } }
+                        check(file.length() > 0) { "空文件" }
+                        AppLog.i(LogModule.CARD, "LivePhoto", "SAVE complete $name bytes=${file.length()}")
                     }
-                }.onFailure {
-                    AppLog.w(LogModule.CARD, "LivePhoto",
-                        "SAVE 异常 " + it.javaClass.simpleName + ": " + it.message)
                 }
             }
             android.os.Handler(android.os.Looper.getMainLooper()).post {
-                Toast.makeText(
-                    context,
-                    if (ok == 2) "已保存封面和实况视频" else "保存失败($ok/2)",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(app, if (result.isSuccess) "封面和实况视频已保存至应用下载目录"
+                    else "保存未完成：${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
             }
-        }.start()
-        return true
-    }
-
-    /**
-     * 兜底：把封面下下来，看看尾部有没有拼接的 MP4（Motion Photo）
-     * 有 ⇒ 存成缓存文件并让 VideoView 播它；没有 ⇒ false
-     */
-    private fun tryMotionPhoto(
-        context: Context,
-        coverUrl: String?,
-        videoView: VideoView
-    ): Boolean {
-        val cover = LivePhoto.coverUrl(coverUrl) ?: return false
-        val client = okhttp3.OkHttpClient.Builder()
-            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
-        val req = okhttp3.Request.Builder().url(cover)
-            .header(
-                "User-Agent",
-                "Dalvik/2.1.0 (Linux; U; Android 13; PJZ110) +CoolMarket/16.7.3-2611121-universal"
-            )
-            .header("Referer", "https://www.coolapk.com/")
-            .build()
-        val bytes = client.newCall(req).execute().use { if (it.isSuccessful) it.body?.bytes() else null }
-            ?: return false
-        val mp4 = LivePhoto.extractMotionVideo(bytes) ?: return false
-        val f = java.io.File(context.cacheDir, "live_" + System.currentTimeMillis() + ".mp4")
-        f.outputStream().use { it.write(mp4) }
-        AppLog.i(LogModule.CARD, "LivePhoto", "MOTION 从 JPEG 尾部解析出视频 " + mp4.size + "B")
-        videoView.setVideoURI(android.net.Uri.fromFile(f))
-        videoView.setOnPreparedListener { mp -> mp.isLooping = true; mp.setVolume(0f, 0f); videoView.start() }
-        videoView.start()
-        return true
+        }
     }
 }

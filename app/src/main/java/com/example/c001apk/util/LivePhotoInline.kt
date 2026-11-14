@@ -14,9 +14,16 @@ import com.example.c001apk.R
 
 /** 图片自身保留为封面，仅播放期间在其上覆盖纹理；结束/失败/离屏均释放播放器。 */
 object LivePhotoInline {
+    private val sessions = java.util.Collections.newSetFromMap(
+        java.util.WeakHashMap<Session, Boolean>())
+
+    /** 在全屏菜单关闭实况时，同时停止详情页和全屏的所有播放会话。 */
+    fun stopAll() { sessions.toList().forEach { it.stop() } }
+
     fun bind(image: ImageView, url: String) {
         if (!LivePhoto.isLive(url)) return
         val session = Session(image, url)
+        sessions.add(session)
         image.setTag(R.id.live_photo_session, session)
         image.addOnAttachStateChangeListener(session)
         image.setOnLongClickListener {
@@ -91,7 +98,7 @@ object LivePhotoInline {
             }
         }
 
-        private fun stop() {
+        fun stop() {
             generation++
             active = false
             player?.release()
