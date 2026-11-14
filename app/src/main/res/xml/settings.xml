@@ -146,7 +146,7 @@
                实际值存在 PrefManager 里 ✓ 由 SettingsPreferenceFragment 手动读写 ✓
         -->
 
-        <Preference
+        <rikka.material.preference.MaterialSwitchPreference
             android:icon="@drawable/ic_image"
             android:key="showLivePhoto"
             android:persistent="false"
