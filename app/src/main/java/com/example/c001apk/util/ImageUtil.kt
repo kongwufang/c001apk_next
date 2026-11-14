@@ -473,6 +473,12 @@ object ImageUtil {
     }
 
 
+    fun startBigImgView(
+        nineGridView: NineGridImageView,
+        imageView: ImageView,
+        urlList: List<String>,
+        position: Int
+    ) {
         val thumbList: MutableList<String> = ArrayList()
         val originList: MutableList<String> = ArrayList()
         urlList.forEach {
