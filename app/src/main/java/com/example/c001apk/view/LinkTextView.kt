@@ -53,7 +53,10 @@ class LinkTextView : FakeFontWeightMaterialTextView {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        SelectableLinkMovementMethod.applyTo(this)
+        if (isTextSelectable) {
+            setTextIsSelectable(true)
+            SelectableLinkMovementMethod.applyTo(this)
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -141,6 +144,7 @@ class LinkTextView : FakeFontWeightMaterialTextView {
             )
         super.setText(spText, type)
         if (isTextSelectable) {
+            setTextIsSelectable(true)
             SelectableLinkMovementMethod.applyTo(this)
         } else {
             movementMethod = LocalLinkMovementMethod.instance
