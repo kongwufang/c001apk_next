@@ -277,6 +277,15 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         //   ⚠️ 手动拨开关时**不**改 syncLocationLoginSnapshot ✗
         //      ⇒ 这样下次「有账号 ↔ 没账号」时才会自动再对齐一次 ✓
 
+        // 自动刷新数字联盟 ID：开启后在进入前台时检查时间间隔。
+        findPreference<MaterialSwitchPreference>("autoRefreshSzlmId")?.apply {
+            isChecked = PrefManager.autoRefreshSzlmId
+            setOnPreferenceChangeListener { _, value ->
+                PrefManager.autoRefreshSzlmId = value as Boolean
+                true
+            }
+        }
+
         // 展示实况照片（全局开关，默认开）
         findPreference<MaterialSwitchPreference>("showLivePhoto")?.apply {
             isChecked = PrefManager.showLivePhoto

@@ -268,6 +268,18 @@ object PrefManager {
      *
      * 手头有自己设备那份 ID 的用户可以填进来（[szlmIdConfigured] 随之置位，说明弹窗不再出现）。
      */
+    /** Existing users opt in from preferences; onboarding confirms its initially enabled draft. */
+    var autoRefreshSzlmId: Boolean
+        get() = pref.getBoolean("autoRefreshSzlmId", false)
+        set(value) {
+            pref.edit().putBoolean("autoRefreshSzlmId", value).apply()
+            if (!value) SzlmIdAutoRefresh.cancelPending()
+        }
+
+    var szlmIdLastObtainedAt: Long
+        get() = pref.getLong("szlmIdLastObtainedAt", 0L)
+        set(value) = pref.edit().putLong("szlmIdLastObtainedAt", value).apply()
+
     var SZLMID: String
         get() = pref.getString("SZLMID", "") ?: ""
         set(value) = pref.edit().putString("SZLMID", value).apply()
@@ -671,7 +683,7 @@ object PrefManager {
      * 展示实况照片（2026-11-14，默认 **true**）
      *
      * 关掉之后：详情页不再自动播放、图片上的「实况」角标也不显示。
-     * 官方把这个开关叫「关闭实况」，是全局生效的；我们放在 设置 → 推荐流相关。
+     * 官方把这个开关叫「关闭实况」，是全局生效的；我们放在 设置 → 偏好设置。
      */
     var showLivePhoto: Boolean
         get() = pref.getBoolean("showLivePhoto", true)

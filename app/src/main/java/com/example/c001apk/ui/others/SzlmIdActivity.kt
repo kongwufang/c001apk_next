@@ -74,6 +74,7 @@ class SzlmIdViewModel : ViewModel() {
 
     fun fetch(context: Context) {
         if (state.value.loading || state.value.id != null) return
+        com.example.c001apk.util.SzlmIdAutoRefresh.cancelPending()
         mutableState.value = State(loading = true)
         request = viewModelScope.launch {
             try {

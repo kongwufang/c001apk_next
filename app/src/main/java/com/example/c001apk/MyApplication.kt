@@ -53,6 +53,7 @@ class MyApplication : Application() {
 
         // 每次进入应用读一次剪贴板：是酷安分享链接就弹「是否打开」
         ShareLinkPrompter.install(this)
+        com.example.c001apk.util.SzlmIdAutoRefresh.install(this)
 
         // 数据保存位置（收藏/关注/黑名单）按登录态对齐一次（2026-10-25 ✓）
         //   登录态没变 ⇒ 保持用户设置 ✓

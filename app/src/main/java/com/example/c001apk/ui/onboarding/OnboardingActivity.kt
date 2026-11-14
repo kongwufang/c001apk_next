@@ -60,10 +60,14 @@ class OnboardingActivity : AppCompatActivity() {
 
     // 第④步的三个开关（未点完成前只存内存 ✓）
     private var sslVerify = true
+    private var autoRefreshSzlmId = true
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        step = savedInstanceState?.getInt("step") ?: 0
+        sslVerify = savedInstanceState?.getBoolean("sslVerify") ?: true
+        autoRefreshSzlmId = savedInstanceState?.getBoolean("autoRefreshSzlmId") ?: true
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -125,6 +129,13 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun dp(v: Int) = (v * dp).toInt()
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("step", step)
+        outState.putBoolean("sslVerify", sslVerify)
+        outState.putBoolean("autoRefreshSzlmId", autoRefreshSzlmId)
+        super.onSaveInstanceState(outState)
+    }
+
     /**
      * 回到前台就刷新一次（2026-11-08 用户反馈）
      *
@@ -140,7 +151,11 @@ class OnboardingActivity : AppCompatActivity() {
     private fun onPrimary() {
         when (step) {
             0 -> { step = 1; render() }
-            1 -> { step = 2; render() }
+            1 -> {
+                PrefManager.autoRefreshSzlmId = autoRefreshSzlmId
+                step = 2
+                render()
+            }
             2 -> {
                 // 目标要求：**取号成功才可下一步** ✓ 未取到时按钮不可点（见 render 里 isEnabled）
                 if (!PrefManager.szlmIdConfigured) {
@@ -188,6 +203,10 @@ class OnboardingActivity : AppCompatActivity() {
                             com.example.c001apk.ui.settings.params.ParamsActivity>(this) {}
                     }
                 )
+                body.addView(switchRow(
+                    getString(R.string.auto_refresh_szlm_id),
+                    getString(R.string.auto_refresh_szlm_id_summary), autoRefreshSzlmId
+                ) { autoRefreshSzlmId = it })
             }
 
             2 -> {

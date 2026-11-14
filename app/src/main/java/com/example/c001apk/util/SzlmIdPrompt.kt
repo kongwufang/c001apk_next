@@ -93,6 +93,8 @@ object SzlmIdPrompt {
     /** 落盘 + 重建设备串（szlmId 是设备串首字段，改完必须重造才生效） */
     internal fun save(id: String) {
         PrefManager.SZLMID = id
+        // Both a successful acquisition and an explicit manual replacement start a fresh window.
+        PrefManager.szlmIdLastObtainedAt = if (id.isNotEmpty()) System.currentTimeMillis() else 0L
         // 填过（非空）才算「已配置」；清空则回到未配置状态
         PrefManager.szlmIdConfigured = id.isNotEmpty()
         PrefManager.szlmIdNoticed = true

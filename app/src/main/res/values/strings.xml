@@ -239,7 +239,9 @@
     <string name="settings_animation">转场动画</string>
     <string name="settings_animation_summary">切换页面时的曲线、类型与速度</string>
     <string name="settings_privacy">隐私</string>
-    <string name="settings_recommendation">推荐流相关</string>
+    <string name="settings_recommendation">偏好设置</string>
+    <string name="auto_refresh_szlm_id">自动刷新数字联盟ID</string>
+    <string name="auto_refresh_szlm_id_summary">每次进入应用时检查，距离上次获取满24小时后自动更新</string>
     <string name="settings_other">其他</string>
     <string name="settings_verify_ssl">校验 SSL 证书</string>
     <string name="settings_verify_ssl_summary">在系统证书校验的基础上，要求证书链的信任锚必须落在内置 CA 库（122 个可信机构，含酷安所依赖的 DigiCert 历史根）中：抓包工具证书、厂商私有根证书一律拒绝。关闭后改为纯系统校验（仍不信任用户安装的证书）。修改后需重启应用生效</string>
@@ -331,11 +333,11 @@
 
     <!-- ============ 匿名举报联盟（2026-10-31 用户需求）============ -->
     <string name="report_alliance_join_title">加入匿名举报联盟？</string>
-    <string name="report_alliance_join_message">加入后，你点的举报会走自建匿名通道 —— 不上报给酷安，也不带你的账号。\n\n被多人举报的内容会对更多人显示为「已被多人举报」，仅此而已：不拦截、也不通知被举报人。\n\n随时可以在「设置 - 推荐流相关」里关掉。</string>
+    <string name="report_alliance_join_message">加入后，你点的举报会走自建匿名通道 —— 不上报给酷安，也不带你的账号。\n\n被多人举报的内容会对更多人显示为「已被多人举报」，仅此而已：不拦截、也不通知被举报人。\n\n随时可以在「设置 - 偏好设置」里关掉。</string>
     <string name="report_alliance_join">加入</string>
     <string name="report_alliance_later">以后再说</string>
     <string name="report_alliance_off_title">匿名举报已关闭</string>
-    <string name="report_alliance_off_message">你可以在「设置 - 推荐流相关」里随时打开。</string>
+    <string name="report_alliance_off_message">你可以在「设置 - 偏好设置」里随时打开。</string>
     <string name="report_alliance_enable">打开</string>
     <string name="report_reason_title">选择举报原因（可多选）</string>
     <string name="report_submit">提交举报</string>
