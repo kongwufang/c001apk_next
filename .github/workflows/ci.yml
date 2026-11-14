@@ -233,7 +233,7 @@ jobs:
           set -o pipefail
           # 本次要用的版本号已由 Resolve version 写进 version.properties，
           # Gradle 直接读文件即可（assembleDebug 也是这样拿到同一个号）
-          ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} --stacktrace 2>&1 | tee gradle-release.log
+          ./gradlew :app:testDebugUnitTest :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} --stacktrace 2>&1 | tee gradle-release.log
           echo "releaseName=$(ls app/build/outputs/apk/release/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
       - name: Upload release

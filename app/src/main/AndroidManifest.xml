@@ -517,7 +517,7 @@
             android:name=".ui.others.CopyActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.others.SzlmIdWebActivity"
+            android:name=".ui.others.SzlmIdActivity"
             android:exported="false" />
         <activity
             android:name=".ui.others.WebViewActivity"

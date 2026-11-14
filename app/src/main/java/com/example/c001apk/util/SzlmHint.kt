@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.example.c001apk.R
-import com.example.c001apk.ui.others.SzlmIdWebActivity
+import com.example.c001apk.ui.others.SzlmIdActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -114,7 +114,7 @@ object SzlmHint {
                     .setPositiveButton(R.string.szlm_hint_action) { _, _ ->
                         runCatching {
                             activity.startActivity(
-                                android.content.Intent(activity, SzlmIdWebActivity::class.java)
+                                android.content.Intent(activity, SzlmIdActivity::class.java)
                             )
                         }
                     }

@@ -8,16 +8,12 @@ import android.view.WindowManager
 import android.widget.EditText
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
-import com.example.c001apk.ui.others.SzlmIdWebActivity
+import com.example.c001apk.ui.others.SzlmIdActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
- * 「获取数字联盟 ID」知情同意弹窗。
- *
- * 正文列出会被上传的设备信息，两个出口：
- *  - 不同意，手动填入自己的 ID；
- *  - 知情并同意，打开内置网页（[SzlmIdWebActivity]，人机验证 + 签名校验）换取 DUID，
- *    结果落到 [PrefManager.SZLMID]。
+ * 「获取数字联盟 ID」入口：手动填入，或进入原生页面直接向上游取号。
+ * 只有成功取得有效 ID 才覆盖 [PrefManager.SZLMID]；失败或取消保留现有 ID。
  *
  * 触发点：应用启动时发现 SZLMID 为空（[RiskControlPrompter]），
  * 以及「设置 - 高级 - 数字联盟ID」被点击时。
@@ -36,7 +32,7 @@ object SzlmIdPrompt {
      *   获取数字联盟ID
      *   [手动填入]   [自动获取（推荐）]
      * ```
-     * · 自动获取（推荐）→ 打开内置网页换取 DUID（人机验证 + 签名校验都在网页侧）
+     * · 自动获取（推荐）→ 使用应用 SSAID 在本地构造请求，直接向上游换取 DUID
      * · 手动填入        → 弹输入框自己粘一个已有的 DUID
      *
      * @param onDismiss 弹窗关闭（含两个按钮各自动作）后回调，调用方用它复位重入标记
@@ -54,7 +50,7 @@ object SzlmIdPrompt {
             }
             .setPositiveButton(R.string.szlm_id_get_auto) { d, _ ->
                 d.dismiss()
-                openWeb(activity)
+                openNative(activity)
             }
             .setOnDismissListener { onDismiss?.invoke() }
             .show()
@@ -88,16 +84,10 @@ object SzlmIdPrompt {
         }.show()
     }
 
-    /**
-     * 打开内置网页换取 DUID（人机验证 + App 签名校验都在网页侧和服务端完成）。
-     *
-     * 不再由 App 直连接口：`szlmid/request_api.php` 已停用，直连只会拿到
-     * 「请求被拒绝，请升级最新版本」。参数经 JsBridge 交给网页，结果由网页回调回来，
-     * 保存动作见 [SzlmIdWebActivity.onIssued]。
-     */
-    private fun openWeb(activity: Activity) {
+    /** 原生取号页在主进程中保存 ID，返回后引导页通过 onResume 刷新配置状态。 */
+    private fun openNative(activity: Activity) {
         if (activity.isFinishing || activity.isDestroyed) return
-        runCatching { activity.startActivity(Intent(activity, SzlmIdWebActivity::class.java)) }
+        activity.startActivity(Intent(activity, SzlmIdActivity::class.java))
     }
 
     /** 落盘 + 重建设备串（szlmId 是设备串首字段，改完必须重造才生效） */
