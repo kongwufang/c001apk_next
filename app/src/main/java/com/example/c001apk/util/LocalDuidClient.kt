@@ -49,6 +49,7 @@ internal object LocalDuidClient {
         suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
+            AppLog.i(LogModule.NET, "LocalDuidClient", "原生取号：直连 auni.telecome.cn")
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     continuation.resumeWithException(e)
@@ -61,6 +62,7 @@ internal object LocalDuidClient {
                             val input = it.body?.byteStream() ?: throw IOException("取号响应为空")
                             LocalDuidProtocol.decode(LocalDuidProtocol.readBounded(input))
                         }
+                        AppLog.i(LogModule.NET, "LocalDuidClient", "上游返回有效 DUID")
                         continuation.resume(id)
                     } catch (e: Exception) {
                         continuation.resumeWithException(e)

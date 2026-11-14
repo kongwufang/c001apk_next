@@ -3,6 +3,7 @@ package com.example.c001apk.ui.others
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -18,6 +19,7 @@ import com.example.c001apk.util.SzlmIdPrompt
 import java.io.IOException
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
@@ -31,10 +33,11 @@ class SzlmIdActivity : BaseActivity<ActivitySzlmIdBinding>() {
         super.onCreate(savedInstanceState)
         binding.toolBar.title = getString(R.string.szlm_id_title)
         binding.toolBar.setNavigationIcon(R.drawable.ic_back)
-        binding.toolBar.setNavigationOnClickListener { finish() }
+        binding.toolBar.setNavigationOnClickListener { close() }
+        onBackPressedDispatcher.addCallback(this) { close() }
         binding.retry.setOnClickListener { model.fetch(applicationContext) }
         binding.manual.setOnClickListener { SzlmIdPrompt.showManualInput(this) { finish() } }
-        binding.cancel.setOnClickListener { finish() }
+        binding.cancel.setOnClickListener { close() }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 model.state.collect { state ->
@@ -51,17 +54,28 @@ class SzlmIdActivity : BaseActivity<ActivitySzlmIdBinding>() {
         }
         if (model.state.value == SzlmIdViewModel.State()) model.fetch(applicationContext)
     }
+
+    private fun close() {
+        // Cancel at the user's action, rather than waiting for the exit animation/onDestroy.
+        model.cancelPending()
+        finish()
+    }
 }
 
 class SzlmIdViewModel : ViewModel() {
     data class State(val loading: Boolean = false, val id: String? = null, val error: Int? = null)
     private val mutableState = MutableStateFlow(State())
     val state = mutableState.asStateFlow()
+    private var request: Job? = null
+
+    fun cancelPending() {
+        request?.cancel()
+    }
 
     fun fetch(context: Context) {
         if (state.value.loading || state.value.id != null) return
         mutableState.value = State(loading = true)
-        viewModelScope.launch {
+        request = viewModelScope.launch {
             try {
                 val id = LocalDuidClient.fetch(context.applicationContext)
                 SzlmIdPrompt.save(id)
