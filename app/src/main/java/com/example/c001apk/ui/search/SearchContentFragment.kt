@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.RecyclerView
-import com.example.c001apk.adapter.FooterState
-import com.example.c001apk.adapter.LoadingState
 import com.example.c001apk.adapter.ProductSortHeaderAdapter
 import com.example.c001apk.ui.base.BaseAppFragment
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,9 +47,6 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
             viewModel.sort,
             ProductSortHeaderAdapter.SEARCH_LABELS
         ) { value ->
-            // 点 chip 等于换排序：先改 sort/isStrict，再走和菜单完全同一条流程
-            // （直接改 LiveData 不会触发重新请求，必须调 onSearch ✓）
-            viewModel.isStrict = if (value == "none") 1 else 0
             onSearch("sort", value, null)
         }
         sortHeader = a
@@ -60,16 +55,10 @@ class SearchContentFragment : BaseAppFragment<SearchContentViewModel>(),
 
     override fun onSearch(type: String, value: String, id: String?) {
         when (type) {
-            "sort" -> {
-                viewModel.sort = value
-                // 「精确」= sort:none + isStrict:1（HAR 实证）
-                viewModel.isStrict = if (value == "none") 1 else 0
-            }
+            "sort" -> viewModel.onSearchSort(value)
             "feedType" -> viewModel.feedType = value
         }
-        viewModel.dataList.value = emptyList()
-        viewModel.footerState.value = FooterState.LoadingDone
-        viewModel.loadingState.value = LoadingState.Loading
+        if (type == "feedType") viewModel.onSearchSort(viewModel.sort)
         // 菜单里也能换排序 ⇒ 让顶部 chip 跟着变（不触发回调）
         sortHeader?.select(viewModel.sort)
     }

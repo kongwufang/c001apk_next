@@ -247,8 +247,10 @@ class SearchResultFragment : BasePagerFragment(), IOnSearchMenuClickContainer {
                 menu.findItem(
                     when (viewModel.sort) {
                         "default" -> R.id.feedDefault
+                        "dateline" -> R.id.feedRealtime
                         "hot" -> R.id.feedHot
                         "reply" -> R.id.feedReply
+                        "none" -> R.id.feedExact
                         else -> throw IllegalArgumentException("sort type error: ${viewModel.sort}")
                     }
                 )?.isChecked = true

@@ -17,8 +17,12 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.example.c001apk.util.ApiError
 import com.google.gson.Gson
 
@@ -62,17 +66,38 @@ class SearchContentViewModel @AssistedInject constructor(
     /** 「精确」排序：sort=none 且 isStrict=1（抓包实证） */
     var isStrict: Int = 0
 
-    private fun buildSearchSortCard(): HomeFeedResponse.Data = Gson().fromJson("""{"entityType":"card","entityTemplate":"sortSelectCard","title":"动态","entities":[{"title":"综合","url":"c001apk://search-sort/default"},{"title":"实时","url":"c001apk://search-sort/dateline"},{"title":"热度","url":"c001apk://search-sort/hot"},{"title":"评论","url":"c001apk://search-sort/reply"},{"title":"精确","url":"c001apk://search-sort/none"}]}""", HomeFeedResponse.Data::class.java)
+    private var searchJob: Job? = null
+    private var keepSearchCards = false
+
+    private fun buildSearchSortCard(): HomeFeedResponse.Data = Gson().fromJson(
+        """{"entityType":"card","entityTemplate":"sortSelectCard","entityId":"c001apk-search-sort","title":"动态"}""",
+        HomeFeedResponse.Data::class.java
+    ).copy(selectedTab = sort)
 
     override fun onSearchSort(value: String) {
-        sort = value; isStrict = if (value == "none") 1 else 0
-        dataList.value = dataList.value.orEmpty().filterNot { it.entityTemplate == "sortSelectCard" }
+        searchJob?.cancel()
+        sort = value
+        isStrict = if (value == "none") 1 else 0
+        keepSearchCards = type == "all"
+        dataList.value = if (keepSearchCards) {
+            dataList.value.orEmpty().filterNot {
+                it.entityType == "feed" || it.entityTemplate == "sortSelectCard"
+            } + buildSearchSortCard()
+        } else emptyList()
         footerState.value = FooterState.LoadingDone
         loadingState.value = LoadingState.Loading
     }
 
     override fun fetchData() {
-        viewModelScope.launch(Dispatchers.IO) {
+        searchJob?.cancel()
+        val previous = dataList.value.orEmpty()
+        val keepCards = keepSearchCards || isLoadMore
+        keepSearchCards = false
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
+            if (type == "all") {
+                fetchCombinedData(previous, keepCards)
+                return@launch
+            }
             networkRepo.getSearch(
                 type, feedType, sort, keyWord,
                 pageType, pageParam, page, lastItem, isStrict
@@ -124,36 +149,6 @@ class SearchContentViewModel @AssistedInject constructor(
                                 footerState.postValue(FooterState.LoadingDone)
                             dataList.postValue(searchList)
 
-                            // ★ 2026-11-14：官方「综合」= 卡片段 + 动态段 拼装
-                            //   我们原来只请求 type=all ⇒ 只有卡片、下面空白 ✗
-                            //   这里补一次 feed 请求，把动态接在卡片后面（用现有列表逻辑与样式）
-                            if (type == "all" && !isLoadMore) {
-                                networkRepo.getSearch(
-                                    "feed", "all", "default", keyWord,
-                                    pageType, pageParam, 1, null, 0
-                                ).collect { r2 ->
-                                    val extra = r2.getOrNull()?.data
-                                    if (!extra.isNullOrEmpty()) {
-                                        // postValue 异步发布，不能再从 value 读回尚未发布的卡片列表。
-                                        val merged = searchList.toMutableList()
-                                        if (merged.none { it.entityTemplate == "sortSelectCard" }) {
-                                             val i = merged.indexOfFirst { it.entityType == "feed" }
-                                             merged.add(if (i >= 0) i else merged.size, buildSearchSortCard())
-                                         }
-                                         extra.filter { item ->
-                                            item.entityType == "feed" &&
-                                                !blackListRepo.checkUid(item.userInfo?.uid.toString()) &&
-                                                !blackListRepo.checkTopic(item.tags + item.ttitle +
-                                                    item.relationRows?.getOrNull(0)?.title)
-                                        }.forEach { item ->
-                                            if (merged.none { it.entityType == "feed" && it.id == item.id }) {
-                                                merged.add(item)
-                                            }
-                                        }
-                                        dataList.postValue(merged)
-                                    }
-                                }
-                            }
                         } else {
                             isEnd = true
                             if (listSize <= 0)
@@ -178,4 +173,72 @@ class SearchContentViewModel @AssistedInject constructor(
         }
     }
 
+    /** 综合页的卡片段与动态段分别请求；排序和翻页只更新动态。 */
+    private suspend fun fetchCombinedData(previous: List<HomeFeedResponse.Data>, keepCards: Boolean) {
+        val requestPage = page
+        val requestSort = sort
+        val requestStrict = isStrict
+        val loadingMore = isLoadMore
+        val cards = previous.filterNot {
+            it.entityType == "feed" || it.entityTemplate == "sortSelectCard"
+        }.toMutableList()
+        if (!keepCards) {
+            val result = networkRepo.getSearch(
+                "all", feedType, "default", keyWord, pageType, pageParam, 1, null, 0
+            ).first()
+            val response = result.getOrNull()
+            if (response == null || !response.message.isNullOrEmpty()) {
+                combinedError(response?.message ?: ApiError.textOf(result.exceptionOrNull()))
+                return
+            }
+            cards.clear()
+            cards.addAll(response.data.orEmpty().filterNot {
+                it.entityType == "feed" || it.entityTemplate == "sortSelectCard"
+            })
+        }
+        withContext(Dispatchers.Main) { footerState.value = FooterState.Loading }
+        val result = networkRepo.getSearch(
+            "feed", feedType, requestSort, keyWord, pageType, pageParam,
+            requestPage, if (loadingMore) lastItem else null, requestStrict
+        ).first()
+        val response = result.getOrNull()
+        if (response == null || !response.message.isNullOrEmpty()) {
+            withContext(Dispatchers.Main) {
+                if (!loadingMore) dataList.value = cards + buildSearchSortCard()
+            }
+            combinedError(response?.message ?: ApiError.textOf(result.exceptionOrNull()))
+            return
+        }
+        val incoming = response.data.orEmpty()
+        val feeds = if (loadingMore) previous.filter { it.entityType == "feed" }.toMutableList()
+                    else mutableListOf()
+        incoming.filter { item ->
+            item.entityType == "feed" &&
+                !blackListRepo.checkUid(item.userInfo?.uid.toString()) &&
+                !blackListRepo.checkTopic(item.tags + item.ttitle + item.relationRows?.getOrNull(0)?.title)
+        }.forEach { item ->
+            if (feeds.none { it.id == item.id }) feeds.add(item)
+        }
+        withContext(Dispatchers.Main) {
+            ensureActive()
+            lastItem = incoming.lastOrNull()?.id
+            page = requestPage + 1
+            isEnd = incoming.isEmpty()
+            dataList.value = cards + buildSearchSortCard() + feeds
+            loadingState.value = LoadingState.LoadingDone
+            footerState.value = if (isEnd) FooterState.LoadingEnd(LOADING_END) else FooterState.LoadingDone
+            isRefreshing = false
+            isLoadMore = false
+        }
+    }
+
+    private suspend fun combinedError(message: String) = withContext(Dispatchers.Main) {
+        if (dataList.value.isNullOrEmpty()) loadingState.value = LoadingState.LoadingFailed(message)
+        else {
+            loadingState.value = LoadingState.LoadingDone
+            footerState.value = FooterState.LoadingError(message)
+        }
+        isRefreshing = false
+        isLoadMore = false
+    }
 }

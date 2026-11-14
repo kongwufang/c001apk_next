@@ -98,6 +98,8 @@ class HomeFeedDiffCallback : DiffUtil.ItemCallback<HomeFeedResponse.Data>() {
         oldItem: HomeFeedResponse.Data,
         newItem: HomeFeedResponse.Data
     ): Boolean {
+        if (oldItem.entityId == "c001apk-search-sort" || newItem.entityId == "c001apk-search-sort")
+            return oldItem == newItem
         return if ((oldItem.entityTemplate == "iconMiniScrollCard" && newItem.entityTemplate == "iconMiniScrollCard")
             || oldItem.entityTemplate == "iconMiniGridCard" && newItem.entityTemplate == "iconMiniGridCard"
         )

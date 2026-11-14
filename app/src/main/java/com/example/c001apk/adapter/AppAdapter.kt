@@ -38,6 +38,7 @@ import com.example.c001apk.databinding.ItemHomeTextCardBinding
 import com.example.c001apk.databinding.ItemHomeUnsupportedBinding
 import com.example.c001apk.databinding.ItemPearGoodsBinding
 import com.example.c001apk.databinding.ItemProductConfigListBinding
+import com.example.c001apk.databinding.ItemProductSortHeaderBinding
 import com.example.c001apk.databinding.ItemProductListCardBinding
 import com.example.c001apk.databinding.ItemProductSelectRowBinding
 import com.example.c001apk.databinding.ItemUserNodeRatingBinding
@@ -67,6 +68,7 @@ private const val TYPE_BLOCKED = -1001
  * 话题卡片上直接加红条会让 logo/名称消失 ✗ ⇒ 单独做一张卡 ✓
  */
 private const val TYPE_BLOCKED_TOPIC = -1002
+private const val TYPE_SEARCH_SORT = 28
 
 class AppAdapter(
     rawListener: ItemListener
@@ -431,6 +433,21 @@ class AppAdapter(
     // （热门新游 iconLongTitleGridCard、游戏评分 iconGridCard、发售日历 productTimelineListCard、
     // 游戏闲聊 imageScrollCard、热议手游 iconScrollCard、最新点评 feedListCard、世界频道 sortSelectCard），
     // 但数据都是 entities[]，所以按模板选一份排版交给 GameCardAdapter。
+    /** 搜索排序复用动态标签页的分段按钮，直接回调，不经过链接解析。 */
+    class SearchSortViewHolder(
+        val binding: ItemProductSortHeaderBinding,
+        val listener: ItemListener
+    ) : BaseViewHolder<ViewDataBinding>(binding) {
+        override fun bind(data: HomeFeedResponse.Data) {
+            (itemView.layoutParams as? androidx.recyclerview.widget.StaggeredGridLayoutManager.LayoutParams)
+                ?.isFullSpan = true
+            ProductSortHeaderAdapter.bindButtons(
+                binding, data.selectedTab ?: "default", title = data.title,
+                onSort = listener::onSearchSort
+            )
+        }
+    }
+
     class GameCardViewHolder(
         val binding: ItemHomeGameCardListBinding,
         val listener: ItemListener
@@ -1244,6 +1261,12 @@ class AppAdapter(
                 )
             }
 
+            TYPE_SEARCH_SORT -> SearchSortViewHolder(
+                ItemProductSortHeaderBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                ), listener
+            )
+
             24 -> {
                 GameCardViewHolder(
                     ItemHomeGameCardListBinding.inflate(
@@ -1361,6 +1384,7 @@ class AppAdapter(
 
     override fun getItemViewType(position: Int): Int {
         val item = currentList[position]
+        if (item.entityId == "c001apk-search-sort") return TYPE_SEARCH_SORT
 
         // ★★ 2026-10-31 专用「被屏蔽卡片」（用户提的终极方案）★★
         //   命中公共黑名单 ⇒ 直接返回 TYPE_BLOCKED

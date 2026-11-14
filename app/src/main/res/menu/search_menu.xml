@@ -71,7 +71,7 @@
                     android:id="@+id/feedExact"
 
 
-                    android:title="精确" />
+                    android:title="精准" />
 
                 <item
                     android:id="@+id/feedHot"
