@@ -25,15 +25,20 @@ import android.widget.VideoView
 object LivePhotoPlayer {
 
     fun show(context: Context, coverUrl: String?) {
-        val video = LivePhoto.videoUrl(coverUrl)
-        if (video.isNullOrEmpty()) return
-        AppLog.i(LogModule.CARD, "LivePhoto", "PLAY " + video)
+        // 先拿「带 sign 的签名地址」（官方 302 接口），拿不到就不播
+        val signed = LivePhotoResolver.resolve(coverUrl)
+        if (signed.isNullOrEmpty()) {
+            AppLog.w(LogModule.CARD, "LivePhoto", "PLAY 无签名地址，放弃播放")
+            Toast.makeText(context, "该实况暂不支持播放，可先保存封面", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AppLog.i(LogModule.CARD, "LivePhoto", "PLAY " + signed)
 
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         val root = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
 
         val videoView = VideoView(context).apply {
-            setVideoURI(Uri.parse(video))
+            setVideoURI(Uri.parse(signed))
             setOnPreparedListener { mp ->
                 mp.isLooping = true
                 mp.setVolume(0f, 0f)          // 静音：官方默认不带声音
