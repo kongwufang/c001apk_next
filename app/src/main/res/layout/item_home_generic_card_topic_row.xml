@@ -52,7 +52,6 @@
             android:id="@+id/arrow"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_keyboard_arrow_right_white_24dp"
             android:contentDescription="@null"
             android:tint="?android:textColorSecondary" />
     </LinearLayout>
