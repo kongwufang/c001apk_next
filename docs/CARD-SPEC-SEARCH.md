@@ -122,9 +122,80 @@
 
 两种做法都需要把 `SearchContentFragment` 的适配器组装从 `BaseAppFragment` 的默认链里拆出来，属于结构性改动，应单独提交并单独验证。
 
+
+
 ---
 
-## 五、验收要点
+## 六、官方逆向工程核对（2026-11-14）
+
+上一版第二、三节中有些内容是根据截图和接口字段推断的，不能直接作为实现依据。本次改为读取项目里的官方逆向产物：
+
+```text
+_rev/CARD_UI_MAP.md
+_rev/card_scan_out/_CARD_UI_MAP.md
+_rev/card_scan_out/_FEED_CHAIN.md
+_rev/ref_res/res/layout/item_list_card.xml
+_rev/ref_res/res/layout/item_sort_select.xml
+```
+
+入口规则见 `HANDOVER.md` §8「逆向研究线」：`_rev/00_RULES_AND_INDEX.md` 是协议研究入口，卡片 UI 底表由 `_rev/card_ui_map.py` 根据 `ref_res/res/layout/` 和反编译产物生成。
+
+### 1. 官方 `listCard` 的真实骨架
+
+官方布局 `ref_res/res/layout/item_list_card.xml` 只有一个纵向根容器和一个 RecyclerView：
+
+```xml
+<LinearLayout orientation="vertical" ...>
+    <RecyclerView id="list_view" layout_width="match_parent" />
+</LinearLayout>
+```
+
+因此 `listCard` 本身不决定「产品行」或「话题行」的具体样式，具体行布局由内部列表的 ViewHolder / entity 类型决定。之前把 `listCard` 概括成固定的「评分 + 五星」行，是未经官方布局核对的推断，现撤回。
+
+### 2. 官方 `sortSelectCard` 的真实骨架
+
+官方布局 `ref_res/res/layout/item_sort_select.xml` 给出了动态段排序头的直接证据：
+
+```text
+CoolapkCardView（cardStyle=1）
+└── FrameLayout fix_top_view，高度 40dp
+    └── LinearLayout action_container，水平布局
+        ├── owner_filter_view（可选）
+        ├── count_text_view
+        ├── Space（weight=1）
+        ├── capsule_select_view（指示器 + 横向按钮容器）
+        └── menu_select_view（文字 + 下拉箭头）
+```
+
+官方排序控件不是简单的页面顶部 `topAdapter`。如果综合页的动态段来自服务端 `sortSelectCard`，它应作为**卡片流中的一个中间卡片项**插入，位置由服务端返回顺序决定。
+
+### 3. 官方卡片底表的可信度
+
+`_rev/card_scan_out/_CARD_UI_MAP.md` 明确标注：
+
+| 模板 | 官方布局 | 证据等级 |
+| --- | --- | --- |
+| `listCard` | `item_list_card.xml` | 硬链名，官方布局已找到 |
+| `sortSelectCard` | `item_sort_select.xml` | 硬链变体，官方布局已找到 |
+| `iconScrollCard` | 待链；候选 `item_icon_mini_scroll_card.xml` / `item_scroll_card.xml` / `item_image_scroll_card.xml` | 目前不能当作已确认 |
+| `feedListCard` | 待链；候选 `item_list_card.xml` / `search_list_card.xml` / `item_doc_list_card.xml` | 目前不能当作已确认 |
+| `sponsorForSearch` | `item_sponsor_self_draw` | `_FEED_CHAIN.md` 有实体判定和布局证据 |
+
+底表第 232～238 行还规定：先按模板查官方布局，骨架参数以布局为准；`推断` 和候选布局只能作线索，必须回 XML 核对。
+
+### 4. 对当前搜索问题的修正结论
+
+```text
+· 综合页动态下方缺少 5 选一：应先确认服务端是否返回 sortSelectCard，
+  不能仅在 type=feed 的页面 topAdapter 上假设它属于页面顶部。
+· 话题卡不对齐：先确认 listCard 内部 entityType=feedTopic 对应的官方 item 布局，
+  不能把 product 行的猜测样式套给话题。
+· iconScrollCard 用户卡：当前底表仍是待链，不能直接声称官方是某一个候选 XML。
+· sponsorForSearch：官方逆向链已确认对应 item_sponsor_self_draw，
+  应按该布局和 binding 继续核对。
+```
+
+下一次实现前，必须继续完成 `feedTopic` 内部行和 `sortSelectCard` 的官方 ViewHolder / binding 对照；在此之前不改搜索卡片布局。
 
 - [ ] 综合页：横幅 → 数码卡 → 话题卡 → 动态段（标题 + 5 按钮 + 列表）顺序正确；
 - [ ] 综合页点「实时」只刷新动态段，上方卡片不动；
