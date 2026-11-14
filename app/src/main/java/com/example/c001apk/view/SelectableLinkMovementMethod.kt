@@ -77,7 +77,32 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
                     com.example.c001apk.util.LogModule.UI, "TextSelection",
                     "selectAll focused=${view.hasFocus()} selection=${view.selectionStart}:${view.selectionEnd}"
                 )
-                false
+                view.startActionMode(object : android.view.ActionMode.Callback2() {
+                    override fun onCreateActionMode(mode: android.view.ActionMode, menu: android.view.Menu): Boolean {
+                        menu.add(0, android.R.id.copy, 0, android.R.string.copy)
+                            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
+                        menu.add(0, android.R.id.selectAll, 1, android.R.string.selectAll)
+                            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
+                        return true
+                    }
+                    override fun onPrepareActionMode(mode: android.view.ActionMode, menu: android.view.Menu) = false
+                    override fun onActionItemClicked(mode: android.view.ActionMode, item: android.view.MenuItem): Boolean {
+                        val handled = view.onTextContextMenuItem(item.itemId)
+                        if (item.itemId == android.R.id.copy) mode.finish()
+                        return handled
+                    }
+                    override fun onDestroyActionMode(mode: android.view.ActionMode) {
+                        (view.text as? Spannable)?.let { android.text.Selection.removeSelection(it) }
+                    }
+                    override fun onGetContentRect(mode: android.view.ActionMode, target: android.view.View, rect: android.graphics.Rect) {
+                        val layout = view.layout ?: return super.onGetContentRect(mode, target, rect)
+                        val offset = view.selectionStart.coerceIn(0, view.text.length)
+                        val line = layout.getLineForOffset(offset)
+                        rect.set(view.totalPaddingLeft, view.totalPaddingTop + layout.getLineTop(line),
+                            view.width - view.totalPaddingRight, view.totalPaddingTop + layout.getLineBottom(line))
+                    }
+                }, android.view.ActionMode.TYPE_FLOATING)
+                true
             }
         }
     }
