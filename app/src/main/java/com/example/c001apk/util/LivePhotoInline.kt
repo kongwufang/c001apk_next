@@ -3,7 +3,6 @@ package com.example.c001apk.util
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -20,15 +19,15 @@ object LivePhotoInline {
     /** 在全屏菜单关闭实况时，同时停止详情页和全屏的所有播放会话。 */
     fun stopAll() { sessions.toList().forEach { it.stop() } }
 
-    fun stop(image: ImageView) {
+    fun stop(image: View) {
         (image.getTag(R.id.live_photo_session) as? Session)?.stop()
     }
 
-    fun replay(image: ImageView) {
+    fun replay(image: View) {
         (image.getTag(R.id.live_photo_session) as? Session)?.let { it.stop(); it.play() }
     }
 
-    fun bind(image: ImageView, url: String, handleLongPress: Boolean = true) {
+    fun bind(image: View, url: String, handleLongPress: Boolean = true) {
         if (!LivePhoto.isLive(url)) return
         (image.getTag(R.id.live_photo_session) as? Session)?.let {
             if (it.url == url) { replay(image); return }
@@ -51,7 +50,7 @@ object LivePhotoInline {
         image.post { session.play() }
     }
 
-    private class Session(val image: ImageView, val url: String) : View.OnAttachStateChangeListener {
+    private class Session(val image: View, val url: String) : View.OnAttachStateChangeListener {
         private var player: ExoPlayer? = null
         private var texture: TextureView? = null
         private var host: ViewGroup? = null
