@@ -112,6 +112,23 @@ class SearchContentViewModel @AssistedInject constructor(
                             else
                                 footerState.postValue(FooterState.LoadingDone)
                             dataList.postValue(searchList)
+
+                            // ★ 2026-11-14：官方「综合」= 卡片段 + 动态段 拼装
+                            //   我们原来只请求 type=all ⇒ 只有卡片、下面空白 ✗
+                            //   这里补一次 feed 请求，把动态接在卡片后面（用现有列表逻辑与样式）
+                            if (type == "all" && !isLoadMore) {
+                                networkRepo.getSearch(
+                                    "feed", "all", "default", keyWord,
+                                    pageType, pageParam, 1, null, 0
+                                ).collect { r2 ->
+                                    val extra = r2.getOrNull()?.data
+                                    if (!extra.isNullOrEmpty()) {
+                                        val merged = dataList.value?.toMutableList() ?: ArrayList()
+                                        merged.addAll(extra)
+                                        dataList.postValue(merged)
+                                    }
+                                }
+                            }
                         } else {
                             isEnd = true
                             if (listSize <= 0)
