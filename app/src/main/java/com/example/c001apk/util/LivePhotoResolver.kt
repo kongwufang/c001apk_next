@@ -28,6 +28,7 @@ object LivePhotoResolver {
     private const val HOST = "https://api.coolapk.com"
 
     private val client by lazy {
+        // 注意：SslVerify.apply 收的是 Builder，最后才 build()
         SslVerify.apply(
             okhttp3.OkHttpClient.Builder()
                 .addInterceptor(AddCookiesInterceptor)
@@ -35,8 +36,7 @@ object LivePhotoResolver {
                 .followSslRedirects(false)
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
-                .build()
-        )
+        ).build()
     }
 
     /**
