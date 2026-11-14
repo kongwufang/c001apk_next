@@ -22,7 +22,7 @@ import rikka.material.widget.FakeFontWeightMaterialTextView
 class LinkTextView : FakeFontWeightMaterialTextView {
 
     override fun getHighlightColor(): Int {
-        return Color.TRANSPARENT
+        return if (isTextSelectable) super.getHighlightColor() else Color.TRANSPARENT
     }
 
     private var dontConsumeNonUrlClicks = true
@@ -53,11 +53,7 @@ class LinkTextView : FakeFontWeightMaterialTextView {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (isTextSelectable) {
-            // 选择型正文/评论使用系统移动方法，保证长按能进入 ActionMode；
-            // ClickableSpan 仍由 LinkMovementMethod 处理。
-            movementMethod = LinkMovementMethod.getInstance()
-        }
+        SelectableLinkMovementMethod.applyTo(this)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -135,7 +131,6 @@ class LinkTextView : FakeFontWeightMaterialTextView {
     }
 
     override fun setText(text: CharSequence?, type: BufferType?) {
-        this.movementMethod = LocalLinkMovementMethod.instance
         val spText =
             SpannableStringBuilderUtil.setText(
                 context,
@@ -145,6 +140,11 @@ class LinkTextView : FakeFontWeightMaterialTextView {
                 linkAsChip = linkAsChip
             )
         super.setText(spText, type)
+        if (isTextSelectable) {
+            SelectableLinkMovementMethod.applyTo(this)
+        } else {
+            movementMethod = LocalLinkMovementMethod.instance
+        }
         scheduleTableRows(spText)
     }
 

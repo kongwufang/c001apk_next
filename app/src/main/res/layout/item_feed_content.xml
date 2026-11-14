@@ -171,6 +171,7 @@
 
         <com.example.c001apk.view.LinkTextView
             android:id="@+id/message"
+            android:textIsSelectable="true"
             android:tag="bl_body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

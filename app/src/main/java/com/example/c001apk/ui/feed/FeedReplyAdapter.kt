@@ -142,7 +142,7 @@ class FeedReplyAdapter(
                         R.layout.item_feed_content_reply_to_reply_item, linearLayout, false
                     )
                     view.findViewById<TextView>(R.id.reply).apply {
-                        movementMethod = LinkMovementClickMethod.instance
+                        com.example.c001apk.view.SelectableLinkMovementMethod.applyTo(this)
                         highlightColor = ColorUtils.setAlphaComponent(
                             MaterialColors.getColor(
                                 context,
@@ -170,13 +170,6 @@ class FeedReplyAdapter(
                             replyData.id, reply.uid, replyData.uid, replyData.username,
                             holder.bindingAdapterPosition, index
                         )
-                    }
-                    view.setOnLongClickListener {
-                        this@FeedReplyAdapter.listener.onExpand(
-                            it, replyData.id, replyData.uid,
-                            replyData.message, holder.bindingAdapterPosition, index
-                        )
-                        true
                     }
                     linearLayout.addView(view)
                 }

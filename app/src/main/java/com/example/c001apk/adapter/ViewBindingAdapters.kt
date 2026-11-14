@@ -364,6 +364,7 @@ fun setCustomText(
             )
         } else customText
 
+    com.example.c001apk.view.SelectableLinkMovementMethod.applyTo(textView)
 }
 
 @BindingAdapter("setHotReply")
