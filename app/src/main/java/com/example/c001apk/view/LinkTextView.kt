@@ -51,12 +51,20 @@ class LinkTextView : FakeFontWeightMaterialTextView {
         ta.recycle()
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (isTextSelectable) {
+            // 选择型正文/评论使用系统移动方法，保证长按能进入 ActionMode；
+            // ClickableSpan 仍由 LinkMovementMethod 处理。
+            movementMethod = LinkMovementMethod.getInstance()
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         linkHit = false
         val res = super.onTouchEvent(event)
-        // 正文/评论显式开启 textIsSelectable 时，必须把完整触摸序列交给 TextView，
-        // 否则非链接 ACTION_DOWN 会返回 false，系统选择框永远不会出现。
+        // 正文/评论显式开启 textIsSelectable 时，必须把完整触摸序列交给 TextView。
         if (isTextSelectable) return res
         return if (dontConsumeNonUrlClicks) linkHit else res
     }
