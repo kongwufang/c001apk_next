@@ -183,7 +183,51 @@ CoolapkCardView（cardStyle=1）
 
 底表第 232～238 行还规定：先按模板查官方布局，骨架参数以布局为准；`推断` 和候选布局只能作线索，必须回 XML 核对。
 
-### 4. 对当前搜索问题的修正结论
+
+
+### 5. 官方 `feedTopic` / product 行布局已找到
+
+继续沿官方逆向资源核对后，搜索综合页两种 `listCard` 内部行的可靠布局证据如下：
+
+#### `feedTopic`：`ref_res/res/layout/item_topic_view.xml`
+
+```text
+CoolapkCardView，cardStyle=3
+└── root_view，横向，左右16dp，上下8dp
+    ├── logo_view：56dp × 56dp
+    ├── title_view：16sp，最多两行，行高22sp
+    ├── description_view：12sp，默认示例「110关注 233讨论」
+    ├── arrow_view：右箭头
+    └── right_container：最小宽度78dp
+        ├── no_one_rated_view：「暂无人评分」
+        └── compose_view：评分区域
+```
+
+这与用户截图中的官方话题卡一致：左侧 56dp 话题图标，中间两行标题与「关注 / 讨论」，右侧箭头和评分区。当前应用的通用 `GenericCardViewHolder` 不具备这套固定骨架，因此话题卡不对齐。
+
+#### `product`：`ref_res/res/layout/item_product_view.xml`
+
+```text
+CoolapkCardView，cardStyle=2
+└── item_view，横向，左右12dp，上下12dp
+    ├── icon_view：60dp × 60dp
+    ├── title_view：16sp，最多两行
+    ├── subtitle_container：火焰图标 + hot_num_view + discuss_num_view
+    └── right_container：宽78dp，发布时间或评分 ComposeView
+```
+
+这两个布局是官方 XML 直接证据，不再使用之前「评分 + 五星」的泛化描述。评分的具体 Compose 内容还需读取官方绑定类，布局只确认了它位于右侧 `compose_view`。
+
+### 6. `sortSelectCard` 的官方注册证据
+
+官方反编译 `EntityListFragment.java` 注册了 `sortSelectCard`（约 828 行），`cm3.java` 的分割规则也明确把它视为独立卡片。`item_sort_select.xml` 的 `capsule_select_view/container_view` 是动态选项容器，说明五选一属于卡片流项，而非只给动态 tab 顶部使用的通用头部。
+
+当前实现下一步应：
+
+1. 为综合页动态段插入一个搜索专用 `sortSelectCard`；
+2. 让该卡片的 5 个选项调用现有 `onSearch("sort", ...)`；
+3. 为 `feedTopic` 和 `product` 分别增加官方骨架 ViewHolder；
+4. 通过实体 `entityType` 区分两种行，不再走通用卡片。
 
 ```text
 · 综合页动态下方缺少 5 选一：应先确认服务端是否返回 sortSelectCard，
