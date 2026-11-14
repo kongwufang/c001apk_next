@@ -80,9 +80,12 @@ class SearchContentViewModel @AssistedInject constructor(
         isStrict = if (value == "none") 1 else 0
         keepSearchCards = type == "all"
         dataList.value = if (keepSearchCards) {
-            dataList.value.orEmpty().filterNot {
-                it.entityType == "feed" || it.entityTemplate == "sortSelectCard"
-            } + buildSearchSortCard()
+            // 请求完成前保留旧动态占位，避免列表缩短导致排序条跳到屏幕底部。
+            val current = dataList.value.orEmpty().map {
+                if (it.entityId == "c001apk-search-sort") buildSearchSortCard() else it
+            }
+            if (current.any { it.entityId == "c001apk-search-sort" }) current
+            else current + buildSearchSortCard()
         } else emptyList()
         footerState.value = FooterState.LoadingDone
         loadingState.value = LoadingState.Loading
