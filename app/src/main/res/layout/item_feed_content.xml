@@ -393,7 +393,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clickable="true"
-                android:focusable="true"
+                android:textIsSelectable="true"
                 android:lineSpacingMultiplier="1.2"
                 android:text='@{"&lt;a class=\"feed-link-uname\" href=\"/u/" + data.forwardSourceFeed.uid + "\">@" + data.forwardSourceFeed.username + "&lt;/a>: " + data.forwardSourceFeed.message}'
                 android:textSize="15sp"
