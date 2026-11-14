@@ -55,12 +55,12 @@ abstract class BaseAppViewModel(
     // 需要弹出「修改可见性」选择框的动态 id
     val publishStatusEvent = MutableLiveData<Event<String>>()
 
-    open fun showCollection(id: String, title: String) {}
+    open fun onSearchSort(value: String) {}
 
     inner class ItemClickListener : ItemListener {
 
-        override fun onShowCollection(id: String, title: String) {
-            showCollection(id, title)
+        override fun onSearchSort(value: String) {
+            this@BaseAppViewModel.onSearchSort(value)
         }
 
         override fun onDownloadVersion(

@@ -18,7 +18,7 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import com.example.c001apk.util.ApiError
+import com.google.gson.Gson
 
 class SearchContentViewModel @AssistedInject constructor(
     @Assisted("keyWord") var keyWord: String,
@@ -60,7 +60,32 @@ class SearchContentViewModel @AssistedInject constructor(
     /** 「精确」排序：sort=none 且 isStrict=1（抓包实证） */
     var isStrict: Int = 0
 
-    override fun fetchData() {
+    private fun buildSearchSortCard(): HomeFeedResponse.Data = Gson().fromJson(
+        """{
+          "entityType":"card",
+          "entityTemplate":"sortSelectCard",
+          "title":"动态",
+          "entities":[
+            {"title":"综合","url":"c001apk://search-sort/default"},
+            {"title":"实时","url":"c001apk://search-sort/dateline"},
+            {"title":"热度","url":"c001apk://search-sort/hot"},
+            {"title":"评论","url":"c001apk://search-sort/reply"},
+            {"title":"精确","url":"c001apk://search-sort/none"}
+          ]
+        }""",
+        HomeFeedResponse.Data::class.java
+    )
+
+    override fun onSearchSort(value: String) {
+        sort = value
+        isStrict = if (value == "none") 1 else 0
+        dataList.value = dataList.value.orEmpty()
+            .filterNot { it.entityTemplate == "sortSelectCard" }
+        footerState.value = FooterState.LoadingDone
+        loadingState.value = LoadingState.Loading
+    }
+
+
         viewModelScope.launch(Dispatchers.IO) {
             networkRepo.getSearch(
                 type, feedType, sort, keyWord,
@@ -125,7 +150,14 @@ class SearchContentViewModel @AssistedInject constructor(
                                     if (!extra.isNullOrEmpty()) {
                                         // postValue 异步发布，不能再从 value 读回尚未发布的卡片列表。
                                         val merged = searchList.toMutableList()
-                                        extra.filter { item ->
+                                        val feedIndex = merged.indexOfFirst { it.entityType == "feed" }
+                                         if (merged.none { it.entityTemplate == "sortSelectCard" }) {
+                                             merged.add(
+                                                 if (feedIndex >= 0) feedIndex else merged.size,
+                                                 buildSearchSortCard()
+                                             )
+                                         }
+                                         extra.filter { item ->
                                             item.entityType == "feed" &&
                                                 !blackListRepo.checkUid(item.userInfo?.uid.toString()) &&
                                                 !blackListRepo.checkTopic(item.tags + item.ttitle +

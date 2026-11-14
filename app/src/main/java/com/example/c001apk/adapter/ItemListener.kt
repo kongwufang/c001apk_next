@@ -24,7 +24,7 @@ import org.jsoup.select.Elements
 
 interface ItemListener {
 
-    fun onFollowUser(uid: String, followAuthor: Int) {}
+    fun onSearchSort(value: String) {}
 
     fun onShowCollection(id: String, title: String) {}
 

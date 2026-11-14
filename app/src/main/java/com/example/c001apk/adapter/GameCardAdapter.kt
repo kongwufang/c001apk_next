@@ -142,6 +142,13 @@ class GameCardAdapter(
         fun bind(data: HomeFeedResponse.Entities) {
             binding.setVariable(BR.data, data)
             binding.setVariable(BR.listener, listener)
+            binding.button.setOnClickListener { view ->
+                if (data.url.startsWith("c001apk://search-sort/")) {
+                    listener.onSearchSort(data.url.substringAfterLast('/'))
+                } else {
+                    listener.onOpenLink(view, data.url, data.title)
+                }
+            }
             binding.executePendingBindings()
         }
     }
