@@ -119,7 +119,7 @@ object LivePhotoPlayer {
             textSize = 14f
             setPadding(40, 24, 40, 24)
             setOnClickListener {
-                val ok = runCatching { savePair(context, coverUrl, video) }.getOrDefault(false)
+                val ok = runCatching { savePair(context, coverUrl, signed) }.getOrDefault(false)
                 Toast.makeText(
                     context,
                     if (ok) "已保存封面和实况视频" else "保存失败",
