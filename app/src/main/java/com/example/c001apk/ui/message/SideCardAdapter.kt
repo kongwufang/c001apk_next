@@ -8,7 +8,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.R
-import com.example.c001apk.util.DebugUi
 import com.example.c001apk.util.NoticeRepo
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.UpdateChecker
@@ -58,11 +57,8 @@ class SideCardAdapter(
      */
     fun setData(notices: List<NoticeRepo.Card>, update: UpdateChecker.UpdateInfo?) {
         items.clear()
-        // ★ 2026-11-15：DebugUi 只在 DEBUG 包且存在 debug_changelog.txt 时返回虚拟卡，
-        //   用于验收长日志限高滚动；正式版恒为 null。
-        val effective = DebugUi.updateOverride() ?: update
-        if (effective != null && effective.isNewer && effective.versionCode != PrefManager.skippedUpdateCode)
-            items.add(Item.Update(effective))
+        if (update != null && update.isNewer && update.versionCode != PrefManager.skippedUpdateCode)
+            items.add(Item.Update(update))
         notices.forEach { items.add(Item.Notice(it)) }
         notifyDataSetChanged()
     }
@@ -209,9 +205,10 @@ class SideCardAdapter(
                 R.string.update_found_title, info.versionName
             )
             val context = itemView.context
-            changelog.text = info.changelog.ifBlank {
-                context.getString(R.string.update_no_changelog)
-            }
+            val context = itemView.context
+            // ★ 2026-11-15：长日志放进限高滚动区（见 MaxHeightNestedScrollView）。
+            changelog.text = info.changelog.ifBlank { context.getString(R.string.update_no_changelog) }
+
             // 复用 holder 时把内部滚动位置归零，免得新日志一进来就停在末尾。
             changelogScroll.scrollTo(0, 0)
 
