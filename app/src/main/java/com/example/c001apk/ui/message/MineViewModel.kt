@@ -45,9 +45,29 @@ class MineViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val notices = NoticeRepo.fetch()
             // 设置里关掉「检查更新」⇒ 侧栏也不显示升级卡 ✓（用户说的「设置那边才能关闭」✓）
-            val update = if (PrefManager.isCheckUpdateStable) UpdateChecker.fetchUpdate() else null
-            sideCards.postValue(Pair(notices, update))
+            val real = if (PrefManager.isCheckUpdateStable) UpdateChecker.fetchUpdate() else null
+            // TEMP(2026-11-15)：仅本机模拟器（设备标识白名单）注入长日志假卡，验收完整段回退
+            sideCards.postValue(Pair(notices, debugFakeUpdate() ?: real))
         }
+    }
+
+    // TEMP(2026-11-15)：仅本轮设备验收使用，回退时连同调用一并删除。
+    // 只在指定设备上生效，其他任何设备都返回 null ⇒ 走真实更新检查。
+    private fun debugFakeUpdate(): UpdateChecker.UpdateInfo? {
+        if (PrefManager.SZLMID != "DUKEHdVaYc-l0g9RH-y--wl8tgEnSncMV5g7") return null
+        val body = buildString {
+            appendLine("V9.9.9 · 侧栏日志滚动验收（临时）")
+            for (i in 1..40) {
+                appendLine("- 第 $i 条：验证卡片高度受限、内容可滚动、下方两个按钮始终可见。")
+            }
+            append("【末行标记】看到这行说明已经滑到日志末尾。")
+        }
+        return UpdateChecker.UpdateInfo(
+            versionName = "V9.9.9",
+            versionCode = com.example.c001apk.BuildConfig.VERSION_CODE + 1L,
+            changelog = body,
+            lines = listOf(UpdateChecker.DownloadLine("调试线路", "https://example.invalid/")),
+        )
     }
     val loadingState = MutableLiveData<LoadingState>()
 
