@@ -205,7 +205,6 @@ class SideCardAdapter(
                 R.string.update_found_title, info.versionName
             )
             val context = itemView.context
-            val context = itemView.context
             // ★ 2026-11-15：长日志放进限高滚动区（见 MaxHeightNestedScrollView）。
             changelog.text = info.changelog.ifBlank { context.getString(R.string.update_no_changelog) }
 
