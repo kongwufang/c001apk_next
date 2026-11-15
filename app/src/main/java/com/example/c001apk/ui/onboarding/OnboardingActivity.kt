@@ -11,8 +11,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.c001apk.R
+import com.example.c001apk.BuildConfig
 import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.util.PrefManager
+import com.example.c001apk.util.OnboardingPolicy
 import com.example.c001apk.util.SzlmIdPrompt
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
@@ -21,7 +23,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 /**
  * 首次启动的欢迎/激活流程（2026-11-08）
  *
- * 只有第一次打开才出现（[PrefManager.onboarded] 为 false 时由 `MainActivity` 拉起，见那边注释）。
+ * 首次使用或引导内容修订升级时展示，由 [PrefManager.onboarded] 决定。
  * 四步：
  * ```
  * ① 欢迎使用 c001apk_next            [快速开始]
@@ -58,16 +60,23 @@ class OnboardingActivity : AppCompatActivity() {
 
     private var step = 0
 
-    // 第④步的三个开关（未点完成前只存内存 ✓）
+    // 第④步 SSL 草稿：先沿用旧值，用户点完成才保存。
     private var sslVerify = true
     private var autoRefreshSzlmId = true
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        step = savedInstanceState?.getInt("step") ?: 0
-        sslVerify = savedInstanceState?.getBoolean("sslVerify") ?: true
-        autoRefreshSzlmId = savedInstanceState?.getBoolean("autoRefreshSzlmId") ?: true
+        val sameRevision = savedInstanceState?.getInt("guideRevision", 0) ==
+            OnboardingPolicy.requiredRevision(BuildConfig.VERSION_CODE)
+        val initialAutoRefresh = if (PrefManager.hasAutoRefreshSzlmIdChoice)
+            PrefManager.autoRefreshSzlmId else true
+        // Reuse existing choices, but never restore an old revision directly into a later step.
+        step = if (sameRevision) savedInstanceState!!.getInt("step").coerceIn(0, 3) else 0
+        sslVerify = if (sameRevision) savedInstanceState!!.getBoolean("sslVerify", PrefManager.isVerifySsl)
+            else PrefManager.isVerifySsl
+        autoRefreshSzlmId = if (sameRevision) savedInstanceState!!.getBoolean("autoRefreshSzlmId", initialAutoRefresh)
+            else initialAutoRefresh
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -130,6 +139,7 @@ class OnboardingActivity : AppCompatActivity() {
     private fun dp(v: Int) = (v * dp).toInt()
 
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("guideRevision", OnboardingPolicy.requiredRevision(BuildConfig.VERSION_CODE))
         outState.putInt("step", step)
         outState.putBoolean("sslVerify", sslVerify)
         outState.putBoolean("autoRefreshSzlmId", autoRefreshSzlmId)
@@ -158,7 +168,7 @@ class OnboardingActivity : AppCompatActivity() {
             }
             2 -> {
                 // 目标要求：**取号成功才可下一步** ✓ 未取到时按钮不可点（见 render 里 isEnabled）
-                if (!PrefManager.szlmIdConfigured) {
+                if (!hasConfiguredId()) {
                     Toast.makeText(this, "请先完成取号", Toast.LENGTH_SHORT).show()
                     return
                 }
@@ -178,6 +188,8 @@ class OnboardingActivity : AppCompatActivity() {
         finish()
     }
 
+    private fun hasConfiguredId() = PrefManager.szlmIdConfigured && PrefManager.SZLMID.isNotBlank()
+
     @SuppressLint("SetTextI18n")
     private fun render() {
         body.removeAllViews()
@@ -185,8 +197,10 @@ class OnboardingActivity : AppCompatActivity() {
         when (step) {
             0 -> {
                 primary.isEnabled = true
-                title.text = "欢迎使用 c001apk_next"
-                subtitle.text = "这是一个第三方酷安客户端。\n接下来有 3 个小步骤：选机型参数、取号、确认几个开关，很快就好。"
+                title.text = if (PrefManager.hasCompletedOnboardingBefore) "确认更新后的设置" else "欢迎使用 c001apk_next"
+                subtitle.text = if (PrefManager.hasCompletedOnboardingBefore)
+                    "这次更新新增了偏好选项，请重新确认。已有机型参数和数字联盟ID会继续保留。"
+                    else "这是一个第三方酷安客户端。\n接下来有 3 个小步骤：选机型参数、取号、确认几个开关，很快就好。"
                 primary.text = "快速开始"
             }
 
@@ -211,16 +225,16 @@ class OnboardingActivity : AppCompatActivity() {
 
             2 -> {
                 title.text = "取号"
-                subtitle.text = "「数字联盟 ID」是酷安用来识别设备的一个标识。取号后请求里会带上它，否则个别接口可能被风控。\n\n点下面按钮授权并取号；取不到也可以先跳过。"
+                subtitle.text = "「数字联盟 ID」是酷安用来识别设备的一个标识。已有 ID 会继续使用；没有 ID 时，请先自动获取或手动填入。"
                 primary.text = "下一步"
                 // 未取到号 ⇒ 主按钮置灰（取号成功后 render() 会刷新成可用）
-                primary.isEnabled = PrefManager.szlmIdConfigured
+                primary.isEnabled = hasConfiguredId()
                 body.addView(
                     actionText(
-                        if (PrefManager.szlmIdConfigured) "✓ 已取到号（可以下一步了）" else "开始取号 →"
+                        if (hasConfiguredId()) "✓ 已取到号（可以下一步了）" else "开始取号 →"
                     ) {
                         SzlmIdPrompt.showConsent(this) {
-                            if (PrefManager.szlmIdConfigured) {
+                            if (hasConfiguredId()) {
                                 Toast.makeText(this, "取号成功", Toast.LENGTH_SHORT).show()
                                 render()
                             } else {
@@ -235,7 +249,7 @@ class OnboardingActivity : AppCompatActivity() {
             else -> {
                 primary.isEnabled = true
                 title.text = "最后确认"
-                subtitle.text = "「校验 SSL 证书」默认打开；抓包调试需要关掉它。\n" +
+                subtitle.text = "请确认 SSL 证书校验设置；抓包调试需要关闭它。\n" +
                         "本 App 不会上传日志或诊断数据，日志只存在你手机里，随时可导出/清空。"
                 primary.text = "完成"
                 body.addView(switchRow("校验 SSL 证书", "更安全；抓包调试时需关闭", sslVerify) {

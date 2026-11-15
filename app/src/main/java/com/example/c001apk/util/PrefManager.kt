@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.constant.Constants
+import com.example.c001apk.BuildConfig
 
 object PrefManager {
 
@@ -275,6 +276,9 @@ object PrefManager {
             pref.edit().putBoolean("autoRefreshSzlmId", value).apply()
             if (!value) SzlmIdAutoRefresh.cancelPending()
         }
+
+    val hasAutoRefreshSzlmIdChoice: Boolean
+        get() = pref.contains("autoRefreshSzlmId")
 
     var szlmIdLastObtainedAt: Long
         get() = pref.getLong("szlmIdLastObtainedAt", 0L)
@@ -605,11 +609,24 @@ object PrefManager {
      * 首次启动的欢迎/激活流程是否走完（2026-11-08）
      *
      * 四步：欢迎 → 机型参数 → 取号 → 开关确认
-     * 只有走完（点「完成」）才置 true；之后再也进不去 ✓
+     * 保留旧 onboarded 布尔键供旧版本兼容；新版完成状态同时受内容修订号约束。
+     * 10011 起需要完成修订 2，旧 10010 完成记录只视为修订 1。
      */
-    var onboarded: Boolean
+    val hasCompletedOnboardingBefore: Boolean
         get() = pref.getBoolean("onboarded", false)
-        set(value) = pref.edit().putBoolean("onboarded", value).apply()
+
+    var onboarded: Boolean
+        get() = OnboardingPolicy.isComplete(
+            BuildConfig.VERSION_CODE, hasCompletedOnboardingBefore,
+            pref.getInt("onboardingRevision", 0)
+        )
+        set(value) {
+            val revision = if (value) OnboardingPolicy.revisionAfterCompletion(
+                BuildConfig.VERSION_CODE, pref.getInt("onboardingRevision", 0)
+            ) else 0
+            pref.edit().putBoolean("onboarded", value)
+                .putInt("onboardingRevision", revision).apply()
+        }
 
 
     // ---------------------------------------------------------------- 云控开关

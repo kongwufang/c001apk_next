@@ -37,6 +37,12 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Check before update dialogs, homepage requests and navigation setup.
+        if (!PrefManager.onboarded) {
+            startActivity(Intent(this, OnboardingActivity::class.java))
+            finish()
+            return
+        }
         ActivityCollector.addActivity(this)
 
         onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
@@ -70,12 +76,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
         initMineDrawer()
 
         // 首次启动：告诉用户侧边栏在哪（否则☰太隐蔽，用户找不到 ✗）
-        // ★ 2026-11-08：首次启动先走「欢迎/激活」四步（OnboardingActivity），
-        if (!PrefManager.onboarded) {
-            startActivity(Intent(this, OnboardingActivity::class.java))
-            finish()
-            return
-        }
         if (!PrefManager.sidebarHintShown) {
             PrefManager.sidebarHintShown = true
             binding.root.post { showSidebarHint() }
@@ -232,6 +232,7 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
 
     override fun onResume() {
         super.onResume()
+        if (isFinishing || !PrefManager.onboarded) return
         if (!viewModel.isInit && isLogin) {
             with(System.currentTimeMillis()) {
                 if (this - viewModel.lastCheck >= 5 * 60 * 1000) {
