@@ -46,6 +46,11 @@ data class UserProfileResponse(
         val apkRatingNum: Int? = null,
         // 拥有装备数（「他的装备 58个装备」）
         @SerializedName("product_owner_count") val productOwnerCount: Int? = null,
-    ) : Parcelable
+        // Official profile header uses exactly disallowPost == 1 for its silenced badge.
+        @SerializedName("disallowPost") val disallowPost: Int? = null,
+    ) : Parcelable {
+        val isSilenced: Boolean
+            get() = disallowPost == 1
+    }
 }
 
