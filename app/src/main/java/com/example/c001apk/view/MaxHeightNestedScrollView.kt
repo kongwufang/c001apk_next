@@ -2,6 +2,7 @@ package com.example.c001apk.view
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
 import androidx.core.widget.NestedScrollView
 
 /**
@@ -36,6 +37,22 @@ class MaxHeightNestedScrollView @JvmOverloads constructor(
             heightMeasureSpec
         }
         super.onMeasure(widthMeasureSpec, capped)
+    }
+
+    /**
+     * 侧栏这张卡在 RecyclerView 里：父列表会先把纵向拖动拦走，
+     * 内部的 ScrollView 就永远滚不动（2026-11-15 实机验证：滑动前后画面完全一致）。
+     *
+     * 处理：手指落在日志区时先 requestDisallowIntercept，让本控件自己消费这次纵向拖动；
+     * 抬手/取消再还给父列表，列表照常可以滚。
+     */
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> parent?.requestDisallowInterceptTouchEvent(true)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                parent?.requestDisallowInterceptTouchEvent(false)
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     private companion object {
