@@ -8,9 +8,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.R
+import com.example.c001apk.util.DebugUi
 import com.example.c001apk.util.NoticeRepo
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.UpdateChecker
+import com.example.c001apk.view.MaxHeightNestedScrollView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
@@ -189,6 +191,8 @@ class SideCardAdapter(
     private inner class UpdateHolder(v: View) : RecyclerView.ViewHolder(v) {
         private val card: MaterialCardView = v.findViewById(R.id.card)
         private val title: TextView = v.findViewById(R.id.title)
+        private val changelogScroll: MaxHeightNestedScrollView =
+            v.findViewById(R.id.changelogScroll)
         private val changelog: TextView = v.findViewById(R.id.changelog)
         // ★ 2026-11-01：这张卡**没有叉** ✗ 只能点下面两个按钮（用户要求）
         private val skip: MaterialButton = v.findViewById(R.id.skip)
@@ -201,9 +205,14 @@ class SideCardAdapter(
             title.text = itemView.context.getString(
                 R.string.update_found_title, info.versionName
             )
-            changelog.text = info.changelog.ifBlank {
-                itemView.context.getString(R.string.update_no_changelog)
-            }
+            val context = itemView.context
+            // ★ 2026-11-15：长日志用限高滚动区显示全部内容（见 MaxHeightNestedScrollView）。
+            //   DebugUi 只在 DEBUG 包生效，用来在设备上验收长日志；正式版恒为 null。
+            changelog.text = DebugUi.changelogOverride(context)
+                ?: info.changelog.ifBlank { context.getString(R.string.update_no_changelog) }
+            // 复用 holder 时把内部滚动位置归零，免得新日志一进来就停在末尾。
+            changelogScroll.scrollTo(0, 0)
+
 
             val skipIt = View.OnClickListener {
                 PrefManager.skippedUpdateCode = info.versionCode

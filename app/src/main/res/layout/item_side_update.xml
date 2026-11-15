@@ -20,6 +20,11 @@
          加上 left/right/bottom 各 10dp ✓
          这里再加 margin ⇒ 变成 20dp ⇒ 比上面的九宫格窄一圈 ✗
          用户原话：「这个卡片我想跟上面的卡片共宽，看起来视觉比较舒适」
+      · 更新日志**限高滚动**（2026-11-15 用户要求：「日志过长时下方信息不可见，
+        不要延长卡片，给信息显示区域加滑动组件」）
+         ⇒ 旧写法 `maxLines=6` 会把长日志截断 ✗ 现在整段放进 `MaxHeightNestedScrollView`
+         ⇒ 短日志跟随内容高度、长日志封顶并可在卡片内滑到末行 ✓
+         ⇒ 标题与下面两个按钮在滚动区之外，始终可见 ✓
 -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -61,17 +66,32 @@
 
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/changelog"
+        <!--
+            更新日志：限高 + 纵向滚动（2026-11-15）
+            以前是 TextView + maxLines=6 + ellipsize=end ⇒ 长日志被截断、看不到后面；
+            直接拉高卡片又会把下面的按钮挤出侧栏。
+            现在短日志高度跟随内容（不留空白），长日志封顶 120dp 并可内部滑动到末行。
+            标题与两个按钮都在滚动区之外，始终可见。
+        -->
+        <com.example.c001apk.view.MaxHeightNestedScrollView
+            android:id="@+id/changelogScroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:lineSpacingExtra="3dp"
-            android:maxLines="6"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp"
-            tools:text="· 修复了 xxx" />
+            android:fadeScrollbars="false"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/changelog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="3dp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp"
+                tools:text="· 修复了 xxx" />
+
+        </com.example.c001apk.view.MaxHeightNestedScrollView>
 
         <LinearLayout
             android:layout_width="match_parent"
