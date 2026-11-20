@@ -165,6 +165,9 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     buildFeatures {
         viewBinding = true
         dataBinding = true
@@ -240,6 +243,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.14.1")
     implementation(libs.oss.android.sdk)
     implementation(libs.utilcode)
 

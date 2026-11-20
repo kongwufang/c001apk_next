@@ -42,7 +42,8 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
                     return true
                 }
             }
-            MotionEvent.ACTION_CANCEL -> downLink = null
+            MotionEvent.ACTION_CANCEL,
+            MotionEvent.ACTION_POINTER_DOWN -> downLink = null
         }
         return super.onTouchEvent(widget, buffer, event)
     }
@@ -65,7 +66,12 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
             view.setTextIsSelectable(true)
             view.isLongClickable = true
             view.isFocusableInTouchMode = true
-            view.movementMethod = ArrowKeyMovementMethod.getInstance()
+            // 普通 ArrowKeyMovementMethod 只处理选字，不会分发 ClickableSpan，
+            // 图片/用户/网页链接的短按因此会退化成系统选择菜单。
+            // 保留每个 TextView 自己的手势状态，重绑同一实例时不重复替换。
+            if (view.movementMethod !is SelectableLinkMovementMethod) {
+                view.movementMethod = SelectableLinkMovementMethod()
+            }
             view.setOnLongClickListener(null)
         }
     }
