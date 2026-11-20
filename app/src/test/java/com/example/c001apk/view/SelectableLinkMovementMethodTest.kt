@@ -17,6 +17,8 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.Shadows.shadowOf
+import android.os.Looper
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = android.app.Application::class)
@@ -25,6 +27,7 @@ class SelectableLinkMovementMethodTest {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val view = TextView(activity)
         var clicks = 0
+        val trace = StringBuilder()
         val link = object : ClickableSpan() {
             override fun onClick(widget: View) { clicks++ }
         }
@@ -56,7 +59,12 @@ class SelectableLinkMovementMethodTest {
         fun event(action: Int, x: Float = this.x, elapsed: Long = 0,
                   down: Long = SystemClock.uptimeMillis()) {
             MotionEvent.obtain(down, down + elapsed, action, x, y, 0).also {
+                val off = view.layout.getOffsetForHorizontal(0, x)
+                trace.append(" action=$action x=$x y=$y off=$off focus=${view.hasFocus()} " +
+                    "selection=${view.selectionStart}:${view.selectionEnd} " +
+                    "hits=${text.getSpans(off, off, ClickableSpan::class.java).size}")
                 view.onTouchEvent(it)
+                trace.append(" -> selection=${view.selectionStart}:${view.selectionEnd} clicks=$clicks")
                 it.recycle()
             }
         }
@@ -83,8 +91,42 @@ class SelectableLinkMovementMethodTest {
     @Test fun shortTapDispatchesPictureLinkExactlyOnce() {
         val f = Fixture()
         f.tap()
-        assertEquals(1, f.clicks)
+        assertEquals(f.trace.toString(), 1, f.clicks)
         assertFalse(f.view.hasSelection())
+    }
+
+    @Test fun replyRowListenerDoesNotFireAlongsidePictureLink() {
+        val f = Fixture()
+        var replies = 0
+        f.view.setOnClickListener { replies++ }
+        f.tap()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(f.trace.toString(), 1, f.clicks)
+        assertEquals(0, replies)
+    }
+
+    @Test fun firstTapWithoutPriorFocusStillOpensPicture() {
+        val f = Fixture()
+        val sibling = TextView(f.activity).apply {
+            isFocusableInTouchMode = true
+        }
+        val root = android.widget.LinearLayout(f.activity).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+        }
+        (f.view.parent as android.view.ViewGroup).removeView(f.view)
+        root.addView(sibling)
+        root.addView(f.view)
+        f.activity.setContentView(root)
+        sibling.requestFocus()
+        f.view.measure(
+            View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY)
+        )
+        f.view.layout(0, 0, 800, 200)
+        Selection.removeSelection(f.text)
+        assertFalse(f.view.hasFocus())
+        f.tap()
+        assertEquals(f.trace.toString(), 1, f.clicks)
     }
 
     @Test fun plainTextAndTrailingWhitespaceNeverOpenPicture() {
