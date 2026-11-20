@@ -1,6 +1,7 @@
 package com.example.c001apk.ui.message
 
-import com.example.c001apk.util.MessageCenterCacheStore
+import android.content.SharedPreferences
+import com.example.c001apk.util.MessageAccount
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
@@ -40,13 +41,37 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
     private lateinit var mAdapter: MessageCenterAdapter
     private lateinit var footerAdapter: FooterAdapter
     private lateinit var mLayoutManager: LinearLayoutManager
-    private val isLogin by lazy { PrefManager.isLogin }
+    private val isLogin get() = MessageAccount.current() != null
+    private var displayedAccount: MessageAccount? = null
+    private val accountHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val rebindAccount = Runnable {
+        displayedAccount = MessageAccount.current()
+        viewModel.bindAccount()
+        initLogin()
+        entryAdapter.notifyDataSetChanged()
+        binding.entryList.invalidateItemDecorations()
+        if (isLogin) { showRefreshingIndicator(); getData() }
+    }
+    private val accountListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "uid" || key == "isLogin" || key == "messageAccountGeneration") {
+            // Clear synchronously: ListAdapter's asynchronous diff must not retain old-account rows.
+            viewModel.invalidateAccount()
+            if (::mAdapter.isInitialized) mAdapter.submitList(null)
+            binding.isLogin = false
+            accountHandler.removeCallbacks(rebindAccount)
+            // Login writes several fields; coalesce notifications until that sequence completes.
+            accountHandler.post(rebindAccount)
+        }
+    }
     private var lastVisibleItemPosition = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        displayedAccount = MessageAccount.current()
+        viewModel.bindAccount()
         initView()
+        PrefManager.registerOnSharedPreferenceChangeListener(accountListener)
         initLogin()
         initObserve()
         initRefresh()
@@ -72,9 +97,6 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
         }
 
         mAdapter = MessageCenterAdapter(ItemClickListener())
-        // ★ 先把上次的缓存显示出来 ✓ 不用盯着空白等网络 ✓
-        //   之后 messageData 回来时 submitList(新列表) ⇒ DiffUtil 增量插入 ✓
-        runCatching { mAdapter.submitList(MessageCenterCacheStore.load()) }
         footerAdapter = FooterAdapter(ReloadListener())
         mLayoutManager = LinearLayoutManager(this)
         binding.recyclerView.apply {
@@ -119,8 +141,6 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
             // ListAdapter + DiffUtil ⇒ 只动变化的行 ✓ 不会重置整个列表 ✓
             //   ⇒ 有新消息时新的那几条会「挤」出来 ✓ 老的不动 ✓
             mAdapter.submitList(it)
-            // 写缓存 ✓（空列表不覆盖旧缓存 ✓ 见 store 里的注释）
-            runCatching { MessageCenterCacheStore.save(it) }
             hideRefreshingIndicator()
         }
     }
@@ -194,6 +214,12 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
 
     override fun onResume() {
         super.onResume()
+        if (displayedAccount != MessageAccount.current()) {
+            mAdapter.submitList(null)
+            displayedAccount = MessageAccount.current()
+        }
+        viewModel.bindAccount()
+        initLogin()
         // 从分类页（@我 / 评论 / 赞 / 关注）回来时，那边已经把看过的条目记成已读，
         // 这里重算一遍：宫格红点按本机账本抵消，下面的未读列表同步
         if (isLogin) {
@@ -202,10 +228,15 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
         }
     }
 
+    override fun onDestroy() {
+        PrefManager.unregisterOnSharedPreferenceChangeListener(accountListener)
+        accountHandler.removeCallbacks(rebindAccount)
+        super.onDestroy()
+    }
+
     inner class ReloadListener : FooterAdapter.FooterListener {
         override fun onReLoad() {
-            viewModel.isEnd = false
-            loadMore()
+            viewModel.refresh()
         }
     }
 
@@ -249,10 +280,7 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
         }
 
         override fun onBlockUser(id: String, uid: String, position: Int) {
-            viewModel.saveUid(uid)
-            val currentList = viewModel.messageData.value?.toMutableList() ?: ArrayList()
-            currentList.removeAt(position)
-            viewModel.messageData.postValue(currentList)
+            viewModel.blockUser(uid, position)
         }
 
         override fun onMessLongClicked(uname: String, id: String, position: Int): Boolean {

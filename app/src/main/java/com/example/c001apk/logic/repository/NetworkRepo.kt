@@ -351,7 +351,13 @@ class NetworkRepo @Inject constructor(
 
             else -> response.data
         }
-        Result.success(response.copy(data = data))
+        Result.success(response.copy(
+            data = data,
+            rawPageSize = response.data?.size ?: -1,
+            rawLastItem = response.data?.lastOrNull()?.let {
+                it.id.takeIf { id -> id.isNotBlank() } ?: it.entityId
+            }
+        ))
     }
 
     suspend fun getChatHistory(ukey: String, page: Int) = fire {

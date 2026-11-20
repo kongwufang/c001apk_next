@@ -130,13 +130,25 @@ object PrefManager {
         get() = pref.getBoolean(SHOW_EMOJI, true)
         set(value) = pref.edit().putBoolean(SHOW_EMOJI, value).apply()
 
+    /** Changes on identity transitions, including A → logout → A; token renewals are not switches. */
+    val messageAccountGeneration: Long
+        get() = pref.getLong("messageAccountGeneration", 0L)
+
     var isLogin: Boolean
         get() = pref.getBoolean("isLogin", false)
-        set(value) = pref.edit().putBoolean("isLogin", value).apply()
+        set(value) = synchronized(this) {
+            val editor = pref.edit().putBoolean("isLogin", value)
+            if (value != isLogin) editor.putLong("messageAccountGeneration", messageAccountGeneration + 1)
+            editor.apply()
+        }
 
     var uid: String
         get() = pref.getString(UID, "")!!
-        set(value) = pref.edit().putString(UID, value).apply()
+        set(value) = synchronized(this) {
+            val editor = pref.edit().putString(UID, value)
+            if (value != uid) editor.putLong("messageAccountGeneration", messageAccountGeneration + 1)
+            editor.apply()
+        }
 
     var username: String
         get() = pref.getString(NAME, "")!!

@@ -182,11 +182,11 @@ class MessageCenterAdapter(
         }
     }
 
-    private class DiffCallback : DiffUtil.ItemCallback<Item>() {
+    internal class DiffCallback : DiffUtil.ItemCallback<Item>() {
         override fun areItemsTheSame(oldItem: Item, newItem: Item): Boolean =
             oldItem.category == newItem.category && oldItem.data.id == newItem.data.id
 
         override fun areContentsTheSame(oldItem: Item, newItem: Item): Boolean =
-            areItemsTheSame(oldItem, newItem)
+            oldItem == newItem
     }
 }

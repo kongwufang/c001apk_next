@@ -1,8 +1,5 @@
 package com.example.c001apk.ui.message
 
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.async
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,52 +11,20 @@ import com.example.c001apk.logic.model.MessageResponse
 import com.example.c001apk.logic.repository.BlackListRepo
 import com.example.c001apk.logic.repository.HistoryFavoriteRepo
 import com.example.c001apk.logic.repository.NetworkRepo
-import com.example.c001apk.util.CookieUtil
-import com.example.c001apk.util.Event
-import com.example.c001apk.util.MessageCenterSeenStore
-import com.example.c001apk.util.MessageKit
-import com.example.c001apk.util.NotificationV18Kit
+import com.example.c001apk.util.*
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * 消息中心（独立页面）：顶部宫格 + 下方「所有未读消息」汇总列表。
- *
- * 服务端只在 checkCount 里给**分类未读数**、不给逐条已读标记（实测 2026-10-05
- * `/v6/notification/list` 一页 20 条 `isnew` 全是 0；2026-10-06 换源时又量了一次
- * `notificationV18/list` 全量 53 条，`isnew` / `unread_count` **同样全是 0**），
- * 所以这里的「未读」口径是**该分类最新的 N 条、去掉本机已经看过的**，
- * N 就是服务端该分类未读数——与 coolapk-desktop 的 `notificationSeen.ts` 完全一致。
- *
- * 展示过的条目在**离开本页时**记进本机账本（[MessageCenterSeenStore]，见 [commitSeen]）：
- * 既不会再出现在列表里，也会把宫格红点抵掉（看过就消，而不是等 16 天前的旧通知一直挂在下面）。
- * 落账刻意推迟到 onStop，而不是展示的那一刻 —— 否则宫格红点会在列表铺好的同一帧消失，
- * 用户看不出哪一类有新消息。
- */
+/** Account-owned snapshots, replaced on successful refresh rather than appended forever. */
 @HiltViewModel
 class MessageCenterViewModel @Inject constructor(
     private val blackListRepo: BlackListRepo,
     private val historyRepo: HistoryFavoriteRepo,
     private val networkRepo: NetworkRepo
 ) : ViewModel() {
-
-    /** 外层列表一次展示多少条（上滑加载更多按这个粒度追加） */
     private val pageSize = 20
-
-    /**
-     * 未读汇总的数据来源：分类 → 接口。
-     *
-     * 「评论回复」（commentMe）走官方现在在用的 V18 统一通知流，不再用老
-     * `/v6/notification/list`：后者一页 20 条里 15 条是酷安小秘书刷屏、正文还是 HTML，
-     * 而且**一条「回复了你的评论」都没有**，这类未读在 app 里完全看不到。
-     * 归一化和类型过滤都在 NetworkRepo 里做（见 [NotificationV18Kit]），这里只认端点。
-     *
-     * 它现在在宫格里也有独立入口了（「我的回复」），但汇总列表照旧一并收着——
-     * 跟 @我 / 赞 / 关注那几类一样，宫格有入口不代表下面不列。
-     */
     private val sources = linkedMapOf(
         "atMe" to "/v6/notification/atMeList",
         "atCommentMe" to "/v6/notification/atCommentMeList",
@@ -67,177 +32,193 @@ class MessageCenterViewModel @Inject constructor(
         "feedLike" to NotificationV18Kit.LIKE_URL,
         "contactsFollow" to "/v6/notification/contactsFollowList",
     )
-
-    /** 单个分类的拉取进度 */
-    private class SourceState {
-        var page = 1
-        var lastItem: String? = null
-
-        /** 该分类这轮要收的未读条数 = 服务端未读数 − 本机已读抵消 */
-        var target = 0
-
-        /** 已经扫过多少条（含被跳过的小秘书 / 已读 / 黑名单），用来卡住 target */
-        var fetched = 0
-
-        /** 这一类收工了（收满 target，或接口翻到底 / 报错） */
-        var end = false
-    }
-
-    var isRefreshing: Boolean = false
-    var isLoadMore: Boolean = false
-    var isEnd: Boolean = false
-
-    var messCountList = MutableLiveData<Boolean>()
+    private data class SourceState(
+        val items: List<MessageCenterAdapter.Item>,
+        val page: Int,
+        val lastItem: String?,
+        val end: Boolean
+    )
+    var isRefreshing = false
+        private set
+    var isLoadMore = false
+        private set
+    var isEnd = false
+    val messCountList = MutableLiveData<Boolean>()
     val footerState = MutableLiveData<FooterState>()
     val messageData = MutableLiveData<List<MessageCenterAdapter.Item>>()
     val toastText = MutableLiveData<Event<String>>()
 
-    private val states = mutableMapOf<String, SourceState>()
-
-    /** 已经拉到的未读条目（按时间倒序），对外展示的是它的前 [shown] 条 */
-    private val pool = mutableListOf<MessageCenterAdapter.Item>()
+    private var account: MessageAccount? = null
+    private var generation = 0L
+    private var job: Job? = null
+    private var cacheWrite: Job? = null
+    private var snapshot = emptyList<MessageCenterAdapter.Item>()
     private var shown = 0
-
-    /**
-     * 「展示即已读」的待落账队列：分类 → 本页展示过的条目 id。
-     *
-     * 不在这里当场记账，是因为宫格红点读的就是这份账本：一进来就记，红点会跟着列表
-     * 铺好的那一帧当场消失（用户要求「至少在离开本页之前保持显示」）。
-     * 真正落账在 [commitSeen]，由页面 onStop 调。
-     */
+    private val states = mutableMapOf<String, SourceState>()
     private val pendingSeen = mutableMapOf<String, MutableSet<String>>()
 
-    /** [pendingSeen] 在 IO 线程写、主线程（onStop）读，得自己护住 */
-    private val seenLock = Any()
+    /** Must run on main, before observing/restoring the list. */
+    fun bindAccount() {
+        val current = MessageAccount.current()
+        if (account == current) return
+        invalidateAccount()
+        account = current
+        snapshot = current?.let { MessageCenterCacheStore.load(it) }.orEmpty()
+        shown = minOf(pageSize, snapshot.size)
+        messageData.value = snapshot.take(shown)
+    }
 
-    /** 下拉刷新：重新读各分类未读数，从头攒一份未读列表 */
+    fun invalidateAccount() {
+        generation++
+        job?.cancel()
+        job = null
+        account = null
+        snapshot = emptyList()
+        shown = 0
+        states.clear()
+        pendingSeen.clear()
+        isRefreshing = false
+        isLoadMore = false
+        isEnd = false
+        messageData.value = emptyList()
+        footerState.value = FooterState.LoadingDone
+    }
+
+    private fun current(owner: MessageAccount, request: Long): Boolean =
+        owner == account && owner.isCurrent() && request == generation
+
     fun refresh() {
+        bindAccount()
+        val owner = account ?: return
         if (isRefreshing) return
+        // A refresh supersedes pagination; its cancelled reply must not publish later.
+        job?.cancel()
+        val request = ++generation
+        val need = maxOf(shown, pageSize)
         isRefreshing = true
         isLoadMore = false
         isEnd = false
-        shown = 0
-        pool.clear()
-        states.clear()
-        load()
-    }
-
-    /** 上滑加载更多：先摊开池子里还没展示的，不够再按分类续拉 */
-    fun loadMore() {
-        if (isRefreshing || isLoadMore || isEnd) return
-        isLoadMore = true
-        load()
-    }
-
-    private fun load() {
-        viewModelScope.launch(Dispatchers.IO) {
+        job = viewModelScope.launch {
             try {
-                if (isLoadMore) footerState.postValue(FooterState.Loading)
-
-                if (states.isEmpty()) {
-                    // 刷新：先按各分类未读数定下这轮要收多少条未读
-                    val counts = fetchCounts()
-                    sources.keys.forEach { category ->
-                        val server = counts[category] ?: 0
-                        // 服务端未读降到本机抵消数以下（通知被删、在别处读过）就收敛
-                        MessageCenterSeenStore.syncSeenCount(category, server)
-                        states[category] = SourceState().apply {
-                            // ★ 2026-10-18 用户要求：消息中心**显示全部**，不只是未读
-                            //   ⇒ 不再用「服务端未读数」当条数上限 ✗
-                            //   ⇒ 上限设成无穷，真正结束由 fetchPage 里的
-                            //     「data 为空 ⇒ state.end = true」判定 ✓
-                            //   未读数仍然要同步（宫格红点用它 ✓），只是不再决定条数 ✓
-                            target = Int.MAX_VALUE
-                        }
-                    }
+                fetchCounts(owner, request)
+                val fetched = coroutineScope {
+                    sources.keys.map { category -> async {
+                        category to runCatching { fetchCategory(category, null, need) }
+                            .also { ensureActive() }
+                    } }.awaitAll()
                 }
-
-                ensurePool(shown + pageSize)
-                submit()
+                if (!current(owner, request)) return@launch
+                val successful = fetched.mapNotNull { (category, result) ->
+                    result.getOrNull()?.let { category to it }
+                }.toMap()
+                if (successful.isNotEmpty()) {
+                    // Only successful categories are authoritative. A failed source keeps its cache.
+                    snapshot = MessageSnapshot.replaceCategories(snapshot,
+                        successful.mapValues { it.value.items })
+                    states.clear()
+                    states.putAll(successful)
+                    pendingSeen.forEach { (category, ids) ->
+                        if (category in successful) ids.retainAll(snapshot.filter { it.category == category }.map { it.data.id }.toSet())
+                    }
+                    shown = minOf(need, snapshot.size)
+                    publish(owner)
+                }
+                isEnd = successful.size == sources.size && states.values.all { it.end } && shown >= snapshot.size
+                footerState.value = when {
+                    successful.size < sources.size -> FooterState.LoadingError(LOADING_FAILED)
+                    snapshot.isEmpty() -> FooterState.LoadingEnd(LOADING_EMPTY)
+                    isEnd && shown >= snapshot.size -> FooterState.LoadingEnd(LOADING_END)
+                    else -> FooterState.LoadingDone
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                e.printStackTrace()
-                footerState.postValue(FooterState.LoadingError(LOADING_FAILED))
-                isRefreshing = false
-                isLoadMore = false
+                if (current(owner, request)) footerState.value = FooterState.LoadingError(LOADING_FAILED)
+            } finally {
+                if (current(owner, request)) { isRefreshing = false; isLoadMore = false }
             }
         }
     }
 
-    /**
-     * 池子不够就继续按分类拉，直到够 [need] 条或所有分类都拉完
-     *
-     * ## 2026-10-24 改成**并发**
-     * 原来是 `pending.forEach { fetchPage(it) }` ✗ ——
-     * `fetchPage` 是 suspend，forEach 里就是**一个个等** ✗
-     * ⇒ 5 个分类 = 5 次 RTT 相加 ✗ ⇒ 用户反馈「消息中心加载延迟比较长」✗
-     *
-     * 现在每个分类一个 `async`，一轮并发 ✓
-     * ⚠️ 每个分类有自己的 `SourceState`（page / lastItem / fetched）✓
-     *    ⇒ 同一分类只会被一个协程改 ✓ 不会打架 ✓
-     * ⚠️ 只有 `pool` 是共享的 ✗ ⇒ [fetchPage] 里加锁 ✓
-     */
-    private suspend fun ensurePool(need: Int) {
-        while (pool.size < need) {
-            val pending = sources.keys.filter { category ->
-                states[category]?.let { it.fetched < it.target && !it.end } == true
-            }
-            if (pending.isEmpty()) return
-            // ★ 并发：每个分类一个 async ✓
-            coroutineScope {
-                pending.map { category -> async { fetchPage(category) } }.awaitAll()
-            }
-        }
-    }
-
-    /** 按分类拉一页，把落在未读区间里的条目收进池子 */
-    private suspend fun fetchPage(category: String) {
-        val state = states[category] ?: return
-        val url = sources[category] ?: return
-
-        val response = networkRepo.getMessage(url, state.page, state.lastItem)
-            .first().getOrNull()
-        val data = response?.data
-        if (data.isNullOrEmpty()) {
-            state.end = true
+    fun loadMore() {
+        bindAccount()
+        val owner = account ?: return
+        if (isRefreshing || isLoadMore) return
+        if (shown < snapshot.size && states.size == sources.size &&
+            states.values.all { it.end || it.items.size >= shown + pageSize }) {
+            shown = minOf(shown + pageSize, snapshot.size)
+            isEnd = states.size == sources.size && states.values.all { it.end } && shown >= snapshot.size
+            publish(owner)
+            footerState.value = if (isEnd) FooterState.LoadingEnd(LOADING_END) else FooterState.LoadingDone
             return
         }
-
-        state.lastItem = data.last().id
-        state.page++
-
-        data.forEach { item ->
-            if (state.fetched >= state.target) {
-                state.end = true
-                return@forEach
-            }
-            state.fetched++
-            if (isUnreadCandidate(category, item)) {
-                // 并发拉取后多个协程会同时往 pool 里塞 ✓ 要加锁 ✓
-                val e = MessageCenterAdapter.Item(category, item)
-                synchronized(pool) { pool.add(e) }
-            }
+        if (isEnd) return
+        // Failed categories have no cursor; retry a full refresh instead of inventing one.
+        if (states.size < sources.size) { refresh(); return }
+        val request = ++generation
+        val need = shown + pageSize
+        val previous = states.toMap()
+        isLoadMore = true
+        footerState.value = FooterState.Loading
+        job = viewModelScope.launch {
+            try {
+                val fetched = coroutineScope {
+                    sources.keys.map { category -> async {
+                        category to runCatching { fetchCategory(category, previous[category], need) }
+                            .also { ensureActive() }
+                    } }.awaitAll()
+                }
+                if (!current(owner, request)) return@launch
+                fetched.forEach { (category, result) -> result.getOrNull()?.let { states[category] = it } }
+                snapshot = MessageSnapshot.replaceCategories(snapshot, states.mapValues { it.value.items })
+                shown = minOf(need, snapshot.size)
+                isEnd = states.values.all { it.end } && shown >= snapshot.size
+                publish(owner)
+                footerState.value = when {
+                    fetched.any { it.second.isFailure } -> FooterState.LoadingError(LOADING_FAILED)
+                    isEnd -> FooterState.LoadingEnd(LOADING_END)
+                    else -> FooterState.LoadingDone
+                }
+            } catch (e: CancellationException) { throw e }
+            finally { if (current(owner, request)) isLoadMore = false }
         }
-
-        if (state.fetched >= state.target) state.end = true
     }
 
-    /**
-     * 这一条要不要进消息中心的列表。
-     *
-     * 2026-10-18 起：**不再看是否已读** ✓（用户要求显示全部消息 ✓）
-     * 仍然过滤掉：小秘书（宫格里有独立入口，避免重复列 ✓）、黑名单用户（静默 ✓）、
-     * 以及 id 为空的脏数据 ✓
-     */
-    private suspend fun isUnreadCandidate(
-        category: String,
-        data: MessageResponse.Data
-    ): Boolean {
-        if (data.id.isBlank()) return false
-        if (MessageKit.isSecretaryNotify(data)) return false
-        // ★ 这里**不再**因为「本机已读」就排除本条 ✗
-        //   用户要求：消息中心显示**全部**消息，读完也留在列表里 ✓
-        //   （原来 isSeen 过滤 ⇒ 离开再进来就消失 ✗ 用户明确不喜欢 ✗）
-        //   已读仍然照常记账 ✓ —— 影响的只是宫格红点 ✓ 不是列表可见性 ✓
+    /** Local state only: no shared pool is mutated by the five concurrent network requests. */
+    private suspend fun fetchCategory(category: String, previous: SourceState?, need: Int): SourceState =
+        withContext(Dispatchers.IO) {
+            val rows = previous?.items.orEmpty().toMutableList()
+            var page = previous?.page ?: 1
+            var cursor = previous?.lastItem
+            var end = previous?.end ?: false
+            var rounds = 0
+            while (!end && rows.size < need) {
+                ensureActive()
+                check(++rounds <= 100) { "Notification pagination did not converge" }
+                val response = networkRepo.getMessage(sources.getValue(category), page, cursor)
+                    .first().getOrThrow()
+                check(response.message.isNullOrEmpty() && (response.error ?: 0) == 0) {
+                    response.message ?: "Notification request failed"
+                }
+                val data = requireNotNull(response.data) { "Missing notification data" }
+                val rawSize = response.rawPageSize ?: data.size
+                check(rawSize >= 0) { "Missing raw notification data" }
+                if (rawSize == 0) { end = true; break }
+                val nextCursor = response.rawLastItem ?: data.lastOrNull()?.id
+                check(!nextCursor.isNullOrBlank() && nextCursor != cursor) { "Repeated notification cursor" }
+                for (item in data) {
+                    if (isCandidate(category, item)) rows.add(MessageCenterAdapter.Item(category, item))
+                }
+                val unique = MessageSnapshot.normalize(rows)
+                rows.clear(); rows.addAll(unique)
+                cursor = nextCursor
+                page++
+            }
+            SourceState(MessageSnapshot.normalize(rows), page, cursor, end)
+        }
+
+    private suspend fun isCandidate(category: String, data: MessageResponse.Data): Boolean {
+        if (data.id.isBlank() || MessageKit.isSecretaryNotify(data)) return false
         val uid = when (category) {
             "feedLike" -> data.likeUid
             "atMe", "atCommentMe" -> data.uid
@@ -246,71 +227,46 @@ class MessageCenterViewModel @Inject constructor(
         return !blackListRepo.checkUid(uid)
     }
 
-    /**
-     * 把池子里该展示的部分提交给列表。跨分类合并后仍按时间倒序，
-     * 已展示的部分不动（顺序稳定），新收进来的只排尾部。
-     */
-    private fun submit() {
-        if (pool.size > shown) {
-            val head = pool.take(shown)
-            val tail = pool.drop(shown).sortedByDescending { it.data.dateline }
-            pool.clear()
-            pool.addAll(head)
-            pool.addAll(tail)
+    /** Snapshot already reconciled/sorted; DiffUtil may insert/delete/move anywhere. */
+    private fun publish(owner: MessageAccount) {
+        if (!owner.isCurrent()) return
+        val visible = snapshot.take(shown)
+        visible.forEach { pendingSeen.getOrPut(it.category) { mutableSetOf() }.add(it.data.id) }
+        messageData.value = visible
+        val previousWrite = cacheWrite
+        val saved = snapshot.toList()
+        cacheWrite = viewModelScope.launch(Dispatchers.IO) {
+            previousWrite?.join()
+            MessageCenterCacheStore.save(owner, saved)
         }
-
-        val next = pool.take(shown + pageSize)
-
-        if (next.size <= shown) {
-            // 没有新东西可展示了
-            isEnd = true
-            if (shown == 0) {
-                messageData.postValue(emptyList())
-                footerState.postValue(FooterState.LoadingEnd(LOADING_EMPTY))
-            } else {
-                footerState.postValue(FooterState.LoadingEnd(LOADING_END))
-            }
-            isRefreshing = false
-            isLoadMore = false
-            return
-        }
-
-        // 展示即已读：先攒进待落账队列，宫格红点等离开本页再抵消（见 [commitSeen]）
-        synchronized(seenLock) {
-            next.drop(shown).forEach { item ->
-                pendingSeen.getOrPut(item.category) { mutableSetOf() }.add(item.data.id)
-            }
-        }
-
-        shown = next.size
-        messageData.postValue(next)
-        messCountList.postValue(true)
-        footerState.postValue(FooterState.LoadingDone)
-        isRefreshing = false
-        isLoadMore = false
+        messCountList.value = true
     }
 
-    /**
-     * 把本页展示过的条目落进本机账本（宫格红点、首页角标、下次进本页的未读列表都读它）。
-     *
-     * 由页面 onStop 调，而不是展示时当场调：用户要求「至少在离开消息中心之前，
-     * 红点保持显示」，进去一帧就消掉会看不出哪一类有新消息。
-     */
+    internal suspend fun awaitCacheWrite() { cacheWrite?.join() }
+
+    private fun stopListRequest() {
+        generation++
+        job?.cancel()
+        isRefreshing = false
+        isLoadMore = false
+        isEnd = false
+    }
+
     fun commitSeen() {
-        val pending = synchronized(seenLock) {
-            val copy = pendingSeen.toMap()
-            pendingSeen.clear()
-            copy
-        }
-        pending.forEach { (category, ids) ->
+        val owner = account
+        if (owner == null || !owner.isCurrent()) { pendingSeen.clear(); return }
+        pendingSeen.forEach { (category, ids) ->
             val added = MessageCenterSeenStore.markSeen(category, ids.toList())
             MessageCenterSeenStore.addSeenCount(category, added)
         }
+        pendingSeen.clear()
     }
 
-    /** 拉一次 checkCount：写 CookieUtil（宫格红点）并返回各分类未读数 */
-    private suspend fun fetchCounts(): Map<String, Int> {
-        val data = networkRepo.checkCount().first().getOrNull()?.data ?: return emptyMap()
+    private suspend fun fetchCounts(owner: MessageAccount, request: Long) {
+        val data = withContext(Dispatchers.IO) {
+            networkRepo.checkCount().first().getOrNull()?.data
+        } ?: return
+        if (!current(owner, request)) return
         CookieUtil.atme = data.atme
         CookieUtil.atcommentme = data.atcommentme
         CookieUtil.commentme = data.commentme
@@ -319,77 +275,69 @@ class MessageCenterViewModel @Inject constructor(
         CookieUtil.badge = data.unreadBadge
         CookieUtil.notification = data.unreadNotification
         CookieUtil.message = data.message
-        messCountList.postValue(true)
-        return mapOf(
-            "atMe" to data.atme,
-            "atCommentMe" to data.atcommentme,
-            "commentMe" to data.commentme,
-            "feedLike" to data.feedlike,
-            "contactsFollow" to data.contactsFollow,
-        )
+        mapOf("atMe" to data.atme, "atCommentMe" to data.atcommentme,
+            "commentMe" to data.commentme, "feedLike" to data.feedlike,
+            "contactsFollow" to data.contactsFollow).forEach { (category, count) ->
+            MessageCenterSeenStore.syncSeenCount(category, count)
+        }
+        messCountList.value = true
     }
 
     fun onCheckCount() {
-        viewModelScope.launch(Dispatchers.IO) { fetchCounts() }
+        val owner = account ?: return
+        val request = generation
+        viewModelScope.launch { fetchCounts(owner, request) }
     }
 
     fun onPostDelete(position: Int, id: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.postDelete("/v6/notification/delete", id)
-                .collect { result ->
-                    val response = result.getOrNull()
-                    if (response != null) {
-                        if (response.data == "删除成功") {
-                            removeAt(position)
-                            toastText.postValue(Event(response.data))
-                        } else if (!response.message.isNullOrEmpty()) {
-                            toastText.postValue(Event(response.message))
-                        }
-                    } else {
-                        result.exceptionOrNull()?.printStackTrace()
-                    }
-                }
+        val owner = account ?: return
+        // Capture stable identity, not a position that may move while the request is in flight.
+        val item = messageData.value?.getOrNull(position)?.takeIf { it.data.id == id } ?: return
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                networkRepo.postDelete("/v6/notification/delete", id).first()
+            }
+            if (account != owner || !owner.isCurrent()) return@launch
+            val response = result.getOrNull() ?: return@launch
+            if (response.data == "删除成功") {
+                stopListRequest()
+                snapshot = snapshot.filterNot { it.category == item.category && it.data.id == id }
+                states.replaceAll { _, state -> state.copy(items = state.items.filterNot {
+                    it.category == item.category && it.data.id == id
+                }) }
+                pendingSeen[item.category]?.remove(id)
+                shown = minOf(shown, snapshot.size)
+                publish(owner)
+                toastText.value = Event(response.data)
+            } else if (!response.message.isNullOrEmpty()) toastText.value = Event(response.message)
         }
     }
 
-    private fun removeAt(position: Int) {
-        val list = messageData.value?.toMutableList() ?: return
-        if (position !in list.indices) return
-        val removed = list.removeAt(position)
-        // 池子里也摘掉，免得下一次刷新前又被当成未读
-        pool.removeAll { it.category == removed.category && it.data.id == removed.data.id }
-        // 服务端已经删了这条，别在待落账队列里留着（留着会把本机抵消数抬高、
-        // 连带把还没看的那几条也抵没了）
-        synchronized(seenLock) { pendingSeen[removed.category]?.remove(removed.data.id) }
-        if (shown > 0) shown--
-        messageData.postValue(list)
-    }
-
-    fun saveUid(uid: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            blackListRepo.saveUid(uid)
+    fun blockUser(uid: String, position: Int) {
+        val owner = account ?: return
+        val item = messageData.value?.getOrNull(position) ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { blackListRepo.saveUid(uid) }
+            if (account != owner || !owner.isCurrent()) return@launch
+            stopListRequest()
+            fun blocked(row: MessageCenterAdapter.Item): Boolean = when (row.category) {
+                "feedLike" -> row.data.likeUid
+                "atMe", "atCommentMe" -> row.data.uid
+                else -> row.data.fromuid
+            } == uid
+            val removed = snapshot.filter(::blocked)
+            snapshot = snapshot.filterNot(::blocked)
+            states.replaceAll { _, state -> state.copy(items = state.items.filterNot(::blocked)) }
+            removed.forEach { pendingSeen[it.category]?.remove(it.data.id) }
+            shown = minOf(shown, snapshot.size)
+            publish(owner)
         }
     }
 
-    fun saveHistory(
-        id: String,
-        uid: String,
-        username: String,
-        userAvatar: String,
-        deviceTitle: String,
-        message: String,
-        dateline: String,
-    ) {
+    fun saveHistory(id: String, uid: String, username: String, userAvatar: String,
+        deviceTitle: String, message: String, dateline: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            historyRepo.saveHistory(
-                id,
-                uid,
-                username,
-                userAvatar,
-                deviceTitle,
-                message,
-                dateline,
-            )
+            historyRepo.saveHistory(id, uid, username, userAvatar, deviceTitle, message, dateline)
         }
     }
 }

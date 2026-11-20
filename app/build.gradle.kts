@@ -247,6 +247,8 @@ dependencies {
     implementation(libs.media3.ui)
     testImplementation(libs.junit)
     testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     implementation(libs.oss.android.sdk)
     implementation(libs.utilcode)
 
