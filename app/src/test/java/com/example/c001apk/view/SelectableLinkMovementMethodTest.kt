@@ -17,11 +17,13 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.Shadows.shadowOf
 import android.os.Looper
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = android.app.Application::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class SelectableLinkMovementMethodTest {
     private class Fixture {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
@@ -49,6 +51,9 @@ class SelectableLinkMovementMethodTest {
             )
             view.layout(0, 0, 800, 200)
             Selection.removeSelection(text)
+            // LEGACY graphics 的字宽/offset 不往返，负例会假绿、正例永远无法命中。
+            val offset = view.layout.getOffsetForHorizontal(0, x - view.totalPaddingLeft)
+            check(offset in start until end) { "Invalid test text geometry: x=$x offset=$offset" }
         }
 
         val x: Float get() = view.totalPaddingLeft +
