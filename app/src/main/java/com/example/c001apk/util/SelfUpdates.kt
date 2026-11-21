@@ -69,6 +69,20 @@ internal suspend fun retryUpdateDownload(
     return false
 }
 
+internal fun pruneUpdateFiles(
+    directory: File,
+    keep: String? = null,
+    olderThan: Long = Long.MAX_VALUE,
+    onlyVersion: Long? = null,
+) {
+    directory.listFiles()?.forEach { file ->
+        val code = file.name.substringBefore('-').toLongOrNull()
+        if (file.isFile && file.name != keep && (onlyVersion == null || onlyVersion == code) &&
+            (code == null || code < olderThan)
+        ) file.delete()
+    }
+}
+
 /** One process-wide update session; no foreground service, alerts, or automatic install. */
 internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -267,12 +281,7 @@ internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
         olderThan: Long = Long.MAX_VALUE,
         onlyVersion: Long? = null,
     ) = withContext(Dispatchers.IO) {
-        directory.listFiles()?.forEach { file ->
-            val code = file.name.substringBefore('-').toLongOrNull()
-            if (file.name != keep && (onlyVersion == null || onlyVersion == code) &&
-                (code == null || code < olderThan)
-            ) file.delete()
-        }
+        pruneUpdateFiles(directory, keep, olderThan, onlyVersion)
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit

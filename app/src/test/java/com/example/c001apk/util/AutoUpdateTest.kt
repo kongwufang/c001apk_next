@@ -8,7 +8,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -16,6 +18,28 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = android.app.Application::class)
 class AutoUpdateTest {
+    @get:Rule val folder = TemporaryFolder()
+
+    @Test fun supersedingReleaseKeepsOnlyTheNewMatchingArtifact() {
+        val old = folder.newFile("10012-old.apk")
+        val stalePartial = folder.newFile("10013-new.part.apk")
+        val current = folder.newFile("10013-new.apk")
+        pruneUpdateFiles(folder.root, keep = current.name)
+        assertFalse(old.exists())
+        assertFalse(stalePartial.exists())
+        assertTrue(current.exists())
+    }
+
+    @Test fun skippingDeletesOnlyTheSelectedVersionsArtifacts() {
+        val skipped = folder.newFile("10012-old.apk")
+        val partial = folder.newFile("10012-old.part.apk")
+        val following = folder.newFile("10013-new.apk")
+        pruneUpdateFiles(folder.root, onlyVersion = 10012)
+        assertFalse(skipped.exists())
+        assertFalse(partial.exists())
+        assertTrue(following.exists())
+    }
+
     private fun release(): JSONObject = JSONObject().apply {
         put("code", 0)
         put("stable", JSONObject().apply {
