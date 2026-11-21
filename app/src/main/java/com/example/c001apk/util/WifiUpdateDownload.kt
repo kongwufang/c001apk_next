@@ -164,7 +164,10 @@ internal object WifiUpdateDownload {
         val pm = context.packageManager
         val modern = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
         val flags = if (modern) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
-        val actual = pm.getPackageArchiveInfo(file.absolutePath, flags) ?: return false
+        // Android 9's archive parser only collects certificates when GET_SIGNATURES is set.
+        // Also request SigningInfo on newer APIs so we still compare the current signers.
+        val actual = pm.getPackageArchiveInfo(file.absolutePath, flags or PackageManager.GET_SIGNATURES)
+            ?: return false
         if (actual.packageName != context.packageName) return false
         val installed = pm.getPackageInfo(context.packageName, flags)
         fun version(info: PackageInfo) = if (modern) info.longVersionCode else info.versionCode.toLong()
