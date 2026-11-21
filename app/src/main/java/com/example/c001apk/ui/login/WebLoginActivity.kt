@@ -9,217 +9,235 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
+import android.view.Menu
 import android.view.MenuItem
 import android.webkit.CookieManager
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivityWebViewBinding
+import com.example.c001apk.logic.model.AccountSession
+import com.example.c001apk.logic.network.AccountCallback
+import com.example.c001apk.logic.repository.AccountRepository
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.util.ActivityCollector
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.SslErrorPrompter
 import com.google.android.material.appbar.AppBarLayout.ScrollingViewBehavior
-import java.net.URLDecoder
-import java.net.URLEncoder
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
-/**
- * 网页登录：用 WebView 打开酷安官方登录页，登录成功后把 cookie 中的
- * uid / username / token 写进 PrefManager。
- *
- * 与原来的表单登录落地方式完全一致（见 AddCookiesInterceptor：
- * 登录态请求靠 uid / username / token 这三个 cookie），因此不必自己复刻官方登录表单：
- * 短信验证码、图形验证码、二次验证、第三方登录等步骤都由官方页面负责，
- * 也就不会再出现「验证码发出去了却没有输入框」的问题。
- *
- * 注意：**不要**把本 Activity 放进 `:webview` 独立进程（如 WebViewActivity 那样），
- * 因为 PrefManager 与 ActivityCollector 都是进程内的，跨进程写 SharedPreferences 不可靠。
- */
+/** Credentials are entered on Coolapk's HTTPS page, not in a native form. */
 class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
-
     private var webView: WebView? = null
     private val handler = Handler(Looper.getMainLooper())
-    private var isLogged = false
-
+    private val repository by lazy { AccountRepository() }
+    private var verification: Job? = null
+    private var complete = false
+    private var compatible = false
+    private var webReady = false
+    private var generation = 0L
     private var elapsed = 0
+    private var usedCode: String? = null
+    private var lastCandidate: AccountSession? = null
 
-    /** 登录成功后每隔 1s 检查一次 cookie，最多等 10 分钟 */
     private val cookieChecker = object : Runnable {
         override fun run() {
-            if (isLogged) return
-            if (checkLoginCookie()) return
-            if (++elapsed > TIMEOUT_SECONDS) return
-            handler.postDelayed(this, CHECK_INTERVAL_MS)
+            checkLoginCookie()
+            if (webReady && compatible && !complete && ++elapsed < 600) handler.postDelayed(this, 1000)
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setSupportActionBar(binding.toolBar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.loginWeb)
+        openLogin(savedInstanceState?.getBoolean("compatible") == true)
+    }
 
-        initWebView()
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("compatible", compatible)
+        super.onSaveInstanceState(outState)
+    }
 
-        webView?.loadUrl(LOGIN_URL)
-        handler.postDelayed(cookieChecker, CHECK_INTERVAL_MS)
+    private fun openLogin(useCompatible: Boolean) {
+        if (complete || isFinishing || isDestroyed) return
+        verification?.cancel()
+        verification = null
+        handler.removeCallbacks(cookieChecker)
+        webReady = false
+        compatible = useCompatible
+        elapsed = 0
+        usedCode = null
+        lastCandidate = null
+        generation = PrefManager.messageAccountGeneration
+        releaseWebView()
+        supportActionBar?.title = if (compatible) "兼容网页登录" else getString(R.string.loginWeb)
+        invalidateOptionsMenu()
+        binding.progressBar.isVisible = true
+        binding.progressBar.isIndeterminate = true
+        val view = createWebView()
+        webView = view
+        val cookies = CookieManager.getInstance()
+        cookies.setAcceptCookie(true)
+        cookies.setAcceptThirdPartyCookies(view, true)
+        // Await asynchronous cleanup so a previous WebView session cannot be taken as this login.
+        cookies.removeAllCookies {
+            if (webView !== view || isFinishing || isDestroyed) return@removeAllCookies
+            webReady = true
+            binding.progressBar.isIndeterminate = false
+            view.loadUrl(if (compatible) MOBILE_URL else APP_URL)
+            if (compatible) handler.postDelayed(cookieChecker, 1000)
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun initWebView() {
-        val view = WebView(this).apply {
-            layoutParams = CoordinatorLayout.LayoutParams(
-                CoordinatorLayout.LayoutParams.MATCH_PARENT,
-                CoordinatorLayout.LayoutParams.MATCH_PARENT
-            ).apply {
-                behavior = ScrollingViewBehavior()
-            }
-        }
-        binding.root.addView(view)
-        webView = view
-
-        view.settings.apply {
+    private fun createWebView(): WebView = WebView(this).apply {
+        layoutParams = CoordinatorLayout.LayoutParams(
+            CoordinatorLayout.LayoutParams.MATCH_PARENT,
+            CoordinatorLayout.LayoutParams.MATCH_PARENT,
+        ).apply { behavior = ScrollingViewBehavior() }
+        settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
-            blockNetworkImage = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
             defaultTextEncodingName = "UTF-8"
             useWideViewPort = true
             loadWithOverviewMode = true
-            javaScriptCanOpenWindowsAutomatically = true
-            loadsImagesAutomatically = true
             allowFileAccess = false
+            allowContentAccess = false
             cacheMode = WebSettings.LOAD_NO_CACHE
-            // 故意不覆盖 userAgentString：保留系统 WebView 的移动 UA，
-            // 让酷安网页按移动浏览器渲染，才能拿到完整的登录表单
+            // Keep the system mobile WebView UA; the form itself is controlled by Coolapk.
             if (SDK_INT >= 32) {
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                     WebSettingsCompat.setAlgorithmicDarkeningAllowed(this, true)
                 }
             } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-                val nightModeFlags =
-                    resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
+                val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                if (nightMode == Configuration.UI_MODE_NIGHT_YES) {
                     WebSettingsCompat.setForceDark(this, WebSettingsCompat.FORCE_DARK_ON)
                 }
             }
         }
-
-        CookieManager.getInstance().apply {
-            setAcceptCookie(true)
-            setAcceptThirdPartyCookies(view, true)
-            // 清掉旧 cookie 再进登录页：避免“残留的旧登录态”被误判成本次登录成功
-            removeAllCookies(null)
-        }
-
-        view.webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+        webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView, newProgress: Int) {
+                if (webView !== view || !webReady || verification?.isActive == true) return
                 binding.progressBar.isVisible = newProgress < 100
                 binding.progressBar.progress = newProgress
             }
         }
-
-        view.webViewClient = object : WebViewClient() {
-            /** SSL 证书校验不过（如抓包/中间人）：阻止加载并弹风险警告 */
-            override fun onReceivedSslError(
-                view: WebView?, handler: SslErrorHandler?, error: SslError?
-            ) {
-                // 网络传输调试模式：直接放行（不校验证书链/域名），方便抓包调试
-                if (PrefManager.isSslDebug) {
-                    handler?.proceed()
-                    return
-                }
-                SslErrorPrompter.onSslFailure(
-                    error?.let { java.security.cert.CertificateException(it.toString()) }
-                )
+        webViewClient = object : WebViewClient() {
+            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
                 handler?.cancel()
+                SslErrorPrompter.onSslFailure(error?.let { java.security.cert.CertificateException(it.toString()) })
             }
 
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (!request.isForMainFrame) return false
+                if (request.url.scheme != "https") return true
+                return handleCallback(view, request.url.toString())
+            }
+
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                if (url != null && handleCallback(view, url)) view.stopLoading()
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                if (webView !== view) return
+                if (url != null && handleCallback(view, url)) return
                 checkLoginCookie()
             }
         }
+        binding.root.addView(this)
     }
 
-    /**
-     * 从 WebView 的 cookie 里取登录态。
-     * @return true 表示已拿到 uid + token 并完成登录
-     */
-    private fun checkLoginCookie(): Boolean {
-        val cookieManager = CookieManager.getInstance()
-        var uid: String? = null
-        var token: String? = null
-        var username: String? = null
+    private fun handleCallback(view: WebView, url: String): Boolean {
+        if (webView !== view || !webReady || compatible) return false
+        val code = AccountCallback.codeFrom(url) ?: return false
+        if (complete || code == usedCode || verification?.isActive == true) return true
+        usedCode = code
+        verifyLogin { repository.loginWithCode(code, generation) }
+        return true
+    }
 
-        for (url in COOKIE_URLS) {
-            val raw = cookieManager.getCookie(url) ?: continue
-            for (pair in raw.split(";")) {
-                val index = pair.indexOf('=')
-                if (index <= 0) continue
-                val key = pair.substring(0, index).trim()
-                val value = pair.substring(index + 1).trim()
-                if (value.isEmpty()) continue
-                when (key) {
-                    "uid" -> if (uid == null) uid = value
-                    "token" -> if (token == null) token = value
-                    "username" -> if (username == null) username = value
+    private fun checkLoginCookie() {
+        if (!webReady || !compatible || complete || isFinishing || verification?.isActive == true) return
+        val cookies = CookieManager.getInstance()
+        val candidate = COOKIE_URLS.firstNotNullOfOrNull { url ->
+            cookies.getCookie(url)?.let { AccountSession.fromWebCookie(it) }
+        } ?: return
+        if (lastCandidate?.uid == candidate.uid && lastCandidate?.effectiveToken == candidate.effectiveToken) return
+        lastCandidate = candidate
+        verifyLogin { repository.loginWithCookie(candidate, generation) }
+    }
+
+    private fun verifyLogin(check: suspend () -> AccountRepository.Result) {
+        binding.progressBar.isVisible = true
+        binding.progressBar.isIndeterminate = true
+        verification = lifecycleScope.launch {
+            val result = check()
+            if (isFinishing || isDestroyed) return@launch
+            binding.progressBar.isIndeterminate = false
+            binding.progressBar.isVisible = false
+            when (result) {
+                AccountRepository.Result.CONFIRMED -> {
+                    complete = true
+                    handler.removeCallbacks(cookieChecker)
+                    Toast.makeText(this@WebLoginActivity, "登录成功", Toast.LENGTH_SHORT).show()
+                    setResult(Activity.RESULT_OK)
+                    ActivityCollector.recreateActivity(MainActivity::class.java.name)
+                    finish()
+                }
+                AccountRepository.Result.STALE -> {
+                    Toast.makeText(this@WebLoginActivity, "账号状态已变化，请重新打开登录页", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+                else -> {
+                    val message = if (result == AccountRepository.Result.REJECTED) "酷安未确认本次登录，请重新登录。"
+                    else "暂未获得酷安的有效登录响应。请检查网络，或换用另一种网页登录方式。"
+                    MaterialAlertDialogBuilder(this@WebLoginActivity)
+                        .setMessage(message)
+                        .setPositiveButton("重新登录") { _, _ -> openLogin(compatible) }
+                        .setNeutralButton(if (compatible) "授权码登录" else "兼容网页登录") { _, _ -> openLogin(!compatible) }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
                 }
             }
         }
+    }
 
-        if (uid.isNullOrEmpty() || token.isNullOrEmpty()) return false
-        saveLogin(uid, token, username)
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menu.add(0, SWITCH_MODE, 0, if (compatible) "切换到授权码登录" else "切换到兼容网页登录")
         return true
     }
 
-    private fun saveLogin(uid: String, token: String, username: String?) {
-        if (isLogged) return
-        isLogged = true
-        handler.removeCallbacks(cookieChecker)
-
-        PrefManager.isLogin = true
-        PrefManager.uid = uid
-        PrefManager.token = token
-        if (!username.isNullOrEmpty()) {
-            // cookie 里的用户名是 URL 编码的；统一规范化成“编码一次”的形式，
-            // 与 MainViewModel.checkLoginInfo() 的写法保持一致（避免二次编码）
-            PrefManager.username = runCatching {
-                URLEncoder.encode(URLDecoder.decode(username, "UTF-8"), "UTF-8")
-            }.getOrDefault(username)
-        }
-
-        Toast.makeText(this, "登录成功", Toast.LENGTH_SHORT).show()
-        setResult(Activity.RESULT_OK)
-        // 登录态变化后重建主界面（与原来表单登录的收尾逻辑一致）
-        ActivityCollector.recreateActivity(MainActivity::class.java.name)
-        finish()
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            android.R.id.home -> finish()
-        }
-        return true
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        android.R.id.home -> { finish(); true }
+        SWITCH_MODE -> { openLogin(!compatible); true }
+        else -> super.onOptionsItemSelected(item)
     }
 
     @Deprecated("Deprecated in Java")
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK && verification?.isActive == true) {
+            finish()
+            return true
+        }
         if (keyCode == KeyEvent.KEYCODE_BACK && webView?.canGoBack() == true) {
             webView?.goBack()
             return true
@@ -227,28 +245,28 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onDestroy() {
-        handler.removeCallbacksAndMessages(null)
-        webView?.apply {
-            stopLoading()
-            // 避免 WebView 泄漏（本 Activity 与 app 同进程）
-            removeAllViews()
-            destroy()
+    private fun releaseWebView() {
+        webView?.let { view ->
+            webView = null
+            view.stopLoading()
+            binding.root.removeView(view)
+            view.destroy()
         }
-        webView = null
+    }
+
+    override fun onDestroy() {
+        verification?.cancel()
+        handler.removeCallbacksAndMessages(null)
+        releaseWebView()
         super.onDestroy()
     }
 
     companion object {
-        private const val LOGIN_URL = "https://account.coolapk.com/auth/login?type=mobile"
-        private const val CHECK_INTERVAL_MS = 1000L
-        private const val TIMEOUT_SECONDS = 600
-
+        private const val SWITCH_MODE = 1
+        private const val APP_URL = "https://account.coolapk.com/auth/login?type=coolapk"
+        private const val MOBILE_URL = "https://account.coolapk.com/auth/login?type=mobile"
         private val COOKIE_URLS = listOf(
-            "https://www.coolapk.com",
-            "https://coolapk.com",
-            "https://account.coolapk.com",
-            "https://m.coolapk.com"
+            "https://www.coolapk.com", "https://coolapk.com", "https://account.coolapk.com", "https://m.coolapk.com",
         )
     }
 }

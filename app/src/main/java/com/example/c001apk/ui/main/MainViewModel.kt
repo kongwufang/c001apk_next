@@ -1,8 +1,10 @@
 package com.example.c001apk.ui.main
 
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.c001apk.constant.Constants
+import com.example.c001apk.logic.repository.AccountRepository
 import com.example.c001apk.logic.repository.BlackListRepo
 import com.example.c001apk.logic.repository.NetworkRepo
 import com.example.c001apk.logic.repository.SpamConfigRepo
@@ -11,8 +13,6 @@ import com.example.c001apk.util.PrefManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.URLEncoder
 import javax.inject.Inject
 
 @HiltViewModel
@@ -21,6 +21,9 @@ class MainViewModel @Inject constructor(
     private val blackListRepo: BlackListRepo,
     private val spamConfigRepo: SpamConfigRepo,
 ) : ViewModel() {
+
+    private val accountRepository by lazy { AccountRepository() }
+    val sessionInvalidated = MutableLiveData<Boolean>()
 
     var lastCheck = System.currentTimeMillis()
     var isInit: Boolean = true
@@ -44,70 +47,15 @@ class MainViewModel @Inject constructor(
                             e.printStackTrace()
                         }
                     }
-
-                    getCheckLoginInfo()
                 }
+            checkLoginInfo()
         }
     }
 
-    private fun getCheckLoginInfo() {
-        viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.checkLoginInfo()
-                .collect { result ->
-                    val response = result.getOrNull()
-                    response?.let {
-                        response.body()?.let {
-                            if (response.body()?.data?.token != null) {
-                                response.body()?.data?.let { login ->
-                                    // ★ 下面每个字段都可能为 null ✗（Gson 绕过 Kotlin 空检查 ✓）
-                                    //   设备标识（duid）失效时，酷安会回「有 token 但缺 refreshToken」的响应 ✗
-                                    //   ⇒ 直接赋给 PrefManager（非空 String 的 setter ✗）会在进 setter 前抛 NPE ✗
-                                    //   ⇒ 2026-10-24 修：全部兜空 ✓（用户反馈「概率不高但一遇到 App 完全没法用」✗）
-                                    login.notifyCount?.let { nc ->
-                                        CookieUtil.badge = nc.unreadBadge
-                                        CookieUtil.atme = nc.atme
-                                        CookieUtil.atcommentme = nc.atcommentme
-                                        CookieUtil.feedlike = nc.feedlike
-                                        CookieUtil.contacts_follow = nc.contactsFollow
-                                        CookieUtil.message = nc.message
-                                        CookieUtil.commentme = nc.commentme
-                                    }
-                                    PrefManager.isLogin = true
-                                    PrefManager.uid = login.uid ?: ""
-                                    PrefManager.username =
-                                        withContext(Dispatchers.IO) {
-                                            URLEncoder.encode(login.username ?: "", "UTF-8")
-                                        }
-                                    PrefManager.token = login.token ?: ""
-                                    // ★ 启动时换到的**第二凭据**，之后整个进程的业务请求优先用它
-                                    //   ⚠️ 设备标识失效时这里会是 null ✗ ⇒ 不能直接赋 ✗
-                                    PrefManager.refreshToken = login.refreshToken ?: ""
-                                    PrefManager.userAvatar = login.userAvatar ?: ""
-                                }
-                            } else if (response.body()?.message == "登录信息有误") {
-                                PrefManager.isLogin = false
-                                PrefManager.uid = ""
-                                PrefManager.username = ""
-                                PrefManager.token = ""
-                                PrefManager.refreshToken = ""
-                                PrefManager.userAvatar = ""
-                            }
-
-                            try {
-                                val headers = response.headers()
-                                val cookies = headers.values("Set-Cookie")
-                                val session = cookies[0]
-                                val sessionID = session.substring(0, session.indexOf(";"))
-                                CookieUtil.SESSID = sessionID
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-
-                            syncBlackList()
-                        }
-                    }
-                }
-        }
+    private suspend fun checkLoginInfo() {
+        val result = accountRepository.checkStartup()
+        if (result == AccountRepository.Result.REJECTED) sessionInvalidated.postValue(true)
+        if (result != AccountRepository.Result.STALE) syncBlackList()
     }
 
     /** 启动/登录后同步云端数据：黑名单镜像进本地库、其他屏蔽项（关键字/用户/节点）进内存缓存 */

@@ -1,8 +1,33 @@
 package com.example.c001apk.util
 
+import com.example.c001apk.logic.model.CheckResponse
+
 object CookieUtil {
 
-    var SESSID = ""
+    @Volatile var SESSID = ""
+
+    internal fun clearAccountState() {
+        SESSID = ""
+        atme = null
+        atcommentme = null
+        feedlike = null
+        contacts_follow = null
+        message = null
+        commentme = null
+        badge = 0
+        notification = 0
+    }
+
+    internal fun applyLoginCounts(count: CheckResponse.NotifyCount) {
+        atme = count.atme
+        atcommentme = count.atcommentme
+        feedlike = count.feedlike
+        contacts_follow = count.contactsFollow
+        message = count.message
+        commentme = count.commentme
+        badge = count.unreadBadge
+        notification = count.unreadNotification
+    }
 
     var atme: Int? = null
     var atcommentme: Int? = null

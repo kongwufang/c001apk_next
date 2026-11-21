@@ -19,10 +19,6 @@ import com.example.c001apk.ui.login.WebLoginActivity
 import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.ui.settings.SettingsActivity
 import com.example.c001apk.ui.user.UserActivity
-import com.example.c001apk.util.CookieUtil.atcommentme
-import com.example.c001apk.util.CookieUtil.atme
-import com.example.c001apk.util.CookieUtil.contacts_follow
-import com.example.c001apk.util.CookieUtil.feedlike
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.VerifyBadge
 import com.example.c001apk.util.IntentUtil
@@ -220,15 +216,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             setNegativeButton(android.R.string.cancel, null)
             setPositiveButton(android.R.string.ok) { _, _ ->
                 viewModel.countList.value = emptyList()
-                atme = null
-                atcommentme = null
-                feedlike = null
-                contacts_follow = null
-                PrefManager.isLogin = false
-                PrefManager.uid = ""
-                PrefManager.username = ""
-                PrefManager.token = ""
-                PrefManager.userAvatar = ""
+                PrefManager.logout()
                 (requireActivity() as? MainActivity)?.recreate()
             }
             show()

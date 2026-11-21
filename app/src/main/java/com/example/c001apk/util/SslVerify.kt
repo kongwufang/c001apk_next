@@ -251,7 +251,11 @@ object SslVerify {
         // 调试模式优先：彻底跳过校验
         if (PrefManager.isSslDebug) return applyDebug(builder)
         if (!PrefManager.isVerifySsl) return builder
+        return applyStrict(builder)
+    }
 
+    /** Account credentials must not use the optional transport-debug bypass. */
+    internal fun applyStrict(builder: OkHttpClient.Builder): OkHttpClient.Builder {
         val sslContext = SSLContext.getInstance("TLS").apply {
             init(null, arrayOf<TrustManager>(verifyingTrustManager), SecureRandom())
         }

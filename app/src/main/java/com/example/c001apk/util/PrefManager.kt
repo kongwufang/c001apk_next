@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.constant.Constants
 import com.example.c001apk.BuildConfig
+import com.example.c001apk.logic.model.AccountSession
 
 object PrefManager {
 
@@ -170,6 +171,45 @@ object PrefManager {
     var refreshToken: String
         get() = pref.getString(REFRESH_TOKEN, "")!!
         set(value) = pref.edit().putString(REFRESH_TOKEN, value).apply()
+
+    internal class AccountSnapshot(val generation: Long, val session: AccountSession?)
+
+    @Synchronized
+    internal fun accountSnapshot() = AccountSnapshot(messageAccountGeneration, readAccount())
+
+    private fun readAccount(): AccountSession? = if (!isLogin) null else AccountSession(
+        uid, username, token, refreshToken, userAvatar,
+        pref.getInt("accountAdminType", Int.MIN_VALUE).takeUnless { it == Int.MIN_VALUE },
+    )
+
+    /** CAS prevents a delayed startup check from reviving a session after logout or account change. */
+    @Synchronized
+    internal fun replaceAccount(expectedGeneration: Long, session: AccountSession?): Boolean {
+        if (messageAccountGeneration != expectedGeneration) return false
+        if (session != null) require(session.isValid)
+        val nextUid = session?.uid.orEmpty()
+        val changed = isLogin != (session != null) || uid != nextUid
+        val editor = pref.edit()
+            .putBoolean("isLogin", session != null)
+            .putString(UID, nextUid)
+            .putString(NAME, session?.username.orEmpty())
+            .putString(TOKEN, session?.token.orEmpty())
+            .putString(REFRESH_TOKEN, session?.refreshToken.orEmpty())
+            .putString("userAvatar", session?.avatar.orEmpty())
+        if (session?.adminType == null) editor.remove("accountAdminType")
+        else editor.putInt("accountAdminType", session.adminType)
+        if (changed) {
+            editor.putLong("messageAccountGeneration", expectedGeneration + 1)
+            CookieUtil.clearAccountState()
+        }
+        editor.apply()
+        return true
+    }
+
+    @Synchronized
+    internal fun logout() {
+        replaceAccount(messageAccountGeneration, null)
+    }
 
     var userAvatar: String
         get() = pref.getString("userAvatar", "")!!

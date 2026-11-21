@@ -50,13 +50,7 @@ class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
             .setTitle(R.string.logoutTitle)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                PrefManager.isLogin = false
-                PrefManager.uid = ""
-                PrefManager.username = ""
-                PrefManager.token = ""
-                // ★ 阶段 ① 新加的第二凭据，退出时一并清掉
-                PrefManager.refreshToken = ""
-                PrefManager.userAvatar = ""
+                PrefManager.logout()
 
                 startActivity(
                     Intent(this, MainActivity::class.java).apply {

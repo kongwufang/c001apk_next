@@ -3,6 +3,7 @@ package com.example.c001apk.ui.main
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.core.view.GravityCompat
@@ -46,6 +47,13 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
         ActivityCollector.addActivity(this)
 
         onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
+        viewModel.sessionInvalidated.observe(this) { invalidated ->
+            if (invalidated && !PrefManager.isLogin && !isFinishing) {
+                viewModel.sessionInvalidated.value = false
+                Toast.makeText(this, "登录状态已失效，请重新登录", Toast.LENGTH_SHORT).show()
+                recreate()
+            }
+        }
 
         // 启动时按开关自动检查本应用更新（每个进程只查一次，重建不重复弹）
         if (!UpdateChecker.checkedThisSession) {
