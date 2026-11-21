@@ -13,7 +13,6 @@ import androidx.core.view.updatePadding
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
-import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.ui.onboarding.OnboardingActivity
@@ -25,9 +24,7 @@ import com.example.c001apk.ui.message.MineFragment
 import com.example.c001apk.ui.settings.SettingsActivity
 import com.example.c001apk.util.ActivityCollector
 import com.example.c001apk.util.PrefManager
-import com.example.c001apk.util.UpdateChecker
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContainer {
@@ -53,12 +50,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
                 Toast.makeText(this, "登录状态已失效，请重新登录", Toast.LENGTH_SHORT).show()
                 recreate()
             }
-        }
-
-        // 启动时按开关自动检查本应用更新（每个进程只查一次，重建不重复弹）
-        if (!UpdateChecker.checkedThisSession) {
-            UpdateChecker.checkedThisSession = true
-            checkSelfUpdate()
         }
 
         // 底部导航不再挂未读角标：那个位置的历史语义是「消息」，现在消息已独立成
@@ -183,20 +174,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>(), IOnBottomClickContaine
      */
     fun setDrawerEdgeSwipeEnabled(enabled: Boolean) {
         binding.drawerLayout.edgeSwipeEnabled = enabled
-    }
-
-    /**
-     * 启动时的自更新检查（只看正式版，Beta 通道已去掉）。
-     *
-     * ★★ 2026-11-01 用户要求：「APP 进入之后自动检查更新就不跳窗口了，
-     *    只显示在侧栏，减少打扰」★★
-     *   ⇒ 这里**只把接口响应预热进缓存** ✓ 不弹任何窗 ✗
-     *   ⇒ 用户打开侧栏（「我的」）时，升级卡直接读缓存 ⇒ 秒出 ✓
-     *   ⇒ 想看弹窗请去「关于」页点「立即检查更新」✓
-     */
-    private fun checkSelfUpdate() {
-        if (!PrefManager.isCheckUpdateStable) return
-        lifecycleScope.launch { UpdateChecker.prefetch() }
     }
 
     private fun genData() {

@@ -1,21 +1,32 @@
 package com.example.c001apk.ui.others
 
+import android.content.DialogInterface
 import android.os.Bundle
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.withStarted
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivityAboutBinding
+import com.example.c001apk.databinding.DialogSelfUpdateBinding
 import com.example.c001apk.databinding.ItemAboutEntryBinding
 import com.example.c001apk.databinding.ItemAboutLinkBinding
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.util.GitHubProfile
 import com.example.c001apk.util.NetWorkUtil
 import com.example.c001apk.util.PrefManager
+import com.example.c001apk.util.SelfUpdates
 import com.example.c001apk.util.UpdateChecker
+import com.example.c001apk.util.UpdateState
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /**
@@ -55,39 +66,133 @@ class AboutActivity : BaseActivity<ActivityAboutBinding>() {
         appBuildTime.text = getString(R.string.about_build_time, BuildConfig.BUILD_TIME)
     }
 
-    /** 更新：只剩正式版一条通道（Beta 开关 / 按钮连同逻辑一起删了） */
     private fun bindUpdate() = with(binding) {
         switchUpdate.isChecked = PrefManager.isCheckUpdateStable
+        switchWifiUpdates.isChecked = PrefManager.autoDownloadUpdatesOnWifi
+        updateWifiRowEnabled(switchUpdate.isChecked)
         switchUpdate.setOnCheckedChangeListener { _, checked ->
             PrefManager.isCheckUpdateStable = checked
+            updateWifiRowEnabled(checked)
+            SelfUpdates.preferencesChanged()
+        }
+        switchWifiUpdates.setOnCheckedChangeListener { _, checked ->
+            PrefManager.autoDownloadUpdatesOnWifi = checked
+            SelfUpdates.preferencesChanged()
         }
         // 点整行等同于点开关，跟系统设置页的习惯一致
         rowUpdateSwitch.setOnClickListener { switchUpdate.toggle() }
+        rowWifiUpdates.setOnClickListener { switchWifiUpdates.toggle() }
         rowCheckNow.setOnClickListener { checkUpdateNow() }
     }
 
+    private fun updateWifiRowEnabled(enabled: Boolean) = with(binding) {
+        rowWifiUpdates.isEnabled = enabled
+        rowWifiUpdates.alpha = if (enabled) 1f else 0.5f
+        switchWifiUpdates.isEnabled = enabled
+    }
+
     private fun checkUpdateNow() {
+        binding.rowCheckNow.isEnabled = false
         Toast.makeText(this, R.string.about_checking_update, Toast.LENGTH_SHORT).show()
         lifecycleScope.launch {
-            val info = UpdateChecker.fetchUpdate()
-            when {
-                info == null ->
-                    Toast.makeText(
-                        this@AboutActivity, R.string.about_check_update_failed, Toast.LENGTH_SHORT
-                    ).show()
-
-                info.isNewer ->
-                    // 「不再提示」会改 PrefManager，回调里把开关同步回来
-                    UpdateChecker.showUpdateDialog(this@AboutActivity, info) {
-                        binding.switchUpdate.isChecked = PrefManager.isCheckUpdateStable
+            try {
+                val result = SelfUpdates.checkNow()
+                lifecycle.withStarted {
+                    if (isFinishing) return@withStarted
+                    when {
+                        result.infoOrNull != null -> showLiveUpdateDialog(result)
+                        result == UpdateState.Failed -> Toast.makeText(
+                            this@AboutActivity, R.string.about_check_update_failed, Toast.LENGTH_SHORT
+                        ).show()
+                        result == UpdateState.Current -> Toast.makeText(
+                            this@AboutActivity, R.string.about_is_latest, Toast.LENGTH_SHORT
+                        ).show()
+                        else -> Unit
                     }
-
-                else ->
-                    Toast.makeText(
-                        this@AboutActivity, R.string.about_is_latest, Toast.LENGTH_SHORT
-                    ).show()
+                }
+            } finally {
+                binding.rowCheckNow.isEnabled = true
             }
         }
+    }
+
+    /** Only called by the manual check. State changes alone never create a dialog. */
+    private fun showLiveUpdateDialog(initial: UpdateState) {
+        val builder = MaterialAlertDialogBuilder(this)
+        val content = DialogSelfUpdateBinding.inflate(layoutInflater.cloneInContext(builder.context))
+        val dialog = builder
+            .setView(content.root)
+            .setNegativeButton(R.string.update_skip_version, null)
+            .setPositiveButton(R.string.download, null)
+            .create()
+        var displayedVersionCode: Long? = null
+        var showsInstall = false
+
+        fun render(state: UpdateState) {
+            val info = state.infoOrNull
+            if (info != null) {
+                dialog.setTitle(getString(R.string.update_found_title, info.versionName))
+                val changelog = info.changelog.ifBlank { getString(R.string.update_no_changelog) }
+                if (displayedVersionCode != info.versionCode || content.changelog.text.toString() != changelog) {
+                    displayedVersionCode = info.versionCode
+                    content.changelog.text = changelog
+                    content.changelogScroll.scrollTo(0, 0)
+                }
+            } else if (state != UpdateState.Checking) {
+                dialog.dismiss()
+                return
+            }
+
+            bindUpdateStatus(content.updateStatus, content.updateProgress, state)
+            showsInstall = state is UpdateState.Ready
+            val hasActions = state is UpdateState.Manual || showsInstall
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).isVisible = hasActions
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).apply {
+                isVisible = hasActions
+                setText(if (showsInstall) R.string.download_install else R.string.download)
+            }
+        }
+
+        dialog.setTitle(getString(R.string.update_found_title, checkNotNull(initial.infoOrNull).versionName))
+        dialog.show()
+        dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener {
+            when (val state = SelfUpdates.state.value) {
+                is UpdateState.Manual, is UpdateState.Ready -> {
+                    val code = state.infoOrNull?.versionCode
+                    if (code != null && code == displayedVersionCode) {
+                        SelfUpdates.skip(code)
+                        dialog.dismiss()
+                    }
+                }
+                else -> Unit
+            }
+        }
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener {
+            when (val state = SelfUpdates.state.value) {
+                is UpdateState.Manual -> {
+                    if (!showsInstall && state.info.versionCode == displayedVersionCode) {
+                        dialog.dismiss()
+                        UpdateChecker.openDownload(this, state.info)
+                    }
+                }
+                is UpdateState.Ready -> {
+                    if (showsInstall && state.info.versionCode == displayedVersionCode) {
+                        SelfUpdates.install(this, state.info.versionCode)
+                    }
+                }
+                else -> Unit
+            }
+        }
+        val observer = lifecycleScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                repeatOnLifecycle(Lifecycle.State.STARTED) { SelfUpdates.state.collect { render(it) } }
+            } finally {
+                // Also dismiss when the Activity's lifecycle ends.
+                dialog.dismiss()
+            }
+        }
+        dialog.setOnDismissListener { observer.cancel() }
+        observer.start()
     }
 
     /**

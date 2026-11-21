@@ -411,6 +411,14 @@ object PrefManager {
         get() = pref.getBoolean("isCheckUpdateStable", true)
         set(value) = pref.edit().putBoolean("isCheckUpdateStable", value).apply()
 
+    /** 老用户不替其开启；引导页默认勾选，完成后才保存。 */
+    var autoDownloadUpdatesOnWifi: Boolean
+        get() = pref.getBoolean("autoDownloadUpdatesOnWifi", false)
+        set(value) = pref.edit().putBoolean("autoDownloadUpdatesOnWifi", value).apply()
+
+    val hasAutoDownloadUpdatesChoice: Boolean
+        get() = pref.contains("autoDownloadUpdatesOnWifi")
+
     /**
      * 已「跳过此版本」的 versionCode（2026-11-01 用户要求）
      *

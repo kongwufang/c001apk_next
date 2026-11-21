@@ -6,87 +6,96 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListUpdateCallback
 import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.R
+import com.example.c001apk.ui.others.bindUpdateStatus
 import com.example.c001apk.util.NoticeRepo
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.UpdateChecker
+import com.example.c001apk.util.UpdateState
 import com.example.c001apk.view.MaxHeightNestedScrollView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.progressindicator.LinearProgressIndicator
 
-/**
- * 侧栏卡片适配器（2026-11-01 新增）
- *
- * 挂在「我的」页 ConcatAdapter 的**最后**（宫格下面 ✓ 用户圈出来的那块空白 ✓）
- *
- * ## 两种卡片
- *   ① 公告卡（[NoticeRepo.Card]）—— 文案/背景/按钮/有没有叉 全由服务器决定 ✓
- *   ② 升级卡（[UpdateChecker.UpdateInfo]）—— 只有两个按钮：跳过此版本 / 下载 ✓
- *
- * ## 已读隐藏
- *   · 公告：点叉 ⇒ `PrefManager.dismissNotice(id)` ⇒ 这张永不再现（除非服务端换 id）✓
- *   · 升级：点叉 或 点「跳过此版本」⇒ 记下 versionCode ⇒ **同版本**不再出现 ✓
- *           新版本来了还会出现 ✓（用户说的「提升更新积极性」✓）
- *
- * ## 数据是「一次性」的
- *   没数据时 [setData] 传空表 ⇒ 这个 adapter 高度 0 ✓ 不占位 ✓
- */
-class SideCardAdapter(
+/** Optional update card followed by server-driven notice cards in the Mine list. */
+internal class SideCardAdapter(
     private val onOpenUrl: (String) -> Unit,
     private val onDownload: (UpdateChecker.UpdateInfo) -> Unit,
     private val onSkipVersion: (Long) -> Unit,
+    private val onInstall: (Long) -> Unit,
     private val onNoticeDismissed: (String) -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    companion object {
-        private const val TYPE_NOTICE = 0
-        private const val TYPE_UPDATE = 1
+    private companion object {
+        const val TYPE_NOTICE = 0
+        const val TYPE_UPDATE = 1
+        val UPDATE_STATE_PAYLOAD = Any()
     }
 
-    private sealed interface Item {
-        data class Notice(val card: NoticeRepo.Card) : Item
-        data class Update(val info: UpdateChecker.UpdateInfo) : Item
+    private var notices = emptyList<NoticeRepo.Card>()
+    private var update: UpdateState? = null
+    private val noticeOffset: Int get() = if (update == null) 0 else 1
+
+    fun setNotices(newNotices: List<NoticeRepo.Card>) {
+        val old = notices
+        val current = newNotices.filterNot { PrefManager.isNoticeDismissed(it.id) }
+        if (old == current) return
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = old.size
+            override fun getNewListSize() = current.size
+            override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int) =
+                old[oldItemPosition].id == current[newItemPosition].id
+
+            override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int) =
+                old[oldItemPosition] == current[newItemPosition]
+        })
+        notices = current
+        val offset = noticeOffset
+        diff.dispatchUpdatesTo(object : ListUpdateCallback {
+            override fun onInserted(position: Int, count: Int) =
+                notifyItemRangeInserted(position + offset, count)
+
+            override fun onRemoved(position: Int, count: Int) =
+                notifyItemRangeRemoved(position + offset, count)
+
+            override fun onMoved(fromPosition: Int, toPosition: Int) =
+                notifyItemMoved(fromPosition + offset, toPosition + offset)
+
+            override fun onChanged(position: Int, count: Int, payload: Any?) =
+                notifyItemRangeChanged(position + offset, count, payload)
+        })
     }
 
-    private val items = ArrayList<Item>()
-
-    /**
-     * 一次性设置数据（先升级卡，再公告卡 ✓ 升级更重要 ✓）
-     */
-    fun setData(notices: List<NoticeRepo.Card>, update: UpdateChecker.UpdateInfo?) {
-        items.clear()
-        if (update != null && update.isNewer && update.versionCode != PrefManager.skippedUpdateCode)
-            items.add(Item.Update(update))
-        notices.forEach { items.add(Item.Notice(it)) }
-        notifyDataSetChanged()
-    }
-
-    /** 只移除一条公告（点叉后立刻消失 ✓ 不用整页刷新 ✓） */
-    fun removeNotice(id: String) {
-        val idx = items.indexOfFirst { it is Item.Notice && it.card.id == id }
-        if (idx >= 0) {
-            items.removeAt(idx)
-            notifyItemRemoved(idx)
+    fun setUpdate(state: UpdateState) {
+        val old = update
+        val current = state.takeIf { it.infoOrNull != null }
+        if (old == current) return
+        update = current
+        when {
+            old == null -> notifyItemInserted(0)
+            current == null -> notifyItemRemoved(0)
+            // Keep the same holder, and do not rebind its changelog when only status changes.
+            old.infoOrNull == current.infoOrNull -> notifyItemChanged(0, UPDATE_STATE_PAYLOAD)
+            else -> notifyItemChanged(0)
         }
     }
 
-    /** 只移除升级卡（跳过此版本后 ✓） */
-    fun removeUpdate() {
-        val idx = items.indexOfFirst { it is Item.Update }
-        if (idx >= 0) {
-            items.removeAt(idx)
-            notifyItemRemoved(idx)
-        }
+    private fun removeNotice(id: String) {
+        val index = notices.indexOfFirst { it.id == id }
+        if (index < 0) return
+        notices = notices.toMutableList().apply { removeAt(index) }
+        notifyItemRemoved(index + noticeOffset)
     }
 
-    override fun getItemCount(): Int = items.size
+    override fun getItemCount(): Int = notices.size + noticeOffset
 
-    override fun getItemViewType(position: Int): Int = when (items[position]) {
-        is Item.Notice -> TYPE_NOTICE
-        is Item.Update -> TYPE_UPDATE
-    }
+    override fun getItemViewType(position: Int): Int =
+        if (position < noticeOffset) TYPE_UPDATE else TYPE_NOTICE
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inf = LayoutInflater.from(parent.context)
@@ -97,9 +106,23 @@ class SideCardAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (val it = items[position]) {
-            is Item.Notice -> (holder as NoticeHolder).bind(it.card)
-            is Item.Update -> (holder as UpdateHolder).bind(it.info)
+        when (holder) {
+            is NoticeHolder -> holder.bind(notices[position - noticeOffset])
+            is UpdateHolder -> holder.bind(checkNotNull(update))
+        }
+    }
+
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>,
+    ) {
+        if (holder is UpdateHolder && payloads.isNotEmpty() &&
+            payloads.all { it === UPDATE_STATE_PAYLOAD }
+        ) {
+            holder.bindState(checkNotNull(update))
+        } else {
+            onBindViewHolder(holder, position)
         }
     }
 
@@ -188,37 +211,61 @@ class SideCardAdapter(
 
     // ---------------------------------------------------------------- 升级卡
     private inner class UpdateHolder(v: View) : RecyclerView.ViewHolder(v) {
-        private val card: MaterialCardView = v.findViewById(R.id.card)
         private val title: TextView = v.findViewById(R.id.title)
-        private val changelogScroll: MaxHeightNestedScrollView =
-            v.findViewById(R.id.changelogScroll)
+        private val changelogScroll: MaxHeightNestedScrollView = v.findViewById(R.id.changelogScroll)
         private val changelog: TextView = v.findViewById(R.id.changelog)
-        // ★ 2026-11-01：这张卡**没有叉** ✗ 只能点下面两个按钮（用户要求）
+        private val status: TextView = v.findViewById(R.id.updateStatus)
+        private val progress: LinearProgressIndicator = v.findViewById(R.id.updateProgress)
+        private val actions: View = v.findViewById(R.id.updateActions)
         private val skip: MaterialButton = v.findViewById(R.id.skip)
-        private val download: MaterialButton = v.findViewById(R.id.download)
+        private val action: MaterialButton = v.findViewById(R.id.updateAction)
+        private var boundVersionCode: Long? = null
+        private var showsInstall = false
 
-        fun bind(info: UpdateChecker.UpdateInfo) {
-            card.setCardBackgroundColor(
-                MaterialColors.getColor(card, com.google.android.material.R.attr.colorSurfaceVariant)
-            )
-            title.text = itemView.context.getString(
-                R.string.update_found_title, info.versionName
-            )
-            val context = itemView.context
-            // ★ 2026-11-15：长日志放进限高滚动区（见 MaxHeightNestedScrollView）。
-            changelog.text = info.changelog.ifBlank { context.getString(R.string.update_no_changelog) }
-
-            // 复用 holder 时把内部滚动位置归零，免得新日志一进来就停在末尾。
-            changelogScroll.scrollTo(0, 0)
-
-
-            val skipIt = View.OnClickListener {
-                PrefManager.skippedUpdateCode = info.versionCode
-                onSkipVersion(info.versionCode)
-                removeUpdate()
+        init {
+            skip.setOnClickListener {
+                when (val state = update) {
+                    is UpdateState.Manual, is UpdateState.Ready ->
+                        state.infoOrNull?.versionCode?.takeIf { it == boundVersionCode }?.let(onSkipVersion)
+                    else -> Unit
+                }
             }
-            skip.setOnClickListener(skipIt)
-            download.setOnClickListener { onDownload(info) }
+            action.setOnClickListener {
+                val state = update
+                // A queued payload must not change which action the visible label triggers.
+                if (state?.infoOrNull?.versionCode != boundVersionCode) return@setOnClickListener
+                when (state) {
+                    is UpdateState.Manual -> {
+                        if (!showsInstall) onDownload(state.info)
+                    }
+                    is UpdateState.Ready -> {
+                        if (showsInstall) onInstall(state.info.versionCode)
+                    }
+                    else -> Unit
+                }
+            }
+        }
+
+        fun bind(state: UpdateState) {
+            val info = checkNotNull(state.infoOrNull)
+            val context = itemView.context
+            val text = info.changelog.ifBlank { context.getString(R.string.update_no_changelog) }
+            if (boundVersionCode != info.versionCode || changelog.text.toString() != text) {
+                boundVersionCode = info.versionCode
+                changelog.text = text
+                changelogScroll.scrollTo(0, 0)
+            }
+            title.text = context.getString(R.string.update_found_title, info.versionName)
+            bindState(state)
+        }
+
+        fun bindState(state: UpdateState) {
+            bindUpdateStatus(status, progress, state)
+            showsInstall = state is UpdateState.Ready
+            actions.isVisible = state is UpdateState.Manual || showsInstall
+            if (actions.isVisible) {
+                action.setText(if (showsInstall) R.string.download_install else R.string.download)
+            }
         }
     }
 }

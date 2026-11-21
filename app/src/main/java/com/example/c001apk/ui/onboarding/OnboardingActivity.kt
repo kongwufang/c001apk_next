@@ -28,14 +28,14 @@ import com.google.android.material.materialswitch.MaterialSwitch
  * ① 欢迎使用 c001apk_next            [快速开始]
  * ② 设置你的机型参数                  [下一步]
  * ③ 取号（数字联盟）及自动刷新偏好      [下一步]（已有已配置的非空 ID 才可用）
- * ④ 确认 SSL 证书校验设置             [完成]
+ * ④ 确认 SSL 证书校验和 Wi-Fi 下载设置   [完成]
  * ```
  *
  * 四页均在代码中搭建，正文可滚动，底部主按钮固定。
  * 第 ③ 步复用 [SzlmIdPrompt.showConsent] 授权后原生取号或手动填入，已有 ID 继续沿用。
  * 自动刷新开关沿用已有明确选择，否则默认开启；草稿在该页成功点击「下一步」后保存。
- * 第 ④ 步 SSL 开关沿用已有值，点击「完成」才保存并标记引导完成。
- * 两项草稿均在旋转时保留，页面重绘不会覆盖尚未确认的选择。
+ * 第 ④ 步 SSL 和 Wi-Fi 下载沿用已有选择，点击「完成」才保存并标记引导完成。
+ * 草稿在旋转时保留，页面重绘不会覆盖尚未确认的选择。
  */
 class OnboardingActivity : AppCompatActivity() {
 
@@ -49,8 +49,9 @@ class OnboardingActivity : AppCompatActivity() {
 
     private var step = 0
 
-    // 第④步 SSL 草稿：先沿用旧值，用户点完成才保存。
+    // 第④步的开关草稿只在用户点完成后保存。
     private var sslVerify = true
+    private var autoDownloadUpdatesOnWifi = false
     private var autoRefreshSzlmId = true
 
 
@@ -60,12 +61,17 @@ class OnboardingActivity : AppCompatActivity() {
             OnboardingPolicy.requiredRevision(BuildConfig.VERSION_CODE)
         val initialAutoRefresh = if (PrefManager.hasAutoRefreshSzlmIdChoice)
             PrefManager.autoRefreshSzlmId else true
+        val initialWifiUpdates = if (PrefManager.hasAutoDownloadUpdatesChoice)
+            PrefManager.autoDownloadUpdatesOnWifi else !PrefManager.hasCompletedOnboardingBefore
         // Reuse existing choices, but never restore an old revision directly into a later step.
         step = if (sameRevision) savedInstanceState!!.getInt("step").coerceIn(0, 3) else 0
         sslVerify = if (sameRevision) savedInstanceState!!.getBoolean("sslVerify", PrefManager.isVerifySsl)
             else PrefManager.isVerifySsl
         autoRefreshSzlmId = if (sameRevision) savedInstanceState!!.getBoolean("autoRefreshSzlmId", initialAutoRefresh)
             else initialAutoRefresh
+        autoDownloadUpdatesOnWifi = if (sameRevision)
+            savedInstanceState!!.getBoolean("autoDownloadUpdatesOnWifi", initialWifiUpdates)
+        else initialWifiUpdates
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -139,6 +145,7 @@ class OnboardingActivity : AppCompatActivity() {
         outState.putInt("step", step)
         outState.putBoolean("sslVerify", sslVerify)
         outState.putBoolean("autoRefreshSzlmId", autoRefreshSzlmId)
+        outState.putBoolean("autoDownloadUpdatesOnWifi", autoDownloadUpdatesOnWifi)
         super.onSaveInstanceState(outState)
     }
 
@@ -177,6 +184,7 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun finishOnboarding() {
         PrefManager.isVerifySsl = sslVerify
+        PrefManager.autoDownloadUpdatesOnWifi = autoDownloadUpdatesOnWifi
         PrefManager.onboarded = true
         // App 日志/HTTP 日志统一开关跟随「用户体验改善计划」？不跟随：
         // 日志开关是排障用的独立开关，默认关，避免用户不知情地落盘 ✓
@@ -245,12 +253,16 @@ class OnboardingActivity : AppCompatActivity() {
             else -> {
                 primary.isEnabled = true
                 title.text = "最后确认"
-                subtitle.text = "请确认 SSL 证书校验设置；抓包调试需要关闭它。\n" +
-                        "本 App 不会上传日志或诊断数据，日志只存在你手机里，随时可导出/清空。"
+                subtitle.setText(R.string.onboarding_final_settings_summary)
                 primary.text = "完成"
                 body.addView(switchRow("校验 SSL 证书", "更安全；抓包调试时需关闭", sslVerify) {
                     sslVerify = it
                 })
+                body.addView(switchRow(
+                    getString(R.string.auto_download_updates_on_wifi),
+                    getString(R.string.auto_download_updates_on_wifi_summary),
+                    autoDownloadUpdatesOnWifi,
+                ) { autoDownloadUpdatesOnWifi = it })
             }
         }
     }

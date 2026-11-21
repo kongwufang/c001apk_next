@@ -5,6 +5,9 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -20,15 +23,21 @@ import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.ui.settings.SettingsActivity
 import com.example.c001apk.ui.user.UserActivity
 import com.example.c001apk.util.ImageUtil
-import com.example.c001apk.util.VerifyBadge
 import com.example.c001apk.util.IntentUtil
+import com.example.c001apk.util.NoticeRepo
 import com.example.c001apk.util.PrefManager
+import com.example.c001apk.util.SelfUpdates
+import com.example.c001apk.util.UpdateChecker
+import com.example.c001apk.util.UpdateState
+import com.example.c001apk.util.VerifyBadge
 import com.example.c001apk.util.dp
 import com.example.c001apk.view.LinearItemDecoration
 import com.example.c001apk.view.MessStaggerItemDecoration
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import java.net.URLDecoder
 
 /**
@@ -51,12 +60,13 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
     private val sideCardAdapter by lazy {
         SideCardAdapter(
             onOpenUrl = { url ->
-                com.example.c001apk.util.UpdateChecker.openExternal(
+                UpdateChecker.openExternal(
                     requireContext(), url, getString(R.string.update_open_link_failed)
                 )
             },
-            onDownload = { info -> downloadUpdate(info) },
-            onSkipVersion = { /* PrefManager 已写 ✓ 这里不用做事 */ },
+            onDownload = { info -> UpdateChecker.openDownload(requireContext(), info) },
+            onSkipVersion = { versionCode -> SelfUpdates.skip(versionCode) },
+            onInstall = { versionCode -> SelfUpdates.install(requireActivity(), versionCode) },
             onNoticeDismissed = { /* PrefManager 已写 ✓ 这里不用做事 */ },
         )
     }
@@ -82,7 +92,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
         //   ⇒ 再也不会注册 ⇒ 心跳推送的卡只能重启 App 才看到 ✗（用户实测踩到）
         initObserve()
         // 每次进侧栏都拉一次 ✓ 公告是时效性的 ✓ 服务端 60 秒缓存兜底 ✓
-        viewModel.fetchSideCards()
+        viewModel.fetchNotices()
     }
 
     private fun initView() {
@@ -134,28 +144,25 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
         }
     }
 
-    /**
-     * 升级卡点「下载」⇒ 跳外部浏览器（多线路先弹选择 ✓ 沿用旧逻辑 ✓）
-     * 走 [com.example.c001apk.util.UpdateChecker.openDownload] ✓ 和旧弹窗同一份 ✓
-     */
-    private fun downloadUpdate(info: com.example.c001apk.util.UpdateChecker.UpdateInfo) {
-        com.example.c001apk.util.UpdateChecker.openDownload(requireContext(), info)
-    }
-
     private fun initObserve() {
         viewModel.countList.observe(viewLifecycleOwner) {
             messageFirstAdapter.setFFFList(it)
         }
 
-        // ★ 侧栏卡片（公告 + 升级）2026-11-01
-        viewModel.sideCards.observe(viewLifecycleOwner) { (notices, update) ->
-            sideCardAdapter.setData(notices, update)
+        viewModel.notices.observe(viewLifecycleOwner) { sideCardAdapter.setNotices(it) }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                SelfUpdates.state.collect { state ->
+                    // A manual About check may find a release even when automatic checks are off.
+                    sideCardAdapter.setUpdate(if (PrefManager.isCheckUpdateStable) state else UpdateState.Idle)
+                }
+            }
         }
 
         // ★ 2026-11-07：心跳**直接推**了一张公告卡 ⇒ 侧栏活着就立刻刷出来 ✓
         //   不用等用户「退出再进我的」✓ 卡本身已经存本机 ✓ 这里只是提前刷新
-        com.example.c001apk.util.NoticeRepo.pushedSignal.observe(viewLifecycleOwner) {
-            viewModel.fetchSideCards()
+        NoticeRepo.pushedSignal.observe(viewLifecycleOwner) {
+            viewModel.fetchNotices()
         }
 
         viewModel.loadingState.observe(viewLifecycleOwner) {
@@ -237,7 +244,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
         // ★ 2026-11-07：每次回到「我的」都刷一次侧栏卡片 ✓
         //   · 心跳推送的卡到了 ⇒ 切回来就能看到（不用重启 ✓）
         //   · 观察者已在 onViewCreated 里注册 ✓ 这里只管数据 ✓
-        viewModel.fetchSideCards()
+        viewModel.fetchNotices()
     }
 
     private fun initMenu() {

@@ -233,6 +233,9 @@
     <string name="check_user_info">查看用户资料</string>
     <string name="check_stable_update">检查应用正式版更新</string>
     <string name="check_update_now_stable">立即检查正式版更新</string>
+    <string name="auto_download_updates_on_wifi">在 Wi-Fi 下自动下载更新</string>
+    <string name="auto_download_updates_on_wifi_summary">开启自动检查后生效，下载完成后由你确认安装</string>
+    <string name="onboarding_final_settings_summary">请确认 SSL 证书校验和 Wi-Fi 下载设置；抓包调试需要关闭证书校验。\n本 App 不会上传日志或诊断数据，日志只存在你手机里，随时可导出或清空。</string>
 
     <!-- 2026-09-18 重构：底栏重排 + 设置分组（一级菜单 + 二级详情页） -->
     <string name="settings_icon_desc">设置</string>
@@ -380,6 +383,9 @@
     <string name="update_found_title">发现新版本 %1$s</string>
     <string name="update_skip_version">跳过此版本</string>
     <string name="update_no_changelog">无更新日志</string>
+    <string name="update_waiting_for_wifi">等待 Wi-Fi 连接后下载</string>
+    <string name="update_downloading_progress">正在下载更新：%1$d%%</string>
+    <string name="update_ready_to_install">下载完成，可以安装更新</string>
     <string name="update_open_link_failed">打开链接失败</string>
 
 </resources>
