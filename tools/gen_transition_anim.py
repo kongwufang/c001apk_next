@@ -8,7 +8,7 @@
 设置页再按当前选择查表拿到对应 resId。
 
 维度：
-  曲线 curve  : linear(M3 线性) / m2(M2 标准 0.4,0,0.2,1) / std(M3 标准) / emph(M3 强调)
+  曲线 curve  : linear(M3 线性) / m2(Android fast_out_slow_in，沿用 M2 键) / std(M3 标准) / emph(M3 强调)
                / spring(rikkahub 的临界阻尼弹簧近似，ease-out-cubic)
   类型 type   : slide(水平滑动) / fade(淡入淡出) / parallax(视差滑动，rikkahub 同款)；
                none(无动画) 由代码直接传 0，不需要资源
@@ -29,7 +29,6 @@ parallax 的形状取自 rikkahub 的 NavDisplay.transitionSpec（单 Activity C
   退出  下层页 translateX -50% -> 0 + scale 0.7 -> 1 + alpha 0 -> 1；当前页 translateX 0 -> 100%
 
 产物：
-  app/src/main/res/interpolator/exp_m2_standard.xml
   app/src/main/res/interpolator/exp_spring_decelerate.xml / exp_spring_accelerate.xml
   app/src/main/res/anim/exp_<type>_<curve>_<enter>_<slot>.xml       共 250 个
   app/src/main/java/com/example/c001apk/util/TransitionAnimTable.kt  生成式查表
@@ -48,7 +47,7 @@ KT_DIR = os.path.join(ROOT, "app", "src", "main", "java", "com", "example", "c00
 # 曲线 -> (进入插值器, 退出插值器)
 CURVES = {
     "linear": ("@android:interpolator/linear", "@android:interpolator/linear"),
-    "m2": ("@interpolator/exp_m2_standard", "@interpolator/exp_m2_standard"),
+    "m2": ("@android:interpolator/fast_out_slow_in", "@android:interpolator/fast_out_slow_in"),
     "std": (
         "@interpolator/m3_sys_motion_easing_standard_decelerate",
         "@interpolator/m3_sys_motion_easing_standard_accelerate",
@@ -69,15 +68,6 @@ EXIT_GAP = 50          # 退出 = 进入 - 50
 EXIT_MIN = 50
 
 SLOTS = ["rin", "lin", "lout", "rout"]
-
-M2_STANDARD = """<?xml version="1.0" encoding="utf-8"?>
-<!-- 转场动画实验用：Material 2 标准曲线 cubic-bezier(0.4, 0, 0.2, 1)（生成物，勿手改） -->
-<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
-    android:controlX1="0.4"
-    android:controlX2="0.2"
-    android:controlY1="0.0"
-    android:controlY2="1.0" />
-"""
 
 # rikkahub 的 spring(dampingRatio=1, stiffness=400) 近似：
 # 进入 ease-out-cubic，退出取反向的 ease-in-cubic
@@ -200,7 +190,6 @@ def main():
                 removed += 1
 
     os.makedirs(INTERP_DIR, exist_ok=True)
-    write(os.path.join(INTERP_DIR, "exp_m2_standard.xml"), M2_STANDARD)
     write(os.path.join(INTERP_DIR, "exp_spring_decelerate.xml"), SPRING_DECELERATE)
     write(os.path.join(INTERP_DIR, "exp_spring_accelerate.xml"), SPRING_ACCELERATE)
 

@@ -27,7 +27,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.core.app.ActivityOptionsCompat
+import com.example.c001apk.util.TransitionAnim
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -1154,9 +1154,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         intent.putExtra("type", viewModel.type)
         intent.putExtra("rid", viewModel.rid)
         intent.putExtra("username", viewModel.uname)
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            requireContext(), R.anim.anim_bottom_sheet_slide_up, R.anim.anim_bottom_sheet_slide_down
-        )
+        val options = TransitionAnim.enterOptionsCompat(requireContext(), sheet = true)
         intentActivityResultLauncher.launch(intent, options)
     }
 

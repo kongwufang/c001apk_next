@@ -3,5 +3,5 @@
 <translate xmlns:android="http://schemas.android.com/apk/res/android"
     android:duration="400"
     android:fromXDelta="-50%"
-    android:interpolator="@interpolator/exp_m2_standard"
+    android:interpolator="@android:interpolator/fast_out_slow_in"
     android:toXDelta="0" />

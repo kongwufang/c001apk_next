@@ -32,7 +32,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
-import androidx.core.app.ActivityOptionsCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
@@ -905,9 +904,7 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
 
     private fun launchPick() {
         (binding.main as? SmoothInputLayout)?.closeKeyboard(false)
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            this, R.anim.anim_bottom_sheet_slide_up, R.anim.anim_bottom_sheet_slide_down
-        )
+        val options = TransitionAnim.enterOptionsCompat(this, sheet = true)
         try {
             pickMultipleMedia.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -948,12 +945,6 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
         )
     }
 
-    override fun finish() {
-        super.finish()
-        overridePendingTransition(
-            R.anim.anim_bottom_sheet_slide_up,
-            R.anim.anim_bottom_sheet_slide_down
-        )
-    }
+    override val usesSheetTransition: Boolean get() = true
 
 }

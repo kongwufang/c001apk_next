@@ -1,6 +1,6 @@
 package com.example.c001apk.ui.app
 
-import android.app.ActivityOptions
+import com.example.c001apk.util.TransitionAnim
 import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
@@ -65,12 +65,7 @@ class AppFragment : BasePagerFragment() {
             intent.putExtra("type", "createFeed")
             intent.putExtra("targetType", "apk")
             intent.putExtra("targetId", "${1000000000 + (viewModel.appId?.toInt() ?: 4599)}")
-            val animationBundle = ActivityOptions.makeCustomAnimation(
-                context,
-                R.anim.anim_bottom_sheet_slide_up,
-                R.anim.anim_bottom_sheet_slide_down
-            ).toBundle()
-            requireContext().startActivity(intent, animationBundle)
+            TransitionAnim.startActivity(requireContext(), intent, sheet = true)
         }
     }
 

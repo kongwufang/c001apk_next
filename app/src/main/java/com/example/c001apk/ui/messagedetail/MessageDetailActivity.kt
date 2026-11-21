@@ -17,7 +17,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.core.app.ActivityOptionsCompat
+import com.example.c001apk.util.TransitionAnim
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -208,9 +208,7 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
 
     private fun pickImage() {
         if (readOnly) return
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            this, R.anim.anim_bottom_sheet_slide_up, R.anim.anim_bottom_sheet_slide_down
-        )
+        val options = TransitionAnim.enterOptionsCompat(this, sheet = true)
         try {
             pickMedia.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),

@@ -20,8 +20,7 @@ object IntentUtil {
     inline fun <reified T> startActivity(context: Context, block: Intent.() -> Unit) {
         val intent = Intent(context, T::class.java)
         intent.block()
-        // enterOptions 会在旧页侧置「进入」标记，新页的 onCreate 据此播内容动画
-        context.startActivity(intent, TransitionAnim.enterOptions(context).toBundle())
+        TransitionAnim.startActivity(context, intent)
     }
 
 }

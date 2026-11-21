@@ -3,5 +3,5 @@
 <alpha xmlns:android="http://schemas.android.com/apk/res/android"
     android:duration="500"
     android:fromAlpha="0.0"
-    android:interpolator="@interpolator/exp_m2_standard"
+    android:interpolator="@android:interpolator/fast_out_slow_in"
     android:toAlpha="1.0" />

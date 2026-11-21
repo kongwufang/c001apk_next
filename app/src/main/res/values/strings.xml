@@ -24,7 +24,9 @@
     <string name="dark_theme">深色主题</string>
     <string name="settings_pure_black_dark_theme">纯黑主题</string>
     <string name="settings_pure_black_dark_theme_summary">当深色主题启用时使用纯黑主题</string>
-    <!-- 水平转场动画实验项（临时脚手架，见 util/TransitionAnim.kt） -->
+    <string name="settings_transition_mode">转场模式</string>
+    <string name="settings_transition_system">跟随系统</string>
+    <string name="settings_transition_custom">自定义</string>
     <string name="settings_transition_curve">转场曲线</string>
     <string name="settings_transition_type">转场类型</string>
     <string name="settings_transition_speed">转场速度</string>
@@ -239,7 +241,7 @@
     <string name="settings_category_display">显示</string>
     <string name="settings_category_layout">布局</string>
     <string name="settings_animation">转场动画</string>
-    <string name="settings_animation_summary">切换页面时的曲线、类型与速度</string>
+    <string name="settings_animation_summary">跟随系统，或自定义曲线、类型与速度</string>
     <string name="settings_privacy">隐私</string>
     <string name="settings_recommendation">偏好设置</string>
     <string name="auto_refresh_szlm_id">自动刷新数字联盟ID</string>

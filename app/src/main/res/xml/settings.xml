@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
@@ -86,19 +86,20 @@
 
         <PreferenceCategory android:title="@string/settings_animation">
 
-            <!--
-                水平转场动画实验项（临时脚手架）：
-                三档组合由 tools/gen_transition_anim.py 预先烘成 res/anim/exp_*.xml，
-                运行时按这里的选择查表。手感定下来后，把赢家固化回 right_in / left_out
-                等正式资源，并删掉这三项 + TransitionAnim.kt + 那批 exp_* 资源。
-                改完直接返回即可看到「退出」动画，再进任意二级页看到「进入」动画。
-            -->
             <PreferenceScreen
                 android:icon="@drawable/outline_system_update_24"
                 android:key="animation"
                 android:summary="@string/settings_animation_summary"
                 android:title="@string/settings_animation">
 
+                <rikka.preference.SimpleMenuPreference
+                    android:defaultValue="system"
+                    android:entries="@array/anim_mode_texts"
+                    android:entryValues="@array/anim_mode_values"
+                    android:icon="@drawable/outline_system_update_24"
+                    android:key="animMode"
+                    android:summary="%s"
+                    android:title="@string/settings_transition_mode" />
                 <rikka.preference.SimpleMenuPreference
                     android:defaultValue="emph"
                     android:entries="@array/anim_curve_texts"

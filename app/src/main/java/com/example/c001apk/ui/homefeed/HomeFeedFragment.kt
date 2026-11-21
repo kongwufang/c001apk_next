@@ -11,7 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.core.app.ActivityOptionsCompat
+import com.example.c001apk.util.TransitionAnim
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
@@ -226,18 +226,14 @@ class HomeFeedFragment : BaseAppFragment<HomeFeedViewModel>(), IOnTabClickListen
     }
 
     private fun startReply(type: String) {
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            requireContext(),
-            R.anim.anim_bottom_sheet_slide_up,
-            R.anim.anim_bottom_sheet_slide_down
-        )
+        val isArticle = type == "createArticle"
         // 「图文」走独立混排发布页，其余（动态/点评）仍走 ReplyActivity
-        val intent = if (type == "createArticle") {
+        val intent = if (isArticle) {
             Intent(requireContext(), ArticlePublishActivity::class.java)
         } else {
             Intent(requireContext(), ReplyActivity::class.java).putExtra("type", type)
         }
-        requireContext().startActivity(intent, options.toBundle())
+        TransitionAnim.startActivity(requireContext(), intent, sheet = !isArticle)
     }
 
     override fun onScrolled(dy: Int) {

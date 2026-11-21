@@ -44,14 +44,7 @@ class CollectionContentFragment : BaseAppFragment<CollectionContentViewModel>() 
 
         viewModel.showCollection.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
-                requireActivity().supportFragmentManager
-                    .beginTransaction()
-                    .setCustomAnimations(
-                        TransitionAnim.fragmentEnter(),
-                        TransitionAnim.fragmentExit(),
-                        TransitionAnim.fragmentPopEnter(),
-                        TransitionAnim.fragmentPopExit()
-                    )
+                TransitionAnim.applyFragment(requireActivity().supportFragmentManager.beginTransaction())
                     .replace(
                         R.id.fragmentContainer,
                         CollectionFragment.newInstance(it.first, it.second)

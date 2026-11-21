@@ -378,10 +378,15 @@ object PrefManager {
         get() = pref.getBoolean("isColorFilter", true)
         set(value) = pref.edit().putBoolean("isColorFilter", value).apply()
 
-    /**
-     * 水平转场动画曲线（实验项，见 [com.example.c001apk.util.TransitionAnim]）。
-     * 取值 linear / m2 / std / emph，默认 `emph` 与已改造的正式资源一致。
-     */
+    /** Defaults to the platform even on upgrade; keep old custom values for when re-enabled. */
+    var animMode: String
+        get() = when (pref.getString("animMode", null)) {
+            TransitionAnim.MODE_CUSTOM -> TransitionAnim.MODE_CUSTOM
+            else -> TransitionAnim.MODE_SYSTEM
+        }
+        set(value) = pref.edit().putString("animMode", value).apply()
+
+    /** Custom transition curve; `m2` now uses the identical Android resource. */
     var animCurve: String
         get() = pref.getString("animCurve", TransitionAnim.CURVE_M3_EMPHASIZED)!!
         set(value) = pref.edit().putString("animCurve", value).apply()
@@ -396,7 +401,7 @@ object PrefManager {
             .let { if (it == TransitionAnim.TYPE_PARALLAX) TransitionAnim.TYPE_SLIDE else it }
         set(value) = pref.edit().putString("animType", value).apply()
 
-    /** 水平转场进入时长(ms)，实验项；退出固定为进入 - 50ms。存成字符串以便设置页用下拉框。 */
+    /** 自定义转场基础时长（毫秒）。水平滑动的两层保持同速。 */
     var animDuration: Int
         get() = pref.getString("animDuration", "300")!!.toIntOrNull() ?: 300
         set(value) = pref.edit().putString("animDuration", value.toString()).apply()
