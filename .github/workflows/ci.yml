@@ -18,7 +18,7 @@ on:
     # debug = 测试线：版本号对齐 main（= 线上最高号，不涨号），产物进 debug-latest（prerelease）
     # update = 只放升级配置 json，不构建产物（见 Publish 步骤的排除条件）
     # main 的发布由 release.yml 负责 ✓
-    branches: [ debug, update ]
+    branches: [ qa/antoupdate-mismatch-1463 ]
     paths-ignore:
       - '**.md'
       - '**.txt'
@@ -324,8 +324,7 @@ jobs:
         #   那样 main 的发版会被静默跳过 ✗（2026-10-28 差点踩）
         #   ⇒ 改成只判分支 + 发版锁 ✓
         if: |
-          success() && github.ref_name != 'update'
-          && (github.ref_name != 'main' || steps.lock.outputs.go == 'true')
+          false # QA artifact only
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

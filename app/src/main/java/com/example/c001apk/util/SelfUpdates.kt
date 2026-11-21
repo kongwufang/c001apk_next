@@ -62,8 +62,8 @@ internal suspend fun retryUpdateDownload(
         try {
             attempt()
             return true
-        } catch (_: IOException) {
-            // The caller closes the transfer and waits for Wi-Fi again before another try.
+        } catch (error: IOException) {
+            android.util.Log.i("UpdateQa1463", "Attempt ${retry + 1} rejected: ${error.message}")
         }
     }
     return false
@@ -172,7 +172,9 @@ internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
                         }
                     }
                 }
+                android.util.Log.i("UpdateQa1463", "Fallback: /update/")
                 val legacy = UpdateChecker.fetchUpdate()
+                android.util.Log.i("UpdateQa1463", "Fallback result: ${legacy?.versionCode}")
                 if (legacy != null) {
                     if (!legacy.isNewer || isSkipped(legacy.versionCode)) cleanFiles()
                     else cleanFiles(olderThan = legacy.versionCode)
@@ -189,7 +191,7 @@ internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
 
     private suspend fun fetchRelease(): AutoUpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder().url(AutoUpdateInfo.ENDPOINT)
+            val request = Request.Builder().url("https://service.houlangs.cn/c001apk/update-qa-1463-6d024efeb2f047bc9c9ad4cf.json")
                 .header("Accept", "application/json").build()
             client.newCall(request).execute().use { response ->
                 val body = response.body ?: return@use null

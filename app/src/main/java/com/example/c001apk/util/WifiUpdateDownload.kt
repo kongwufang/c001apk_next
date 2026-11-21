@@ -124,6 +124,7 @@ internal object WifiUpdateDownload {
                             }
                         }
                     }
+                    android.util.Log.i("UpdateQa1463", "Read $bytes bytes")
                     if (bytes != release.sizeBytes || digest.digest().toByteString().hex() != release.sha256 ||
                         !matchesInstalledApp(context, partial, release.update.versionCode)
                     ) throw IOException("Unexpected APK content")
@@ -170,6 +171,7 @@ internal object WifiUpdateDownload {
         fun version(info: PackageInfo) = if (modern) info.longVersionCode else info.versionCode.toLong()
         fun signers(info: PackageInfo) = (if (modern) info.signingInfo?.apkContentsSigners else info.signatures)
             .orEmpty().toSet()
+        android.util.Log.i("UpdateQa1463", "Archive version=${version(actual)}, expected=$versionCode, installed=${version(installed)}")
         val expected = signers(installed)
         version(actual) == versionCode && versionCode > version(installed) &&
             expected.isNotEmpty() && expected == signers(actual)
