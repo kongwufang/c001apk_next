@@ -73,7 +73,9 @@ internal object WifiUpdateDownload {
         // silently move a retry, a redirect or a stale connection to the cellular network.
         val bound = client.newBuilder()
             .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.SECONDS))
-            .dns(Dns { network.getAllByName(it).toList() })
+            .dns(object : Dns {
+                override fun lookup(hostname: String) = network.getAllByName(hostname).toList()
+            })
             .socketFactory(network.socketFactory)
             .build()
         val call = bound.newCall(Request.Builder().url(release.url)
