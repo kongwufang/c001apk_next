@@ -17,6 +17,7 @@ import com.example.c001apk.databinding.ItemFeedArticleTextBinding
 import com.example.c001apk.logic.model.FeedArticleContentBean
 import com.example.c001apk.view.SelectableLinkMovementMethod
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +51,7 @@ class ArticleTextBindingTest {
                 url = null, description = null, title = null, subTitle = null, logo = null,
             ))
             assertTrue(text.isTextSelectable)
+            assertFalse("TextView must not independently dispatch link clicks", text.linksClickable)
             assertTrue(text.movementMethod is SelectableLinkMovementMethod)
             text.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY))

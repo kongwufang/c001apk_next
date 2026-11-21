@@ -14,9 +14,11 @@
 
     </data>
 
+    <!-- 由 SelectableLinkMovementMethod 分发短按；关闭 TextView 自带的选区松手跳转。 -->
     <TextView
         android:id="@+id/textView"
         android:textIsSelectable="true"
+        android:linksClickable="false"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clickable="true"
