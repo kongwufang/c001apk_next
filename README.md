@@ -2,6 +2,7 @@
 
 所属fake coolapk下的项目
 一位17岁高中生的业余项目
+
 我的宗旨是：更激进的功能更新，更强的兼容性，更小的安装包和运行占用，以及在功能完善度社区保持领先
 
 [![装机量](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dinstalls%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![24小时活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive24%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![今日新增](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dnew%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php) [![7天内活跃](https://img.shields.io/endpoint?url=https%3A%2F%2Fservice.houlangs.cn%2Fc001apk%2Fstats.php%3Fformat%3Djson%26metric%3Dactive7%26v%3D20261025d)](https://service.houlangs.cn/c001apk/stats.php)<br>
