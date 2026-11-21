@@ -1,0 +1,53 @@
+name: Sign isolated 10012 QA package
+on:
+  push:
+    branches: [qa/antoupdate-sign-1464]
+permissions:
+  contents: read
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch and check official 10011 APK; change only versionCode
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURL_URL='https://service.houlangs.cn/c001apk/antoupdate/c001apk_next-V1.0.11-release.10011.apk'
+          curl -fsS --retry 3 --max-time 45 "$CURL_URL" -o "$RUNNER_TEMP/10011.apk"
+          python3 qa_patch_apk.py "$RUNNER_TEMP/10011.apk" "$RUNNER_TEMP/10012-unsigned.apk"
+      - name: Align and sign without exporting key
+        shell: bash
+        env:
+          QA_KEYSTORE_B64: ${{ secrets.SIGN_KEYSTORE_BASE64 }}
+          QA_STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          QA_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          QA_KEY_PASS: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          tools=$(ls -d "${ANDROID_SDK_ROOT:-$ANDROID_HOME}"/build-tools/* | sort -V | tail -1)
+          java_dir="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          export JAVA_HOME="$java_dir"
+          "$tools/apksigner" verify --print-certs "$RUNNER_TEMP/10011.apk" | grep -F 'certificate SHA-256 digest: 9e7692d0d3f996476c81be80841fc638530eeb1285c8ba325b65ca47af190ec8'
+          "$tools/zipalign" -f 4 "$RUNNER_TEMP/10012-unsigned.apk" "$RUNNER_TEMP/10012-aligned.apk"
+          key=$(mktemp "$RUNNER_TEMP/qa-key.XXXXXXXX")
+          trap 'rm -f -- "$key"' EXIT
+          test -n "$QA_KEYSTORE_B64" && test -n "$QA_STORE_PASS" && test -n "$QA_KEY_ALIAS" && test -n "$QA_KEY_PASS"
+          printf '%s' "$QA_KEYSTORE_B64" | tr -d '\r\n ' | base64 --decode > "$key"
+          unset QA_KEYSTORE_B64
+          mkdir -p "$RUNNER_TEMP/qa-deliverable"
+          out="$RUNNER_TEMP/qa-deliverable/c001apk-10012-qa.apk"
+          "$tools/apksigner" sign --ks "$key" --ks-key-alias "$QA_KEY_ALIAS" --ks-pass env:QA_STORE_PASS --key-pass env:QA_KEY_PASS --out "$out" "$RUNNER_TEMP/10012-aligned.apk" >/dev/null 2>&1 || { echo 'QA signing failed'; exit 1; }
+          unset QA_STORE_PASS QA_KEY_ALIAS QA_KEY_PASS
+          "$tools/apksigner" verify --print-certs "$out" | grep -F 'certificate SHA-256 digest: 9e7692d0d3f996476c81be80841fc638530eeb1285c8ba325b65ca47af190ec8'
+          "$tools/aapt" dump badging "$out" > "$RUNNER_TEMP/qa-badging.txt"
+          grep -F "package: name='com.example.c001apk' versionCode='10012'" "$RUNNER_TEMP/qa-badging.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qa-signed-10012
+          path: ${{ runner.temp }}/qa-deliverable/c001apk-10012-qa.apk
+          retention-days: 1
+          if-no-files-found: error
