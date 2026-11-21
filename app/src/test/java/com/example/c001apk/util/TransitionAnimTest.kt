@@ -23,7 +23,10 @@ import org.xmlpull.v1.XmlPullParser
 class TransitionAnimTest {
     @Before fun reset() {
         MyApplication.context = RuntimeEnvironment.getApplication()
-        MyApplication.context.getSharedPreferences("settings", 0).edit().clear().commit()
+        // Robolectric can reuse the PrefManager singleton across fresh Application contexts.
+        val field = PrefManager::class.java.getDeclaredField("pref").apply { isAccessible = true }
+        val settings = field.get(PrefManager) as android.content.SharedPreferences
+        settings.edit().clear().commit()
     }
 
     @Test fun defaultsToSystemAndDoesNotSendAnimationOverrides() {
