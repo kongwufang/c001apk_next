@@ -323,8 +323,7 @@ jobs:
         #   因为 release.yml 是用 workflow_call 调的 ⇒ event_name 是 `workflow_call` ✗
         #   那样 main 的发版会被静默跳过 ✗（2026-10-28 差点踩）
         #   ⇒ 改成只判分支 + 发版锁 ✓
-        if: |
-          false # QA artifact only
+        if: ${{ false }} # QA artifact only
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
