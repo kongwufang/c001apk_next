@@ -160,8 +160,7 @@ abstract class BaseViewActivity<VM : BaseAppViewModel> : MaterialActivity() {
     }
 
     override fun finish() {
-        super.finish()
-        TransitionAnim.applyReturn(this)
+        TransitionAnim.finish(this) { super.finish() }
     }
 
 }

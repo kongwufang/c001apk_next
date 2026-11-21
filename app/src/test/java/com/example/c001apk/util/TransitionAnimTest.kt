@@ -34,14 +34,25 @@ class TransitionAnimTest {
         val activity = Robolectric.buildActivity(ReturnRecorder::class.java).setup().get()
         assertEquals(TransitionAnim.MODE_SYSTEM, PrefManager.animMode)
         TransitionAnim.startActivity(context, Intent())
-        TransitionAnim.startActivity(context, Intent(), sheet = true)
-        assertEquals(2, context.withoutOptions)
+        assertEquals(1, context.withoutOptions)
         assertEquals(0, context.withOptions)
         assertNull(TransitionAnim.enterOptionsCompat(context))
-        assertNull(TransitionAnim.enterOptionsCompat(context, sheet = true))
+        assertNull(TransitionAnim.photoPickerOptions(context))
         TransitionAnim.applyReturn(activity)
-        TransitionAnim.applyReturn(activity, sheet = true)
         assertTrue(activity.overrides.isEmpty())
+    }
+
+    @Test fun floatingComposerSlidesWithSystemPageTransitions() {
+        val context = LaunchRecorder(MyApplication.context)
+        val activity = Robolectric.buildActivity(ReturnRecorder::class.java).setup().get()
+        TransitionAnim.startActivity(context, Intent(), sheet = true)
+        assertEquals(1, context.withOptions)
+        val options = TransitionAnim.enterOptionsCompat(context, sheet = true)
+        assertNotNull(options)
+        assertEquals(R.anim.anim_bottom_sheet_slide_up, options?.toBundle()?.getInt("android:activity.animEnterRes"))
+        assertEquals(0, options?.toBundle()?.getInt("android:activity.animExitRes"))
+        TransitionAnim.applyReturn(activity, sheet = true)
+        assertEquals(listOf(0 to R.anim.anim_bottom_sheet_slide_down), activity.overrides)
     }
 
     @Test fun legacyCustomChoicesAreRetainedButNotAppliedUntilOptIn() {

@@ -208,7 +208,7 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
 
     private fun pickImage() {
         if (readOnly) return
-        val options = TransitionAnim.enterOptionsCompat(this, sheet = true)
+        val options = TransitionAnim.photoPickerOptions(this)
         try {
             pickMedia.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),

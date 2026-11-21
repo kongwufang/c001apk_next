@@ -106,8 +106,7 @@ abstract class BaseActivity<VB : ViewBinding> : MaterialActivity() {
     protected open val usesSheetTransition: Boolean get() = false
 
     override fun finish() {
-        super.finish()
-        TransitionAnim.applyReturn(this, sheet = usesSheetTransition)
+        TransitionAnim.finish(this, sheet = usesSheetTransition) { super.finish() }
     }
 
 

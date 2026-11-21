@@ -904,7 +904,7 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
 
     private fun launchPick() {
         (binding.main as? SmoothInputLayout)?.closeKeyboard(false)
-        val options = TransitionAnim.enterOptionsCompat(this, sheet = true)
+        val options = TransitionAnim.photoPickerOptions(this)
         try {
             pickMultipleMedia.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),

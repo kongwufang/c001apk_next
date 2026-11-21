@@ -41,6 +41,7 @@ class MyApplication : Application() {
         super.onCreate()
 
         context = applicationContext
+        registerActivityLifecycleCallbacks(com.example.c001apk.util.RapidReturn)
 
         // SSL 校验失败 → 风险环境警告弹窗（跟踪前台 Activity）
         SslErrorPrompter.install(this)
