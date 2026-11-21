@@ -433,6 +433,10 @@ public class LoadOptions extends DownloadOptions {
     @Override
     public String makeKey() {
         StringBuilder builder = new StringBuilder();
+        if (decodeGifImage) {
+            // An animated request must not be satisfied by a processed first-frame bitmap.
+            builder.append("animatedGif");
+        }
         if (maxSize != null) {
             if (builder.length() > 0) builder.append('-');
             builder.append(maxSize.getKey());

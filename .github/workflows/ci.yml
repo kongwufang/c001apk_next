@@ -244,6 +244,22 @@ jobs:
           ./gradlew :app:assembleRelease -Pchannel=${{ steps.channel.outputs.channel }} --stacktrace 2>&1 | tee -a gradle-release.log
           echo "releaseName=$(ls app/build/outputs/apk/release/*.apk | awk -F '(/|\\.apk)' '{print $6}')" >> $GITHUB_OUTPUT
 
+      - name: Verify APK is ABI-independent
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          paths = sorted(Path('app/build/outputs/apk/release').glob('*.apk'))
+          assert paths, 'No APK produced'
+          for path in paths:
+              with ZipFile(path) as apk:
+                  native = [name for name in apk.namelist() if name.lower().endswith('.so')]
+              if native:
+                  raise SystemExit(f'{path.name} bundles native libraries: {native}')
+              print(f'{path.name}: no bundled .so files')
+          PY
+
       - name: Upload release
         if: success()
         uses: actions/upload-artifact@v4
