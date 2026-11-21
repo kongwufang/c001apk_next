@@ -193,7 +193,7 @@
     <string name="my_like">我的赞</string>
     <string name="my_reply">我的回复</string>
     <string name="my_feed">我的动态</string>
-    <string name="my_follow">我的关注</string>
+    <string name="cool_recycle">酷回收</string>
     <string name="offline_cache">离线缓存</string>
     <string name="offline_unsupported">离线缓存不支持该操作</string>
     <string name="offline_cache_empty">还没有离线缓存的动态，去动态详情页「收藏到」面板里点「离线缓存」</string>

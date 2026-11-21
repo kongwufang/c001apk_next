@@ -57,7 +57,7 @@ class MessageFirstAdapter : RecyclerView.Adapter<MessageFirstAdapter.FirstViewHo
 
                 R.id.followLayout ->
                     // 2026-10-25：「关注」存本地还是云端由设置决定 ✓
-                    //   本地 ⇒ 本机关注页（跟侧边栏 / 九宫格那个入口保持一致 ✓）
+                    //   本地 ⇒ 本机关注页
                     //   云端 ⇒ 原来的 FFFListActivity type=follow
                     if (!PrefManager.saveFollowToCloud) {
                         IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
