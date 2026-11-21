@@ -15,6 +15,7 @@ import android.widget.TextView
 class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
     private var downX = 0f
     private var downY = 0f
+    private var downEventTime = 0L
     private var downLink: ClickableSpan? = null
     private var startedWithSelection = false
 
@@ -23,6 +24,7 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.x
                 downY = event.y
+                downEventTime = event.eventTime
                 startedWithSelection = widget.hasSelection()
                 downLink = linkAt(widget, buffer, event.x, event.y)
             }
@@ -35,7 +37,7 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
                 val link = downLink
                 downLink = null
                 if (link != null && !startedWithSelection && !widget.hasSelection() &&
-                    event.eventTime - event.downTime < ViewConfiguration.getLongPressTimeout() &&
+                    event.eventTime - downEventTime in 0L until ViewConfiguration.getLongPressTimeout().toLong() &&
                     link === linkAt(widget, buffer, event.x, event.y)) {
                     super.onTouchEvent(widget, buffer, event)
                     link.onClick(widget)

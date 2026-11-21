@@ -157,6 +157,14 @@ class SelectableLinkMovementMethodTest {
         assertEquals(0, f.clicks)
     }
 
+    @Test fun longPressDoesNotOpenLinkWhenInjectedUpEventHasAFreshDownTime() {
+        val f = Fixture()
+        val down = SystemClock.uptimeMillis()
+        f.event(MotionEvent.ACTION_DOWN, down = down)
+        f.event(MotionEvent.ACTION_UP, down = down + ViewConfiguration.getLongPressTimeout() + 20L)
+        assertEquals(0, f.clicks)
+    }
+
     @Test fun dragOffAndBackDoesNotBecomeLinkTap() {
         val f = Fixture()
         val down = SystemClock.uptimeMillis()
