@@ -77,7 +77,7 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
         setSupportActionBar(binding.toolBar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setHomeActionContentDescription(R.string.webview_go_back)
-        onBackPressedDispatcher.addCallback(this) { goBackInPage() }
+        onBackPressedDispatcher.addCallback(this) { goBackOrClose() }
 
         if (SDK_INT >= 28 && !dataDirSuffixSet) {
             dataDirSuffixSet = true
@@ -409,7 +409,7 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            android.R.id.home -> goBackInPage()
+            android.R.id.home -> goBackOrClose()
 
             R.id.closeWebView -> finish()
 
@@ -452,9 +452,13 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
         return true
     }
 
-    private fun goBackInPage() {
-        // 网页历史到头时仍留在本页；退出由工具栏的关闭按钮负责。
-        webView?.let { if (it.canGoBack()) it.goBack() }
+    private fun goBackOrClose() {
+        val currentWebView = webView
+        if (currentWebView != null && currentWebView.canGoBack()) {
+            currentWebView.goBack()
+        } else {
+            finish()
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")

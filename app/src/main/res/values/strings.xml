@@ -7,7 +7,7 @@
     <string name="tab_setting">设置</string>
     <string name="search">搜索</string>
     <string name="refresh">刷新</string>
-    <string name="webview_go_back">返回上一页</string>
+    <string name="webview_go_back">返回</string>
     <string name="webview_close">退出网页</string>
     <string name="copy_link">复制链接</string>
     <string name="open_in_browser">在浏览器中打开</string>
