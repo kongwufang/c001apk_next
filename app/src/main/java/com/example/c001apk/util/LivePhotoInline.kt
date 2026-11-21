@@ -75,10 +75,8 @@ object LivePhotoInline {
                     return@resolveAsync
                 }
                 host = parent
-                val view = TextureView(image.context).apply {
-                    isOpaque = false
-                    layout(image.left, image.top, image.right, image.bottom)
-                }
+                val layer = LivePhotoVideoLayer(image)
+                val view = layer.texture
                 texture = view
                 parent.overlay.add(view)
                 val exo = ExoPlayer.Builder(image.context).build()
@@ -88,15 +86,10 @@ object LivePhotoInline {
                 exo.setVideoTextureView(view)
                 exo.addListener(object : Player.Listener {
                     override fun onVideoSizeChanged(size: androidx.media3.common.VideoSize) {
-                        if (size.width <= 0 || size.height <= 0) return
-                        val ratio = size.width * size.pixelWidthHeightRatio / size.height
-                        val width = minOf(image.width.toFloat(), image.height * ratio).toInt()
-                        val height = (width / ratio).toInt()
-                        val left = image.left + (image.width - width) / 2
-                        val top = image.top + (image.height - height) / 2
-                        view.layout(left, top, left + width, top + height)
+                        layer.onVideoSizeChanged(size)
                     }
                     override fun onRenderedFirstFrame() {
+                        layer.onRenderedFirstFrame()
                         AppLog.i(LogModule.CARD, "LivePhoto", "INLINE first frame rendered")
                     }
                     override fun onPlaybackStateChanged(state: Int) {

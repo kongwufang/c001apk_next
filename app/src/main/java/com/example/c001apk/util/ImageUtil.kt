@@ -496,9 +496,17 @@ object ImageUtil {
                     val readyPosition = originList.indexOf(mojitoView.contentOriginUrl)
                         .takeIf { it >= 0 } ?: currentPosition
                     val content: View = mojitoView.contentRealView ?: return
-                    fullscreenImages[readyPosition] = content
+                    // Mojito can report completion again when the full-resolution cover arrives.
+                    // Do not tear down and restart an already playing layer on the same view.
+                    val previous = fullscreenImages.put(readyPosition, content)
+                    if (previous === content) return
+                    previous?.let { LivePhotoInline.stop(it) }
                     if (readyPosition == currentPosition) {
-                        content.post { playFullscreen(readyPosition) }
+                        content.post {
+                            if (readyPosition == currentPosition && fullscreenImages[readyPosition] === content) {
+                                playFullscreen(readyPosition)
+                            }
+                        }
                     }
                 }
 
