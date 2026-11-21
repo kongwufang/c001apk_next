@@ -2,6 +2,8 @@ package com.example.c001apk.ui.feed
 
 import android.app.Activity
 import android.app.Application
+import android.content.Intent
+import android.os.Bundle
 import android.os.SystemClock
 import android.text.Selection
 import android.text.Spannable
@@ -15,14 +17,12 @@ import com.example.c001apk.databinding.ItemFeedArticleTextBinding
 import com.example.c001apk.logic.model.FeedArticleContentBean
 import com.example.c001apk.view.SelectableLinkMovementMethod
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -30,9 +30,15 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [28], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ArticleTextBindingTest {
+    class LaunchRecorder : Activity() {
+        val launched = mutableListOf<Intent>()
+        override fun startActivity(intent: Intent) { launched += intent }
+        override fun startActivity(intent: Intent, options: Bundle?) { launched += intent }
+    }
+
     @Test fun boundArticleKeepsSelectionAndOpensTheCurrentInlineLinkOnTap() {
         MyApplication.context = RuntimeEnvironment.getApplication()
-        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val activity = Robolectric.buildActivity(LaunchRecorder::class.java).setup().get()
         val binding = ItemFeedArticleTextBinding.inflate(activity.layoutInflater)
         val holder = FeedDataAdapter.TextViewHolder(binding, object : ItemListener {})
         val text = binding.textView
@@ -61,7 +67,9 @@ class ArticleTextBindingTest {
             val down = SystemClock.uptimeMillis()
             fun event(action: Int, elapsed: Long) {
                 MotionEvent.obtain(down, down + elapsed, action, x + text.totalPaddingLeft, y, 0).also {
-                    text.onTouchEvent(it)
+                    // This exercises the live handler installed by the article holder. The shared
+                    // gesture suite covers dispatch through TextView/Editor's own touch pipeline.
+                    text.movementMethod.onTouchEvent(text, buffer, it)
                     it.recycle()
                 }
             }
@@ -69,17 +77,16 @@ class ArticleTextBindingTest {
             event(MotionEvent.ACTION_UP, heldFor)
         }
 
-        val launched = shadowOf(activity)
         bindLink("123")
         Selection.removeSelection(text.text as Spannable)
         tapLink(ViewConfiguration.getLongPressTimeout() + 20L)
-        assertNull(launched.nextStartedActivity)
+        assertTrue(activity.launched.isEmpty())
         bindLink("456")
         Selection.removeSelection(text.text as Spannable)
         tapLink()
-        val intent = launched.nextStartedActivity
+        assertEquals("A short tap must launch exactly once", 1, activity.launched.size)
+        val intent = activity.launched.single()
         assertEquals(FeedActivity::class.java.name, intent.component?.className)
         assertEquals("456", intent.getStringExtra("id"))
-        assertNull(launched.nextStartedActivity)
     }
 }
