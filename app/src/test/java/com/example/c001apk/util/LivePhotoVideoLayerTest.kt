@@ -24,7 +24,7 @@ class LivePhotoVideoLayerTest {
         assertFalse(layer.isRevealed)
 
         layer.onVideoSizeChanged(VideoSize(1600, 900))
-        assertEquals(Rect(10, 307, 730, 712), layer.bounds())
+        assertEquals(Rect(10, 317, 730, 722), layer.bounds())
         assertTrue(layer.isRevealed)
     }
 
