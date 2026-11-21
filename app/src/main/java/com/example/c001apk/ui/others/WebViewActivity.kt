@@ -15,7 +15,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.graphics.Bitmap
 import android.util.Log
-import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import android.view.ViewGroup
@@ -28,6 +27,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -76,6 +76,8 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
 
         setSupportActionBar(binding.toolBar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setHomeActionContentDescription(R.string.webview_go_back)
+        onBackPressedDispatcher.addCallback(this) { goBackInPage() }
 
         if (SDK_INT >= 28 && !dataDirSuffixSet) {
             dataDirSuffixSet = true
@@ -407,7 +409,9 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            android.R.id.home -> finish()
+            android.R.id.home -> goBackInPage()
+
+            R.id.closeWebView -> finish()
 
             R.id.editDevice -> editUrl?.let { url ->
                 applyCoolapkCookies(url)
@@ -448,12 +452,9 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
         return true
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView?.canGoBack() == true) {
-            webView?.goBack() //返回上个页面
-            return true
-        }
-        return super.onKeyDown(keyCode, event) //退出H5界面
+    private fun goBackInPage() {
+        // 网页历史到头时仍留在本页；退出由工具栏的关闭按钮负责。
+        webView?.let { if (it.canGoBack()) it.goBack() }
     }
 
     @SuppressLint("ClickableViewAccessibility")
