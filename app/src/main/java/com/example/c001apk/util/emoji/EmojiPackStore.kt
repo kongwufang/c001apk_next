@@ -47,8 +47,10 @@ internal object EmojiPackStore {
                 return pack
             }
         }
+        bitmaps.evictAll()
         directory = null
         current = null
+        if (PrefManager.emojiPackVersion != 0) PrefManager.emojiPackVersion = 0
         mutableState.value = null
         return null
     }

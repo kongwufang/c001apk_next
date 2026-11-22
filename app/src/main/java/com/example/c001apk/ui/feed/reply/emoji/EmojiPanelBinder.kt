@@ -9,6 +9,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.R
 import com.example.c001apk.util.dp
+import com.example.c001apk.util.emoji.EmojiPackStore
 import com.google.android.material.color.MaterialColors
 
 /**
@@ -44,7 +45,7 @@ internal class EmojiPanelBinder(
     fun updateRecent(codes: List<String>) {
         recent = codes
         tabs.getOrNull(0)?.let {
-            tabs[0] = EmojiPanels.pages(codes)
+            tabs[0] = EmojiPanels.pages(codes.filter(EmojiPackStore::contains))
             adapter.notifyItemChanged(0)
         }
     }

@@ -15,7 +15,7 @@ internal object EmojiPanels {
     }
 
     fun tabs(recent: List<String>): List<List<List<String>>> = buildList {
-        add(pages(recent))
+        add(pages(recent.filter(EmojiPackStore::contains)))
         val groups = EmojiPackStore.groups()
         if (groups.isEmpty()) add(pages(emptyList())) else groups.forEach { add(pages(it.codes)) }
     }

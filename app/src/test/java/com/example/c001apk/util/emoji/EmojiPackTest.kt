@@ -2,6 +2,7 @@ package com.example.c001apk.util.emoji
 
 import android.app.Application
 import com.example.c001apk.MyApplication
+import com.example.c001apk.ui.feed.reply.emoji.EmojiPanels
 import com.example.c001apk.util.PrefManager
 import java.io.File
 import java.util.zip.ZipEntry
@@ -54,6 +55,9 @@ class EmojiPackTest {
         assertEquals(listOf("[哈哈]", "[牛牛点赞]"), pack.codes)
         assertTrue(File(dir, "images/a.webp").isFile)
         assertEquals(pack, EmojiPackStore.load(context))
+        assertEquals(listOf("最近", "默认", "牛牛"), EmojiPanels.titles())
+        assertEquals(listOf(listOf("[哈哈]")), EmojiPanels.tabs(listOf("[哈哈]", "[未知]")).first())
+        assertEquals(listOf(27, 1), EmojiPanels.pages(List(28) { "[$it]" }).map { it.size })
 
         val nextIndex = index.replace("\"version\":3", "\"version\":4")
         val oversized = zip(nextIndex, mapOf("images/a.webp" to ByteArray(EmojiPackInstaller.MAX_ENTRY_BYTES.toInt() + 1)))
@@ -78,6 +82,7 @@ class EmojiPackTest {
     @Test fun parserRejectsDuplicateCodesAndUnsafePaths() {
         assertNotNull(EmojiPack.parse(index))
         assertNull(EmojiPack.parse(index.replace("[牛牛点赞]", "[哈哈]")))
+        assertNull(EmojiPack.parse(index.replace("[哈哈]", "哈哈")))
         assertNull(EmojiPack.parse(index.replace("images/a.webp", "../a.webp")))
         assertNull(EmojiPack.parse(index.replace("\"count\":2", "\"count\":3")))
         assertNull(EmojiPack.parse("not json"))

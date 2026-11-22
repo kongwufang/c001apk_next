@@ -7,12 +7,12 @@ only when its `version` is newer than the installed one.
 ```json
 {
   "schema": 1,
-  "version": 1,
-  "url": "https://cdn1.houlangs.cn/c001apk/emojipack/emoji-pack-1.zip",
-  "sha256": "22ffb8b9b4982d86d1474826e4b6daa4a9d027f75eeb4c25f17c1f74422bc6b8",
-  "sizeBytes": 1322820,
+  "version": 2,
+  "url": "https://cdn1.houlangs.cn/c001apk/emojipack/emoji-pack-2.zip",
+  "sha256": "f0243208c02ebe5a0775d5c2ce1ddcb22cc11e68ebc71afc81fb28cfd6d59fb9",
+  "sizeBytes": 1322866,
   "count": 183,
-  "publishedAt": "2026-11-22T05:31:15Z"
+  "publishedAt": "2026-11-22T06:09:49Z"
 }
 ```
 
@@ -41,7 +41,9 @@ unchanged, writes `emoji-pack-<n>.zip`, uploads it to the `houlangs` bucket unde
 (`_rev/win_ref/s3v4.py`); they are never part of this repository.
 
 Update `version` monotonically. A client that already runs version `n` ignores any manifest whose
-`version` is not greater, so republishing the same version never triggers a download.
+`version` is not greater, so never overwrite an existing versioned ZIP. To restore previous artwork,
+build it as a **new higher version** and publish that manifest; moving the manifest backwards will
+not revert clients that already upgraded.
 
 ## Client policy
 

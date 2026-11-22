@@ -66,8 +66,11 @@ def visible(image):
 
 def build(version):
     spec = json.loads(SPEC.read_text(encoding='utf-8'))
-    entries = spec['entries']
+    # The artwork catalog stores bare names; wire codes must match [name] in App text.
+    entries = [dict(e, code='[' + e['code'] + ']') for e in spec['entries']]
     codes = [e['code'] for e in entries]
+    if any(not re.fullmatch(r'\[[^\[\]\r\n]{1,46}\]', code) for code in codes):
+        raise SystemExit('invalid emoji code in spec.json; enter bare names without brackets')
     if len(set(codes)) != len(codes):
         raise SystemExit('duplicate emoji codes in spec.json')
     groups = []

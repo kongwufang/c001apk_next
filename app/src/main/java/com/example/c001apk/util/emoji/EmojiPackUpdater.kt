@@ -68,6 +68,7 @@ internal object EmojiPackUpdater : Application.ActivityLifecycleCallbacks {
         }
         if (process != application.packageName) return
         app = application.applicationContext
+        EmojiPackStore.load(app)
         application.registerActivityLifecycleCallbacks(this)
         watchNetworks()
     }
