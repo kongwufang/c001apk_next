@@ -1,19 +1,19 @@
 {
- "versionName": "V1.0.11",
- "versionCode": 10011,
- "changelog": "V1.0.11 · 正式版\n\n【侧栏更新卡】\n- 更新日志很长时改为卡片内滚动：内容完整可见，底部「跳过此版本 / 下载」不再被挤出屏幕\n- 卡片高度不再随日志变长，短日志也不会留大块空白\n\n【搜索】\n- 综合页「动态」段补齐五个排序按钮：综合 / 实时 / 热度 / 评论 / 精准\n- 数码、话题卡按官方样式改成纵向行：图标 + 标题 + 热度讨论 + 评分\n- 修复切换排序时列表跳位、卡片内部链接报错\n\n【取号】\n- 改成本机直接获取，不再经过网页中转；失败或取消都不会改动已有 ID\n\n【自动刷新】\n- 新增「自动刷新数字联盟ID」开关：距上次成功获取满 24 小时会静默刷新\n- 刷新成功 / 失败会有短提示，跳过或关闭时不打扰\n\n【个人主页】\n- 按官方规则显示「该用户禁言中」标记\n\n【引导】\n- 从本版起重新走一次修订后的引导（仅一次，之后不再重复）\n\n【其它】\n- 修复若干列表与卡片显示问题",
- "download": [
-  {
-   "name": "高速下载",
-   "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next-V1.0.11-release.10011.apk"
-  },
-  {
-   "name": "线路一（GitHub 直链）",
-   "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.11-release.10011.apk"
-  },
-  {
-   "name": "线路二（发行版页面）",
-   "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.11"
-  }
- ]
+  "versionName": "V1.0.12",
+  "versionCode": 10012,
+  "changelog": "V1.0.12 · 正式版\n\n【关注与登录】\n- 未登录也能使用本机关注；首页、个人主页和侧栏同步更新，不会上传到云端。登录后仍可选择云端关注。\n- 改进酷安网页授权和会话校验；消息缓存按账号隔离，刷新后同步新增、修改和删除。\n\n【引导与表情】\n- 升级后会重新显示一次四页引导，保留已有账号、数字联盟 ID 和设置。\n- 183 个内置表情改为独立资源包，下载一次后可离线使用，减小安装包体积。\n\n【更新与浏览】\n- 可选 Wi-Fi 自动下载更新；下载后校验安装包，仍需手动确认安装。\n- 修复实况图全屏首帧闪动；全屏 GIF 改用 Glide 播放。文章和评论支持短按打开链接、长按选字。\n- 内置网页支持后退、刷新和关闭；侧栏新增「酷回收」，页面转场默认跟随系统。\n\n【数字联盟】\n- 取消后台主动验号；已有的 24 小时自动刷新开关及业务请求异常提示不变。",
+  "download": [
+    {
+      "name": "高速下载",
+      "url": "https://service.houlangs.cn/file/?path=%E6%9D%82%E9%A1%B9/c001apk/c001apk_next-V1.0.12-release.10012.apk"
+    },
+    {
+      "name": "线路一（GitHub 直链）",
+      "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.12-release.10012.apk"
+    },
+    {
+      "name": "线路二（发行版页面）",
+      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.12"
+    }
+  ]
 }
