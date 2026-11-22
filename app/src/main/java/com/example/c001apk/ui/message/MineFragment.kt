@@ -121,7 +121,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
 
     private fun initLogin() {
         binding.isLogin = isLogin
-        messageFirstAdapter.isLogin = isLogin
+        messageFirstAdapter.setMode(isLogin, PrefManager.saveFollowToCloud)
         // 工具栏（含设置图标）不管登没登录都要显示，只有「退出登录」跟着登录状态走
         initMenu()
         if (isLogin) {
@@ -145,6 +145,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
     }
 
     private fun initObserve() {
+        viewModel.localFollowCount.observe(viewLifecycleOwner, messageFirstAdapter::setLocalFollowCount)
         viewModel.countList.observe(viewLifecycleOwner) {
             messageFirstAdapter.setFFFList(it)
         }
@@ -232,6 +233,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
 
     override fun onResume() {
         super.onResume()
+        messageFirstAdapter.setMode(PrefManager.isLogin, PrefManager.saveFollowToCloud)
         // 编辑资料（头像）返回后同步头部
         if (isLogin) showProfile()
         if (viewModel.isInit) {

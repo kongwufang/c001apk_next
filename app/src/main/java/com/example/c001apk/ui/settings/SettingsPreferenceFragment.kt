@@ -320,9 +320,13 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         findPreference<MaterialSwitchPreference>("saveFollowToCloud")?.apply {
             isChecked = PrefManager.saveFollowToCloud
+            isEnabled = PrefManager.isLogin
+            if (!isEnabled) summary = "未登录时关注保存在本机；登录后可选择云端保存。"
             setOnPreferenceChangeListener { _, v ->
-                PrefManager.saveFollowToCloud = v as Boolean
-                true
+                if (!PrefManager.isLogin) false else {
+                    PrefManager.saveFollowToCloud = v as Boolean
+                    true
+                }
             }
         }
         findPreference<MaterialSwitchPreference>("saveBlackListToCloud")?.apply {

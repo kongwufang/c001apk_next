@@ -74,10 +74,13 @@ object PrefManager {
         get() = pref.getBoolean("save_collection_to_cloud", isLogin)
         set(value) = pref.edit().putBoolean("save_collection_to_cloud", value).apply()
 
-    /** 关注：true=云端 / false=本地 */
+    /** 只有登录后才能使用云端关注；退出登录时立即回落到本机。 */
     var saveFollowToCloud: Boolean
-        get() = pref.getBoolean("save_follow_to_cloud", isLogin)
+        get() = isLogin && pref.getBoolean("save_follow_to_cloud", true)
         set(value) = pref.edit().putBoolean("save_follow_to_cloud", value).apply()
+
+    fun canFollowUser(uid: String?): Boolean =
+        !uid.isNullOrBlank() && (!isLogin || uid != this.uid)
 
     /** 黑名单（用户）：true=云端 / false=本地 */
     var saveBlackListToCloud: Boolean

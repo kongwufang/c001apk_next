@@ -1,6 +1,8 @@
 package com.example.c001apk.ui.message
 
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.map
+import com.example.c001apk.logic.repository.FollowRepo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.c001apk.adapter.LoadingState
@@ -20,8 +22,11 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class MineViewModel @Inject constructor(
-    private val networkRepo: NetworkRepo
+    private val networkRepo: NetworkRepo,
+    followRepo: FollowRepo,
 ) : ViewModel() {
+
+    val localFollowCount = followRepo.loadAllLive().map { it.size }
 
     var initLogin: Boolean = true
     var isInit: Boolean = true

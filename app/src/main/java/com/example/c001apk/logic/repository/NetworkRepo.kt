@@ -408,10 +408,9 @@ class NetworkRepo @Inject constructor(
      * - 返回 `message = null` 的假响应 ✓ ⇒ 调用方走成功分支 ✓ 按钮正常翻转 ✓
      */
     suspend fun postFollowUnFollow(url: String, uid: String) = fire {
+        require(PrefManager.canFollowUser(uid)) { "无效的关注对象" }
         if (!PrefManager.saveFollowToCloud) {
-            runCatching {
-                if (url.contains("unfollow")) followRepo.unfollow(uid) else followRepo.follow(uid)
-            }
+            followRepo.setFollowed(uid, url != "/v6/user/unfollow")
             Result.success(
                 LikeReplyResponse(
                     data = "1",

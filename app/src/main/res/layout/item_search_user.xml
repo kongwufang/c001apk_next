@@ -12,10 +12,6 @@
             type="String" />
 
         <variable
-            name="isFollow"
-            type="int" />
-
-        <variable
             name="data"
             type="com.example.c001apk.logic.model.HomeFeedResponse.Data" />
 
@@ -124,7 +120,6 @@
                 android:layout_height="wrap_content"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:onClick="@{() -> listener.onFollowUser(uid, isFollow)}"
                 android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"

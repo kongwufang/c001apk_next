@@ -52,6 +52,7 @@ import com.example.c001apk.logic.model.Like
 import com.example.c001apk.util.DateUtils
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.PrefManager
+import com.example.c001apk.ui.follow.FollowButton
 import com.example.c001apk.util.dp
 import com.example.c001apk.view.LinearItemDecoration1
 import com.google.android.material.color.MaterialColors
@@ -557,6 +558,10 @@ class AppAdapter(
                 com.example.c001apk.R.string.blocked_multi_report_user
             )
 
+            binding.uid = data.userInfo?.takeIf { data.fUserInfo != null }?.uid
+                ?: data.fUserInfo?.uid ?: data.uid
+            bindFollow(data)
+
             if (data.userInfo != null && data.fUserInfo != null) {
                 binding.uid = data.userInfo.uid
                 binding.uname.text = data.userInfo.username
@@ -577,24 +582,17 @@ class AppAdapter(
                 binding.follow.text = "${data.follow}关注"
                 binding.fans.text = "${data.fans}粉丝"
                 binding.act.text = DateUtils.fromToday(data.logintime ?: 0L) + "活跃"
-                binding.isFollow = data.isFollow ?: 0
-                if (data.isFollow == 1) {
-                    binding.followBtn.text = "已关注"
-                    binding.followBtn.setTextColor(itemView.context.getColor(android.R.color.darker_gray))
-                } else {
-                    binding.followBtn.text = "关注"
-                    binding.followBtn.setTextColor(
-                        MaterialColors.getColor(
-                            itemView.context,
-                            androidx.appcompat.R.attr.colorPrimary,
-                            0
-                        )
-                    )
-                }
-                binding.followBtn.isVisible = PrefManager.isLogin
                 ImageUtil.showIMG(binding.avatar, data.userAvatar)
             }
+        }
 
+        fun bindFollow(data: HomeFeedResponse.Data) {
+            val uid = binding.uid
+            // In cloud mode keep the action limited to rows that carry cloud follow state.
+            val cloudFollowed = if (data.userInfo != null && data.fUserInfo == null) data.isFollow == 1 else null
+            FollowButton.bind(binding.followBtn, uid, cloudFollowed, tintText = true) { followed ->
+                uid?.let { listener.onFollowUser(it, if (followed) 1 else 0) }
+            }
         }
     }
 
@@ -1388,26 +1386,7 @@ class AppAdapter(
                         holder.binding.executePendingBindings()
                     }
 
-                    is UserViewHolder -> {
-                        holder.binding.isFollow = currentList[position].isFollow ?: 0
-                        if (currentList[position].isFollow == 1) {
-                            holder.binding.followBtn.text = "已关注"
-                            holder.binding.followBtn.setTextColor(
-                                holder.itemView.context.getColor(
-                                    android.R.color.darker_gray
-                                )
-                            )
-                        } else {
-                            holder.binding.followBtn.text = "关注"
-                            holder.binding.followBtn.setTextColor(
-                                MaterialColors.getColor(
-                                    holder.itemView.context,
-                                    androidx.appcompat.R.attr.colorPrimary,
-                                    0
-                                )
-                            )
-                        }
-                    }
+                    is UserViewHolder -> holder.bindFollow(currentList[position])
                 }
             }
         }

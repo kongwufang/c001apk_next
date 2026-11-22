@@ -972,6 +972,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
     }
 
     inner class ItemClickListener : ItemListener {
+        override val showAuthorFollow: Boolean get() = !viewModel.isOffline
 
         /** 底栏「举报」图标（2026-10-31）—— 详情页用 viewModel.id 更准 */
         override fun onReportFeed(view: android.view.View, id: String?) {
