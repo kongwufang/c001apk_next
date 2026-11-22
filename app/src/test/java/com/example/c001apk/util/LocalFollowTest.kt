@@ -3,7 +3,9 @@ package com.example.c001apk.util
 import android.app.Application
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.room.Room
 import com.example.c001apk.MyApplication
+import com.example.c001apk.logic.database.FollowUserDatabase
 import com.example.c001apk.logic.dao.FollowUserDao
 import com.example.c001apk.logic.model.FollowUserEntity
 import com.example.c001apk.logic.network.ApiService
@@ -28,6 +30,10 @@ class LocalFollowTest {
     @Before fun reset() {
         MyApplication.context = RuntimeEnvironment.getApplication()
         MyApplication.context.getSharedPreferences("settings", 0).edit().clear().commit()
+        // PrefManager caches its SharedPreferences instance across tests in this sandbox.
+        PrefManager.isLogin = false
+        PrefManager.uid = ""
+        PrefManager.saveFollowToCloud = false
     }
 
     @Test fun guestCannotUseCloudEvenWithAStoredCloudPreference() {
@@ -45,17 +51,22 @@ class LocalFollowTest {
     }
 
     @Test fun guestFollowPersistsOneRowAndUnfollowRemovesItWithoutRequests() = runBlocking {
-        val follow = FollowRepo(FakeFollowDao())
-        val api = mock(ApiService::class.java)
-        val network = NetworkRepo(api, api, api, follow, mock(LocalCollectionRepo::class.java))
-        PrefManager.saveFollowToCloud = true // stale preference from a signed-in session
-        network.postFollowUnFollow("/v6/user/follow", "42").first().getOrThrow()
-        network.postFollowUnFollow("/v6/user/follow", "42").first().getOrThrow()
-        assertEquals(listOf("42"), follow.loadAll().map { it.uid })
-        network.postFollowUnFollow("/v6/user/unfollow", "42").first().getOrThrow()
-        assertTrue(follow.loadAll().isEmpty())
-        assertTrue(network.postFollowUnFollow("/v6/user/follow", " ").first().isFailure)
-        verifyNoInteractions(api)
+        val db = Room.inMemoryDatabaseBuilder(MyApplication.context, FollowUserDatabase::class.java).build()
+        try {
+            val follow = FollowRepo(db.followUserDao())
+            val api = mock(ApiService::class.java)
+            val network = NetworkRepo(api, api, api, follow, mock(LocalCollectionRepo::class.java))
+            PrefManager.saveFollowToCloud = true // stale preference from a signed-in session
+            network.postFollowUnFollow("/v6/user/follow", "314159").first().getOrThrow()
+            network.postFollowUnFollow("/v6/user/follow", "314159").first().getOrThrow()
+            assertEquals(listOf("314159"), follow.loadAll().map { it.uid })
+            network.postFollowUnFollow("/v6/user/unfollow", "314159").first().getOrThrow()
+            assertTrue(follow.loadAll().isEmpty())
+            assertTrue(network.postFollowUnFollow("/v6/user/follow", " ").first().isFailure)
+            verifyNoInteractions(api)
+        } finally {
+            db.close()
+        }
     }
 
     @Test fun databaseFailureIsNotReportedAsSuccess() = runBlocking {
