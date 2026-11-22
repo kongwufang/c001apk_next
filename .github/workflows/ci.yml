@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       onboarding_compat:
-        description: 'Build an artifact-only versionCode 10011 onboarding compatibility APK'
+        description: 'Build an artifact-only versionCode 10012 onboarding compatibility APK on debug'
         type: boolean
         required: false
         default: false
@@ -563,18 +563,18 @@ jobs:
           done
 
       # Runs after all normal publishing. This APK is an Actions artifact only, never a Release asset.
-      - name: Build onboarding compatibility APK (10011)
+      - name: Build onboarding compatibility APK (10012)
         if: github.event_name == 'workflow_dispatch' && github.ref_name == 'debug' && inputs.onboarding_compat
         run: |
           set -euo pipefail
-          ./gradlew :app:assembleRelease -Pchannel=compat -PoverrideVersionCode=10011 -PoverrideVersionName=V1.0.11 --stacktrace 2>&1 | tee gradle-onboarding-compat.log
+          ./gradlew :app:assembleRelease -Pchannel=compat -PoverrideVersionCode=10012 -PoverrideVersionName=V1.0.12 --stacktrace 2>&1 | tee gradle-onboarding-compat.log
           mkdir -p app/build/outputs/onboarding-compat
           cp app/build/outputs/apk/release/*-compat*.apk app/build/outputs/onboarding-compat/
           cp app/build/outputs/mapping/release/mapping.txt app/build/outputs/onboarding-compat/
 
-      - name: Upload onboarding compatibility APK (10011)
+      - name: Upload onboarding compatibility APK (10012)
         if: github.event_name == 'workflow_dispatch' && github.ref_name == 'debug' && inputs.onboarding_compat
         uses: actions/upload-artifact@v4
         with:
-          name: onboarding-compat-10011
+          name: onboarding-compat-10012
           path: app/build/outputs/onboarding-compat/*

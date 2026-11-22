@@ -16,28 +16,49 @@ class OnboardingPolicyTest {
         assertEquals(2, OnboardingPolicy.requiredRevision(10011))
     }
 
-    @Test fun completionStopsReplayingOnRestartAndSubsequentVersions() {
+    @Test fun completionStopsReplayingOnRestartWithinTheSameFlow() {
         val revision = OnboardingPolicy.revisionAfterCompletion(10011, 0)
         assertEquals(2, revision)
         assertTrue(OnboardingPolicy.isComplete(10011, true, revision))
+    }
+
+    @Test fun nextReleaseRequiresOneMoreFullConfirmation() {
+        assertEquals(3, OnboardingPolicy.requiredRevision(10012))
+        assertFalse(OnboardingPolicy.isComplete(10012, true, 2))
+        val revision = OnboardingPolicy.revisionAfterCompletion(10012, 2)
+        assertEquals(3, revision)
         assertTrue(OnboardingPolicy.isComplete(10012, true, revision))
+        assertTrue(OnboardingPolicy.isComplete(10013, true, revision))
     }
 
     @Test fun unfinishedOrExplicitlyResetFlowRemainsRequired() {
         assertFalse(OnboardingPolicy.isComplete(10010, false, 0))
         assertFalse(OnboardingPolicy.isComplete(10011, false, 0))
         assertFalse(OnboardingPolicy.isComplete(10011, false, 2))
+        assertFalse(OnboardingPolicy.isComplete(10012, false, 0))
+        assertFalse(OnboardingPolicy.isComplete(10012, false, 3))
     }
 
     @Test fun oldVersionCompletionCannotConsumeTheFutureRevision() {
         assertEquals(1, OnboardingPolicy.revisionAfterCompletion(10010, 0))
         assertFalse(OnboardingPolicy.isComplete(10011, true,
             OnboardingPolicy.revisionAfterCompletion(10010, 0)))
+        assertFalse(OnboardingPolicy.isComplete(10012, true,
+            OnboardingPolicy.revisionAfterCompletion(10010, 0)))
+    }
+
+    @Test fun version10011CompletionCannotConsumeVersion10012Revision() {
+        val revision = OnboardingPolicy.revisionAfterCompletion(10011, 0)
+        assertEquals(2, revision)
+        assertFalse(OnboardingPolicy.isComplete(10012, true, revision))
     }
 
     @Test fun rollbackDoesNotErasePreviouslyCompletedNewContent() {
         assertEquals(2, OnboardingPolicy.revisionAfterCompletion(10010, 2))
         assertTrue(OnboardingPolicy.isComplete(10010, true, 2))
         assertTrue(OnboardingPolicy.isComplete(10011, true, 2))
+        val retained = OnboardingPolicy.revisionAfterCompletion(10011, 3)
+        assertEquals(3, retained)
+        assertTrue(OnboardingPolicy.isComplete(10012, true, retained))
     }
 }

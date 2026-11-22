@@ -685,7 +685,7 @@ object PrefManager {
      *
      * 四步：欢迎 → 机型参数 → 取号 → 开关确认
      * 保留旧 onboarded 布尔键供旧版本兼容；新版完成状态同时受内容修订号约束。
-     * 10011 起需要完成修订 2，旧 10010 完成记录只视为修订 1。
+     * 10011 起需要完成修订 2；下一个正式版 10012 起需要完成修订 3。旧版本完成记录仍只视为修订 1。
      */
     val hasCompletedOnboardingBefore: Boolean
         get() = pref.getBoolean("onboarded", false)

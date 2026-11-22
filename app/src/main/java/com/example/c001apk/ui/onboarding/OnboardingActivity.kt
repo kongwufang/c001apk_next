@@ -35,7 +35,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
  * 四页均在代码中搭建，正文可滚动，底部主按钮固定。
  * 第 ③ 步复用 [SzlmIdPrompt.showConsent] 授权后原生取号或手动填入，已有 ID 继续沿用。
  * 自动刷新开关沿用已有明确选择，否则默认开启；草稿在该页成功点击「下一步」后保存。
- * 第 ④ 步 SSL 和 Wi-Fi 下载沿用已有选择，点击「完成」才保存并标记引导完成。
+ * 第 ④ 步 SSL、Wi-Fi 下载和表情包流量策略沿用已有选择，点击「完成」才保存并标记本次引导完成。
  * 草稿在旋转时保留，页面重绘不会覆盖尚未确认的选择。
  */
 class OnboardingActivity : AppCompatActivity() {
