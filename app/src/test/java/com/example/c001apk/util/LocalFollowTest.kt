@@ -1,9 +1,11 @@
 package com.example.c001apk.util
 
 import android.app.Application
-import androidx.room.Room
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.example.c001apk.MyApplication
-import com.example.c001apk.logic.database.FollowUserDatabase
+import com.example.c001apk.logic.dao.FollowUserDao
+import com.example.c001apk.logic.model.FollowUserEntity
 import com.example.c001apk.logic.network.ApiService
 import com.example.c001apk.logic.repository.FollowRepo
 import com.example.c001apk.logic.repository.LocalCollectionRepo
@@ -43,21 +45,38 @@ class LocalFollowTest {
     }
 
     @Test fun guestFollowPersistsOneRowAndUnfollowRemovesItWithoutRequests() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(MyApplication.context, FollowUserDatabase::class.java).build()
-        try {
-            val follow = FollowRepo(database.followUserDao())
-            val api = mock(ApiService::class.java)
-            val network = NetworkRepo(api, api, api, follow, mock(LocalCollectionRepo::class.java))
-            PrefManager.saveFollowToCloud = true // stale preference from a signed-in session
-            assertTrue(network.postFollowUnFollow("/v6/user/follow", "42").first().isSuccess)
-            assertTrue(network.postFollowUnFollow("/v6/user/follow", "42").first().isSuccess)
-            assertEquals(listOf("42"), follow.loadAll().map { it.uid })
-            assertTrue(network.postFollowUnFollow("/v6/user/unfollow", "42").first().isSuccess)
-            assertTrue(follow.loadAll().isEmpty())
-            assertTrue(network.postFollowUnFollow("/v6/user/follow", " ").first().isFailure)
-            verifyNoInteractions(api)
-        } finally {
-            database.close()
+        val follow = FollowRepo(FakeFollowDao())
+        val api = mock(ApiService::class.java)
+        val network = NetworkRepo(api, api, api, follow, mock(LocalCollectionRepo::class.java))
+        PrefManager.saveFollowToCloud = true // stale preference from a signed-in session
+        network.postFollowUnFollow("/v6/user/follow", "42").first().getOrThrow()
+        network.postFollowUnFollow("/v6/user/follow", "42").first().getOrThrow()
+        assertEquals(listOf("42"), follow.loadAll().map { it.uid })
+        network.postFollowUnFollow("/v6/user/unfollow", "42").first().getOrThrow()
+        assertTrue(follow.loadAll().isEmpty())
+        assertTrue(network.postFollowUnFollow("/v6/user/follow", " ").first().isFailure)
+        verifyNoInteractions(api)
+    }
+
+    @Test fun databaseFailureIsNotReportedAsSuccess() = runBlocking {
+        val api = mock(ApiService::class.java)
+        val dao = object : FakeFollowDao() {
+            override suspend fun insert(entity: FollowUserEntity) { error("simulated write failure") }
         }
+        val network = NetworkRepo(api, api, api, FollowRepo(dao), mock(LocalCollectionRepo::class.java))
+        assertEquals("simulated write failure", network.postFollowUnFollow("/v6/user/follow", "42")
+            .first().exceptionOrNull()?.message)
+        verifyNoInteractions(api)
+    }
+
+    private open class FakeFollowDao : FollowUserDao {
+        private val rows = linkedMapOf<String, FollowUserEntity>()
+        override suspend fun insert(entity: FollowUserEntity) { rows[entity.uid] = entity }
+        override suspend fun insertList(list: List<FollowUserEntity>) { list.forEach { insert(it) } }
+        override suspend fun loadAll() = rows.values.toList()
+        override fun loadAllLive(): LiveData<List<FollowUserEntity>> = MutableLiveData(rows.values.toList())
+        override fun observeFollowed(uid: String): LiveData<Boolean> = MutableLiveData(uid in rows)
+        override suspend fun delete(uid: String) { rows.remove(uid) }
+        override suspend fun deleteAll() { rows.clear() }
     }
 }
