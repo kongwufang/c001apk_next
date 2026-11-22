@@ -170,7 +170,11 @@ android {
         unitTests.all {
             it.testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
             // Robolectric resolves its Android runtime separately from Gradle's mavenCentral().
-            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+            // GitHub-hosted runners can be rate-limited by Maven Central's default CDN.
+            if (System.getenv("GITHUB_ACTIONS") == "true") {
+                it.systemProperty("robolectric.dependency.repo.url",
+                    "https://maven-central.storage-download.googleapis.com/maven2")
+            }
         }
     }
     buildFeatures {
