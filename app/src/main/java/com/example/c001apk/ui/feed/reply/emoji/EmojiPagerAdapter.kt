@@ -9,7 +9,7 @@ import com.example.c001apk.R
 import com.example.c001apk.view.circleindicator.CircleIndicator3
 
 class EmojiPagerAdapter(
-    private val emojiList: List<List<List<Pair<String, Int>>>>,
+    private val emojiList: List<List<List<String>>>,
     private val onClickEmoji: (String) -> Unit,
     private val onCountStart: () -> Unit,
     private val onCountStop: () -> Unit

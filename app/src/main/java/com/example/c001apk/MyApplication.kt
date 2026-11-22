@@ -43,6 +43,9 @@ class MyApplication : Application() {
         context = applicationContext
         registerActivityLifecycleCallbacks(com.example.c001apk.util.RapidReturn)
         com.example.c001apk.util.SelfUpdates.register(this)
+        // Emoji artwork ships as a downloadable pack; load the installed copy before the first screen.
+        com.example.c001apk.util.emoji.EmojiPackStore.load(this)
+        com.example.c001apk.util.emoji.EmojiPackUpdater.register(this)
 
         // SSL 校验失败 → 风险环境警告弹窗（跟踪前台 Activity）
         SslErrorPrompter.install(this)

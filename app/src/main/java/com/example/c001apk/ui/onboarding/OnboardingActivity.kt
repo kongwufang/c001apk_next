@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -53,6 +54,7 @@ class OnboardingActivity : AppCompatActivity() {
     private var sslVerify = true
     private var autoDownloadUpdatesOnWifi = false
     private var autoRefreshSzlmId = true
+    private var emojiPackOnMetered = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +65,7 @@ class OnboardingActivity : AppCompatActivity() {
             PrefManager.autoRefreshSzlmId else true
         val initialWifiUpdates = if (PrefManager.hasAutoDownloadUpdatesChoice)
             PrefManager.autoDownloadUpdatesOnWifi else !PrefManager.hasCompletedOnboardingBefore
+        val initialEmojiPackMetered = PrefManager.emojiPackDownloadOnMetered
         // Reuse existing choices, but never restore an old revision directly into a later step.
         step = if (sameRevision) savedInstanceState!!.getInt("step").coerceIn(0, 3) else 0
         sslVerify = if (sameRevision) savedInstanceState!!.getBoolean("sslVerify", PrefManager.isVerifySsl)
@@ -72,6 +75,9 @@ class OnboardingActivity : AppCompatActivity() {
         autoDownloadUpdatesOnWifi = if (sameRevision)
             savedInstanceState!!.getBoolean("autoDownloadUpdatesOnWifi", initialWifiUpdates)
         else initialWifiUpdates
+        emojiPackOnMetered = if (sameRevision)
+            savedInstanceState!!.getBoolean("emojiPackOnMetered", initialEmojiPackMetered)
+        else initialEmojiPackMetered
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -146,6 +152,7 @@ class OnboardingActivity : AppCompatActivity() {
         outState.putBoolean("sslVerify", sslVerify)
         outState.putBoolean("autoRefreshSzlmId", autoRefreshSzlmId)
         outState.putBoolean("autoDownloadUpdatesOnWifi", autoDownloadUpdatesOnWifi)
+        outState.putBoolean("emojiPackOnMetered", emojiPackOnMetered)
         super.onSaveInstanceState(outState)
     }
 
@@ -185,6 +192,7 @@ class OnboardingActivity : AppCompatActivity() {
     private fun finishOnboarding() {
         PrefManager.isVerifySsl = sslVerify
         PrefManager.autoDownloadUpdatesOnWifi = autoDownloadUpdatesOnWifi
+        PrefManager.emojiPackDownloadOnMetered = emojiPackOnMetered
         PrefManager.onboarded = true
         // App 日志/HTTP 日志统一开关跟随「用户体验改善计划」？不跟随：
         // 日志开关是排障用的独立开关，默认关，避免用户不知情地落盘 ✓
@@ -263,6 +271,12 @@ class OnboardingActivity : AppCompatActivity() {
                     getString(R.string.auto_download_updates_on_wifi_summary),
                     autoDownloadUpdatesOnWifi,
                 ) { autoDownloadUpdatesOnWifi = it })
+                body.addView(choiceRow(
+                    "表情包下载",
+                    "表情包（默认、酷币、牛牛共 183 张）改为单独下载，约 1.3 MB，以后可随服务端更新。",
+                    listOf("仅 Wi-Fi 自动下载", "流量下也自动下载"),
+                    if (emojiPackOnMetered) 1 else 0,
+                ) { emojiPackOnMetered = it == 1 })
             }
         }
     }
@@ -303,6 +317,61 @@ class OnboardingActivity : AppCompatActivity() {
                 setOnCheckedChangeListener { _, v -> onChange(v) }
             }
         )
+    }
+
+    /** 一组二选一按钮（默认选中 [selected]），点「完成」时由调用方保存 */
+    private fun choiceRow(
+        name: String,
+        desc: String,
+        labels: List<String>,
+        selected: Int,
+        onChange: (Int) -> Unit,
+    ): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(10), 0, dp(4))
+        addView(TextView(this@OnboardingActivity).apply {
+            text = name
+            textSize = 15f
+            setTextColor(
+                MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface)
+            )
+        })
+        addView(TextView(this@OnboardingActivity).apply {
+            text = desc
+            textSize = 12f
+            setTextColor(
+                MaterialColors.getColor(
+                    this, com.google.android.material.R.attr.colorOnSurfaceVariant
+                )
+            )
+        })
+        val buttons = labels.map { label ->
+            MaterialButton(
+                this@OnboardingActivity,
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle,
+            ).apply {
+                id = View.generateViewId()
+                text = label
+                textSize = 13f
+                isCheckable = true
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        }
+        val group = com.google.android.material.button.MaterialButtonToggleGroup(
+            this@OnboardingActivity
+        ).apply {
+            isSingleSelection = true
+            setPadding(0, dp(8), 0, 0)
+            buttons.forEach { addView(it) }
+            check(buttons[selected.coerceIn(0, buttons.lastIndex)].id)
+            addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (isChecked) onChange(buttons.indexOfFirst { it.id == checkedId })
+            }
+        }
+        addView(group, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
     }
 
     /** 一行可点文字（链接风格） */

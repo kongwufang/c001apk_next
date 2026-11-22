@@ -350,6 +350,16 @@ object PrefManager {
         get() = pref.getBoolean("szlmIdNoticed", false)
         set(value) = pref.edit().putBoolean("szlmIdNoticed", value).apply()
 
+    /** 已安装的表情包版本；0 表示还没下载过，正文会退回显示表情码 */
+    var emojiPackVersion: Int
+        get() = pref.getInt("emojiPackVersion", 0)
+        set(value) = pref.edit().putInt("emojiPackVersion", value).apply()
+
+    /** 流量网络下也自动下载表情包；默认只在 Wi-Fi 下自动下载 */
+    var emojiPackDownloadOnMetered: Boolean
+        get() = pref.getBoolean("emojiPackDownloadOnMetered", false)
+        set(value) = pref.edit().putBoolean("emojiPackDownloadOnMetered", value).apply()
+
     var isRecordHistory: Boolean
         get() = pref.getBoolean("isRecordHistory", true)
         set(value) = pref.edit().putBoolean("isRecordHistory", value).apply()
