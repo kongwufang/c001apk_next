@@ -21,31 +21,33 @@ import android.graphics.BitmapFactory;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.bumptech.glide.load.Options;
+import com.bumptech.glide.load.resource.gif.ByteBufferGifDecoder;
+import com.bumptech.glide.load.resource.gif.GifDrawableResource;
+import com.bumptech.glide.util.ByteBufferUtil;
+
 import net.mikaelzero.mojito.view.sketch.core.ErrorTracker;
-import net.mikaelzero.mojito.view.sketch.core.SLog;
-import net.mikaelzero.mojito.view.sketch.core.cache.BitmapPool;
 import net.mikaelzero.mojito.view.sketch.core.datasource.DataSource;
-import net.mikaelzero.mojito.view.sketch.core.drawable.SketchGifDrawable;
-import net.mikaelzero.mojito.view.sketch.core.drawable.SketchGifFactory;
+import net.mikaelzero.mojito.view.sketch.core.drawable.GlideSketchGifDrawable;
 import net.mikaelzero.mojito.view.sketch.core.request.ErrorCause;
 import net.mikaelzero.mojito.view.sketch.core.request.LoadRequest;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 public class GifDecodeHelper extends DecodeHelper {
+    // Glide allocates a logical-canvas byte array even when it downsamples decoded frames.
+    private static final long MAX_CANVAS_PIXELS = 32L * 1024 * 1024;
+    private static final long MAX_FRAME_PIXELS = 4L * 1024 * 1024;
+    private static final int MAX_GIF_BYTES = 32 * 1024 * 1024;
 
     @Override
     public boolean match(@NonNull LoadRequest request, @NonNull DataSource dataSource,
                          @Nullable ImageType imageType, @NonNull BitmapFactory.Options boundOptions) {
-        if (imageType == ImageType.GIF && request.getOptions().isDecodeGifImage()) {
-            if (SketchGifFactory.isExistGifLibrary()) {
-                return true;
-            } else {
-                SLog.e("GifDecodeHelper", "Not found libpl_droidsonroids_gif.so. " +
-                        "Please go to “https://github.com/panpf/sketch” find how to import the sketch-gif library");
-            }
-        }
-        return false;
+        return imageType == ImageType.GIF && request.getOptions().isDecodeGifImage();
     }
 
     @NonNull
@@ -53,23 +55,57 @@ public class GifDecodeHelper extends DecodeHelper {
     public DecodeResult decode(@NonNull LoadRequest request, @NonNull DataSource dataSource,
                                @Nullable ImageType imageType, @NonNull BitmapFactory.Options boundOptions,
                                @NonNull BitmapFactory.Options decodeOptions, int exifOrientation) throws DecodeException {
+        GifDrawableResource resource = null;
         try {
-            ImageAttrs imageAttrs = new ImageAttrs(boundOptions.outMimeType, boundOptions.outWidth, boundOptions.outHeight, exifOrientation);
-            BitmapPool bitmapPool = request.getConfiguration().getBitmapPool();
-            SketchGifDrawable gifDrawable = dataSource.makeGifDrawable(request.getKey(), request.getUri(), imageAttrs, bitmapPool);
+            ImageAttrs attrs = new ImageAttrs(boundOptions.outMimeType, boundOptions.outWidth,
+                    boundOptions.outHeight, exifOrientation);
+            long pixels = (long) attrs.getWidth() * attrs.getHeight();
+            if (pixels > MAX_CANVAS_PIXELS) {
+                throw new DecodeException("GIF canvas exceeds decode limit", ErrorCause.DECODE_UNABLE_CREATE_GIF_DRAWABLE);
+            }
+            int sample = 1;
+            while (pixels / sample / sample > MAX_FRAME_PIXELS) sample *= 2;
+            ByteBuffer bytes = readGif(dataSource);
+            resource = new ByteBufferGifDecoder(request.getContext()).decode(bytes,
+                    Math.max(1, attrs.getWidth() / sample), Math.max(1, attrs.getHeight() / sample), new Options());
+            if (resource == null) {
+                throw new DecodeException("Unable to decode GIF", ErrorCause.DECODE_UNABLE_CREATE_GIF_DRAWABLE);
+            }
 
-            return new GifDecodeResult(imageAttrs, gifDrawable).setBanProcess(true);
+            GlideSketchGifDrawable drawable = new GlideSketchGifDrawable(resource, request.getKey(),
+                    request.getUri(), attrs, dataSource.getImageFrom());
+            DecodeResult result = new GifDecodeResult(attrs, drawable).setBanProcess(true);
+            resource = null; // The request/view now owns this drawable and its decoder.
+            return result;
+        } catch (DecodeException e) {
+            throw e;
         } catch (IOException e) {
             throw new DecodeException(e, ErrorCause.DECODE_FILE_IO_EXCEPTION);
-        } catch (NotFoundGifLibraryException e) {
-            throw new DecodeException(e, ErrorCause.DECODE_NOT_FOUND_GIF_LIBRARY);
-        } catch (UnsatisfiedLinkError | ExceptionInInitializerError e) {
-            request.getConfiguration().getErrorTracker().onNotFoundGifSoError(e);
-            throw new DecodeException(e, ErrorCause.DECODE_NO_MATCHING_GIF_SO);
-        } catch (Throwable e) {
+        } catch (RuntimeException | OutOfMemoryError e) {
             ErrorTracker errorTracker = request.getConfiguration().getErrorTracker();
             errorTracker.onDecodeGifImageError(e, request, boundOptions.outWidth, boundOptions.outHeight, boundOptions.outMimeType);
             throw new DecodeException(e, ErrorCause.DECODE_UNABLE_CREATE_GIF_DRAWABLE);
+        } finally {
+            if (resource != null) resource.recycle();
+        }
+    }
+
+    private static ByteBuffer readGif(DataSource dataSource) throws IOException {
+        File file = dataSource.getFile(null, null);
+        if (file != null) {
+            if (file.length() > MAX_GIF_BYTES) throw new IOException("GIF exceeds input size limit");
+            // The full-screen viewer already has a local file; map it rather than copying it to the heap.
+            return ByteBufferUtil.fromFile(file);
+        }
+        try (InputStream stream = dataSource.getInputStream()) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] chunk = new byte[16 * 1024];
+            int read;
+            while ((read = stream.read(chunk)) != -1) {
+                if (read > MAX_GIF_BYTES - out.size()) throw new IOException("GIF exceeds input size limit");
+                out.write(chunk, 0, read);
+            }
+            return ByteBuffer.wrap(out.toByteArray());
         }
     }
 }

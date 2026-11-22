@@ -90,10 +90,11 @@
             android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:minHeight="0dp"
-            android:onClick="@{() -> listener.onFollowUser(data.uid, followAuthor)}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:setFollowText="@{followAuthor}"
+            app:followAuthor="@{followAuthor}"
+            app:followUid="@{data.uid}"
+            app:followListener="@{listener}"
             tools:text="关注" />
 
         <!-- 关注状态未知（列表项不下发 followAuthor）时就在按钮位转圈，等详情补上 -->
@@ -104,6 +105,8 @@
             android:indeterminate="true"
             android:visibility="gone"
             app:followLoading="@{followAuthor}"
+            app:followUid="@{data.uid}"
+            app:followListener="@{listener}"
             app:layout_constraintBottom_toBottomOf="@id/follow"
             app:layout_constraintEnd_toEndOf="@id/follow"
             app:layout_constraintTop_toTopOf="@id/follow"

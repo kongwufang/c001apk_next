@@ -16,7 +16,9 @@ import java.io.IOException
 
 object AddCookiesInterceptor : Interceptor {
     @Throws(IOException::class)
-    override fun intercept(chain: Interceptor.Chain): Response {
+    override fun intercept(chain: Interceptor.Chain): Response = intercept(chain, useSavedCookies = true)
+
+    internal fun intercept(chain: Interceptor.Chain, useSavedCookies: Boolean): Response {
         val builder: Request.Builder = chain.request().newBuilder()
         val deviceCode = TokenDeviceUtils.getLastingDeviceCode()
         // 版本头必须与 token 使用同一个 versionCode，否则服务端校验不通过
@@ -43,16 +45,11 @@ object AddCookiesInterceptor : Interceptor {
                 "https://api.coolapk.com/?ref=CoolMarket/$versionName-$versionCode-$MODE"
             )
             addHeader("Content-Type", "application/x-www-form-urlencoded")
-            if (PrefManager.isLogin)
-                addHeader(
-                    "Cookie",
-                    // ★ 凭据优先级：refreshToken（启动时换到的第二凭据）> token（主凭据）。
-                    //   两者在业务接口上表现一致，见 PrefManager.refreshToken 的注释。
-                    //   ⚠️ 必须写成**表达式** —— `addHeader(...)` 的参数位置不能放 `val` ✗
-                    "uid=${PrefManager.uid}; username=${PrefManager.username}; " +
-                        "token=${PrefManager.refreshToken.ifEmpty { PrefManager.token }}"
-                )
-            else addHeader("Cookie", SESSID)
+            if (useSavedCookies) {
+                val session = PrefManager.accountSnapshot().session
+                val cookie = session?.takeIf { it.isValid }?.cookie() ?: SESSID
+                if (cookie.isNotBlank()) header("Cookie", cookie)
+            }
         }
         return chain.proceed(builder.build())
     }

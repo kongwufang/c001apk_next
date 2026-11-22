@@ -124,17 +124,6 @@ object SzlmHint {
     }
 
     /**
-     * **主动探测**判定过期时的入口（[SzlmMonitor] 用 ✓）
-     *
-     * 与 [maybeShow] 的区别：不要求 message 里出现特征文案 ✓
-     * —— 服务端已经判定过了，这里只负责**弹窗**（60 秒节流照旧 ✓）
-     */
-    fun notifyExpired(context: Context?, message: String?) {
-        AppLog.w(LogModule.USER, "SzlmHint", "主动探测判定过期：${(message ?: "").take(60)}")
-        maybeShowDialog(context, message)
-    }
-
-    /**
      * 挂在 OkHttpClient 上的**只读**观察者 ✓
      *
      * - 只处理「响应体很小」的响应 ✓（错误体都是几十~几百字节 ✓）

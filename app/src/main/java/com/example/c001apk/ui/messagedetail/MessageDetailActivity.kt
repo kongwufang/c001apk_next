@@ -17,7 +17,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.core.app.ActivityOptionsCompat
+import com.example.c001apk.util.TransitionAnim
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,8 +32,9 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivityMessageDetailBinding
 import com.example.c001apk.logic.model.OSSUploadPrepareModel
 import com.example.c001apk.ui.base.BaseActivity
-import com.example.c001apk.ui.feed.reply.emoji.EmojiPagerAdapter
-import com.example.c001apk.util.EmojiUtils
+import com.example.c001apk.ui.feed.reply.emoji.EmojiPanelBinder
+import com.example.c001apk.util.emoji.EmojiPackStore
+import com.example.c001apk.util.emoji.EmojiPackUpdater
 import com.example.c001apk.util.ImageUtil.getImageDimensionsAndMD5
 import com.example.c001apk.util.ImageUtil.toHex
 import com.example.c001apk.util.MessageKit
@@ -102,20 +103,9 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
         getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
 
-    /** 表情面板三页（最近 / 默认 / 酷币），页码顺序跟回复页一致，数据表也是同一张 */
-    private val emojiData by lazy { EmojiUtils.emojiMap.toList() }
-    private val recentEmojiList = ArrayList<List<Pair<String, Int>>>()
-    private val emojiList = ArrayList<List<Pair<String, Int>>>()
-    private val coolBList = ArrayList<List<Pair<String, Int>>>()
-    private val emojiPages = listOf(recentEmojiList, emojiList, coolBList)
-
-    init {
-        for (i in 0..3) {
-            emojiList.add(emojiData.subList(i * 27 + 4, (i + 1) * 27 + 4))
-        }
-        coolBList.add(emojiData.subList(112, 139))
-        coolBList.add(emojiData.subList(139, 155))
-    }
+    /** 表情面板：最近 + 表情包各组，内容来自已安装的表情包 */
+    private var recentCodes: List<String> = emptyList()
+    private lateinit var emojiBinder: EmojiPanelBinder
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -208,9 +198,7 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
 
     private fun pickImage() {
         if (readOnly) return
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            this, R.anim.anim_bottom_sheet_slide_up, R.anim.anim_bottom_sheet_slide_down
-        )
+        val options = TransitionAnim.photoPickerOptions(this)
         try {
             pickMedia.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -332,25 +320,15 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             }
         }
 
-        // 「最近」用过的表情（跟回复页共用一张表）；第一次进来是空的就自动落到「默认」页
+        // 「最近」用过的表情（跟回复页共用一张表）；第一次进来是空的就自动落到第一组
         viewModel.recentEmojiLiveData.observe(this) { list ->
-            if (binding.emojiPanel.currentItem == 0 && recentEmojiList.isNotEmpty()) return@observe
-            recentEmojiList.clear()
-            if (list.isEmpty()) {
-                if (viewModel.isEmojiInit) {
-                    viewModel.isEmojiInit = false
-                    binding.emojiPanel.setCurrentItem(1, false)
-                }
-                recentEmojiList.add(0, emptyList())
-            } else {
-                recentEmojiList.add(
-                    0,
-                    list.map {
-                        Pair(it.data, EmojiUtils.emojiMap[it.data] ?: R.drawable.ic_logo)
-                    }
-                )
+            if (binding.emojiPanel.currentItem == 0 && recentCodes.isNotEmpty()) return@observe
+            recentCodes = list.orEmpty().map { entry -> entry.data }
+            if (recentCodes.isEmpty() && viewModel.isEmojiInit) {
+                viewModel.isEmojiInit = false
+                binding.emojiPanel.setCurrentItem(1, false)
             }
-            binding.emojiPanel.adapter?.notifyItemChanged(0)
+            emojiBinder.updateRecent(recentCodes)
         }
     }
 
@@ -402,6 +380,7 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             hideEmojiPanel()
             showKeyboard()
         } else {
+            if (EmojiPackStore.version() == 0) EmojiPackUpdater.ensureAvailable()
             binding.emojiLayout.isVisible = true
             binding.emojiBtn.setIconResource(R.drawable.ic_keyboard)
             hideKeyboard()
@@ -427,80 +406,14 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
     }
 
     /**
-     * 三页页签 + ViewPager2（代码建 View，跟回复页逐行对齐，改哪边都别忘另一边）。
+     * 页签 + ViewPager2（跟回复页共用 [EmojiPanelBinder]，改哪边都别忘另一边）。
      * 区别只有一个：这里的长按清空走 [MessageDetailViewModel.deleteAllEmoji]。
      */
     private fun initEmojiPanel() {
-        for (i in 0..2) {
-            binding.indicator.addView(
-                TextView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                    ).apply {
-                        weight = 1f
-                    }
-                    gravity = Gravity.CENTER
-                    text = listOf("最近", "默认", "酷币")[i]
-                    background = getDrawable(R.drawable.selector_bg_trans)
-                    setOnClickListener {
-                        binding.emojiPanel.setCurrentItem(i, false)
-                    }
-                    if (i == 0 && BuildConfig.DEBUG) {
-                        setOnLongClickListener {
-                            viewModel.deleteAllEmoji()
-                            true
-                        }
-                    }
-                }
-            )
-            if (i != 2) {
-                binding.indicator.addView(
-                    View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(
-                            1.dp,
-                            LinearLayout.LayoutParams.MATCH_PARENT
-                        )
-                        setBackgroundColor(
-                            MaterialColors.getColor(
-                                this@MessageDetailActivity,
-                                com.google.android.material.R.attr.colorSurfaceVariant, 0
-                            )
-                        )
-                    }
-                )
-            }
-        }
-        binding.emojiPanel.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                for (i in 0 until binding.indicator.childCount) {
-                    with(binding.indicator.getChildAt(i)) {
-                        if (this is TextView) {
-                            background = getDrawable(
-                                if (i / 2 == position) R.drawable.selector_emoji_indicator_selected
-                                else R.drawable.selector_emoji_indicator
-                            )
-                            setTextColor(
-                                if (i / 2 == position)
-                                    MaterialColors.getColor(
-                                        this@MessageDetailActivity,
-                                        com.google.android.material.R.attr.colorOnPrimary, 0
-                                    )
-                                else
-                                    MaterialColors.getColor(
-                                        this@MessageDetailActivity,
-                                        androidx.appcompat.R.attr.colorControlNormal, 0
-                                    )
-                            )
-                        }
-                    }
-                }
-            }
-        })
-
-        binding.emojiPanel.adapter = EmojiPagerAdapter(
-            emojiPages,
+        emojiBinder = EmojiPanelBinder(
+            this,
+            binding.emojiPanel,
+            binding.indicator,
             onClickEmoji = { emoji ->
                 with(binding.editText) {
                     if (emoji == "[c001apk]") {
@@ -519,8 +432,15 @@ class MessageDetailActivity : BaseActivity<ActivityMessageDetailBinding>() {
             },
             onCountStop = {
                 countDownTimer.cancel()
-            }
+            },
+            onClearRecent = {
+                viewModel.deleteAllEmoji()
+            },
         )
+        emojiBinder.bind()
+        lifecycleScope.launch {
+            EmojiPackStore.state.collect { emojiBinder.refresh() }
+        }
     }
 
     private val countDownTimer: CountDownTimer = object : CountDownTimer(100000, 50) {

@@ -15,6 +15,7 @@ import android.widget.TextView
 class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
     private var downX = 0f
     private var downY = 0f
+    private var downEventTime = 0L
     private var downLink: ClickableSpan? = null
     private var startedWithSelection = false
 
@@ -23,6 +24,7 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.x
                 downY = event.y
+                downEventTime = event.eventTime
                 startedWithSelection = widget.hasSelection()
                 downLink = linkAt(widget, buffer, event.x, event.y)
             }
@@ -35,14 +37,15 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
                 val link = downLink
                 downLink = null
                 if (link != null && !startedWithSelection && !widget.hasSelection() &&
-                    event.eventTime - event.downTime < ViewConfiguration.getLongPressTimeout() &&
+                    event.eventTime - downEventTime in 0L until ViewConfiguration.getLongPressTimeout().toLong() &&
                     link === linkAt(widget, buffer, event.x, event.y)) {
                     super.onTouchEvent(widget, buffer, event)
                     link.onClick(widget)
                     return true
                 }
             }
-            MotionEvent.ACTION_CANCEL -> downLink = null
+            MotionEvent.ACTION_CANCEL,
+            MotionEvent.ACTION_POINTER_DOWN -> downLink = null
         }
         return super.onTouchEvent(widget, buffer, event)
     }
@@ -65,7 +68,12 @@ class SelectableLinkMovementMethod : ArrowKeyMovementMethod() {
             view.setTextIsSelectable(true)
             view.isLongClickable = true
             view.isFocusableInTouchMode = true
-            view.movementMethod = ArrowKeyMovementMethod.getInstance()
+            // 普通 ArrowKeyMovementMethod 只处理选字，不会分发 ClickableSpan，
+            // 图片/用户/网页链接的短按因此会退化成系统选择菜单。
+            // 保留每个 TextView 自己的手势状态，重绑同一实例时不重复替换。
+            if (view.movementMethod !is SelectableLinkMovementMethod) {
+                view.movementMethod = SelectableLinkMovementMethod()
+            }
             view.setOnLongClickListener(null)
         }
     }

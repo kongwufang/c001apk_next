@@ -7,6 +7,8 @@
     <string name="tab_setting">设置</string>
     <string name="search">搜索</string>
     <string name="refresh">刷新</string>
+    <string name="webview_go_back">返回</string>
+    <string name="webview_close">退出网页</string>
     <string name="copy_link">复制链接</string>
     <string name="open_in_browser">在浏览器中打开</string>
     <string name="search_history">搜索历史</string>
@@ -22,7 +24,9 @@
     <string name="dark_theme">深色主题</string>
     <string name="settings_pure_black_dark_theme">纯黑主题</string>
     <string name="settings_pure_black_dark_theme_summary">当深色主题启用时使用纯黑主题</string>
-    <!-- 水平转场动画实验项（临时脚手架，见 util/TransitionAnim.kt） -->
+    <string name="settings_transition_mode">转场模式</string>
+    <string name="settings_transition_system">跟随系统</string>
+    <string name="settings_transition_custom">自定义</string>
     <string name="settings_transition_curve">转场曲线</string>
     <string name="settings_transition_type">转场类型</string>
     <string name="settings_transition_speed">转场速度</string>
@@ -193,7 +197,7 @@
     <string name="my_like">我的赞</string>
     <string name="my_reply">我的回复</string>
     <string name="my_feed">我的动态</string>
-    <string name="my_follow">我的关注</string>
+    <string name="cool_recycle">酷回收</string>
     <string name="offline_cache">离线缓存</string>
     <string name="offline_unsupported">离线缓存不支持该操作</string>
     <string name="offline_cache_empty">还没有离线缓存的动态，去动态详情页「收藏到」面板里点「离线缓存」</string>
@@ -229,6 +233,9 @@
     <string name="check_user_info">查看用户资料</string>
     <string name="check_stable_update">检查应用正式版更新</string>
     <string name="check_update_now_stable">立即检查正式版更新</string>
+    <string name="auto_download_updates_on_wifi">在 Wi-Fi 下自动下载更新</string>
+    <string name="auto_download_updates_on_wifi_summary">开启自动检查后生效，下载完成后由你确认安装</string>
+    <string name="onboarding_final_settings_summary">请确认 SSL 证书校验和 Wi-Fi 下载设置；抓包调试需要关闭证书校验。\n本 App 不会上传日志或诊断数据，日志只存在你手机里，随时可导出或清空。</string>
 
     <!-- 2026-09-18 重构：底栏重排 + 设置分组（一级菜单 + 二级详情页） -->
     <string name="settings_icon_desc">设置</string>
@@ -237,7 +244,7 @@
     <string name="settings_category_display">显示</string>
     <string name="settings_category_layout">布局</string>
     <string name="settings_animation">转场动画</string>
-    <string name="settings_animation_summary">切换页面时的曲线、类型与速度</string>
+    <string name="settings_animation_summary">跟随系统，或自定义曲线、类型与速度</string>
     <string name="settings_privacy">隐私</string>
     <string name="settings_recommendation">偏好设置</string>
     <string name="auto_refresh_szlm_id">自动刷新数字联盟ID</string>
@@ -376,6 +383,9 @@
     <string name="update_found_title">发现新版本 %1$s</string>
     <string name="update_skip_version">跳过此版本</string>
     <string name="update_no_changelog">无更新日志</string>
+    <string name="update_waiting_for_wifi">等待 Wi-Fi 连接后下载</string>
+    <string name="update_downloading_progress">正在下载更新：%1$d%%</string>
+    <string name="update_ready_to_install">下载完成，可以安装更新</string>
     <string name="update_open_link_failed">打开链接失败</string>
 
 </resources>

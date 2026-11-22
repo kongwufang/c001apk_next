@@ -99,20 +99,14 @@ object SzlmIdPrompt {
         PrefManager.szlmIdConfigured = id.isNotEmpty()
         PrefManager.szlmIdNoticed = true
         rebuildDeviceString()
-        // 换了 duid 立刻验一次 ✓（不用等 8 秒的首次定时器 ✓）
-        // 新 duid 无效 ⇒ 立刻弹「可能已失效」⇒ 用户当场就知道这次换的号不行 ✓
-        runCatching { SzlmMonitor.checkNow() }
     }
 
     /**
      * 把新的 szlmId 写进**设备串的首字段** ✓
      *
      * ## 为什么必须在这里做
-     * szlmId 是 `X-App-Device` 的**第一个分号字段** ✓，业务请求和 duid 探测用的
-     * 都是 `PrefManager.xAppDevice` **不是** `SZLMID` ✗
-     * ⇒ 只改 `SZLMID` 不改设备串 ⇒ **换号等于没换** ✗：
-     *   探测打出去的还是旧的有效 duid ⇒ 永远判「正常」⇒ 用户以为监测失灵 ✗
-     *   （2026-10-24 用户实测：手动填随机值保存后，杀进程重启也没提示 ✓ 就是这个原因）
+     * szlmId 是 `X-App-Device` 的第一个分号字段。业务请求使用
+     * `PrefManager.xAppDevice`，只更新 `SZLMID` 会继续发出旧的设备串。
      *
      * ## 为什么只改首字段
      * szlmId 与机型是两件独立的事 ✓ —— 只替换 `parts[0]`，

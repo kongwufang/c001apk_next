@@ -70,9 +70,6 @@ object UpdateChecker {
      * 点击后强制跳外部浏览器打开。
      */
 
-    /** 每个进程只做一次启动时自动检查（Activity 重建不会重复弹窗） */
-    var checkedThisSession = false
-
     data class DownloadLine(val name: String, val url: String)
 
     data class UpdateInfo(
@@ -353,11 +350,6 @@ object UpdateChecker {
             setNegativeButton(android.R.string.cancel, null)
             show()
         }
-    }
-
-    /** 只把接口响应预热进 60 秒缓存 ✓ 不弹任何窗 ✓（侧栏升级卡用 / 启动时调 ✓） */
-    suspend fun prefetch() {
-        loadSnapshot()
     }
 
     fun showUpdateDialog(

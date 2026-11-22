@@ -41,6 +41,10 @@ class MyApplication : Application() {
         super.onCreate()
 
         context = applicationContext
+        registerActivityLifecycleCallbacks(com.example.c001apk.util.RapidReturn)
+        com.example.c001apk.util.SelfUpdates.register(this)
+        // Load the installed emoji pack before the first screen in the main process.
+        com.example.c001apk.util.emoji.EmojiPackUpdater.register(this)
 
         // SSL 校验失败 → 风险环境警告弹窗（跟踪前台 Activity）
         SslErrorPrompter.install(this)
@@ -104,10 +108,6 @@ class MyApplication : Application() {
             override fun onActivitySaveInstanceState(activity: android.app.Activity, b: android.os.Bundle) {}
             override fun onActivityDestroyed(activity: android.app.Activity) {}
         })
-
-        // ★ 每 10 分钟探测一次数字联盟 ID 是否失效（自建端点替客户端打一次内容接口 ✓）
-        //   判定过期 ⇒ 复用 SzlmHint 的弹窗 + 一键去取号 ✓
-        com.example.c001apk.util.SzlmMonitor.start()
 
         // ★ 2026-11-07 诊断上报：装一个崩溃收集器（只存内存 ✓ 不落盘 ✓）
         //   心跳下发 log 事件时，把它 + 设备快照 + 请求日志聚合一起上报

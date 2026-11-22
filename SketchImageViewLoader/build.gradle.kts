@@ -70,7 +70,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.okhttp)
-    implementation(libs.sketch.gif)
+    implementation(libs.glide)
     implementation(libs.androidx.exifinterface)
     implementation(project(":mojito"))
 }

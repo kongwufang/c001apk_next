@@ -22,7 +22,7 @@ class FollowRepo @Inject constructor(
 
     suspend fun loadAll(): List<FollowUserEntity> = followUserDao.loadAll()
 
-    suspend fun isFollowed(uid: String): Boolean = followUserDao.isExist(uid)
+    fun observeFollowed(uid: String): LiveData<Boolean> = followUserDao.observeFollowed(uid)
 
     /** 记一条关注 ✓ 重复调用不会出现两条（uid 是主键 ✓ REPLACE ✓） */
     suspend fun follow(uid: String, username: String = "", avatar: String = "") {
@@ -33,6 +33,11 @@ class FollowRepo @Inject constructor(
     suspend fun unfollow(uid: String) {
         if (uid.isEmpty()) return
         followUserDao.delete(uid)
+    }
+
+    suspend fun setFollowed(uid: String, followed: Boolean) {
+        require(uid.isNotBlank())
+        if (followed) follow(uid) else unfollow(uid)
     }
 
     suspend fun clear() = followUserDao.deleteAll()

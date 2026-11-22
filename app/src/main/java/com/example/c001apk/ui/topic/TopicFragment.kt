@@ -1,6 +1,6 @@
 package com.example.c001apk.ui.topic
 
-import android.app.ActivityOptions
+import com.example.c001apk.util.TransitionAnim
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
@@ -95,12 +95,7 @@ class TopicFragment : BasePagerFragment() {
             intent.putExtra("ratingTarget", viewModel.title)
             intent.putExtra("ratingItems", Gson().toJson(viewModel.ratingItemInfo))
         }
-        val animationBundle = ActivityOptions.makeCustomAnimation(
-            context,
-            R.anim.anim_bottom_sheet_slide_up,
-            R.anim.anim_bottom_sheet_slide_down
-        ).toBundle()
-        requireContext().startActivity(intent, animationBundle)
+        TransitionAnim.startActivity(requireContext(), intent, sheet = true)
     }
 
     override fun onTabReselectedExtra() {

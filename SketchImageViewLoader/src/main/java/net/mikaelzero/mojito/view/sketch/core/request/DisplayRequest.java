@@ -242,6 +242,9 @@ public class DisplayRequest extends LoadRequest {
     private void displayImage(Drawable drawable) {
         SketchView sketchView = requestAndViewBinder.getView();
         if (isCanceled() || sketchView == null) {
+            if (drawable instanceof SketchGifDrawable) {
+                ((SketchGifDrawable) drawable).recycle();
+            }
             if (SLog.isLoggable(SLog.LEVEL_DEBUG | SLog.TYPE_FLOW)) {
                 SLog.d(getLogName(), "Request end before call completed. %s. %s", getThreadName(), getKey());
             }

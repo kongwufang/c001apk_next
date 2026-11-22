@@ -151,6 +151,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             return when (key) {
                 "darkTheme" -> PrefManager.darkTheme.toString()
                 "themeColor" -> PrefManager.themeColor
+                "animMode" -> PrefManager.animMode
                 "animCurve" -> PrefManager.animCurve
                 "animType" -> PrefManager.animType
                 "animDuration" -> PrefManager.animDuration.toString()
@@ -163,6 +164,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             when (key) {
                 "darkTheme" -> PrefManager.darkTheme = value?.toInt() ?: 0
                 "themeColor" -> PrefManager.themeColor = value ?: "MATERIAL_DEFAULT"
+                "animMode" -> PrefManager.animMode = value ?: TransitionAnim.MODE_SYSTEM
                 "animCurve" -> PrefManager.animCurve =
                     value ?: TransitionAnim.CURVE_M3_EMPHASIZED
 
@@ -258,6 +260,20 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         preferenceManager.preferenceDataStore = SettingsPreferenceDataStore()
         setPreferencesFromResource(R.xml.settings, rootKey)
 
+        fun showCustomTransitionSettings(mode: String) {
+            val custom = mode == TransitionAnim.MODE_CUSTOM
+            listOf("animCurve", "animType", "animDuration").forEach { key ->
+                findPreference<SimpleMenuPreference>(key)?.isVisible = custom
+            }
+        }
+        findPreference<SimpleMenuPreference>("animMode")?.apply {
+            showCustomTransitionSettings(PrefManager.animMode)
+            setOnPreferenceChangeListener { _, value ->
+                showCustomTransitionSettings(value as String)
+                true
+            }
+        }
+
         findPreference<SimpleMenuPreference>("darkTheme")?.setOnPreferenceChangeListener { _, newValue ->
             val newMode = (newValue as String).toInt()
             if (PrefManager.darkTheme != newMode) {
@@ -304,9 +320,13 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         }
         findPreference<MaterialSwitchPreference>("saveFollowToCloud")?.apply {
             isChecked = PrefManager.saveFollowToCloud
+            isEnabled = PrefManager.isLogin
+            if (!isEnabled) summary = "未登录时关注保存在本机；登录后可选择云端保存。"
             setOnPreferenceChangeListener { _, v ->
-                PrefManager.saveFollowToCloud = v as Boolean
-                true
+                if (!PrefManager.isLogin) false else {
+                    PrefManager.saveFollowToCloud = v as Boolean
+                    true
+                }
             }
         }
         findPreference<MaterialSwitchPreference>("saveBlackListToCloud")?.apply {

@@ -17,10 +17,6 @@
             name="userData"
             type="com.example.c001apk.logic.model.UserProfileResponse.Data" />
 
-        <!-- 是不是自己的主页：是则关注按钮变成「编辑信息」 -->
-        <variable
-            name="isSelf"
-            type="boolean" />
     </data>
 
     <!-- 铺在封面图上的整块头部：封面 + 头像 + 昵称/认证/简介 + 数据 + 性别地区 + 装备条 -->
@@ -98,7 +94,8 @@
             android:minWidth="76dp"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:text="@{isSelf ? `编辑信息` : (userData.isFollow == 1 ? `已关注` : `关注`)}"
+            android:visibility="gone"
+            tools:text="关注"
             android:textColor="@color/white"
             android:textSize="13sp"
             android:textStyle="bold"

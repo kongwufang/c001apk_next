@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class CheckResponse(
     val status: Int?,
     val message: String?,
-    val messageStatus: String?,
+    @SerializedName(value = "messageStatus", alternate = ["message_status"]) val messageStatus: String?,
     val data: Data?
 ) {
 
@@ -19,6 +19,7 @@ data class CheckResponse(
         val refreshToken: String?,
         val userAvatar: String?,
         val notifyCount: NotifyCount?,
+        val adminType: Int? = null,
     )
 
     data class NotifyCount(

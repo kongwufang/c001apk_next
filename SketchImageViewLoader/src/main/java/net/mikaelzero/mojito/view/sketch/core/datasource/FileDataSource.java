@@ -19,11 +19,6 @@ package net.mikaelzero.mojito.view.sketch.core.datasource;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import net.mikaelzero.mojito.view.sketch.core.cache.BitmapPool;
-import net.mikaelzero.mojito.view.sketch.core.decode.ImageAttrs;
-import net.mikaelzero.mojito.view.sketch.core.decode.NotFoundGifLibraryException;
-import net.mikaelzero.mojito.view.sketch.core.drawable.SketchGifDrawable;
-import net.mikaelzero.mojito.view.sketch.core.drawable.SketchGifFactory;
 import net.mikaelzero.mojito.view.sketch.core.request.ImageFrom;
 
 import java.io.File;
@@ -72,10 +67,4 @@ public class FileDataSource implements DataSource {
         return ImageFrom.LOCAL;
     }
 
-    @NonNull
-    @Override
-    public SketchGifDrawable makeGifDrawable(@NonNull String key, @NonNull String uri, @NonNull ImageAttrs imageAttrs,
-                                             @NonNull BitmapPool bitmapPool) throws IOException, NotFoundGifLibraryException {
-        return SketchGifFactory.createGifDrawable(key, uri, imageAttrs, getImageFrom(), bitmapPool, file);
-    }
 }

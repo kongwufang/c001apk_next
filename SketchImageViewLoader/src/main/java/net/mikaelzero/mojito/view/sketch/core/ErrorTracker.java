@@ -3,7 +3,6 @@ package net.mikaelzero.mojito.view.sketch.core;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
-import android.os.Build;
 import android.os.Environment;
 import android.text.format.Formatter;
 
@@ -18,7 +17,6 @@ import net.mikaelzero.mojito.view.sketch.core.util.SketchUtils;
 import net.mikaelzero.mojito.view.sketch.core.zoom.block.Block;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -46,24 +44,6 @@ public class ErrorTracker {
     public void onInstallDiskCacheError(@NonNull Exception e, @NonNull File cacheDir) {
         SLog.e(NAME, "onInstallDiskCacheError. %s: %s. SDCardState: %s. cacheDir: %s",
                 e.getClass().getSimpleName(), e.getMessage(), Environment.getExternalStorageState(), cacheDir.getPath());
-    }
-
-    /**
-     * 找不到libpl_droidsonroids_gif.so文件错误
-     *
-     * @param e UnsatisfiedLinkError或ExceptionInInitializerError：找不到对应到的so文件
-     */
-    public void onNotFoundGifSoError(@NonNull Throwable e) {
-        SLog.e(NAME, "Didn't find “libpl_droidsonroids_gif.so” file, unable decode the GIF images. " +
-                "Please go to “https://github.com/panpf/sketch” find how to import the sketch-gif library");
-
-        String abis;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            abis = Arrays.toString(Build.SUPPORTED_ABIS);
-        } else {
-            abis = Arrays.toString(new String[]{Build.CPU_ABI, Build.CPU_ABI2});
-        }
-        SLog.e(NAME, "abis=%s", abis);
     }
 
     /**

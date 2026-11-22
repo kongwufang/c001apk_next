@@ -9,7 +9,10 @@ data class MessageResponse(
     val error: Int?,
     val message: String?,
     val messageStatus: Int?,
-    val data: List<Data>?
+    val data: List<Data>?,
+    /** Raw cursor survives V18 type filtering (an empty filtered page is not end-of-stream). */
+    val rawPageSize: Int? = null,
+    val rawLastItem: String? = null
 ) {
 
     data class Data(

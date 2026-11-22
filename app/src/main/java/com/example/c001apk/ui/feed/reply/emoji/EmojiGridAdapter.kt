@@ -10,10 +10,11 @@ import android.widget.BaseAdapter
 import android.widget.ImageView
 import com.example.c001apk.R
 import com.example.c001apk.util.dp
+import com.example.c001apk.util.emoji.EmojiPackStore
 
 
 class EmojiGridAdapter(
-    private val emojiList: List<Pair<String, Int>>,
+    private val emojiList: List<String>,
     private val onClickEmoji: (String) -> Unit,
     private val onCountStart: () -> Unit,
     private val onCountStop: () -> Unit
@@ -37,14 +38,17 @@ class EmojiGridAdapter(
                 LayoutInflater.from(parent.context).inflate(R.layout.item_emoji, parent, false)
             val imageView: ImageView = view.findViewById(R.id.imageView)
 
-            imageView.setImageResource(emoji?.second ?: R.drawable.ic_backspace)
-            emoji?.first?.let {
+            imageView.setImageDrawable(
+                emoji?.let { EmojiPackStore.drawable(parent.context, it) }
+                    ?: parent.context.getDrawable(R.drawable.ic_backspace)
+            )
+            emoji?.let {
                 view.background = parent.context.getDrawable(R.drawable.selector_emoji)
                 if (SDK_INT >= 26)
                     view.tooltipText = it.substring(1, it.lastIndex)
             }
             view.setOnClickListener {
-                onClickEmoji(emoji?.first ?: "[c001apk]")
+                onClickEmoji(emoji ?: "[c001apk]")
             }
             if (position == 27) {
                 if (SDK_INT >= 26)

@@ -1,0 +1,934 @@
+{
+ "schema": 1,
+ "groups": [
+  {
+   "id": "default",
+   "title": "默认"
+  },
+  {
+   "id": "coin",
+   "title": "酷币"
+  },
+  {
+   "id": "niuniu",
+   "title": "牛牛"
+  }
+ ],
+ "entries": [
+  {
+   "code": "哈哈哈",
+   "group": "default",
+   "file": "coolapk_emotion_1_hahaha.png"
+  },
+  {
+   "code": "惊讶",
+   "group": "default",
+   "file": "coolapk_emotion_2_jingya.png"
+  },
+  {
+   "code": "呲牙",
+   "group": "default",
+   "file": "coolapk_emotion_3_ciya.png"
+  },
+  {
+   "code": "流泪",
+   "group": "default",
+   "file": "coolapk_emotion_4_liulei.png"
+  },
+  {
+   "code": "可爱",
+   "group": "default",
+   "file": "coolapk_emotion_5_keai.png"
+  },
+  {
+   "code": "微笑",
+   "group": "default",
+   "file": "coolapk_emotion_6_weixiao.png"
+  },
+  {
+   "code": "呵呵",
+   "group": "default",
+   "file": "coolapk_emotion_7_hehe.png"
+  },
+  {
+   "code": "撇嘴",
+   "group": "default",
+   "file": "coolapk_emotion_8_piezui.png"
+  },
+  {
+   "code": "色",
+   "group": "default",
+   "file": "coolapk_emotion_9_se.png"
+  },
+  {
+   "code": "傲慢",
+   "group": "default",
+   "file": "coolapk_emotion_10_aoman.png"
+  },
+  {
+   "code": "疑问",
+   "group": "default",
+   "file": "coolapk_emotion_11_yiwen.png"
+  },
+  {
+   "code": "无语",
+   "group": "default",
+   "file": "coolapk_emotion_12_wuyu.png"
+  },
+  {
+   "code": "坏笑",
+   "group": "default",
+   "file": "coolapk_emotion_13_huaixiao.png"
+  },
+  {
+   "code": "鄙视",
+   "group": "default",
+   "file": "coolapk_emotion_14_bishi.png"
+  },
+  {
+   "code": "发怒",
+   "group": "default",
+   "file": "coolapk_emotion_15_fanu.png"
+  },
+  {
+   "code": "爆怒",
+   "group": "default",
+   "file": "coolapk_emotion_104.png"
+  },
+  {
+   "code": "托腮",
+   "group": "default",
+   "file": "coolapk_emotion_16_tuosai.png"
+  },
+  {
+   "code": "吐舌",
+   "group": "default",
+   "file": "coolapk_emotion_17_tushe.png"
+  },
+  {
+   "code": "汗",
+   "group": "default",
+   "file": "coolapk_emotion_18_han.png"
+  },
+  {
+   "code": "抠鼻",
+   "group": "default",
+   "file": "coolapk_emotion_19_koubi.png"
+  },
+  {
+   "code": "亲亲",
+   "group": "default",
+   "file": "coolapk_emotion_20_qinqin.png"
+  },
+  {
+   "code": "喷血",
+   "group": "default",
+   "file": "coolapk_emotion_21_penxue.png"
+  },
+  {
+   "code": "笑眼",
+   "group": "default",
+   "file": "coolapk_emotion_22_xiaoyan.png"
+  },
+  {
+   "code": "睡",
+   "group": "default",
+   "file": "coolapk_emotion_23_shui.png"
+  },
+  {
+   "code": "捂嘴笑",
+   "group": "default",
+   "file": "coolapk_emotion_24_wuzuixiao.png"
+  },
+  {
+   "code": "再见",
+   "group": "default",
+   "file": "coolapk_emotion_25_zaijian.png"
+  },
+  {
+   "code": "可怜",
+   "group": "default",
+   "file": "coolapk_emotion_26_kelian.png"
+  },
+  {
+   "code": "笑哭",
+   "group": "default",
+   "file": "coolapk_emotion_31_xiaoku.png"
+  },
+  {
+   "code": "强",
+   "group": "default",
+   "file": "coolapk_emotion_27_qiang.png"
+  },
+  {
+   "code": "弱",
+   "group": "default",
+   "file": "coolapk_emotion_28_ruo.png"
+  },
+  {
+   "code": "抱拳",
+   "group": "default",
+   "file": "coolapk_emotion_29_baoquan.png"
+  },
+  {
+   "code": "ok",
+   "group": "default",
+   "file": "coolapk_emotion_30_ok.png"
+  },
+  {
+   "code": "嘿哈",
+   "group": "default",
+   "file": "coolapk_emotion_32_heiha.png"
+  },
+  {
+   "code": "捂脸",
+   "group": "default",
+   "file": "coolapk_emotion_33_wulian.png"
+  },
+  {
+   "code": "机智",
+   "group": "default",
+   "file": "coolapk_emotion_34_jizhi.png"
+  },
+  {
+   "code": "耶",
+   "group": "default",
+   "file": "coolapk_emotion_35_ye.png"
+  },
+  {
+   "code": "我最美",
+   "group": "default",
+   "file": "coolapk_emotion_38_wozuimei.png"
+  },
+  {
+   "code": "酷",
+   "group": "default",
+   "file": "coolapk_emotion_36_ku.png"
+  },
+  {
+   "code": "黑线",
+   "group": "default",
+   "file": "coolapk_emotion_43_heixian.png"
+  },
+  {
+   "code": "喷",
+   "group": "default",
+   "file": "coolapk_emotion_44_pen.png"
+  },
+  {
+   "code": "阴险",
+   "group": "default",
+   "file": "coolapk_emotion_45_yinxian.png"
+  },
+  {
+   "code": "难过",
+   "group": "default",
+   "file": "coolapk_emotion_46_nanguo.png"
+  },
+  {
+   "code": "委屈",
+   "group": "default",
+   "file": "coolapk_emotion_47_weiqu.png"
+  },
+  {
+   "code": "吃瓜",
+   "group": "default",
+   "file": "coolapk_emotion_51_chigua.png"
+  },
+  {
+   "code": "喝酒",
+   "group": "default",
+   "file": "coolapk_emotion_52_hejiu.png"
+  },
+  {
+   "code": "噗",
+   "group": "default",
+   "file": "coolapk_emotion_53_pu.png"
+  },
+  {
+   "code": "微微一笑",
+   "group": "default",
+   "file": "coolapk_emotion_48_weiweiyixiao.png"
+  },
+  {
+   "code": "欢呼",
+   "group": "default",
+   "file": "coolapk_emotion_49_huanhu.png"
+  },
+  {
+   "code": "白眼",
+   "group": "default",
+   "file": "coolapk_emotion_84_baiyan.png"
+  },
+  {
+   "code": "耐克嘴",
+   "group": "default",
+   "file": "coolapk_emotion_81_naikezui.png"
+  },
+  {
+   "code": "t耐克嘴",
+   "group": "default",
+   "file": "coolapk_emotion_105.png"
+  },
+  {
+   "code": "害羞",
+   "group": "default",
+   "file": "coolapk_emotion_97_haixiu.png"
+  },
+  {
+   "code": "无奈",
+   "group": "default",
+   "file": "coolapk_emotion_98_wunai.png"
+  },
+  {
+   "code": "皱眉",
+   "group": "default",
+   "file": "coolapk_emotion_99_zhoumei.png"
+  },
+  {
+   "code": "qqdoge",
+   "group": "default",
+   "file": "coolapk_emotion_100_qqdoge.png"
+  },
+  {
+   "code": "发呆",
+   "group": "default",
+   "file": "coolapk_emotion_102_fadai.png"
+  },
+  {
+   "code": "舒服",
+   "group": "default",
+   "file": "coolapk_emotion_106.png"
+  },
+  {
+   "code": "懒得理",
+   "group": "default",
+   "file": "coolapk_emotion_107.png"
+  },
+  {
+   "code": "不开心",
+   "group": "default",
+   "file": "coolapk_emotion_108.png"
+  },
+  {
+   "code": "挑眉坏笑",
+   "group": "default",
+   "file": "coolapk_emotion_109.png"
+  },
+  {
+   "code": "害怕",
+   "group": "default",
+   "file": "coolapk_emotion_1010.png"
+  },
+  {
+   "code": "哼唧",
+   "group": "default",
+   "file": "coolapk_emotion_1011.png"
+  },
+  {
+   "code": "挨打",
+   "group": "default",
+   "file": "coolapk_emotion_1012.png"
+  },
+  {
+   "code": "假笑",
+   "group": "default",
+   "file": "coolapk_emotion_1014.png"
+  },
+  {
+   "code": "偷看",
+   "group": "default",
+   "file": "coolapk_emotion_1015.png"
+  },
+  {
+   "code": "喝茶",
+   "group": "default",
+   "file": "coolapk_emotion_1016.png"
+  },
+  {
+   "code": "哦吼吼",
+   "group": "default",
+   "file": "coolapk_emotion_1017.png"
+  },
+  {
+   "code": "掩面笑",
+   "group": "default",
+   "file": "coolapk_emotion_1018.png"
+  },
+  {
+   "code": "表面哭泣",
+   "group": "default",
+   "file": "coolapk_emotion_1019.png"
+  },
+  {
+   "code": "表面开心",
+   "group": "default",
+   "file": "coolapk_emotion_1020.png"
+  },
+  {
+   "code": "滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_62_huaji.png"
+  },
+  {
+   "code": "流汗滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_63_liuhanhuaji.png"
+  },
+  {
+   "code": "受虐滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_64_shounuehuaji.png"
+  },
+  {
+   "code": "cos滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_65_coshuaji.png"
+  },
+  {
+   "code": "斗鸡眼滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_66_doujiyanhuaji.png"
+  },
+  {
+   "code": "墨镜滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_67_mojinghuaji.png"
+  },
+  {
+   "code": "小嘴滑稽",
+   "group": "default",
+   "file": "coolapk_emotion_1013.png"
+  },
+  {
+   "code": "针不戳",
+   "group": "default",
+   "file": "coolapk_emotion_1022_zhenbuchuo.png"
+  },
+  {
+   "code": "列文虎克",
+   "group": "default",
+   "file": "coolapk_emotion_1023_liewenhuke.png"
+  },
+  {
+   "code": "真正的音乐",
+   "group": "default",
+   "file": "coolapk_emotion_1024.png"
+  },
+  {
+   "code": "感知不强",
+   "group": "default",
+   "file": "coolapk_emotion_1025.png"
+  },
+  {
+   "code": "给我整一个",
+   "group": "default",
+   "file": "coolapk_emotion_1026.png"
+  },
+  {
+   "code": "yyds",
+   "group": "default",
+   "file": "coolapk_emotion_1027.png"
+  },
+  {
+   "code": "doge",
+   "group": "default",
+   "file": "coolapk_emotion_37_doge.png"
+  },
+  {
+   "code": "doge笑哭",
+   "group": "default",
+   "file": "coolapk_emotion_56_dogexiaoku.png"
+  },
+  {
+   "code": "doge呵斥",
+   "group": "default",
+   "file": "coolapk_emotion_57_dogehechi.png"
+  },
+  {
+   "code": "doge原谅ta",
+   "group": "default",
+   "file": "coolapk_emotion_58_dogeyuanliangta.png"
+  },
+  {
+   "code": "喵喵",
+   "group": "default",
+   "file": "coolapk_emotion_82_miaomiao.png"
+  },
+  {
+   "code": "二哈",
+   "group": "default",
+   "file": "coolapk_emotion_59_erha.png"
+  },
+  {
+   "code": "二哈盯",
+   "group": "default",
+   "file": "coolapk_emotion_95_erhading.png"
+  },
+  {
+   "code": "爱心",
+   "group": "default",
+   "file": "coolapk_emotion_40_aixin.png"
+  },
+  {
+   "code": "心碎",
+   "group": "default",
+   "file": "coolapk_emotion_50_xinsui.png"
+  },
+  {
+   "code": "玫瑰",
+   "group": "default",
+   "file": "coolapk_emotion_41_meigui.png"
+  },
+  {
+   "code": "凋谢",
+   "group": "default",
+   "file": "coolapk_emotion_42_diaoxie.png"
+  },
+  {
+   "code": "菜刀",
+   "group": "default",
+   "file": "coolapk_emotion_39_caidao.png"
+  },
+  {
+   "code": "牛啤",
+   "group": "default",
+   "file": "coolapk_emotion_103_nb.png"
+  },
+  {
+   "code": "py交易",
+   "group": "default",
+   "file": "coolapk_emotion_101_pyjiaoyi.png"
+  },
+  {
+   "code": "绿药丸",
+   "group": "default",
+   "file": "coolapk_emotion_55_lvyaowan.png"
+  },
+  {
+   "code": "红药丸",
+   "group": "default",
+   "file": "coolapk_emotion_54_hongyaowan.png"
+  },
+  {
+   "code": "酷安",
+   "group": "default",
+   "file": "coolapk_emotion_60_kuan.png"
+  },
+  {
+   "code": "酷安钓鱼",
+   "group": "default",
+   "file": "coolapk_emotion_1021.png"
+  },
+  {
+   "code": "绿帽",
+   "group": "default",
+   "file": "coolapk_emotion_61_lvmao.png"
+  },
+  {
+   "code": "酷安绿帽",
+   "group": "default",
+   "file": "coolapk_emotion_96_kuanlvmao.png"
+  },
+  {
+   "code": "火把",
+   "group": "default",
+   "file": "coolapk_emotion_83_huoba.png"
+  },
+  {
+   "code": "夏阁艾迪剑",
+   "group": "default",
+   "file": "coolapk_emotion_1028.png"
+  },
+  {
+   "code": "下次一定",
+   "group": "default",
+   "file": "coolapk_emotion_1029.png"
+  },
+  {
+   "code": "酷安土豆",
+   "group": "default",
+   "file": "coolapk_emotion_1030.png"
+  },
+  {
+   "code": "头条通知书",
+   "group": "default",
+   "file": "coolapk_emotion_1031.png"
+  },
+  {
+   "code": "酷币",
+   "group": "coin",
+   "file": "c_coolb.png"
+  },
+  {
+   "code": "酷币1分",
+   "group": "coin",
+   "file": "c_onef.png"
+  },
+  {
+   "code": "酷币2分",
+   "group": "coin",
+   "file": "c_twof.png"
+  },
+  {
+   "code": "酷币5分",
+   "group": "coin",
+   "file": "c_fivef.png"
+  },
+  {
+   "code": "酷币1毛",
+   "group": "coin",
+   "file": "c_onem.png"
+  },
+  {
+   "code": "酷币2毛",
+   "group": "coin",
+   "file": "c_twom.png"
+  },
+  {
+   "code": "酷币5毛",
+   "group": "coin",
+   "file": "c_fivem.png"
+  },
+  {
+   "code": "酷币1块",
+   "group": "coin",
+   "file": "c_oney.png"
+  },
+  {
+   "code": "酷币2块",
+   "group": "coin",
+   "file": "c_twoy.png"
+  },
+  {
+   "code": "酷币5块",
+   "group": "coin",
+   "file": "c_fivey.png"
+  },
+  {
+   "code": "酷币10块",
+   "group": "coin",
+   "file": "c_teny.png"
+  },
+  {
+   "code": "酷币20块",
+   "group": "coin",
+   "file": "c_ty.png"
+  },
+  {
+   "code": "酷币50块",
+   "group": "coin",
+   "file": "c_fy.png"
+  },
+  {
+   "code": "酷币100块",
+   "group": "coin",
+   "file": "c_oy.png"
+  },
+  {
+   "code": "酷币1$",
+   "group": "coin",
+   "file": "c_oned.png"
+  },
+  {
+   "code": "酷币2$",
+   "group": "coin",
+   "file": "c_twod.png"
+  },
+  {
+   "code": "酷币5$",
+   "group": "coin",
+   "file": "c_fived.png"
+  },
+  {
+   "code": "酷币1€",
+   "group": "coin",
+   "file": "c_oneo.png"
+  },
+  {
+   "code": "酷币2€",
+   "group": "coin",
+   "file": "c_twoo.png"
+  },
+  {
+   "code": "酷币5€",
+   "group": "coin",
+   "file": "c_fiveo.png"
+  },
+  {
+   "code": "灰色酷币",
+   "group": "coin",
+   "file": "coolapk_emotion_68.png"
+  },
+  {
+   "code": "绿色酷币",
+   "group": "coin",
+   "file": "coolapk_emotion_69.png"
+  },
+  {
+   "code": "白纹酷币",
+   "group": "coin",
+   "file": "coolapk_emotion_70.png"
+  },
+  {
+   "code": "新酷币",
+   "group": "coin",
+   "file": "coolapk_emotion_71.png"
+  },
+  {
+   "code": "新币1分",
+   "group": "coin",
+   "file": "coolapk_emotion_72.png"
+  },
+  {
+   "code": "新酷币2分",
+   "group": "coin",
+   "file": "coolapk_emotion_85.png"
+  },
+  {
+   "code": "新酷币5分",
+   "group": "coin",
+   "file": "coolapk_emotion_86.png"
+  },
+  {
+   "code": "新酷币1毛",
+   "group": "coin",
+   "file": "coolapk_emotion_87.png"
+  },
+  {
+   "code": "新酷币2毛",
+   "group": "coin",
+   "file": "coolapk_emotion_88.png"
+  },
+  {
+   "code": "新酷币5毛",
+   "group": "coin",
+   "file": "coolapk_emotion_89.png"
+  },
+  {
+   "code": "新酷币1块",
+   "group": "coin",
+   "file": "coolapk_emotion_90.png"
+  },
+  {
+   "code": "新酷币2块",
+   "group": "coin",
+   "file": "coolapk_emotion_91.png"
+  },
+  {
+   "code": "新酷币5块",
+   "group": "coin",
+   "file": "coolapk_emotion_92.png"
+  },
+  {
+   "code": "新酷币10块",
+   "group": "coin",
+   "file": "coolapk_emotion_93.png"
+  },
+  {
+   "code": "新酷币20块",
+   "group": "coin",
+   "file": "coolapk_emotion_94.png"
+  },
+  {
+   "code": "新酷币50块",
+   "group": "coin",
+   "file": "coolapk_emotion_73.png"
+  },
+  {
+   "code": "新酷币100块",
+   "group": "coin",
+   "file": "coolapk_emotion_74.png"
+  },
+  {
+   "code": "新酷币1$",
+   "group": "coin",
+   "file": "coolapk_emotion_75.png"
+  },
+  {
+   "code": "新酷币2$",
+   "group": "coin",
+   "file": "coolapk_emotion_76.png"
+  },
+  {
+   "code": "新酷币5$",
+   "group": "coin",
+   "file": "coolapk_emotion_77.png"
+  },
+  {
+   "code": "新酷币1€",
+   "group": "coin",
+   "file": "coolapk_emotion_78.png"
+  },
+  {
+   "code": "新酷币2€",
+   "group": "coin",
+   "file": "coolapk_emotion_79.png"
+  },
+  {
+   "code": "新酷币5€",
+   "group": "coin",
+   "file": "coolapk_emotion_80.png"
+  },
+  {
+   "code": "牛牛阿巴",
+   "group": "niuniu",
+   "file": "niuniu_emotion_babble.png"
+  },
+  {
+   "code": "牛牛财奴",
+   "group": "niuniu",
+   "file": "niuniu_emotion_money_grubber.png"
+  },
+  {
+   "code": "牛牛呲牙笑",
+   "group": "niuniu",
+   "file": "niuniu_emotion_grin.png"
+  },
+  {
+   "code": "牛牛大喊",
+   "group": "niuniu",
+   "file": "niuniu_emotion_shout.png"
+  },
+  {
+   "code": "牛牛戴耳机",
+   "group": "niuniu",
+   "file": "niuniu_emotion_headphones.png"
+  },
+  {
+   "code": "牛牛点赞",
+   "group": "niuniu",
+   "file": "niuniu_emotion_thumbs_up.png"
+  },
+  {
+   "code": "牛牛恶心",
+   "group": "niuniu",
+   "file": "niuniu_emotion_nauseous.png"
+  },
+  {
+   "code": "牛牛尴尬",
+   "group": "niuniu",
+   "file": "niuniu_emotion_awkward.png"
+  },
+  {
+   "code": "牛牛鬼脸",
+   "group": "niuniu",
+   "file": "niuniu_emotion_silly_face.png"
+  },
+  {
+   "code": "牛牛害怕",
+   "group": "niuniu",
+   "file": "niuniu_emotion_scared.png"
+  },
+  {
+   "code": "牛牛害羞",
+   "group": "niuniu",
+   "file": "niuniu_emotion_shy.png"
+  },
+  {
+   "code": "牛牛挥手",
+   "group": "niuniu",
+   "file": "niuniu_emotion_wave.png"
+  },
+  {
+   "code": "牛牛娇羞",
+   "group": "niuniu",
+   "file": "niuniu_emotion_coy.png"
+  },
+  {
+   "code": "牛牛惊讶",
+   "group": "niuniu",
+   "file": "niuniu_emotion_surprised.png"
+  },
+  {
+   "code": "牛牛冷汗",
+   "group": "niuniu",
+   "file": "niuniu_emotion_cold_sweat.png"
+  },
+  {
+   "code": "牛牛墨镜",
+   "group": "niuniu",
+   "file": "niuniu_emotion_sunglasses.png"
+  },
+  {
+   "code": "牛牛疲惫",
+   "group": "niuniu",
+   "file": "niuniu_emotion_tired.png"
+  },
+  {
+   "code": "牛牛求饶",
+   "group": "niuniu",
+   "file": "niuniu_emotion_pleading.png"
+  },
+  {
+   "code": "牛牛认真脸",
+   "group": "niuniu",
+   "file": "niuniu_emotion_serious.png"
+  },
+  {
+   "code": "牛牛伤心",
+   "group": "niuniu",
+   "file": "niuniu_emotion_sad.png"
+  },
+  {
+   "code": "牛牛生病",
+   "group": "niuniu",
+   "file": "niuniu_emotion_sick.png"
+  },
+  {
+   "code": "牛牛生气",
+   "group": "niuniu",
+   "file": "niuniu_emotion_angry.png"
+  },
+  {
+   "code": "牛牛思考",
+   "group": "niuniu",
+   "file": "niuniu_emotion_thinking.png"
+  },
+  {
+   "code": "牛牛微笑",
+   "group": "niuniu",
+   "file": "niuniu_emotion_smile.png"
+  },
+  {
+   "code": "牛牛委屈",
+   "group": "niuniu",
+   "file": "niuniu_emotion_aggrieved.png"
+  },
+  {
+   "code": "牛牛问号脸",
+   "group": "niuniu",
+   "file": "niuniu_emotion_question_face.png"
+  },
+  {
+   "code": "牛牛喜欢",
+   "group": "niuniu",
+   "file": "niuniu_emotion_love.png"
+  },
+  {
+   "code": "牛牛星星眼",
+   "group": "niuniu",
+   "file": "niuniu_emotion_star_eyes.png"
+  },
+  {
+   "code": "牛牛疑惑",
+   "group": "niuniu",
+   "file": "niuniu_emotion_puzzled.png"
+  },
+  {
+   "code": "牛牛眨眼",
+   "group": "niuniu",
+   "file": "niuniu_emotion_wink.png"
+  },
+  {
+   "code": "牛牛真香",
+   "group": "niuniu",
+   "file": "niuniu_emotion_delicious.png"
+  },
+  {
+   "code": "牛牛爆赞",
+   "group": "niuniu",
+   "file": "niuniu_emotion_super_praise.png"
+  }
+ ]
+}

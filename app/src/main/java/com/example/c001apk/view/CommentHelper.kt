@@ -66,21 +66,18 @@ class EmojiTextWatcher(
         val matcher = pattern.matcher(spannable).region(start, total)
         while (matcher.find()) {
             val group = matcher.group()
-            EmojiUtils.emojiMap[group]?.let {
-                context.getDrawable(it)?.let { emoji ->
-                    if (group in listOf("[楼主]", "[层主]", "[置顶]"))
-                        emoji.setBounds(0, 0, (size * 2).toInt(), size.toInt())
-                    else
-                        emoji.setBounds(0, 0, (size * 1.4).toInt(), (size * 1.4).toInt())
-                    val imageSpan = CenteredImageSpan(emoji, (size * 1.4).toInt(), group)
-                    spannable.setSpan(
-                        imageSpan,
-                        matcher.start(),
-                        matcher.end(),
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                }
-
+            EmojiUtils.drawable(context, group)?.let { emoji ->
+                if (group in EmojiUtils.badges.keys && group != "[图片]")
+                    emoji.setBounds(0, 0, (size * 2).toInt(), size.toInt())
+                else
+                    emoji.setBounds(0, 0, (size * 1.4).toInt(), (size * 1.4).toInt())
+                val imageSpan = CenteredImageSpan(emoji, (size * 1.4).toInt(), group)
+                spannable.setSpan(
+                    imageSpan,
+                    matcher.start(),
+                    matcher.end(),
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
         }
     }

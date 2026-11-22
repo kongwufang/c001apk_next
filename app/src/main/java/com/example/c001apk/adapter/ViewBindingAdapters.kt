@@ -81,40 +81,19 @@ fun setFeedFooter(textView: TextView, data: HomeFeedResponse.Data?) {
     textView.visibility = if (sb.isEmpty()) View.GONE else View.VISIBLE
 }
 
-@BindingAdapter("setFollowText")
-fun setFollowText(textView: TextView, followAuthor: Int) {
-    // 列表项不下发 followAuthor，详情回来前是"未知"：按钮先隐身，让 followLoading 的转圈顶上
-    val unknown = followAuthor == Constants.FOLLOW_AUTHOR_UNKNOWN
-    with(PrefManager.isLogin) {
-        textView.isVisible = this && !unknown
-        if (this && !unknown) {
-            when (followAuthor) {
-                0 -> {
-                    textView.text = "关注"
-                    textView.setTextColor(
-                        MaterialColors.getColor(
-                            textView.context,
-                            androidx.appcompat.R.attr.colorPrimary,
-                            0
-                        )
-                    )
-                }
-
-                1 -> {
-                    textView.text = "取消关注"
-                    textView.setTextColor(textView.context.getColor(android.R.color.darker_gray))
-                }
-
-                else -> {}
-            }
-        }
+@BindingAdapter("followAuthor", "followUid", "followListener")
+fun bindAuthorFollow(view: TextView, state: Int, uid: String?, listener: ItemListener?) {
+    val target = uid.takeIf { listener?.showAuthorFollow == true }
+    val cloudFollowed = if (state == Constants.FOLLOW_AUTHOR_UNKNOWN) null else state == 1
+    com.example.c001apk.ui.follow.FollowButton.bind(view, target, cloudFollowed, followedText = "取消关注", tintText = true) {
+        target?.let { author -> listener?.onFollowUser(author, if (it) 1 else 0) }
     }
-
 }
 
-@BindingAdapter("followLoading")
-fun followLoading(view: View, followAuthor: Int) {
-    view.isVisible = followAuthor == Constants.FOLLOW_AUTHOR_UNKNOWN
+@BindingAdapter("followLoading", "followUid", "followListener")
+fun followLoading(view: View, state: Int, uid: String?, listener: ItemListener?) {
+    view.isVisible = listener?.showAuthorFollow == true && PrefManager.saveFollowToCloud &&
+        PrefManager.canFollowUser(uid) && state == Constants.FOLLOW_AUTHOR_UNKNOWN
 }
 
 /**

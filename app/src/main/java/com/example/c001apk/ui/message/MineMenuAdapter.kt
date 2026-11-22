@@ -2,8 +2,6 @@ package com.example.c001apk.ui.message
 
 import com.example.c001apk.ui.blacklist.BlackListActivity
 import com.example.c001apk.ui.collection.LocalCollectionActivity
-import com.example.c001apk.ui.follow.LocalFollowActivity
-import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,12 +18,7 @@ import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.PrefManager
 
 /**
- * 「我的」页功能宫格（8 格）：离线缓存 / 我的关注 / 我的收藏 / 我的赞 /
- * 我的回复 / 我的常去 / 浏览历史 / 我的装备。
- *
- * 跳转参数沿用原来的 item_message_mine 卡片（FFFListActivity 的 type 取值等都没动）。
- * 第一格原来是「我的动态」，用户的动态列表在个人页头部点头像/动态就能进，作用重复，
- * 位置腾给了离线缓存（不需要登录，未登录也该能看自己存过的东西）。
+ * 侧栏功能九宫格。酷回收在应用内打开，不受应用登录状态限制。
  */
 class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
 
@@ -33,14 +26,12 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
         RecyclerView.ViewHolder(binding.root), View.OnClickListener {
 
         init {
-            // 离线缓存 / 装备 / 浏览历史不需要登录；其余入口登录后才可点
             binding.offlineLayout.setOnClickListener(this)
+            binding.coolRecycleLayout.setOnClickListener(this)
             binding.equipmentLayout.setOnClickListener(this)
             binding.historyLayout.setOnClickListener(this)
-            // 第 9 格占位：不需要登录也点得动（只是弹个 Toast ✓）
             binding.comingSoonLayout.setOnClickListener(this)
             if (PrefManager.isLogin) {
-                binding.followLayout.setOnClickListener(this)
                 binding.favLayout.setOnClickListener(this)
                 binding.likeLayout.setOnClickListener(this)
                 binding.replyLayout.setOnClickListener(this)
@@ -54,17 +45,9 @@ class MineMenuAdapter : RecyclerView.Adapter<MineMenuAdapter.MenuViewHolder>() {
                     IntentUtil.startActivity<OfflineCacheActivity>(itemView.context) {
                     }
 
-                R.id.followLayout ->
-                    // 2026-10-25：「关注」存本地还是云端由设置决定 ✓
-                    //   云端 ⇒ 原来的 FFFListActivity（读服务端关注列表）
-                    //   本地 ⇒ LocalFollowActivity（读本机 uid，点进去再按 uid 拉内容）
-                    if (!PrefManager.saveFollowToCloud) {
-                        IntentUtil.startActivity<LocalFollowActivity>(itemView.context) {}
-                    } else if (PrefManager.isLogin) {
-                        IntentUtil.startActivity<FFFListActivity>(itemView.context) {
-                            putExtra("type", "follow")
-                            putExtra("uid", PrefManager.uid)
-                        }
+                R.id.coolRecycleLayout ->
+                    IntentUtil.startActivity<WebViewActivity>(itemView.context) {
+                        putExtra("url", "https://www.coolapk.com/link/coolhuishou?drawNav=1")
                     }
 
                 R.id.favLayout ->

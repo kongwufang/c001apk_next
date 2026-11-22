@@ -18,6 +18,7 @@ import com.example.c001apk.databinding.ItemFeedContentBinding
 import com.example.c001apk.logic.model.FeedArticleContentBean
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.logic.model.Like
+import com.example.c001apk.view.SelectableLinkMovementMethod
 
 class FeedDataAdapter(
     private val listener: ItemListener,
@@ -168,11 +169,9 @@ class FeedDataAdapter(
             // 标题已经不在 0/1 位上，按位置判断的话标题就永远不加粗了
             binding.textView.paint.isFakeBoldText = data?.title == "true"
             binding.executePendingBindings()
-            // 图文正文：同样在绑定后显式开启系统选择（富文本由 BindingAdapter 设置，
-            // 之后的重设会把选择模式顶掉，所以这里再落一次）。
-            binding.textView.setTextIsSelectable(true)
-            binding.textView.movementMethod =
-                android.text.method.ArrowKeyMovementMethod.getInstance()
+            // 绑定富文本后保留系统选字，但不能换回不处理 ClickableSpan 的 ArrowKeyMovementMethod。
+            if (!binding.textView.isTextSelectable) binding.textView.setTextIsSelectable(true)
+            SelectableLinkMovementMethod.applyTo(binding.textView)
         }
     }
 

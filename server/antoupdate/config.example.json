@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "channel": "production",
+  "stable": {
+    "versionName": "1.0.12",
+    "versionCode": 10012,
+    "changelog": "Replace with the production release notes.",
+    "downloadUrl": "https://downloads.example.invalid/c001apk-10012-release.apk",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sizeBytes": 0
+  }
+}

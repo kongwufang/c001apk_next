@@ -42,8 +42,9 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivityArticlePublishBinding
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.ui.feed.reply.attopic.AtTopicActivity
-import com.example.c001apk.ui.feed.reply.emoji.EmojiPagerAdapter
-import com.example.c001apk.util.EmojiUtils
+import com.example.c001apk.ui.feed.reply.emoji.EmojiPanelBinder
+import com.example.c001apk.util.emoji.EmojiPackStore
+import com.example.c001apk.util.emoji.EmojiPackUpdater
 import com.example.c001apk.util.ImageUtil.getImageDimensionsAndMD5
 import com.example.c001apk.util.ImageUtil.toHex
 import com.example.c001apk.util.TransitionAnim
@@ -81,25 +82,13 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
 
     private val viewModel: ArticlePublishViewModel by viewModels()
 
-    /** 表情面板数据：最近 / 默认 / 酷币 三页，切法与发表动态页一样 */
-    private val dataList by lazy { EmojiUtils.emojiMap.toList() }
-    private val recentList = ArrayList<List<Pair<String, Int>>>()
-    private val emojiList = ArrayList<List<Pair<String, Int>>>()
-    private val coolBList = ArrayList<List<Pair<String, Int>>>()
-    private val list = listOf(recentList, emojiList, coolBList)
+    /** 表情面板数据来自已安装的表情包；下载完成前只有占位页 */
+    private var recentCodes: List<String> = emptyList()
+    private lateinit var emojiBinder: EmojiPanelBinder
     private lateinit var atTopicResultLauncher: ActivityResultLauncher<Intent>
 
     /** 刚敲下「@」就跳去选人：回来要把这个「@」替换掉，而不是追在它后面 */
     private var isFromAt = false
-
-    init {
-        // 前 4 个（置顶/楼主/层主/图片）不进面板，之后 27 个一页
-        for (i in 0..3) {
-            emojiList.add(dataList.subList(i * 27 + 4, (i + 1) * 27 + 4))
-        }
-        coolBList.add(dataList.subList(112, 139))
-        coolBList.add(dataList.subList(139, 155))
-    }
 
     private var coverUri: Uri? = null
     private var coverMd5Byte: ByteArray? = null
@@ -182,75 +171,12 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
         }
     }
 
-    /** 表情面板：最近 / 默认 / 酷币 三页，适配器直接复用动态页的 */
+    /** 表情面板：最近 + 表情包各组，适配器直接复用动态页的 */
     private fun initEmojiPanel() {
-        for (i in 0..2) {
-            binding.indicator.addView(
-                TextView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                    ).apply { weight = 1f }
-                    gravity = Gravity.CENTER
-                    text = listOf("最近", "默认", "酷币")[i]
-                    background = getDrawable(R.drawable.selector_bg_trans)
-                    setOnClickListener {
-                        binding.emojiPanel.setCurrentItem(i, false)
-                    }
-                    if (i == 0 && BuildConfig.DEBUG) {
-                        setOnLongClickListener {
-                            viewModel.deleteAll()
-                            true
-                        }
-                    }
-                }
-            )
-            if (i != 2) {
-                binding.indicator.addView(
-                    View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(
-                            1.dp,
-                            LinearLayout.LayoutParams.MATCH_PARENT
-                        )
-                        setBackgroundColor(
-                            MaterialColors.getColor(
-                                this@ArticlePublishActivity,
-                                com.google.android.material.R.attr.colorSurfaceVariant, 0
-                            )
-                        )
-                    }
-                )
-            }
-        }
-        binding.emojiPanel.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                for (i in 0 until binding.indicator.childCount) {
-                    with(binding.indicator.getChildAt(i)) {
-                        if (this is TextView) {
-                            background = getDrawable(
-                                if (i / 2 == position) R.drawable.selector_emoji_indicator_selected
-                                else R.drawable.selector_emoji_indicator
-                            )
-                            setTextColor(
-                                if (i / 2 == position)
-                                    MaterialColors.getColor(
-                                        this@ArticlePublishActivity,
-                                        com.google.android.material.R.attr.colorOnPrimary, 0
-                                    )
-                                else
-                                    MaterialColors.getColor(
-                                        this@ArticlePublishActivity,
-                                        androidx.appcompat.R.attr.colorControlNormal, 0
-                                    )
-                            )
-                        }
-                    }
-                }
-            }
-        })
-        binding.emojiPanel.adapter = EmojiPagerAdapter(
-            list,
+        emojiBinder = EmojiPanelBinder(
+            this,
+            binding.emojiPanel,
+            binding.indicator,
             onClickEmoji = {
                 with(binding.articleBody) {
                     if (it == "[c001apk]") {
@@ -263,8 +189,13 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
                 }
             },
             onCountStart = { countDownTimer.start() },
-            onCountStop = { countDownTimer.cancel() }
+            onCountStop = { countDownTimer.cancel() },
+            onClearRecent = { viewModel.deleteAll() },
         )
+        emojiBinder.bind()
+        lifecycleScope.launch {
+            EmojiPackStore.state.collect { emojiBinder.refresh() }
+        }
     }
 
     /** @人 / #话题：选择页把结果回填到正文光标处 */
@@ -304,6 +235,7 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
     }
 
     private fun showEmoji() {
+        if (EmojiPackStore.version() == 0) EmojiPackUpdater.ensureAvailable()
         binding.main.showEmojiPanel(true)
     }
 
@@ -350,22 +282,14 @@ class ArticlePublishActivity : BaseActivity<ActivityArticlePublishBinding>(),
     private fun initObserve() {
         viewModel.recentEmojiLiveData.observe(this) {
             // 用户正停在「最近」页翻着，就别打断他
-            if (binding.emojiPanel.currentItem == 0 && recentList.isNotEmpty())
-                return@observe
-            recentList.clear()
-            if (it.isNullOrEmpty()) {
-                // 第一次用、最近还是空的：默认停到「默认」页，别停在一个空页上
-                if (viewModel.isInit) {
-                    viewModel.isInit = false
-                    binding.emojiPanel.setCurrentItem(1, false)
-                }
-                recentList.add(0, emptyList())
-            } else {
-                recentList.add(0, it.map { item ->
-                    Pair(item.data, EmojiUtils.emojiMap[item.data] ?: R.drawable.ic_logo)
-                })
+            if (binding.emojiPanel.currentItem == 0 && recentCodes.isNotEmpty()) return@observe
+            recentCodes = it.orEmpty().map { entry -> entry.data }
+            if (recentCodes.isEmpty() && viewModel.isInit) {
+                // 第一次用、最近还是空的：默认停到第一组，别停在一个空页上
+                viewModel.isInit = false
+                binding.emojiPanel.setCurrentItem(1, false)
             }
-            binding.emojiPanel.adapter?.notifyItemChanged(0)
+            emojiBinder.updateRecent(recentCodes)
         }
         viewModel.toastText.observe(this) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {

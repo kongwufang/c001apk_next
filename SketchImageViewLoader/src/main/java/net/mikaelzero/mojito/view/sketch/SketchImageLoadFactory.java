@@ -1,5 +1,6 @@
 package net.mikaelzero.mojito.view.sketch;
 
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.view.View;
 
@@ -7,6 +8,7 @@ import net.mikaelzero.mojito.interfaces.ImageViewLoadFactory;
 import net.mikaelzero.mojito.loader.ContentLoader;
 import net.mikaelzero.mojito.view.sketch.core.Sketch;
 import net.mikaelzero.mojito.view.sketch.core.SketchImageView;
+import net.mikaelzero.mojito.view.sketch.core.drawable.GlideSketchGifDrawable;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -16,7 +18,12 @@ public class SketchImageLoadFactory implements ImageViewLoadFactory {
     public void loadSillContent(@NotNull View view, @NotNull Uri uri) {
         if (view instanceof SketchImageView) {
             Sketch.with(view.getContext()).display(uri.getPath(), (SketchImageView) view).loadingImage((context, sketchView, displayOptions) -> {
-                return ((SketchImageView) view).getDrawable(); // 解决缩略图切换到原图显示的时候会闪烁的问题
+                Drawable current = ((SketchImageView) view).getDrawable();
+                // Still images can be shared with the loading wrapper. GIF frames are pooled by
+                // Glide and the old animation will be recycled as soon as Sketch replaces it.
+                return current instanceof GlideSketchGifDrawable
+                        ? ((GlideSketchGifDrawable) current).snapshot(view.getResources())
+                        : current;
             }).commit();
         }
     }

@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.c001apk.util.dp
 
 class EmojiChildPagerAdapter(
-    private val emojiList: List<List<Pair<String, Int>>>,
+    private val emojiList: List<List<String>>,
     private val onClickEmoji: (String) -> Unit,
     private val onCountStart: () -> Unit,
     private val onCountStop: () -> Unit

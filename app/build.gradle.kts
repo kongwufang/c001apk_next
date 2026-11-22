@@ -165,19 +165,22 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            // Robolectric resolves its Android runtime separately from Gradle's mavenCentral().
+            // GitHub-hosted runners can be rate-limited by Maven Central's default CDN.
+            if (System.getenv("GITHUB_ACTIONS") == "true") {
+                it.systemProperty("robolectric.dependency.repo.url",
+                    "https://maven-central.storage-download.googleapis.com/maven2")
+            }
+        }
+    }
     buildFeatures {
         viewBinding = true
         dataBinding = true
         buildConfig = true
-    }
-    defaultConfig {
-        ndk {
-            abiFilters.add("arm64-v8a")
-            abiFilters.add("armeabi-v7a")
-//            abiFilters.add("armeabi")
-//            abiFilters.add("x86")
-            abiFilters.add("x86_64")
-        }
     }
     ksp {
         arg("room.schemaLocation", "$projectDir/schemas")
@@ -240,6 +243,9 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     implementation(libs.oss.android.sdk)
     implementation(libs.utilcode)
 

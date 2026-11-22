@@ -318,14 +318,7 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(), IOnItemClickListen
             NetWorkUtil.openLink(requireContext(), it, null)
             return
         }
-        requireActivity().supportFragmentManager
-            .beginTransaction()
-            .setCustomAnimations(
-                TransitionAnim.fragmentEnter(),
-                TransitionAnim.fragmentExit(),
-                TransitionAnim.fragmentPopEnter(),
-                TransitionAnim.fragmentPopExit()
-            )
+        TransitionAnim.applyFragment(requireActivity().supportFragmentManager.beginTransaction())
             .replace(
                 R.id.fragmentContainer,
                 SearchResultFragment.newInstance(

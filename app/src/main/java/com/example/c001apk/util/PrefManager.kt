@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.constant.Constants
 import com.example.c001apk.BuildConfig
+import com.example.c001apk.logic.model.AccountSession
 
 object PrefManager {
 
@@ -73,10 +74,13 @@ object PrefManager {
         get() = pref.getBoolean("save_collection_to_cloud", isLogin)
         set(value) = pref.edit().putBoolean("save_collection_to_cloud", value).apply()
 
-    /** 关注：true=云端 / false=本地 */
+    /** 只有登录后才能使用云端关注；退出登录时立即回落到本机。 */
     var saveFollowToCloud: Boolean
-        get() = pref.getBoolean("save_follow_to_cloud", isLogin)
+        get() = isLogin && pref.getBoolean("save_follow_to_cloud", true)
         set(value) = pref.edit().putBoolean("save_follow_to_cloud", value).apply()
+
+    fun canFollowUser(uid: String?): Boolean =
+        !uid.isNullOrBlank() && (!isLogin || uid != this.uid)
 
     /** 黑名单（用户）：true=云端 / false=本地 */
     var saveBlackListToCloud: Boolean
@@ -130,13 +134,25 @@ object PrefManager {
         get() = pref.getBoolean(SHOW_EMOJI, true)
         set(value) = pref.edit().putBoolean(SHOW_EMOJI, value).apply()
 
+    /** Changes on identity transitions, including A → logout → A; token renewals are not switches. */
+    val messageAccountGeneration: Long
+        get() = pref.getLong("messageAccountGeneration", 0L)
+
     var isLogin: Boolean
         get() = pref.getBoolean("isLogin", false)
-        set(value) = pref.edit().putBoolean("isLogin", value).apply()
+        set(value) = synchronized(this) {
+            val editor = pref.edit().putBoolean("isLogin", value)
+            if (value != isLogin) editor.putLong("messageAccountGeneration", messageAccountGeneration + 1)
+            editor.apply()
+        }
 
     var uid: String
         get() = pref.getString(UID, "")!!
-        set(value) = pref.edit().putString(UID, value).apply()
+        set(value) = synchronized(this) {
+            val editor = pref.edit().putString(UID, value)
+            if (value != uid) editor.putLong("messageAccountGeneration", messageAccountGeneration + 1)
+            editor.apply()
+        }
 
     var username: String
         get() = pref.getString(NAME, "")!!
@@ -158,6 +174,45 @@ object PrefManager {
     var refreshToken: String
         get() = pref.getString(REFRESH_TOKEN, "")!!
         set(value) = pref.edit().putString(REFRESH_TOKEN, value).apply()
+
+    internal class AccountSnapshot(val generation: Long, val session: AccountSession?)
+
+    @Synchronized
+    internal fun accountSnapshot() = AccountSnapshot(messageAccountGeneration, readAccount())
+
+    private fun readAccount(): AccountSession? = if (!isLogin) null else AccountSession(
+        uid, username, token, refreshToken, userAvatar,
+        pref.getInt("accountAdminType", Int.MIN_VALUE).takeUnless { it == Int.MIN_VALUE },
+    )
+
+    /** CAS prevents a delayed startup check from reviving a session after logout or account change. */
+    @Synchronized
+    internal fun replaceAccount(expectedGeneration: Long, session: AccountSession?): Boolean {
+        if (messageAccountGeneration != expectedGeneration) return false
+        if (session != null) require(session.isValid)
+        val nextUid = session?.uid.orEmpty()
+        val changed = isLogin != (session != null) || uid != nextUid
+        val editor = pref.edit()
+            .putBoolean("isLogin", session != null)
+            .putString(UID, nextUid)
+            .putString(NAME, session?.username.orEmpty())
+            .putString(TOKEN, session?.token.orEmpty())
+            .putString(REFRESH_TOKEN, session?.refreshToken.orEmpty())
+            .putString("userAvatar", session?.avatar.orEmpty())
+        if (session?.adminType == null) editor.remove("accountAdminType")
+        else editor.putInt("accountAdminType", session.adminType)
+        if (changed) {
+            editor.putLong("messageAccountGeneration", expectedGeneration + 1)
+            CookieUtil.clearAccountState()
+        }
+        editor.apply()
+        return true
+    }
+
+    @Synchronized
+    internal fun logout() {
+        replaceAccount(messageAccountGeneration, null)
+    }
 
     var userAvatar: String
         get() = pref.getString("userAvatar", "")!!
@@ -298,6 +353,16 @@ object PrefManager {
         get() = pref.getBoolean("szlmIdNoticed", false)
         set(value) = pref.edit().putBoolean("szlmIdNoticed", value).apply()
 
+    /** 已安装的表情包版本；0 表示还没下载过，正文会退回显示表情码 */
+    var emojiPackVersion: Int
+        get() = pref.getInt("emojiPackVersion", 0)
+        set(value) = pref.edit().putInt("emojiPackVersion", value).apply()
+
+    /** 流量网络下也自动下载表情包；默认只在 Wi-Fi 下自动下载 */
+    var emojiPackDownloadOnMetered: Boolean
+        get() = pref.getBoolean("emojiPackDownloadOnMetered", false)
+        set(value) = pref.edit().putBoolean("emojiPackDownloadOnMetered", value).apply()
+
     var isRecordHistory: Boolean
         get() = pref.getBoolean("isRecordHistory", true)
         set(value) = pref.edit().putBoolean("isRecordHistory", value).apply()
@@ -326,10 +391,15 @@ object PrefManager {
         get() = pref.getBoolean("isColorFilter", true)
         set(value) = pref.edit().putBoolean("isColorFilter", value).apply()
 
-    /**
-     * 水平转场动画曲线（实验项，见 [com.example.c001apk.util.TransitionAnim]）。
-     * 取值 linear / m2 / std / emph，默认 `emph` 与已改造的正式资源一致。
-     */
+    /** Defaults to the platform even on upgrade; keep old custom values for when re-enabled. */
+    var animMode: String
+        get() = when (pref.getString("animMode", null)) {
+            TransitionAnim.MODE_CUSTOM -> TransitionAnim.MODE_CUSTOM
+            else -> TransitionAnim.MODE_SYSTEM
+        }
+        set(value) = pref.edit().putString("animMode", value).apply()
+
+    /** Custom transition curve; `m2` now uses the identical Android resource. */
     var animCurve: String
         get() = pref.getString("animCurve", TransitionAnim.CURVE_M3_EMPHASIZED)!!
         set(value) = pref.edit().putString("animCurve", value).apply()
@@ -344,7 +414,7 @@ object PrefManager {
             .let { if (it == TransitionAnim.TYPE_PARALLAX) TransitionAnim.TYPE_SLIDE else it }
         set(value) = pref.edit().putString("animType", value).apply()
 
-    /** 水平转场进入时长(ms)，实验项；退出固定为进入 - 50ms。存成字符串以便设置页用下拉框。 */
+    /** 自定义转场基础时长（毫秒）。水平滑动的两层保持同速。 */
     var animDuration: Int
         get() = pref.getString("animDuration", "300")!!.toIntOrNull() ?: 300
         set(value) = pref.edit().putString("animDuration", value.toString()).apply()
@@ -353,6 +423,14 @@ object PrefManager {
     var isCheckUpdateStable: Boolean
         get() = pref.getBoolean("isCheckUpdateStable", true)
         set(value) = pref.edit().putBoolean("isCheckUpdateStable", value).apply()
+
+    /** 老用户不替其开启；引导页默认勾选，完成后才保存。 */
+    var autoDownloadUpdatesOnWifi: Boolean
+        get() = pref.getBoolean("autoDownloadUpdatesOnWifi", false)
+        set(value) = pref.edit().putBoolean("autoDownloadUpdatesOnWifi", value).apply()
+
+    val hasAutoDownloadUpdatesChoice: Boolean
+        get() = pref.contains("autoDownloadUpdatesOnWifi")
 
     /**
      * 已「跳过此版本」的 versionCode（2026-11-01 用户要求）
@@ -610,7 +688,7 @@ object PrefManager {
      *
      * 四步：欢迎 → 机型参数 → 取号 → 开关确认
      * 保留旧 onboarded 布尔键供旧版本兼容；新版完成状态同时受内容修订号约束。
-     * 10011 起需要完成修订 2，旧 10010 完成记录只视为修订 1。
+     * 10011 起需要完成修订 2；下一个正式版 10012 起需要完成修订 3。旧版本完成记录仍只视为修订 1。
      */
     val hasCompletedOnboardingBefore: Boolean
         get() = pref.getBoolean("onboarded", false)

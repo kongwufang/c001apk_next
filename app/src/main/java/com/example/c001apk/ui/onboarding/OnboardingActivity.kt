@@ -5,8 +5,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,32 +23,20 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
 
 /**
- * 首次启动的欢迎/激活流程（2026-11-08）
- *
- * 首次使用或引导内容修订升级时展示，由 [PrefManager.onboarded] 决定。
+ * 首次使用或引导内容修订升级时展示的欢迎/激活流程，由 [PrefManager.onboarded] 决定。
  * 四步：
  * ```
  * ① 欢迎使用 c001apk_next            [快速开始]
  * ② 设置你的机型参数                  [下一步]
- * ③ 取号（数字联盟）                  [下一步]（取号成功才可用）
- * ④ 三个开关（默认全开）              [完成]
- *      · 校验 SSL 证书
- *      · 加入匿名举报联盟
- *      · 加入用户体验改善计划   [查看隐私协议 ↗]
+ * ③ 取号（数字联盟）及自动刷新偏好      [下一步]（已有已配置的非空 ID 才可用）
+ * ④ 确认 SSL 证书校验和 Wi-Fi 下载设置   [完成]
  * ```
  *
- * 为什么用代码搭 UI：四页都是「标题 + 说明 + 一两个控件」，没有复用价值，
- * 照 `LogCenterActivity` / `RecentFollowActivity` 的做法在代码里搭，避免再维护 4 个 XML ✓
- *
- * ## 第 ③ 步的取号
- * 复用现有的 [SzlmIdPrompt.showConsent]：它内部会走授权 → 取号 → `save(id)`。
- * 取号是否完成，用 [PrefManager.szlmIdConfigured] 判断（现有字段，置位即说明有号 ✓）；
- * 用户也可能先跳过（历史上允许不带号使用），所以「下一步」在拿不到号时仍然可点，
- * 但会给出一条提示，避免卡死新手流程 ✗
- *
- * ## 第 ④ 步的开关
- * 三个开关**默认全部打开**，用户可以手动关；点「完成」才写入 [PrefManager]，
- * 中途退出不落盘（避免「我还没确认就替我开了」）。
+ * 四页均在代码中搭建，正文可滚动，底部主按钮固定。
+ * 第 ③ 步复用 [SzlmIdPrompt.showConsent] 授权后原生取号或手动填入，已有 ID 继续沿用。
+ * 自动刷新开关沿用已有明确选择，否则默认开启；草稿在该页成功点击「下一步」后保存。
+ * 第 ④ 步 SSL、Wi-Fi 下载和表情包流量策略沿用已有选择，点击「完成」才保存并标记本次引导完成。
+ * 草稿在旋转时保留，页面重绘不会覆盖尚未确认的选择。
  */
 class OnboardingActivity : AppCompatActivity() {
 
@@ -60,9 +50,11 @@ class OnboardingActivity : AppCompatActivity() {
 
     private var step = 0
 
-    // 第④步 SSL 草稿：先沿用旧值，用户点完成才保存。
+    // 第④步的开关草稿只在用户点完成后保存。
     private var sslVerify = true
+    private var autoDownloadUpdatesOnWifi = false
     private var autoRefreshSzlmId = true
+    private var emojiPackOnMetered = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,12 +63,21 @@ class OnboardingActivity : AppCompatActivity() {
             OnboardingPolicy.requiredRevision(BuildConfig.VERSION_CODE)
         val initialAutoRefresh = if (PrefManager.hasAutoRefreshSzlmIdChoice)
             PrefManager.autoRefreshSzlmId else true
+        val initialWifiUpdates = if (PrefManager.hasAutoDownloadUpdatesChoice)
+            PrefManager.autoDownloadUpdatesOnWifi else !PrefManager.hasCompletedOnboardingBefore
+        val initialEmojiPackMetered = PrefManager.emojiPackDownloadOnMetered
         // Reuse existing choices, but never restore an old revision directly into a later step.
         step = if (sameRevision) savedInstanceState!!.getInt("step").coerceIn(0, 3) else 0
         sslVerify = if (sameRevision) savedInstanceState!!.getBoolean("sslVerify", PrefManager.isVerifySsl)
             else PrefManager.isVerifySsl
         autoRefreshSzlmId = if (sameRevision) savedInstanceState!!.getBoolean("autoRefreshSzlmId", initialAutoRefresh)
             else initialAutoRefresh
+        autoDownloadUpdatesOnWifi = if (sameRevision)
+            savedInstanceState!!.getBoolean("autoDownloadUpdatesOnWifi", initialWifiUpdates)
+        else initialWifiUpdates
+        emojiPackOnMetered = if (sameRevision)
+            savedInstanceState!!.getBoolean("emojiPackOnMetered", initialEmojiPackMetered)
+        else initialEmojiPackMetered
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -118,7 +119,14 @@ class OnboardingActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(20), 0, 0)
         }
-        root.addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        // 正文在小屏/横屏时可滚动，取号入口与开关不会被底部主按钮裁掉。
+        val bodyScroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(body, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        root.addView(bodyScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         primary = MaterialButton(this).apply {
             text = "快速开始"
@@ -143,13 +151,15 @@ class OnboardingActivity : AppCompatActivity() {
         outState.putInt("step", step)
         outState.putBoolean("sslVerify", sslVerify)
         outState.putBoolean("autoRefreshSzlmId", autoRefreshSzlmId)
+        outState.putBoolean("autoDownloadUpdatesOnWifi", autoDownloadUpdatesOnWifi)
+        outState.putBoolean("emojiPackOnMetered", emojiPackOnMetered)
         super.onSaveInstanceState(outState)
     }
 
     /**
      * 回到前台就刷新一次（2026-11-08 用户反馈）
      *
-     * 取号流程会跳到别的界面（授权页 / 网页取号 / 设置页），回来时 **onDismiss 不一定触发** ✗
+     * 手动填入 ID 会跳到设置页，回来时 **onDismiss 不一定触发** ✗
      * ⇒ 之前第 3 步停在「开始取号 →」、按钮还是灰的，用户点不动「下一步」✗
      * ⇒ 在 onResume 里按当前步骤重画一次，取号成功回来立刻变成「✓ 已取到号」+ 按钮可用 ✓
      */
@@ -162,7 +172,6 @@ class OnboardingActivity : AppCompatActivity() {
         when (step) {
             0 -> { step = 1; render() }
             1 -> {
-                PrefManager.autoRefreshSzlmId = autoRefreshSzlmId
                 step = 2
                 render()
             }
@@ -172,6 +181,7 @@ class OnboardingActivity : AppCompatActivity() {
                     Toast.makeText(this, "请先完成取号", Toast.LENGTH_SHORT).show()
                     return
                 }
+                PrefManager.autoRefreshSzlmId = autoRefreshSzlmId
                 step = 3
                 render()
             }
@@ -181,6 +191,8 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun finishOnboarding() {
         PrefManager.isVerifySsl = sslVerify
+        PrefManager.autoDownloadUpdatesOnWifi = autoDownloadUpdatesOnWifi
+        PrefManager.emojiPackDownloadOnMetered = emojiPackOnMetered
         PrefManager.onboarded = true
         // App 日志/HTTP 日志统一开关跟随「用户体验改善计划」？不跟随：
         // 日志开关是排障用的独立开关，默认关，避免用户不知情地落盘 ✓
@@ -217,10 +229,6 @@ class OnboardingActivity : AppCompatActivity() {
                             com.example.c001apk.ui.settings.params.ParamsActivity>(this) {}
                     }
                 )
-                body.addView(switchRow(
-                    getString(R.string.auto_refresh_szlm_id),
-                    getString(R.string.auto_refresh_szlm_id_summary), autoRefreshSzlmId
-                ) { autoRefreshSzlmId = it })
             }
 
             2 -> {
@@ -244,17 +252,31 @@ class OnboardingActivity : AppCompatActivity() {
                         }
                     }
                 )
+                body.addView(switchRow(
+                    getString(R.string.auto_refresh_szlm_id),
+                    getString(R.string.auto_refresh_szlm_id_summary), autoRefreshSzlmId
+                ) { autoRefreshSzlmId = it })
             }
 
             else -> {
                 primary.isEnabled = true
                 title.text = "最后确认"
-                subtitle.text = "请确认 SSL 证书校验设置；抓包调试需要关闭它。\n" +
-                        "本 App 不会上传日志或诊断数据，日志只存在你手机里，随时可导出/清空。"
+                subtitle.setText(R.string.onboarding_final_settings_summary)
                 primary.text = "完成"
                 body.addView(switchRow("校验 SSL 证书", "更安全；抓包调试时需关闭", sslVerify) {
                     sslVerify = it
                 })
+                body.addView(switchRow(
+                    getString(R.string.auto_download_updates_on_wifi),
+                    getString(R.string.auto_download_updates_on_wifi_summary),
+                    autoDownloadUpdatesOnWifi,
+                ) { autoDownloadUpdatesOnWifi = it })
+                body.addView(choiceRow(
+                    "表情包下载",
+                    "表情包（默认、酷币、牛牛共 183 张）改为单独下载，约 1.3 MB，以后可随服务端更新。",
+                    listOf("仅 Wi-Fi 自动下载", "流量下也自动下载"),
+                    if (emojiPackOnMetered) 1 else 0,
+                ) { emojiPackOnMetered = it == 1 })
             }
         }
     }
@@ -295,6 +317,61 @@ class OnboardingActivity : AppCompatActivity() {
                 setOnCheckedChangeListener { _, v -> onChange(v) }
             }
         )
+    }
+
+    /** 一组二选一按钮（默认选中 [selected]），点「完成」时由调用方保存 */
+    private fun choiceRow(
+        name: String,
+        desc: String,
+        labels: List<String>,
+        selected: Int,
+        onChange: (Int) -> Unit,
+    ): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(10), 0, dp(4))
+        addView(TextView(this@OnboardingActivity).apply {
+            text = name
+            textSize = 15f
+            setTextColor(
+                MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface)
+            )
+        })
+        addView(TextView(this@OnboardingActivity).apply {
+            text = desc
+            textSize = 12f
+            setTextColor(
+                MaterialColors.getColor(
+                    this, com.google.android.material.R.attr.colorOnSurfaceVariant
+                )
+            )
+        })
+        val buttons = labels.map { label ->
+            MaterialButton(
+                this@OnboardingActivity,
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle,
+            ).apply {
+                id = View.generateViewId()
+                text = label
+                textSize = 13f
+                isCheckable = true
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+        }
+        val group = com.google.android.material.button.MaterialButtonToggleGroup(
+            this@OnboardingActivity
+        ).apply {
+            isSingleSelection = true
+            setPadding(0, dp(8), 0, 0)
+            buttons.forEach { addView(it) }
+            check(buttons[selected.coerceIn(0, buttons.lastIndex)].id)
+            addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (isChecked) onChange(buttons.indexOfFirst { it.id == checkedId })
+            }
+        }
+        addView(group, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
     }
 
     /** 一行可点文字（链接风格） */

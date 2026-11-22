@@ -32,6 +32,7 @@ import com.example.c001apk.databinding.ItemHomeGenericCardScoreItemBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardTopContentRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardProductRowBinding
 import com.example.c001apk.databinding.ItemHomeGenericCardUserRowBinding
+import com.example.c001apk.ui.follow.FollowButton
 import com.example.c001apk.databinding.ItemSearchTopicRowBinding
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.util.AppLog
@@ -1666,19 +1667,15 @@ private fun bindUserRow(
     b.activeTime.text = active.orEmpty()
     b.detailContainer.isVisible = b.followCount.isVisible || b.fansCount.isVisible || b.activeTime.isVisible
 
-    // 右侧「关注 / 已关注」按钮
-    // ⚠️ 渲染层拿不到回调，统一走 ItemListener.onFollowUser(uid, followAuthor)
-    //   followAuthor: 0 = 去关注，1 = 取消关注（与 AppAdapter 里那套一致 ✓）
-    var followed = (entity.isFollow ?: 0) == 1
     val uid = entity.uid.orEmpty()
-    b.followBtn.isVisible = com.example.c001apk.util.PrefManager.isLogin && uid.isNotEmpty()
-    b.followBtn.text = if (followed) "已关注" else "关注"
-    b.followBtn.setOnClickListener {
-        val want = if (followed) 1 else 0
-        listener.onFollowUser(uid, want)
-        followed = !followed
-        (it as? android.widget.TextView)?.text = if (followed) "已关注" else "关注"
+    // Preserve the existing cloud-row interaction; local mode is driven only by Room.
+    fun bindFollow(followed: Boolean) {
+        FollowButton.bind(b.followBtn, uid, followed) {
+            listener.onFollowUser(uid, if (it) 1 else 0)
+            bindFollow(!it)
+        }
     }
+    bindFollow(entity.isFollow == 1)
 }
 
 /** 列表行的次要信息（官方样式：user=关注/粉丝/活跃；product=热度/讨论） */

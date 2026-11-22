@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 转场动画实验用：Material 2 标准曲线 cubic-bezier(0.4, 0, 0.2, 1)（生成物，勿手改） -->
-<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
-    android:controlX1="0.4"
-    android:controlX2="0.2"
-    android:controlY1="0.0"
-    android:controlY2="1.0" />

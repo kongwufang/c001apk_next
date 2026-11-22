@@ -67,7 +67,7 @@ public class TransitionImageDisplayer implements ImageDisplayer {
 
     @Override
     public void display(@NonNull SketchView sketchView, @NonNull Drawable newDrawable) {
-        if (newDrawable instanceof SketchGifDrawable) {
+        if (newDrawable instanceof SketchGifDrawable || sketchView.getDrawable() instanceof SketchGifDrawable) {
             sketchView.clearAnimation();
             sketchView.setImageDrawable(newDrawable);
         } else {

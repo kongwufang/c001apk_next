@@ -27,7 +27,11 @@ object MessageCenterSeenStore {
     /** 已读条目最多记这么多条，超了丢最早的一批（服务端未读远小于这个量级） */
     private const val MAX_SEEN = 300
 
-    private val pref = context.getSharedPreferences(PREF, MODE_PRIVATE)
+    // Unowned legacy ledger cannot be attributed to whichever account happens to log in next.
+    private val pref get() = context.getSharedPreferences(
+        PREF + "_" + java.security.MessageDigest.getInstance("SHA-256")
+            .digest((MessageAccount.current()?.uid ?: "logged-out").toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }, MODE_PRIVATE)
 
     /** 这条通知本机是不是已经看过 */
     fun isSeen(category: String, id: String): Boolean =

@@ -24,7 +24,7 @@ interface FollowUserDao {
     fun loadAllLive(): LiveData<List<FollowUserEntity>>
 
     @Query("SELECT EXISTS(SELECT 1 FROM FollowUserEntity WHERE uid = :uid)")
-    suspend fun isExist(uid: String): Boolean
+    fun observeFollowed(uid: String): LiveData<Boolean>
 
     @Query("DELETE FROM FollowUserEntity WHERE uid = :uid")
     suspend fun delete(uid: String)

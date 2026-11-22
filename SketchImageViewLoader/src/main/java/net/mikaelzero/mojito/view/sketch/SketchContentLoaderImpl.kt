@@ -3,6 +3,7 @@ package net.mikaelzero.mojito.view.sketch
 import android.content.Context
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -14,7 +15,13 @@ import net.mikaelzero.mojito.loader.OnLongTapCallback
 import net.mikaelzero.mojito.loader.OnTapCallback
 import net.mikaelzero.mojito.tools.ScreenUtils
 import net.mikaelzero.mojito.view.sketch.core.SketchImageView
+import net.mikaelzero.mojito.view.sketch.core.decode.ImageAttrs
 import net.mikaelzero.mojito.view.sketch.core.decode.ImageSizeCalculator
+import net.mikaelzero.mojito.view.sketch.core.drawable.GlideSketchGifDrawable
+import net.mikaelzero.mojito.view.sketch.core.request.CancelCause
+import net.mikaelzero.mojito.view.sketch.core.request.DisplayListener
+import net.mikaelzero.mojito.view.sketch.core.request.ErrorCause
+import net.mikaelzero.mojito.view.sketch.core.request.ImageFrom
 import kotlin.math.abs
 
 
@@ -34,6 +41,7 @@ class SketchContentLoaderImpl : ContentLoader, LifecycleObserver {
     private var screenWidth = 0
     private var longImageHeightOrWidth = 0
     private var onMojitoViewCallback: OnMojitoViewCallback? = null
+    private var pageVisible = false
 
     override fun providerRealView(): View {
         return sketchImageView
@@ -55,6 +63,18 @@ class SketchContentLoaderImpl : ContentLoader, LifecycleObserver {
         sketchImageView = SketchImageView(context)
         sketchImageView.isZoomEnabled = true
         sketchImageView.options.isDecodeGifImage = true
+        sketchImageView.setDisplayListener(object : DisplayListener {
+            override fun onStarted() = Unit
+            override fun onError(cause: ErrorCause) = Unit
+            override fun onCanceled(cause: CancelCause) = Unit
+
+            override fun onCompleted(drawable: Drawable, imageFrom: ImageFrom, imageAttrs: ImageAttrs) {
+                (drawable as? GlideSketchGifDrawable)?.apply {
+                    setPageVisible(this@SketchContentLoaderImpl.pageVisible)
+                    start()
+                }
+            }
+        })
         frameLayout.addView(sketchImageView)
         screenHeight = if (mojitoConfig().transparentNavigationBar()) ScreenUtils.getScreenHeight(context) else ScreenUtils.getAppScreenHeight(context)
         screenWidth = ScreenUtils.getScreenWidth(context)
@@ -185,7 +205,8 @@ class SketchContentLoaderImpl : ContentLoader, LifecycleObserver {
     }
 
     override fun pageChange(isHidden: Boolean) {
-
+        pageVisible = !isHidden
+        (sketchImageView.drawable as? GlideSketchGifDrawable)?.setPageVisible(pageVisible)
     }
 
 }

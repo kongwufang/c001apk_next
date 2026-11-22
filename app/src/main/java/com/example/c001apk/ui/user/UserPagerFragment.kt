@@ -16,6 +16,7 @@ import androidx.fragment.app.viewModels
 import com.example.c001apk.R
 import com.example.c001apk.databinding.BaseViewUserBinding
 import com.example.c001apk.ui.base.BasePagerFragment
+import com.example.c001apk.ui.follow.FollowButton
 import com.example.c001apk.ui.messagedetail.MessageDetailActivity
 import com.example.c001apk.ui.others.WebViewActivity
 import com.example.c001apk.ui.search.SearchActivity
@@ -74,20 +75,7 @@ class UserPagerFragment : BasePagerFragment() {
 
         userBinding.userData = viewModel.userData
         userBinding.listener = viewModel.ItemClickListener()
-        userBinding.isSelf = isSelf
-
-
-        // 自己的主页：按钮变成「编辑信息」；别人的主页：关注 / 已关注；未登录不显示
-        userBinding.followBtn.isVisible = isSelf || PrefManager.isLogin
-        userBinding.followBtn.setOnClickListener {
-            if (isSelf) {
-                IntentUtil.startActivity<EditProfileActivity>(requireContext()) {}
-            } else {
-                viewModel.onPostFollowUnFollow(
-                    if (viewModel.userData?.isFollow == 1) "/v6/user/unfollow" else "/v6/user/follow"
-                )
-            }
-        }
+        bindFollowButton()
 
         bindMailBtn()
         userBinding.mailBtn.setOnClickListener {
@@ -144,6 +132,20 @@ class UserPagerFragment : BasePagerFragment() {
         )
     }
 
+    private fun bindFollowButton() {
+        val button = userBinding.followBtn
+        if (isSelf) {
+            FollowButton.clear(button)
+            button.isVisible = true
+            button.text = "编辑信息"
+            button.setOnClickListener { IntentUtil.startActivity<EditProfileActivity>(requireContext()) {} }
+        } else {
+            FollowButton.bind(button, viewModel.userData?.uid, viewModel.userData?.let { it.isFollow == 1 }) {
+                viewModel.onPostFollowUnFollow(if (it) "/v6/user/unfollow" else "/v6/user/follow")
+            }
+        }
+    }
+
     private fun initObserve() {
         viewModel.blockState.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
@@ -157,8 +159,8 @@ class UserPagerFragment : BasePagerFragment() {
         viewModel.followState.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
                 userBinding.userData = viewModel.userData
-                userBinding.isSelf = isSelf
                 userBinding.executePendingBindings()
+                bindFollowButton()
                 bindBlocklist()
             }
         }
@@ -168,10 +170,8 @@ class UserPagerFragment : BasePagerFragment() {
             event.getContentIfNotHandledOrReturnNull()?.let {
                 binding.collapsingToolbar.title = viewModel.userData?.username
                 userBinding.userData = viewModel.userData
-                userBinding.isSelf = isSelf
                 userBinding.executePendingBindings()
-                // userData 是拉完资料才有的，isSelf / 关注态此时才最终确定
-                userBinding.followBtn.isVisible = isSelf || PrefManager.isLogin
+                bindFollowButton()
                 bindMailBtn()
                 // 签名可能刚被编辑过，重新折叠一次
                 bindBio()

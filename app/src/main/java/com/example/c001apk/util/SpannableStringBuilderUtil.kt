@@ -76,21 +76,18 @@ object SpannableStringBuilderUtil {
             val matcher = pattern.matcher(builder)
             while (matcher.find()) {
                 val group = matcher.group()
-                EmojiUtils.emojiMap[group]?.let {
-                    mContext.getDrawable(it)?.let { emoji ->
-                        if (group in listOf("[楼主]", "[层主]", "[置顶]"))
-                            emoji.setBounds(0, 0, (size * 2).toInt(), size.toInt())
-                        else
-                            emoji.setBounds(0, 0, (size * 1.3).toInt(), (size * 1.3).toInt())
-                        val imageSpan = CenteredImageSpan(emoji, (size * 1.3).toInt(), group)
-                        builder.setSpan(
-                            imageSpan,
-                            matcher.start(),
-                            matcher.end(),
-                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                    }
-
+                EmojiUtils.drawable(mContext, group)?.let { emoji ->
+                    if (group in EmojiUtils.badges.keys && group != "[图片]")
+                        emoji.setBounds(0, 0, (size * 2).toInt(), size.toInt())
+                    else
+                        emoji.setBounds(0, 0, (size * 1.3).toInt(), (size * 1.3).toInt())
+                    val imageSpan = CenteredImageSpan(emoji, (size * 1.3).toInt(), group)
+                    builder.setSpan(
+                        imageSpan,
+                        matcher.start(),
+                        matcher.end(),
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
                 }
             }
         }

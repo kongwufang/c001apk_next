@@ -10,6 +10,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.example.c001apk.databinding.FragmentHomeBinding
 import com.example.c001apk.ui.applist.AppListFragment
 import com.example.c001apk.ui.base.BaseFragment
+import com.example.c001apk.ui.follow.LocalFollowFragment
 import com.example.c001apk.ui.homefeed.HomeFeedFragment
 import com.example.c001apk.ui.hometopic.HomeTopicFragment
 import com.example.c001apk.ui.main.MainActivity
@@ -27,6 +28,10 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
 
     private val viewModel by viewModels<HomeViewModel>()
     override var tabController: IOnTabClickListener? = null
+    private var tabMediator: TabLayoutMediator? = null
+    private var pageAdapter: FragmentStateAdapter? = null
+    private var renderedTabs: List<String> = emptyList()
+    private var followToCloud = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -53,9 +58,9 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
             override fun onTabUnselected(tab: Tab?) {}
 
             override fun onTabReselected(tab: Tab?) {
-                if (tab?.text == "关注")
-                    tabController?.onReturnTop(false)
-                else {
+                if (tab?.text == "关注") {
+                    if (followToCloud) tabController?.onReturnTop(false)
+                } else {
                     tabController?.onReturnTop(true)
                     (activity as? MainActivity)?.showNavigationView()
                 }
@@ -101,6 +106,18 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
         // 回到首页刷新一次未读数：消息中心宫格的红点和这里的消息入口角标都读这份缓存。
         // 从消息中心返回时也会走到这里，刚看过的通知会同步从角标上掉下来。
         viewModel.refreshUnreadCount()
+        if (renderedTabs.isNotEmpty() && followToCloud != PrefManager.saveFollowToCloud) {
+            initView(renderedTabs)
+        }
+    }
+
+    override fun onDestroyView() {
+        tabMediator?.detach()
+        tabMediator = null
+        binding.viewPager.adapter = null
+        pageAdapter = null
+        renderedTabs = emptyList()
+        super.onDestroyView()
     }
 
     private fun initButton() {
@@ -121,29 +138,50 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), IOnTabClickContainer {
         }
     }
 
+    // Keep the original IDs for default tabs; give the local and cloud follow pages distinct IDs.
+    private fun pageId(title: String): Long = if (title == "关注" && !followToCloud) {
+        100L
+    } else {
+        viewModel.defaultList.indexOfFirst { it.title == title }.toLong()
+    }
+
     private fun initView(enableList: List<String>) {
+        val cloud = PrefManager.saveFollowToCloud
+        if (renderedTabs == enableList && followToCloud == cloud) return
+        val previousTab = renderedTabs.getOrNull(binding.viewPager.currentItem)
+        renderedTabs = enableList
+        followToCloud = cloud
+        tabMediator?.detach()
         binding.viewPager.offscreenPageLimit = enableList.size
-        binding.viewPager.adapter = object : FragmentStateAdapter(this) {
-            override fun createFragment(position: Int): Fragment {
-                return when (enableList[position]) {
-                    "关注" -> HomeFeedFragment.newInstance("follow")
-                    "应用" -> AppListFragment()
-                    "头条" -> HomeFeedFragment.newInstance("feed")
-                    "热榜" -> HomeFeedFragment.newInstance("rank")
-                    "话题" -> HomeTopicFragment.newInstance("topic")
-                    "数码" -> HomeTopicFragment.newInstance("product")
-                    "酷图" -> HomeFeedFragment.newInstance("coolPic")
-                    else -> throw IllegalArgumentException()
+        val existing = pageAdapter
+        if (existing == null) {
+            pageAdapter = object : FragmentStateAdapter(this) {
+                override fun createFragment(position: Int): Fragment {
+                    return when (renderedTabs[position]) {
+                        "关注" -> if (followToCloud) HomeFeedFragment.newInstance("follow") else LocalFollowFragment()
+                        "应用" -> AppListFragment()
+                        "头条" -> HomeFeedFragment.newInstance("feed")
+                        "热榜" -> HomeFeedFragment.newInstance("rank")
+                        "话题" -> HomeTopicFragment.newInstance("topic")
+                        "数码" -> HomeTopicFragment.newInstance("product")
+                        "酷图" -> HomeFeedFragment.newInstance("coolPic")
+                        else -> throw IllegalArgumentException()
+                    }
                 }
-            }
 
-            override fun getItemCount() = enableList.size
-
+                override fun getItemCount() = renderedTabs.size
+                override fun getItemId(position: Int) = pageId(renderedTabs[position])
+                override fun containsItem(itemId: Long) = renderedTabs.any { pageId(it) == itemId }
+            }.also { binding.viewPager.adapter = it }
+        } else {
+            existing.notifyDataSetChanged()
         }
-        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
+        tabMediator = TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = enableList[position]
-        }.attach()
-        if (viewModel.isInit) {
+        }.also { it.attach() }
+        if (previousTab != null && previousTab in enableList) {
+            binding.viewPager.setCurrentItem(enableList.indexOf(previousTab), false)
+        } else if (viewModel.isInit) {
             viewModel.isInit = false
             if (enableList.contains("头条"))
                 binding.viewPager.setCurrentItem(enableList.indexOf("头条"), false)

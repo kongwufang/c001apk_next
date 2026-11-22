@@ -15,7 +15,7 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityOptionsCompat
+import com.example.c001apk.util.TransitionAnim
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
@@ -312,9 +312,7 @@ class Reply2ReplyBottomSheetDialog : BottomSheetDialogFragment() {
                 intent.putExtra("type", "reply")
                 intent.putExtra("rid", viewModel.rid)
                 intent.putExtra("username", viewModel.uname)
-                val options = ActivityOptionsCompat.makeCustomAnimation(
-                    requireContext(), R.anim.anim_bottom_sheet_slide_up, R.anim.anim_bottom_sheet_slide_down
-                )
+                val options = TransitionAnim.enterOptionsCompat(requireContext(), sheet = true)
                 intentActivityResultLauncher.launch(intent, options)
             }
         }

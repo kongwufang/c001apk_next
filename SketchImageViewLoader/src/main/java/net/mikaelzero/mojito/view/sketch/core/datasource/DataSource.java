@@ -19,10 +19,6 @@ package net.mikaelzero.mojito.view.sketch.core.datasource;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import net.mikaelzero.mojito.view.sketch.core.cache.BitmapPool;
-import net.mikaelzero.mojito.view.sketch.core.decode.ImageAttrs;
-import net.mikaelzero.mojito.view.sketch.core.decode.NotFoundGifLibraryException;
-import net.mikaelzero.mojito.view.sketch.core.drawable.SketchGifDrawable;
 import net.mikaelzero.mojito.view.sketch.core.request.ImageFrom;
 
 import java.io.File;
@@ -67,18 +63,4 @@ public interface DataSource {
     @NonNull
     ImageFrom getImageFrom();
 
-    /**
-     * 创建 GifDrawable
-     *
-     * @param key        请求的唯一标识 key
-     * @param uri        图片 uri
-     * @param imageAttrs 图片的属性
-     * @param bitmapPool {@link android.graphics.Bitmap} 缓存池
-     * @return {@link SketchGifDrawable}
-     * @throws IOException                 数据源异常
-     * @throws NotFoundGifLibraryException 没有集成 sketch-gif
-     */
-    @NonNull
-    SketchGifDrawable makeGifDrawable(@NonNull String key, @NonNull String uri, @NonNull ImageAttrs imageAttrs,
-                                      @NonNull BitmapPool bitmapPool) throws IOException, NotFoundGifLibraryException;
 }

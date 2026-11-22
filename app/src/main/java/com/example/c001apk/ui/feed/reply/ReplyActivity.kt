@@ -32,7 +32,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
-import androidx.core.app.ActivityOptionsCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
@@ -48,8 +47,9 @@ import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.logic.model.OSSUploadPrepareModel
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.ui.feed.reply.attopic.AtTopicActivity
-import com.example.c001apk.ui.feed.reply.emoji.EmojiPagerAdapter
-import com.example.c001apk.util.EmojiUtils
+import com.example.c001apk.ui.feed.reply.emoji.EmojiPanelBinder
+import com.example.c001apk.util.emoji.EmojiPackStore
+import com.example.c001apk.util.emoji.EmojiPackUpdater
 import com.example.c001apk.util.ImageUtil.getImageDimensionsAndMD5
 import com.example.c001apk.util.ImageUtil.showIMG
 import com.example.c001apk.util.ImageUtil.toHex
@@ -112,11 +112,8 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
         getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
     private val color by lazy { SurfaceColors.SURFACE_1.getColor(this) }
-    private val dataList by lazy { EmojiUtils.emojiMap.toList() }
-    private val recentList = ArrayList<List<Pair<String, Int>>>()
-    private val emojiList = ArrayList<List<Pair<String, Int>>>()
-    private val coolBList = ArrayList<List<Pair<String, Int>>>()
-    private val list = listOf(recentList, emojiList, coolBList)
+    private var recentCodes: List<String> = emptyList()
+    private lateinit var emojiBinder: EmojiPanelBinder
     private lateinit var pickMultipleMedia: ActivityResultLauncher<PickVisualMediaRequest>
     private var uriList: MutableList<Uri> = ArrayList()
     private var imageList = ArrayList<OSSUploadPrepareModel>()
@@ -135,14 +132,6 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
         }
     }
     private val subRatingBars = ArrayList<RatingBar>()
-
-    init {
-        for (i in 0..3) {
-            emojiList.add(dataList.subList(i * 27 + 4, (i + 1) * 27 + 4))
-        }
-        coolBList.add(dataList.subList(112, 139))
-        coolBList.add(dataList.subList(139, 155))
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -367,21 +356,13 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
         }
 
         viewModel.recentEmojiLiveData.observe(this) {
-            if (binding.emojiPanel.currentItem == 0 && recentList.isNotEmpty())
-                return@observe
-            recentList.clear()
-            if (it.isNullOrEmpty()) {
-                if (viewModel.isInit) {
-                    viewModel.isInit = false
-                    binding.emojiPanel.setCurrentItem(1, false)
-                }
-                recentList.add(0, emptyList())
-            } else {
-                recentList.add(0, it.map { item ->
-                    Pair(item.data, EmojiUtils.emojiMap[item.data] ?: R.drawable.ic_logo)
-                })
+            if (binding.emojiPanel.currentItem == 0 && recentCodes.isNotEmpty()) return@observe
+            recentCodes = it.orEmpty().map { entry -> entry.data }
+            if (recentCodes.isEmpty() && viewModel.isInit) {
+                viewModel.isInit = false
+                binding.emojiPanel.setCurrentItem(1, false)
             }
-            binding.emojiPanel.adapter?.notifyItemChanged(0)
+            emojiBinder.updateRecent(recentCodes)
         }
 
         viewModel.over.observe(this) { event ->
@@ -558,76 +539,10 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
     }
 
     private fun initEmojiPanel() {
-        for (i in 0..2) {
-            binding.indicator.addView(
-                TextView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                    ).apply {
-                        weight = 1f
-                    }
-                    gravity = Gravity.CENTER
-                    text = listOf("最近", "默认", "酷币")[i]
-                    background = getDrawable(R.drawable.selector_bg_trans)
-                    setOnClickListener {
-                        binding.emojiPanel.setCurrentItem(i, false)
-                    }
-                    if (i == 0 && BuildConfig.DEBUG) {
-                        setOnLongClickListener {
-                            viewModel.deleteAll()
-                            true
-                        }
-                    }
-                }
-            )
-            if (i != 2) {
-                binding.indicator.addView(
-                    View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(
-                            1.dp,
-                            LinearLayout.LayoutParams.MATCH_PARENT
-                        )
-                        setBackgroundColor(
-                            MaterialColors.getColor(
-                                this@ReplyActivity,
-                                com.google.android.material.R.attr.colorSurfaceVariant, 0
-                            )
-                        )
-                    }
-                )
-            }
-        }
-        binding.emojiPanel.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                for (i in 0 until binding.indicator.childCount) {
-                    with(binding.indicator.getChildAt(i)) {
-                        if (this is TextView) {
-                            background = getDrawable(
-                                if (i / 2 == position) R.drawable.selector_emoji_indicator_selected
-                                else R.drawable.selector_emoji_indicator
-                            )
-                            setTextColor(
-                                if (i / 2 == position)
-                                    MaterialColors.getColor(
-                                        this@ReplyActivity,
-                                        com.google.android.material.R.attr.colorOnPrimary, 0
-                                    )
-                                else
-                                    MaterialColors.getColor(
-                                        this@ReplyActivity,
-                                        androidx.appcompat.R.attr.colorControlNormal, 0
-                                    )
-                            )
-                        }
-                    }
-                }
-            }
-        })
-
-        binding.emojiPanel.adapter = EmojiPagerAdapter(
-            list,
+        emojiBinder = EmojiPanelBinder(
+            this,
+            binding.emojiPanel,
+            binding.indicator,
             onClickEmoji = {
                 with(binding.editText) {
                     if (it == "[c001apk]") {
@@ -643,8 +558,16 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
             },
             onCountStop = {
                 countDownTimer.cancel()
-            }
+            },
+            onClearRecent = {
+                viewModel.deleteAll()
+            },
         )
+        emojiBinder.bind()
+        // The pack may arrive after this screen opens (first download or background update).
+        lifecycleScope.launch {
+            EmojiPackStore.state.collect { emojiBinder.refresh() }
+        }
     }
 
     private val countDownTimer: CountDownTimer = object : CountDownTimer(100000, 50) {
@@ -715,6 +638,7 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
     }
 
     private fun showEmoji() {
+        if (EmojiPackStore.version() == 0) EmojiPackUpdater.ensureAvailable()
         (binding.main as? SmoothInputLayout)?.showEmojiPanel(true)
     }
 
@@ -905,9 +829,7 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
 
     private fun launchPick() {
         (binding.main as? SmoothInputLayout)?.closeKeyboard(false)
-        val options = ActivityOptionsCompat.makeCustomAnimation(
-            this, R.anim.anim_bottom_sheet_slide_up, R.anim.anim_bottom_sheet_slide_down
-        )
+        val options = TransitionAnim.photoPickerOptions(this)
         try {
             pickMultipleMedia.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -948,12 +870,6 @@ class ReplyActivity : BaseActivity<ActivityReplyBinding>(),
         )
     }
 
-    override fun finish() {
-        super.finish()
-        overridePendingTransition(
-            R.anim.anim_bottom_sheet_slide_up,
-            R.anim.anim_bottom_sheet_slide_down
-        )
-    }
+    override val usesSheetTransition: Boolean get() = true
 
 }
