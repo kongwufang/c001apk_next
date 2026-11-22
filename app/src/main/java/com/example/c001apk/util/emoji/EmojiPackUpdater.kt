@@ -30,9 +30,9 @@ import java.util.concurrent.TimeUnit
 /**
  * Keeps the downloadable emoji pack current.
  *
- * Policy: check the release manifest once per process start. Download automatically on an
- * unmetered network. On a metered network the first install asks the user (via [state]); later
- * versions wait for Wi-Fi instead of interrupting. The installed pack keeps working offline and
+ * Policy: check the release manifest on process start. Download automatically on an
+ * unmetered network; allow metered downloads only if enabled during onboarding.
+ * The installed pack keeps working offline and
  * is only replaced after the archive's size and SHA-256 match and every file extracts cleanly.
  */
 internal object EmojiPackUpdater : Application.ActivityLifecycleCallbacks {
@@ -76,13 +76,12 @@ internal object EmojiPackUpdater : Application.ActivityLifecycleCallbacks {
         if (started || activity.javaClass.name.contains("Onboarding")) return
         if (!PrefManager.onboarded) return
         started = true
-        EmojiPackStore.load(app)
         check()
     }
 
-    /** Reloads the installed pack and looks for a newer release; safe to call repeatedly. */
-    fun check() {
-        if (job?.isActive == true) return
+    /** Looks for a newer release; safe to call repeatedly on the main thread. */
+    private fun check() {
+        if (!::app.isInitialized || !started || job?.isActive == true) return
         job = scope.launch {
             mutableState.value = State.Checking
             val release = try {
@@ -95,7 +94,7 @@ internal object EmojiPackUpdater : Application.ActivityLifecycleCallbacks {
                 mutableState.value = State.Failed(pending?.version ?: 0)
                 return@launch
             }
-            val installed = EmojiPackStore.version().coerceAtLeast(PrefManager.emojiPackVersion)
+            val installed = EmojiPackStore.version()
             if (release.version <= installed) {
                 mutableState.value = State.Ready(installed, updated = false)
                 return@launch
@@ -214,19 +213,23 @@ internal object EmojiPackUpdater : Application.ActivityLifecycleCallbacks {
         runCatching {
             manager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
                 override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-                    if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) {
-                        onUnmetered()
-                    }
+                    if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
+                    scope.launch { onNetworkAvailable() }
                 }
             })
         }.onFailure { AppLog.w(LogModule.CARD, "EmojiPack", "network callback unavailable", it) }
     }
 
-    private fun onUnmetered() {
-        if (!waitingForWifi) return
-        val release = pending ?: return
-        if (state.value is State.Downloading) return
-        scope.launch { download(release) }
+    private fun onNetworkAvailable() {
+        if (!started || job?.isActive == true) return
+        val release = pending
+        if (waitingForWifi && release != null) {
+            if (unmetered() || PrefManager.emojiPackDownloadOnMetered) {
+                job = scope.launch { download(release) }
+            }
+        } else if (state.value is State.Failed) {
+            check()
+        }
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit

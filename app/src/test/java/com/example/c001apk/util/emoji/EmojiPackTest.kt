@@ -47,11 +47,18 @@ class EmojiPackTest {
     }
 
     @Test fun installsAndValidatesAWellFormedPack() {
-        val root = folder.newFolder("root")
+        val context = MyApplication.context
+        val root = EmojiPackStore.root(context)
         val (dir, pack) = EmojiPackInstaller.install(zip(index), 3, root)
         assertEquals(3, pack.version)
         assertEquals(listOf("[哈哈]", "[牛牛点赞]"), pack.codes)
         assertTrue(File(dir, "images/a.webp").isFile)
+        assertEquals(pack, EmojiPackStore.load(context))
+
+        val nextIndex = index.replace("\"version\":3", "\"version\":4")
+        val oversized = zip(nextIndex, mapOf("images/a.webp" to ByteArray(EmojiPackInstaller.MAX_ENTRY_BYTES.toInt() + 1)))
+        assertNull(runCatching { EmojiPackInstaller.install(oversized, 4, root) }.getOrNull())
+        assertEquals(pack, EmojiPackStore.load(context))
     }
 
     @Test fun rejectsZipSlipEntryNames() {

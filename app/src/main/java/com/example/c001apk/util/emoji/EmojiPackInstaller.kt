@@ -9,7 +9,7 @@ import kotlin.math.min
  * Extracts a downloaded pack into `root/v<version>` after checking every entry.
  *
  * The caller verifies the archive's size and SHA-256 before calling this; here the archive is
- * untrusted input too: entry names are limited to `index.json` and flat `images/*.webp` files, and
+ * untrusted input too: entry names are limited to `index.json` and WebP files directly under `images`, and
  * both per-entry and total output are bounded so a hostile archive cannot fill the disk.
  */
 internal object EmojiPackInstaller {
@@ -22,20 +22,21 @@ internal object EmojiPackInstaller {
         require(archive.isFile && archive.length() in 1..MAX_PACK_BYTES) { "bad archive size" }
         require(root.isDirectory || root.mkdirs()) { "no pack directory" }
         val target = File(root, "v$expectedVersion")
-        target.deleteRecursively()
-        require(target.mkdirs()) { "cannot create pack directory" }
-        return try {
-            val index = extract(archive, target)
+        val staging = File(root, ".install-$expectedVersion")
+        check(staging.deleteRecursively() && staging.mkdirs()) { "cannot create staging directory" }
+        try {
+            val index = extract(archive, staging)
             val pack = EmojiPack.parse(index) ?: throw IOException("invalid index")
             check(pack.version == expectedVersion) { "pack version mismatch" }
             for ((code, path) in pack.files) {
-                val file = File(target, path)
+                val file = File(staging, path)
                 check(file.isFile && file.length() > 0) { "missing image for $code" }
             }
-            target to pack
-        } catch (error: Throwable) {
-            target.deleteRecursively()
-            throw error
+            File(staging, "index.json").writeText(index)
+            check(target.deleteRecursively() && staging.renameTo(target)) { "cannot publish pack directory" }
+            return target to pack
+        } finally {
+            staging.deleteRecursively()
         }
     }
 
