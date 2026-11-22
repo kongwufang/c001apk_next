@@ -169,6 +169,8 @@ android {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            // Robolectric resolves its Android runtime separately from Gradle's mavenCentral().
+            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
         }
     }
     buildFeatures {
