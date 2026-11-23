@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -162,7 +163,6 @@ object UpdateChecker {
             "X-Install-Time" to info.firstInstallTime.toString(),
             "X-Update-Time" to info.lastUpdateTime.toString(),
             "X-Client-Version" to BuildConfig.VERSION_NAME,
-            "X-Client-Api" to ServerIdentity.API_VERSION.toString(),
             // ★ 2026-11-07：用户改善计划开关状态（关着也带 ✓ 值为 "0" ✗ 不是不带）
             "X-Client-Code" to BuildConfig.VERSION_CODE.toString(),
             // 本包真实签名证书的 SHA-256：服务端据此核验是不是官方包
@@ -192,6 +192,21 @@ object UpdateChecker {
         }
     }.getOrNull()
 
+    /** Common request for first-party metadata only; never use it for APK/CDN downloads. */
+    internal fun metadataRequest(url: String): Request.Builder {
+        val target = url.toHttpUrl()
+        val builder = Request.Builder().url(target)
+        if (target.isHttps && target.host == "service.houlangs.cn") {
+            builder
+                .header("X-App-userrandomid", PrefManager.userRandomId)
+                .header("X-Client-SSaid", PrefManager.ssaid)
+                .header("User-Agent", userAgent)
+            ServerIdentity.applyTo(builder)
+            installHeaders().forEach { (name, value) -> builder.header(name, value) }
+        }
+        return builder
+    }
+
     /** 自建接口一次响应里的各段 JSON（原样留着，按需取用） */
     private class Snapshot(
         val stable: String?,
@@ -216,14 +231,7 @@ object UpdateChecker {
         cached?.takeIf { System.currentTimeMillis() - it.at < CACHE_TTL }
             ?.let { return@withContext it }
         runCatching {
-            val builder = Request.Builder()
-                .url(BASE_URL)
-                .header("X-App-userrandomid", PrefManager.userRandomId)
-                // ★ SSAID：清数据 / 重装不变 ✓ 云端据此去重（老的随机 ID 照旧上报 ✓）
-                .header("X-Client-SSaid", PrefManager.ssaid)
-                .header("User-Agent", userAgent)
-            installHeaders().forEach { (name, value) -> builder.header(name, value) }
-            val request = builder.build()
+            val request = metadataRequest(BASE_URL).build()
             val body = client.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@use null
                 resp.body?.string()
@@ -245,14 +253,7 @@ object UpdateChecker {
      */
     suspend fun fetchConfig(url: String): String? = withContext(Dispatchers.IO) {
         runCatching {
-            val builder = Request.Builder()
-                .url(url)
-                .header("X-App-userrandomid", PrefManager.userRandomId)
-                // ★ SSAID：清数据 / 重装不变 ✓ 云端据此去重（老的随机 ID 照旧上报 ✓）
-                .header("X-Client-SSaid", PrefManager.ssaid)
-                .header("User-Agent", userAgent)
-            installHeaders().forEach { (name, value) -> builder.header(name, value) }
-            client.newCall(builder.build()).execute().use { resp ->
+            client.newCall(metadataRequest(url).build()).execute().use { resp ->
                 if (!resp.isSuccessful) null else resp.body?.string()
             }
         }.getOrNull()

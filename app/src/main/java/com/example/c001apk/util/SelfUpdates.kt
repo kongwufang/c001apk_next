@@ -30,7 +30,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import okhttp3.Request
 
 internal sealed interface UpdateState {
     data object Idle : UpdateState
@@ -97,6 +96,7 @@ internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
     private val client = OkHttpClient.Builder()
         .followRedirects(false)
         .callTimeout(12, TimeUnit.SECONDS)
+        .addInterceptor(ServerCookieStore.interceptor())
         .build()
     private val directory get() = File(context.filesDir, WifiUpdateDownload.DIRECTORY)
 
@@ -189,7 +189,7 @@ internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
 
     private suspend fun fetchRelease(): AutoUpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder().url(AutoUpdateInfo.ENDPOINT)
+            val request = UpdateChecker.metadataRequest(AutoUpdateInfo.ENDPOINT)
                 .header("Accept", "application/json").build()
             client.newCall(request).execute().use { response ->
                 val body = response.body ?: return@use null
