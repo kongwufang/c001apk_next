@@ -8,6 +8,9 @@ import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.constant.Constants
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.logic.model.AccountSession
+import com.example.c001apk.logic.model.StoredAccount
+import org.json.JSONArray
+import org.json.JSONObject
 
 object PrefManager {
 
@@ -107,13 +110,18 @@ object PrefManager {
     //   Gson 读 JSON 时数字都变成 Double ✗ ⇒ Int 会被写成 Float ✗
     //   ⇒ 导出时带类型标记、导入时按类型还原 ✓（见 BackupHelper.Tagged）
 
-    /** 导出：整份偏好（原样，类型由 BackupHelper 标记） */
-    fun dumpAll(): Map<String, *> = pref.all
+    /** Additional saved sessions are device-local and never included in a manual export. */
+    @Synchronized
+    fun dumpAll(): Map<String, *> = pref.all.filterKeys { it != SAVED_ACCOUNTS && it != MANUAL_ACCOUNT_ID }
 
-    /** 还原：整份覆盖 ✓ 先清空 ✓ 免得旧键残留 */
+    /** 还原：整份覆盖，已有备用账号保留在本机。 */
+    @Synchronized
     fun restoreAll(values: Map<String, Any>) {
-        val editor = pref.edit().clear()
-        values.forEach { (k, v) ->
+        val saved = pref.getString(SAVED_ACCOUNTS, null)
+        val generation = messageAccountGeneration
+        val editor = pref.edit().clear().putLong("messageAccountGeneration", generation + 1)
+        editor.putString(SAVED_ACCOUNTS, saved)
+        values.filterKeys { it !in setOf(SAVED_ACCOUNTS, MANUAL_ACCOUNT_ID, "messageAccountGeneration") }.forEach { (k, v) ->
             when (v) {
                 is Boolean -> editor.putBoolean(k, v)
                 is Int -> editor.putInt(k, v)
@@ -123,6 +131,7 @@ object PrefManager {
                 is Set<*> -> editor.putStringSet(k, v.map { it.toString() }.toSet())
             }
         }
+        CookieUtil.clearAccountState()
         editor.apply()
     }
 
@@ -192,15 +201,11 @@ object PrefManager {
         if (session != null) require(session.isValid)
         val nextUid = session?.uid.orEmpty()
         val changed = isLogin != (session != null) || uid != nextUid
-        val editor = pref.edit()
-            .putBoolean("isLogin", session != null)
-            .putString(UID, nextUid)
-            .putString(NAME, session?.username.orEmpty())
-            .putString(TOKEN, session?.token.orEmpty())
-            .putString(REFRESH_TOKEN, session?.refreshToken.orEmpty())
-            .putString("userAvatar", session?.avatar.orEmpty())
-        if (session?.adminType == null) editor.remove("accountAdminType")
-        else editor.putInt("accountAdminType", session.adminType)
+        if (changed && session != null && !canBindSzlmId(session.uid, SZLMID)) return false
+        if (changed && session == null && (manuallyPairedAccount || readInactiveAccounts().isNotEmpty())) {
+            return activate(null, removeCurrent = true)
+        }
+        val editor = sessionEditor(session)
         if (changed) {
             editor.putLong("messageAccountGeneration", expectedGeneration + 1)
             CookieUtil.clearAccountState()
@@ -209,9 +214,160 @@ object PrefManager {
         return true
     }
 
+    private fun sessionEditor(session: AccountSession?): SharedPreferences.Editor = pref.edit()
+        .putBoolean("isLogin", session != null)
+        .putString(UID, session?.uid.orEmpty())
+        .putString(NAME, session?.username.orEmpty())
+        .putString(TOKEN, session?.token.orEmpty())
+        .putString(REFRESH_TOKEN, session?.refreshToken.orEmpty())
+        .putString("userAvatar", session?.avatar.orEmpty())
+        .apply {
+            val admin = session?.adminType
+            if (admin == null) remove("accountAdminType") else putInt("accountAdminType", admin)
+        }
+
+    private const val SAVED_ACCOUNTS = "savedAccountsV1"
+    private const val MANUAL_ACCOUNT_ID = "accountPairedManually"
+    private val deviceFields = setOf("MANUFACTURER", "BRAND", "MODEL", "BUILDNUMBER", "SDK_INT",
+        "ANDROID_VERSION", "USER_AGENT", "VERSION_NAME", "VERSION_CODE", "API_VERSION",
+        "reportRealDevice", "customFingerprint", "DEVICE_FINGERPRINT_VERSION")
+
+    private fun readAccountIdentity() = AccountIdentity(
+        SZLMID, xAppDevice, szlmIdLastObtainedAt, szlmIdNoticed,
+        pref.getBoolean(MANUAL_ACCOUNT_ID, false),
+        pref.all.filterKeys { it in deviceFields }.mapNotNull { (key, value) ->
+            value?.let { key to it }
+        }.toMap(),
+    )
+
+    internal val manuallyPairedAccount: Boolean
+        get() = isLogin && pref.getBoolean(MANUAL_ACCOUNT_ID, false)
+
+    private fun readInactiveAccounts(): List<StoredAccount> {
+        val raw = pref.getString(SAVED_ACCOUNTS, null) ?: return emptyList()
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val row = array.optJSONObject(index) ?: return@mapNotNull null
+            val session = AccountSession(row.optString("uid"), row.optString("username"),
+                row.optString("token"), row.optString("refreshToken"), row.optString("avatar"),
+                row.optInt("admin", Int.MIN_VALUE).takeUnless { it == Int.MIN_VALUE })
+            if (!session.isValid) return@mapNotNull null
+            val device = row.optJSONObject("device")
+            val settings = deviceFields.mapNotNull { key ->
+                device?.opt(key)?.takeIf { it is String || it is Boolean || it is Int }?.let { key to it }
+            }.toMap()
+            StoredAccount(session, AccountIdentity(row.optString("duid"), row.optString("deviceCode"),
+                row.optLong("obtainedAt"), row.optBoolean("noticed"), row.optBoolean("manual"), settings))
+        }.filterNot { isLogin && it.uid == uid }.distinctBy { it.uid }
+    }
+
+    private fun encodeAccounts(accounts: List<StoredAccount>): String = JSONArray().apply {
+        accounts.forEach { account ->
+            val session = account.session
+            val identity = account.identity
+            put(JSONObject().put("uid", session.uid).put("username", session.username)
+                .put("token", session.token).put("refreshToken", session.refreshToken)
+                .put("avatar", session.avatar).put("admin", session.adminType)
+                .put("duid", identity.szlmId).put("deviceCode", identity.overrideDeviceCode)
+                .put("obtainedAt", identity.obtainedAt).put("noticed", identity.noticed)
+                .put("manual", identity.pairedManually).put("device", JSONObject(identity.deviceSettings)))
+        }
+    }.toString()
+
     @Synchronized
-    internal fun logout() {
-        replaceAccount(messageAccountGeneration, null)
+    internal fun savedAccounts(): List<StoredAccount> =
+        listOfNotNull(readAccount()?.takeIf { it.isValid }?.let { StoredAccount(it, readAccountIdentity()) }) +
+            readInactiveAccounts()
+
+    @Synchronized
+    internal fun canUseSzlmId(value: String): Boolean =
+        value.isEmpty() || readInactiveAccounts().none { it.identity.szlmId.equals(value, ignoreCase = true) }
+
+    @Synchronized
+    internal fun saveSzlmId(id: String, generation: Long, fromAutomatic: Boolean = false): Boolean {
+        if (generation != messageAccountGeneration || !canUseSzlmId(id) || ';' in id || id.any { it.isWhitespace() }) return false
+        if (manuallyPairedAccount && (fromAutomatic || !AccountIdentity.acceptsNewId(id))) return false
+        val device = TokenDeviceUtils.deviceCodeWithSzlmId(id)
+        pref.edit().putString("SZLMID", id).putString("xAppDevice", device)
+            .putLong("szlmIdLastObtainedAt", if (id.isNotEmpty()) System.currentTimeMillis() else 0L)
+            .putBoolean("szlmIdConfigured", id.isNotEmpty()).putBoolean("szlmIdNoticed", true).apply()
+        return true
+    }
+
+    @Synchronized
+    internal fun addAccountIdentity(id: String): AccountIdentity? {
+        if (!AccountIdentity.acceptsNewId(id)) return null
+        TokenDeviceUtils.getLastingDeviceCode()
+        val current = readAccountIdentity()
+        return AccountIdentity(id, TokenDeviceUtils.deviceCodeWithSzlmId(id, current.overrideDeviceCode),
+            System.currentTimeMillis(), true, true, current.deviceSettings)
+    }
+
+    @Synchronized
+    internal fun canBindSzlmId(targetUid: String, value: String): Boolean =
+        value.isEmpty() || savedAccounts().none { it.uid != targetUid && it.identity.szlmId.equals(value, ignoreCase = true) }
+
+    @Synchronized
+    internal fun activateAddedAccount(generation: Long, session: AccountSession, identity: AccountIdentity): Boolean {
+        if (messageAccountGeneration != generation || !session.isValid || !AccountIdentity.acceptsNewId(identity.szlmId)) return false
+        if (savedAccounts().any { it.uid != session.uid && it.identity.szlmId.equals(identity.szlmId, ignoreCase = true) }) return false
+        return activate(StoredAccount(session, identity))
+    }
+
+    @Synchronized
+    internal fun switchAccount(targetUid: String): Boolean {
+        val target = readInactiveAccounts().firstOrNull { it.uid == targetUid } ?: return false
+        if (target.identity.szlmId.isNotEmpty() && target.identity.szlmId.equals(SZLMID, ignoreCase = true)) return false
+        return activate(target)
+    }
+
+    @Synchronized
+    internal fun removeAccount(targetUid: String): Boolean {
+        if (isLogin && uid == targetUid) return logout()
+        val inactive = readInactiveAccounts()
+        if (inactive.none { it.uid == targetUid }) return false
+        return pref.edit().putString(SAVED_ACCOUNTS, encodeAccounts(inactive.filterNot { it.uid == targetUid })).commit()
+    }
+
+    @Synchronized
+    internal fun logout(): Boolean {
+        if (!isLogin) return true
+        if (!manuallyPairedAccount && readInactiveAccounts().isEmpty()) {
+            return replaceAccount(messageAccountGeneration, null)
+        }
+        return activate(null, removeCurrent = true)
+    }
+
+    private fun activate(target: StoredAccount?, removeCurrent: Boolean = false): Boolean {
+        val inactive = readInactiveAccounts().filterNot { it.uid == target?.uid }.toMutableList()
+        val before = readAccount()
+        val currentIdentity = readAccountIdentity()
+        if (!removeCurrent && before != null && before.isValid && before.uid != target?.uid) {
+            inactive.add(0, StoredAccount(before, currentIdentity))
+        }
+        val session = target?.session
+        val identity = target?.identity ?: AccountIdentity("", currentIdentity.overrideDeviceCode,
+            noticed = currentIdentity.noticed, deviceSettings = currentIdentity.deviceSettings)
+        val editor = sessionEditor(session)
+            .putString(SAVED_ACCOUNTS, encodeAccounts(inactive))
+            .putString("SZLMID", identity.szlmId)
+            .putLong("szlmIdLastObtainedAt", identity.obtainedAt)
+            .putBoolean("szlmIdConfigured", identity.szlmId.isNotBlank())
+            .putBoolean("szlmIdNoticed", identity.noticed)
+            .putBoolean(MANUAL_ACCOUNT_ID, identity.pairedManually)
+            .putString("xAppDevice", TokenDeviceUtils.deviceCodeWithSzlmId(identity.szlmId, identity.overrideDeviceCode))
+            .putLong("messageAccountGeneration", messageAccountGeneration + 1)
+            .remove("level").remove("experience").remove("nextLevelExperience")
+        deviceFields.forEach { key ->
+            when (val value = identity.deviceSettings[key]) {
+                is String -> editor.putString(key, value)
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                else -> editor.remove(key)
+            }
+        }
+        CookieUtil.clearAccountState()
+        return editor.commit()
     }
 
     var userAvatar: String
@@ -514,6 +670,16 @@ object PrefManager {
     var ssaid: String
         get() = pref.getString("SSAID", "") ?: ""
         set(value) = pref.edit().putString("SSAID", value).apply()
+
+    /**
+     * 系统派发给本应用的真实 SSAID。
+     *
+     * 多账号下 [ssaid] 是当前账号的派生值，启动时不能再拿系统值覆盖它；
+     * 这里单独保存真实值，退出登录 / 新建账号时作为派生基准。
+     */
+    var realSsaid: String
+        get() = pref.getString("REAL_SSAID", "") ?: ""
+        set(value) = pref.edit().putString("REAL_SSAID", value).apply()
 
     /**
      * 是否记录 HTTP 请求日志（设置 → 高级，**默认关闭** ✓）

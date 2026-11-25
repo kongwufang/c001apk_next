@@ -1,6 +1,7 @@
 package com.example.c001apk.util
 
 import com.example.c001apk.logic.model.CheckResponse
+import com.example.c001apk.logic.model.CheckCountResponse
 
 object CookieUtil {
 
@@ -19,6 +20,17 @@ object CookieUtil {
     }
 
     internal fun applyLoginCounts(count: CheckResponse.NotifyCount) {
+        atme = count.atme
+        atcommentme = count.atcommentme
+        feedlike = count.feedlike
+        contacts_follow = count.contactsFollow
+        message = count.message
+        commentme = count.commentme
+        badge = count.unreadBadge
+        notification = count.unreadNotification
+    }
+
+    internal fun applyCheckCounts(count: CheckCountResponse.Data) {
         atme = count.atme
         atcommentme = count.atcommentme
         feedlike = count.feedlike

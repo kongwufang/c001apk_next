@@ -31,6 +31,8 @@ import com.example.c001apk.logic.network.AccountCallback
 import com.example.c001apk.logic.repository.AccountRepository
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.ui.main.MainActivity
+import com.example.c001apk.util.AccountIdentity
+import com.example.c001apk.util.AccountVault
 import com.example.c001apk.util.ActivityCollector
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.SslErrorPrompter
@@ -49,6 +51,8 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
     private var compatible = false
     private var webReady = false
     private var generation = 0L
+    private var pending: AccountIdentity? = null
+    private val draftKey get() = intent.getStringExtra(EXTRA_ADD_ACCOUNT)
     private var elapsed = 0
     private var usedCode: String? = null
     private var lastCandidate: AccountSession? = null
@@ -82,7 +86,15 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         elapsed = 0
         usedCode = null
         lastCandidate = null
-        generation = PrefManager.messageAccountGeneration
+        val draftId = draftKey
+        val draft = draftId?.let(AccountVault::pendingLogin)
+        if (draftId != null && (draft == null || draft.first != PrefManager.messageAccountGeneration)) {
+            Toast.makeText(this, R.string.accountLoginExpired, Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+        generation = draft?.first ?: PrefManager.messageAccountGeneration
+        pending = draft?.second
         releaseWebView()
         supportActionBar?.title = if (compatible) "兼容网页登录" else getString(R.string.loginWeb)
         invalidateOptionsMenu()
@@ -96,10 +108,23 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         // Await asynchronous cleanup so a previous WebView session cannot be taken as this login.
         cookies.removeAllCookies {
             if (webView !== view || isFinishing || isDestroyed) return@removeAllCookies
-            webReady = true
-            binding.progressBar.isIndeterminate = false
-            view.loadUrl(if (compatible) MOBILE_URL else APP_URL)
-            if (compatible) handler.postDelayed(cookieChecker, 1000)
+            fun loadLogin() {
+                if (webView !== view || isFinishing || isDestroyed) return
+                webReady = true
+                binding.progressBar.isIndeterminate = false
+                view.loadUrl(if (compatible) MOBILE_URL else APP_URL)
+                if (compatible) handler.postDelayed(cookieChecker, 1000)
+            }
+            val id = pending?.szlmId
+            if (id != null) {
+                cookies.setCookie("https://account.coolapk.com", "DID=$id; Domain=.coolapk.com; Path=/; Secure") { set ->
+                    if (set == true) loadLogin()
+                    else if (webView === view && !isFinishing) {
+                        Toast.makeText(this, R.string.accountLoginExpired, Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                }
+            } else loadLogin()
         }
     }
 
@@ -171,7 +196,7 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         val code = AccountCallback.codeFrom(url) ?: return false
         if (complete || code == usedCode || verification?.isActive == true) return true
         usedCode = code
-        verifyLogin { repository.loginWithCode(code, generation) }
+        verifyLogin { repository.loginWithCode(code, generation, pending) }
         return true
     }
 
@@ -183,7 +208,7 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         } ?: return
         if (lastCandidate?.uid == candidate.uid && lastCandidate?.effectiveToken == candidate.effectiveToken) return
         lastCandidate = candidate
-        verifyLogin { repository.loginWithCookie(candidate, generation) }
+        verifyLogin { repository.loginWithCookie(candidate, generation, pending) }
     }
 
     private fun verifyLogin(check: suspend () -> AccountRepository.Result) {
@@ -200,11 +225,15 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
                     handler.removeCallbacks(cookieChecker)
                     Toast.makeText(this@WebLoginActivity, "登录成功", Toast.LENGTH_SHORT).show()
                     setResult(Activity.RESULT_OK)
-                    ActivityCollector.recreateActivity(MainActivity::class.java.name)
+                    if (draftKey == null) ActivityCollector.recreateActivity(MainActivity::class.java.name)
                     finish()
                 }
                 AccountRepository.Result.STALE -> {
                     Toast.makeText(this@WebLoginActivity, "账号状态已变化，请重新打开登录页", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+                AccountRepository.Result.ID_IN_USE -> {
+                    Toast.makeText(this@WebLoginActivity, R.string.accountIdentityInUse, Toast.LENGTH_LONG).show()
                     finish()
                 }
                 else -> {
@@ -258,10 +287,16 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         verification?.cancel()
         handler.removeCallbacksAndMessages(null)
         releaseWebView()
+        if (isFinishing) {
+            draftKey?.let(AccountVault::clearDraft)
+            CookieManager.getInstance().removeAllCookies(null)
+        }
         super.onDestroy()
     }
 
     companion object {
+        /** 账号管理页「添加账号」用；成功后不自己重建主页，交给调用方处理。 */
+        const val EXTRA_ADD_ACCOUNT = "add_account"
         private const val SWITCH_MODE = 1
         private const val APP_URL = "https://account.coolapk.com/auth/login?type=coolapk"
         private const val MOBILE_URL = "https://account.coolapk.com/auth/login?type=mobile"

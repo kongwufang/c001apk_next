@@ -133,8 +133,8 @@ class AccountLoginTest {
     }
 
     private class FakeApi(val check: suspend (Int, String?) -> Response<CheckResponse>) : AccountApi {
-        override suspend fun exchange(code: String): Response<CheckResponse> = error("Unexpected exchange")
-        override suspend fun check(checkInit: Int, cookie: String?) = check.invoke(checkInit, cookie)
+        override suspend fun exchange(code: String, identity: AccountRequestIdentity?): Response<CheckResponse> = error("Unexpected exchange")
+        override suspend fun check(checkInit: Int, cookie: String?, identity: AccountRequestIdentity?) = check.invoke(checkInit, cookie)
     }
 
     private fun success(uid: String, name: String, adminType: Int = 0): Response<CheckResponse> = Response.success(

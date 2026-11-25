@@ -3,6 +3,7 @@ package com.example.c001apk.di
 import com.example.c001apk.logic.network.LenientGson
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.logic.network.ApiService
+import com.example.c001apk.util.AccountRequestIdentity
 import com.example.c001apk.util.AddCookiesInterceptor
 import com.example.c001apk.util.HttpLog
 import com.example.c001apk.util.RiskControlInterceptor
@@ -66,7 +67,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(API_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(okHttpClient)
+            .callFactory(AccountRequestIdentity.bind(okHttpClient))
             .build()
     }
 
@@ -77,7 +78,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(API_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(okHttpClient)
+            .callFactory(AccountRequestIdentity.bind(okHttpClient))
             .build()
     }
 
@@ -88,7 +89,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(API2_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(okHttpClient)
+            .callFactory(AccountRequestIdentity.bind(okHttpClient))
             .build()
     }
 

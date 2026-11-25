@@ -126,6 +126,27 @@ object TokenDeviceUtils {
         )
     }
 
+    /**
+     * 用当前机型骨架 + 指定 szlmId 重建设备串。
+     *
+     * 多账号切换只换首字段，厂商 / 品牌 / 型号 / 版本 / MAC / 尾字段全部保留，
+     * 因此不同账号的机型、版本一致，只有 szlmId 不同。
+     */
+    internal fun deviceCodeWithSzlmId(szlmId: String, skeleton: String = getLastingDeviceCode()): String {
+        val parts = runCatching { DeviceCode.decode(skeleton).split(';').toMutableList() }.getOrNull()
+        if (parts != null && parts.size >= 9) {
+            parts[0] = szlmId
+            return DeviceCode.encode(parts.joinToString(";"))
+        }
+        return buildDeviceCode(
+            manufacturer = PrefManager.MANUFACTURER.ifEmpty { Constants.DEFAULT_MANUFACTURER },
+            brand = PrefManager.BRAND.ifEmpty { Constants.DEFAULT_BRAND },
+            model = PrefManager.MODEL.ifEmpty { Constants.DEFAULT_MODEL },
+            buildNumber = PrefManager.BUILDNUMBER.ifEmpty { Constants.DEFAULT_BUILDNUMBER },
+            szlmId = szlmId,
+        )
+    }
+
     fun String.getTokenV2(): String {
         val timeStamp = (System.currentTimeMillis() / 1000f).toString()
 

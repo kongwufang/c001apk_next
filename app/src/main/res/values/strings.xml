@@ -293,6 +293,23 @@
     
     <!-- 账号管理页（阶段 ②）-->
     <string name="accountManagerTitle">账号管理</string>
+    <string name="accountSavedTitle">切换账号</string>
+    <string name="accountAdd">添加账号</string>
+    <string name="accountCurrent">当前</string>
+    <string name="accountDelete">删除</string>
+    <string name="accountEmpty">还没有保存的账号</string>
+    <string name="accountIdentityNote">请填入该账号对应的数字联盟 ID（szlmid），再继续登录。不同账号不能共用同一个 ID，机型和版本可以相同。</string>
+    <string name="accountIdentityInvalid">请输入有效的数字联盟 ID</string>
+    <string name="accountIdentitySaveRejected">数字联盟 ID 未修改：账号已切换，或该 ID 无效或已被其他账号使用。</string>
+    <string name="accountManualIdRequired">此账号使用单独绑定的数字联盟 ID，请手动更新。</string>
+    <string name="accountIdentityInUse">这个数字联盟 ID 已被另一个账号使用，原账号未切换。</string>
+    <string name="accountLoginExpired">本次登录已失效，请回账号管理重试。</string>
+    <string name="accountDeleteTitle">删除这个账号？</string>
+    <string name="accountDeleteMessage">只删除本机保存的登录信息，不会注销酷安账号。</string>
+    <string name="accountLogoutNote">退出并移除当前账号的登录信息，其他已保存账号不受影响。</string>
+    <string name="accountSwitchFailed">未能完成账号操作，请重试</string>
+    <string name="accountDeleted">已删除账号</string>
+    <string name="accountUid">UID %1$s</string>
     <string name="scanLogin">扫码登录</string>
     <string name="comingSoon">敬请期待</string>
 
