@@ -142,6 +142,7 @@ class EditProfileViewModel @Inject constructor(
      * Content-Type = image/jpeg，响应 `{"data":"http://avatar.coolapk.com/..."}`。
      */
     fun onPostAvatar(uri: Uri, resolver: ContentResolver) {
+        val account = com.example.c001apk.util.MessageAccount.current() ?: return
         viewModelScope.launch(Dispatchers.IO) {
             loadingState.postValue(LoadingState.Loading)
             val bytes = runCatching {
@@ -157,15 +158,20 @@ class EditProfileViewModel @Inject constructor(
             val part = MultipartBody.Part.createFormData(
                 "imgFile", md5, bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
             )
+            if (!account.isCurrent()) return@launch
             networkRepo.changeAvatar(part)
                 .collect { result ->
                     val response = result.getOrNull()
                     val newAvatar = response?.data
                     loadingState.postValue(LoadingState.LoadingDone)
                     if (newAvatar != null) {
-                        changed = true
-                        PrefManager.userAvatar = newAvatar
-                        over.postValue(Event(true))
+                        synchronized(PrefManager) {
+                            if (account.isCurrent()) {
+                                changed = true
+                                PrefManager.userAvatar = newAvatar
+                                over.postValue(Event(true))
+                            }
+                        }
                     } else {
                         toastText.postValue(Event(response?.message ?: "头像修改失败"))
                     }

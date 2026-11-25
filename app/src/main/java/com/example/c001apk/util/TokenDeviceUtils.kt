@@ -250,8 +250,14 @@ object TokenDeviceUtils {
         // v3 迁移：存量设备串首字段里可能还留着旧版本写死的真实 szlmId
         // （尤其点过「重新生成随机机型」的用户），先摘掉再走下面的正常流程
         if (PrefManager.DEVICE_FINGERPRINT_VERSION < FINGERPRINT_VERSION) migrateSzlmId()
-        // 用户显式指定过自定义设备串 → 完全按他的来，不再干预
-        if (PrefManager.customFingerprint) return PrefManager.xAppDevice
+        if (PrefManager.customFingerprint) {
+            val custom = PrefManager.xAppDevice
+            // Keep model overrides, but never let a pasted device code override the account's ID.
+            if (!PrefManager.isLogin) return custom
+            val bound = deviceCodeWithSzlmId(PrefManager.SZLMID, custom)
+            if (bound != custom) PrefManager.xAppDevice = bound
+            return bound
+        }
         if (PrefManager.reportRealDevice) {
             // 上报真实机型：帖子/回复下方显示「来自 <本机机型>」（服务端按品牌+型号映射）
             val device = detectRealDevice()

@@ -341,7 +341,8 @@ object PrefManager {
         if (isLogin && uid == targetUid) return logout()
         val inactive = readInactiveAccounts()
         if (inactive.none { it.uid == targetUid }) return false
-        return pref.edit().putString(SAVED_ACCOUNTS, encodeAccounts(inactive.filterNot { it.uid == targetUid })).commit()
+        return pref.edit().putString(SAVED_ACCOUNTS, encodeAccounts(inactive.filterNot { it.uid == targetUid }))
+            .remove(cloudCacheKey("spam", targetUid)).remove(cloudCacheKey("blocked", targetUid)).commit()
     }
 
     @Synchronized
@@ -373,6 +374,9 @@ object PrefManager {
             .putString("xAppDevice", TokenDeviceUtils.deviceCodeWithSzlmId(identity.szlmId, identity.overrideDeviceCode))
             .putLong("messageAccountGeneration", messageAccountGeneration + 1)
             .remove("level").remove("experience").remove("nextLevelExperience")
+        if (removeCurrent && before != null) {
+            editor.remove(cloudCacheKey("spam", before.uid)).remove(cloudCacheKey("blocked", before.uid))
+        }
         deviceFields.forEach { key ->
             when (val value = identity.deviceSettings[key]) {
                 is String -> editor.putString(key, value)

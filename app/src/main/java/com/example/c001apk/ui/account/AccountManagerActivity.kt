@@ -22,6 +22,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /** Entry in the Mine drawer; the account list is above the existing logout button. */
 class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
+    private var restarting = false
     private val addAccount = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) restartMain() else renderAccounts()
     }
@@ -53,9 +54,10 @@ class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
             item.deleteButton.isVisible = account.uid != currentUid
             if (account.avatar.isNotBlank()) ImageUtil.showIMG(item.avatar, account.avatar)
             else item.avatar.setImageResource(R.drawable.ic_account)
-            item.deleteButton.setOnClickListener { confirmDelete(account) }
+            item.deleteButton.setOnClickListener { if (!restarting) confirmDelete(account) }
             item.root.isClickable = account.uid != currentUid
             if (item.root.isClickable) item.root.setOnClickListener {
+                if (restarting) return@setOnClickListener
                 if (AccountVault.switchTo(account.uid)) restartMain()
                 else toast(R.string.accountSwitchFailed)
             }
@@ -124,9 +126,19 @@ class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
     private fun toast(message: Int) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
     private fun restartMain() {
-        startActivity(Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        })
-        finish()
+        if (restarting) return
+        restarting = true
+        binding.btnAddAccount.isEnabled = false
+        binding.btnLogout.isEnabled = false
+        // Web login and embedded Coolapk pages share this WebView cookie jar.
+        // Finish clearing it before entering the new account's pages.
+        android.webkit.CookieManager.getInstance().removeAllCookies {
+            if (!isFinishing && !isDestroyed) {
+                startActivity(Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                })
+                finish()
+            }
+        }
     }
 }

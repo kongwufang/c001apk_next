@@ -289,7 +289,7 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         releaseWebView()
         if (isFinishing) {
             draftKey?.let(AccountVault::clearDraft)
-            CookieManager.getInstance().removeAllCookies(null)
+            if (draftKey == null || !complete) CookieManager.getInstance().removeAllCookies(null)
         }
         super.onDestroy()
     }
