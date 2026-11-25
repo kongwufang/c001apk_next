@@ -7,6 +7,7 @@ import java.io.IOException
 /** Immutable snapshot: signing fields and Cookie always come from the same account. */
 internal class AccountRequestIdentity(
     val generation: Long,
+    val szlmId: String,
     val device: String,
     val ua: String,
     val sdk: String,
@@ -15,22 +16,27 @@ internal class AccountRequestIdentity(
     val apiVersion: String,
     val cookie: String,
 ) {
+    fun currentLoginContext(): Boolean = synchronized(PrefManager) {
+        generation == PrefManager.messageAccountGeneration && szlmId == PrefManager.SZLMID
+    }
+
     fun requireCurrent() {
-        if (generation != PrefManager.messageAccountGeneration) throw IOException("Account changed")
+        if (!currentLoginContext()) throw IOException("Account or device ID changed")
     }
 
     companion object {
-        fun capture(pending: AccountIdentity? = null): AccountRequestIdentity = synchronized(PrefManager) {
-            val device = pending?.overrideDeviceCode ?: TokenDeviceUtils.getLastingDeviceCode()
+        fun capture(includeSession: Boolean = true): AccountRequestIdentity = synchronized(PrefManager) {
+            val device = TokenDeviceUtils.getLastingDeviceCode()
             AccountRequestIdentity(
                 PrefManager.messageAccountGeneration,
+                PrefManager.SZLMID,
                 device,
-                (pending?.deviceSettings?.get("USER_AGENT") as? String ?: PrefManager.USER_AGENT).ifEmpty { Constants.USER_AGENT },
-                pending?.deviceSettings?.get("SDK_INT") as? String ?: PrefManager.SDK_INT,
-                (pending?.deviceSettings?.get("VERSION_NAME") as? String ?: PrefManager.VERSION_NAME).ifEmpty { Constants.VERSION_NAME },
-                (pending?.deviceSettings?.get("VERSION_CODE") as? String ?: PrefManager.VERSION_CODE).ifEmpty { Constants.VERSION_CODE },
-                (pending?.deviceSettings?.get("API_VERSION") as? String ?: PrefManager.API_VERSION).ifEmpty { Constants.API_VERSION },
-                if (pending != null) "" else PrefManager.accountSnapshot().session
+                PrefManager.USER_AGENT.ifEmpty { Constants.USER_AGENT },
+                PrefManager.SDK_INT,
+                PrefManager.VERSION_NAME.ifEmpty { Constants.VERSION_NAME },
+                PrefManager.VERSION_CODE.ifEmpty { Constants.VERSION_CODE },
+                PrefManager.API_VERSION.ifEmpty { Constants.API_VERSION },
+                if (!includeSession) "" else PrefManager.accountSnapshot().session
                     ?.takeIf { it.isValid }?.cookie() ?: CookieUtil.SESSID,
             )
         }

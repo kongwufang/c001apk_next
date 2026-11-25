@@ -42,11 +42,6 @@ object SzlmIdPrompt {
             onDismiss?.invoke()
             return
         }
-        if (PrefManager.manuallyPairedAccount) {
-            onDismiss?.invoke()
-            showManualInput(activity)
-            return
-        }
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.szlm_id_consent_title)
             .setNegativeButton(R.string.szlm_id_get_manual) { d, _ ->
@@ -76,7 +71,7 @@ object SzlmIdPrompt {
                 if (save(editText.text.toString().trim(), generation)) onDone?.invoke()
                 else Toast.makeText(activity, R.string.accountIdentitySaveRejected, Toast.LENGTH_SHORT).show()
             }
-            if (BuildConfig.DEBUG && !PrefManager.manuallyPairedAccount) {
+            if (BuildConfig.DEBUG) {
                 setNeutralButton(R.string.random_value) { _, _ ->
                     // 调试用：换一份随机 szlmId（不置 szlmIdConfigured，仍算未配置）
                     save(TokenDeviceUtils.randHexString(16), generation)
@@ -97,6 +92,5 @@ object SzlmIdPrompt {
     internal fun save(
         id: String,
         generation: Long = PrefManager.messageAccountGeneration,
-        fromAutomatic: Boolean = false,
-    ): Boolean = PrefManager.saveSzlmId(id, generation, fromAutomatic)
+    ): Boolean = PrefManager.saveSzlmId(id, generation)
 }

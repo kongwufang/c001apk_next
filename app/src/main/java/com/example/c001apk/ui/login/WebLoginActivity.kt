@@ -31,10 +31,9 @@ import com.example.c001apk.logic.network.AccountCallback
 import com.example.c001apk.logic.repository.AccountRepository
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.ui.main.MainActivity
-import com.example.c001apk.util.AccountIdentity
+import com.example.c001apk.util.AccountRequestIdentity
 import com.example.c001apk.util.AccountVault
 import com.example.c001apk.util.ActivityCollector
-import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.SslErrorPrompter
 import com.google.android.material.appbar.AppBarLayout.ScrollingViewBehavior
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -50,8 +49,7 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
     private var complete = false
     private var compatible = false
     private var webReady = false
-    private var generation = 0L
-    private var pending: AccountIdentity? = null
+    private lateinit var loginIdentity: AccountRequestIdentity
     private val draftKey get() = intent.getStringExtra(EXTRA_ADD_ACCOUNT)
     private var elapsed = 0
     private var usedCode: String? = null
@@ -87,14 +85,14 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         usedCode = null
         lastCandidate = null
         val draftId = draftKey
-        val draft = draftId?.let(AccountVault::pendingLogin)
-        if (draftId != null && (draft == null || draft.first != PrefManager.messageAccountGeneration)) {
+        val generation = draftId?.let(AccountVault::pendingLogin)
+        val identity = AccountRequestIdentity.capture(includeSession = false)
+        if (draftId != null && generation != identity.generation) {
             Toast.makeText(this, R.string.accountLoginExpired, Toast.LENGTH_SHORT).show()
             finish()
             return
         }
-        generation = draft?.first ?: PrefManager.messageAccountGeneration
-        pending = draft?.second
+        loginIdentity = identity
         releaseWebView()
         supportActionBar?.title = if (compatible) "兼容网页登录" else getString(R.string.loginWeb)
         invalidateOptionsMenu()
@@ -115,8 +113,8 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
                 view.loadUrl(if (compatible) MOBILE_URL else APP_URL)
                 if (compatible) handler.postDelayed(cookieChecker, 1000)
             }
-            val id = pending?.szlmId
-            if (id != null) {
+            val id = identity.szlmId
+            if (id.isNotEmpty()) {
                 cookies.setCookie("https://account.coolapk.com", "DID=$id; Domain=.coolapk.com; Path=/; Secure") { set ->
                     if (set == true) loadLogin()
                     else if (webView === view && !isFinishing) {
@@ -196,7 +194,7 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         val code = AccountCallback.codeFrom(url) ?: return false
         if (complete || code == usedCode || verification?.isActive == true) return true
         usedCode = code
-        verifyLogin { repository.loginWithCode(code, generation, pending) }
+        verifyLogin { repository.loginWithCode(code, loginIdentity.generation, adding = draftKey != null, requestIdentity = loginIdentity) }
         return true
     }
 
@@ -208,7 +206,7 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
         } ?: return
         if (lastCandidate?.uid == candidate.uid && lastCandidate?.effectiveToken == candidate.effectiveToken) return
         lastCandidate = candidate
-        verifyLogin { repository.loginWithCookie(candidate, generation, pending) }
+        verifyLogin { repository.loginWithCookie(candidate, loginIdentity.generation, adding = draftKey != null, requestIdentity = loginIdentity) }
     }
 
     private fun verifyLogin(check: suspend () -> AccountRepository.Result) {
@@ -230,10 +228,6 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
                 }
                 AccountRepository.Result.STALE -> {
                     Toast.makeText(this@WebLoginActivity, "账号状态已变化，请重新打开登录页", Toast.LENGTH_SHORT).show()
-                    finish()
-                }
-                AccountRepository.Result.ID_IN_USE -> {
-                    Toast.makeText(this@WebLoginActivity, R.string.accountIdentityInUse, Toast.LENGTH_LONG).show()
                     finish()
                 }
                 else -> {

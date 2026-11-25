@@ -113,7 +113,7 @@ object PrefManager {
     /** Additional saved sessions are device-local and never included in a manual export. */
     @Synchronized
     fun dumpAll(): Map<String, *> = pref.all.filterKeys {
-        it != SAVED_ACCOUNTS && it != MANUAL_ACCOUNT_ID && !it.startsWith("accountCloud.")
+        it != SAVED_ACCOUNTS && it != LEGACY_MANUAL_ACCOUNT_ID && !it.startsWith("accountCloud.")
     }
 
     /** 还原：整份覆盖，已有备用账号保留在本机。 */
@@ -123,10 +123,10 @@ object PrefManager {
         val generation = messageAccountGeneration
         val editor = pref.edit().clear().putLong("messageAccountGeneration", generation + 1)
         editor.putString(SAVED_ACCOUNTS, saved)
-        val restoreAuth = readInactiveAccounts().isEmpty() && !manuallyPairedAccount
+        val restoreAuth = readInactiveAccounts().isEmpty()
         val protected = setOf(UID, NAME, TOKEN, REFRESH_TOKEN, "isLogin", "accountAdminType", "userAvatar",
             "level", "experience", "nextLevelExperience", "SZLMID", "szlmIdConfigured", "szlmIdNoticed",
-            "szlmIdLastObtainedAt", "xAppDevice", MANUAL_ACCOUNT_ID) + deviceFields
+            "szlmIdLastObtainedAt", "xAppDevice", LEGACY_MANUAL_ACCOUNT_ID) + deviceFields
         val current = pref.all
         val merged = if (restoreAuth) values else values.filterKeys { it !in protected && !it.startsWith("accountCloud.") } +
             current.filterKeys { it in protected || it.startsWith("accountCloud.") }.mapNotNull { (k, v) ->
@@ -134,7 +134,7 @@ object PrefManager {
             }.toMap()
         merged.filterKeys {
             it != SAVED_ACCOUNTS && it != "messageAccountGeneration" &&
-                (!restoreAuth || (it != MANUAL_ACCOUNT_ID && !it.startsWith("accountCloud.")))
+                it != LEGACY_MANUAL_ACCOUNT_ID && (!restoreAuth || !it.startsWith("accountCloud."))
         }.forEach { (k, v) ->
             when (v) {
                 is Boolean -> editor.putBoolean(k, v)
@@ -215,8 +215,8 @@ object PrefManager {
         if (session != null) require(session.isValid)
         val nextUid = session?.uid.orEmpty()
         val changed = isLogin != (session != null) || uid != nextUid
-        if (changed && session != null && (readInactiveAccounts().isNotEmpty() || !canBindSzlmId(session.uid, SZLMID))) return false
-        if (changed && session == null && (manuallyPairedAccount || readInactiveAccounts().isNotEmpty())) {
+        if (changed && session != null && readInactiveAccounts().isNotEmpty()) return false
+        if (changed && session == null) {
             return activate(null, removeCurrent = true)
         }
         val editor = sessionEditor(session)
@@ -241,25 +241,27 @@ object PrefManager {
         }
 
     private const val SAVED_ACCOUNTS = "savedAccountsV1"
-    private const val MANUAL_ACCOUNT_ID = "accountPairedManually"
+    private const val LEGACY_MANUAL_ACCOUNT_ID = "accountPairedManually"
     private val deviceFields = setOf("MANUFACTURER", "BRAND", "MODEL", "BUILDNUMBER", "SDK_INT",
         "ANDROID_VERSION", "USER_AGENT", "VERSION_NAME", "VERSION_CODE", "API_VERSION",
         "reportRealDevice", "customFingerprint", "DEVICE_FINGERPRINT_VERSION")
 
     private fun readAccountIdentity() = AccountIdentity(
-        SZLMID, xAppDevice, szlmIdLastObtainedAt, szlmIdNoticed,
-        pref.getBoolean(MANUAL_ACCOUNT_ID, false),
+        accountDeviceSkeleton(xAppDevice),
         pref.all.filterKeys { it in deviceFields }.mapNotNull { (key, value) ->
             value?.let { key to it }
         }.toMap(),
     )
 
-    internal val manuallyPairedAccount: Boolean
-        get() = isLogin && pref.getBoolean(MANUAL_ACCOUNT_ID, false)
+    private fun accountDeviceSkeleton(code: String): String =
+        if (code.isBlank()) "" else TokenDeviceUtils.deviceCodeWithSzlmId("", code)
+
+    private fun readSavedRows(): JSONArray? = pref.getString(SAVED_ACCOUNTS, null)?.let { raw ->
+        runCatching { JSONArray(raw) }.getOrNull()
+    }
 
     private fun readInactiveAccounts(): List<StoredAccount> {
-        val raw = pref.getString(SAVED_ACCOUNTS, null) ?: return emptyList()
-        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        val array = readSavedRows() ?: return emptyList()
         return (0 until array.length()).mapNotNull { index ->
             val row = array.optJSONObject(index) ?: return@mapNotNull null
             val session = AccountSession(row.optString("uid"), row.optString("username"),
@@ -270,8 +272,7 @@ object PrefManager {
             val settings = deviceFields.mapNotNull { key ->
                 device?.opt(key)?.takeIf { it is String || it is Boolean || it is Int }?.let { key to it }
             }.toMap()
-            StoredAccount(session, AccountIdentity(row.optString("duid"), row.optString("deviceCode"),
-                row.optLong("obtainedAt"), row.optBoolean("noticed"), row.optBoolean("manual"), settings))
+            StoredAccount(session, AccountIdentity(accountDeviceSkeleton(row.optString("deviceCode")), settings))
         }.filterNot { isLogin && it.uid == uid }.distinctBy { it.uid }
     }
 
@@ -282,9 +283,8 @@ object PrefManager {
             put(JSONObject().put("uid", session.uid).put("username", session.username)
                 .put("token", session.token).put("refreshToken", session.refreshToken)
                 .put("avatar", session.avatar).put("admin", session.adminType)
-                .put("duid", identity.szlmId).put("deviceCode", identity.overrideDeviceCode)
-                .put("obtainedAt", identity.obtainedAt).put("noticed", identity.noticed)
-                .put("manual", identity.pairedManually).put("device", JSONObject(identity.deviceSettings)))
+                .put("deviceCode", identity.deviceCodeSkeleton)
+                .put("device", JSONObject(identity.deviceSettings)))
         }
     }.toString()
 
@@ -293,15 +293,31 @@ object PrefManager {
         listOfNotNull(readAccount()?.takeIf { it.isValid }?.let { StoredAccount(it, readAccountIdentity()) }) +
             readInactiveAccounts()
 
+    /** Drop legacy per-account IDs without touching stored credentials or device parameters. */
     @Synchronized
-    internal fun canUseSzlmId(value: String): Boolean =
-        value.isEmpty() || readInactiveAccounts().none { it.identity.szlmId.equals(value, ignoreCase = true) }
+    internal fun migrateSharedSzlmId() {
+        val rows = readSavedRows()
+        val manual = pref.getBoolean(LEGACY_MANUAL_ACCOUNT_ID, false)
+        val legacyRows = rows?.let { array -> (0 until array.length()).mapNotNull(array::optJSONObject) }.orEmpty()
+        if (!pref.contains(LEGACY_MANUAL_ACCOUNT_ID) && legacyRows.none { it.has("duid") }) return
+        val original = if (manual || SZLMID.isBlank()) legacyRows.firstOrNull {
+            !it.optBoolean("manual") && it.optString("duid").isNotBlank()
+        } else null
+        val id = original?.optString("duid")?.takeIf { it.isNotBlank() } ?: SZLMID
+        val obtainedAt = if (id != SZLMID) original?.optLong("obtainedAt") ?: 0L else szlmIdLastObtainedAt
+        pref.edit().putString(SAVED_ACCOUNTS, encodeAccounts(readInactiveAccounts()))
+            .remove(LEGACY_MANUAL_ACCOUNT_ID)
+            .putString("SZLMID", id)
+            .putLong("szlmIdLastObtainedAt", obtainedAt)
+            .putBoolean("szlmIdConfigured", id.isNotBlank())
+            .putString("xAppDevice", xAppDevice.takeIf { it.isNotBlank() }
+                ?.let { TokenDeviceUtils.deviceCodeWithSzlmId(id, it) }.orEmpty())
+            .commit()
+    }
 
     @Synchronized
-    internal fun saveSzlmId(id: String, generation: Long, fromAutomatic: Boolean = false): Boolean {
-        if (generation != messageAccountGeneration || !canUseSzlmId(id) || ';' in id || id.any { it.isWhitespace() }) return false
-        if (manuallyPairedAccount && (fromAutomatic || !AccountIdentity.acceptsNewId(id))) return false
-        if (isLogin && id.isBlank() && readInactiveAccounts().isNotEmpty()) return false
+    internal fun saveSzlmId(id: String, generation: Long): Boolean {
+        if (generation != messageAccountGeneration || ';' in id || id.any { it.isWhitespace() || it.isISOControl() }) return false
         val device = TokenDeviceUtils.deviceCodeWithSzlmId(id)
         pref.edit().putString("SZLMID", id).putString("xAppDevice", device)
             .putLong("szlmIdLastObtainedAt", if (id.isNotEmpty()) System.currentTimeMillis() else 0L)
@@ -310,29 +326,15 @@ object PrefManager {
     }
 
     @Synchronized
-    internal fun addAccountIdentity(id: String): AccountIdentity? {
-        if (!AccountIdentity.acceptsNewId(id) || (isLogin && SZLMID.isBlank())) return null
-        TokenDeviceUtils.getLastingDeviceCode()
-        val current = readAccountIdentity()
-        return AccountIdentity(id, TokenDeviceUtils.deviceCodeWithSzlmId(id, current.overrideDeviceCode),
-            System.currentTimeMillis(), true, true, current.deviceSettings)
-    }
-
-    @Synchronized
-    internal fun canBindSzlmId(targetUid: String, value: String): Boolean =
-        value.isEmpty() || savedAccounts().none { it.uid != targetUid && it.identity.szlmId.equals(value, ignoreCase = true) }
-
-    @Synchronized
-    internal fun activateAddedAccount(generation: Long, session: AccountSession, identity: AccountIdentity): Boolean {
-        if (messageAccountGeneration != generation || !session.isValid || !AccountIdentity.acceptsNewId(identity.szlmId)) return false
-        if (savedAccounts().any { it.uid != session.uid && it.identity.szlmId.equals(identity.szlmId, ignoreCase = true) }) return false
+    internal fun activateAddedAccount(generation: Long, session: AccountSession): Boolean {
+        if (messageAccountGeneration != generation || !session.isValid) return false
+        val identity = readInactiveAccounts().firstOrNull { it.uid == session.uid }?.identity ?: readAccountIdentity()
         return activate(StoredAccount(session, identity))
     }
 
     @Synchronized
     internal fun switchAccount(targetUid: String): Boolean {
         val target = readInactiveAccounts().firstOrNull { it.uid == targetUid } ?: return false
-        if (target.identity.szlmId.isNotEmpty() && target.identity.szlmId.equals(SZLMID, ignoreCase = true)) return false
         return activate(target)
     }
 
@@ -348,9 +350,6 @@ object PrefManager {
     @Synchronized
     internal fun logout(): Boolean {
         if (!isLogin) return true
-        if (!manuallyPairedAccount && readInactiveAccounts().isEmpty()) {
-            return replaceAccount(messageAccountGeneration, null)
-        }
         return activate(null, removeCurrent = true)
     }
 
@@ -362,16 +361,11 @@ object PrefManager {
             inactive.add(0, StoredAccount(before, currentIdentity))
         }
         val session = target?.session
-        val identity = target?.identity ?: AccountIdentity("", currentIdentity.overrideDeviceCode,
-            noticed = currentIdentity.noticed, deviceSettings = currentIdentity.deviceSettings)
+        val identity = target?.identity ?: currentIdentity
         val editor = sessionEditor(session)
             .putString(SAVED_ACCOUNTS, encodeAccounts(inactive))
-            .putString("SZLMID", identity.szlmId)
-            .putLong("szlmIdLastObtainedAt", identity.obtainedAt)
-            .putBoolean("szlmIdConfigured", identity.szlmId.isNotBlank())
-            .putBoolean("szlmIdNoticed", identity.noticed)
-            .putBoolean(MANUAL_ACCOUNT_ID, identity.pairedManually)
-            .putString("xAppDevice", TokenDeviceUtils.deviceCodeWithSzlmId(identity.szlmId, identity.overrideDeviceCode))
+            .putString("xAppDevice", if (identity.deviceCodeSkeleton.isBlank()) ""
+                else TokenDeviceUtils.deviceCodeWithSzlmId(SZLMID, identity.deviceCodeSkeleton))
             .putLong("messageAccountGeneration", messageAccountGeneration + 1)
             .remove("level").remove("experience").remove("nextLevelExperience")
         if (removeCurrent && before != null) {

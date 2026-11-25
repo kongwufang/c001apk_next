@@ -3,8 +3,6 @@ package com.example.c001apk.ui.account
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.view.WindowManager
-import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
@@ -66,40 +64,10 @@ class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
     }
 
     private fun startAddAccount() {
-        if (PrefManager.isLogin && PrefManager.SZLMID.isBlank()) {
-            MaterialAlertDialogBuilder(this)
-                .setMessage(R.string.accountSetCurrentIdentity)
-                .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton(android.R.string.ok) { _, _ -> com.example.c001apk.util.SzlmIdPrompt.showConsent(this) }
-                .show()
-            return
-        }
-        val view = layoutInflater.inflate(R.layout.item_x_app_token, null, false)
-        val input = view.findViewById<EditText>(R.id.editText)
-        input.hint = getString(R.string.szlmId)
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.accountAdd)
-            .setMessage(R.string.accountIdentityNote)
-            .setView(view)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.login, null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val draft = AccountVault.prepareLogin(input.text.toString().trim())
-                if (draft == null) {
-                    input.error = getString(R.string.accountIdentityInvalid)
-                } else {
-                    dialog.dismiss()
-                    addAccount.launch(Intent(this, WebLoginActivity::class.java).apply {
-                        putExtra(WebLoginActivity.EXTRA_ADD_ACCOUNT, draft)
-                    })
-                }
-            }
-        }
-        input.requestFocus()
-        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
-        dialog.show()
+        if (restarting) return
+        addAccount.launch(Intent(this, WebLoginActivity::class.java).apply {
+            putExtra(WebLoginActivity.EXTRA_ADD_ACCOUNT, AccountVault.prepareLogin())
+        })
     }
 
     private fun confirmDelete(account: StoredAccount) {

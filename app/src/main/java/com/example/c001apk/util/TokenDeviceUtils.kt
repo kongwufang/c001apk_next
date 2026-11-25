@@ -129,8 +129,8 @@ object TokenDeviceUtils {
     /**
      * 用当前机型骨架 + 指定 szlmId 重建设备串。
      *
-     * 多账号切换只换首字段，厂商 / 品牌 / 型号 / 版本 / MAC / 尾字段全部保留，
-     * 因此不同账号的机型、版本一致，只有 szlmId 不同。
+     * 只换首字段，厂商 / 品牌 / 型号 / 版本 / MAC / 尾字段全部保留。
+     * 账号归档将首字段留空，使用时再填入设备共用的 ID。
      */
     internal fun deviceCodeWithSzlmId(szlmId: String, skeleton: String = getLastingDeviceCode()): String {
         val parts = runCatching { DeviceCode.decode(skeleton).split(';').toMutableList() }.getOrNull()
@@ -253,7 +253,6 @@ object TokenDeviceUtils {
         if (PrefManager.customFingerprint) {
             val custom = PrefManager.xAppDevice
             // Keep model overrides, but never let a pasted device code override the account's ID.
-            if (!PrefManager.isLogin) return custom
             val bound = deviceCodeWithSzlmId(PrefManager.SZLMID, custom)
             if (bound != custom) PrefManager.xAppDevice = bound
             return bound

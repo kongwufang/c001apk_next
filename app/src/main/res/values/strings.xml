@@ -298,12 +298,8 @@
     <string name="accountCurrent">当前</string>
     <string name="accountDelete">删除</string>
     <string name="accountEmpty">还没有保存的账号</string>
-    <string name="accountIdentityNote">请填入该账号对应的数字联盟 ID（szlmid），再继续登录。不同账号不能共用同一个 ID，机型和版本可以相同。</string>
-    <string name="accountIdentityInvalid">请输入有效的数字联盟 ID</string>
-    <string name="accountSetCurrentIdentity">请先为当前账号配置数字联盟 ID，再添加其他账号。这样切回来时仍能使用原来的设备身份。</string>
-    <string name="accountIdentitySaveRejected">数字联盟 ID 未修改：账号已切换，或该 ID 无效或已被其他账号使用。</string>
-    <string name="accountManualIdRequired">此账号使用单独绑定的数字联盟 ID，请手动更新。</string>
-    <string name="accountIdentityInUse">这个数字联盟 ID 已被另一个账号使用，原账号未切换。</string>
+    <string name="accountIdentityNote">所有账号共用本机的数字联盟 ID，登录状态分别保存。</string>
+    <string name="accountIdentitySaveRejected">数字联盟 ID 未修改：页面状态已变化或 ID 无效。</string>
     <string name="accountLoginExpired">本次登录已失效，请回账号管理重试。</string>
     <string name="accountDeleteTitle">删除这个账号？</string>
     <string name="accountDeleteMessage">只删除本机保存的登录信息，不会注销酷安账号。</string>

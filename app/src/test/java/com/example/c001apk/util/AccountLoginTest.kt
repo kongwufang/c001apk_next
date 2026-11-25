@@ -128,33 +128,41 @@ class AccountLoginTest {
         assertEquals(OLD.cookie(), PrefManager.accountSnapshot().session?.cookie())
     }
 
-    @Test fun addedLoginOnlySwitchesAfterConfirmationWithTheNewDevice() = runTest {
+    @Test fun addedLoginKeepsTheDeviceIdAndOnlySwitchesAfterConfirmation() = runTest {
         save(OLD)
-        val idA = "DU" + "a".repeat(34)
-        val idB = "DU" + "b".repeat(34)
-        assertTrue(PrefManager.saveSzlmId(idA, PrefManager.messageAccountGeneration))
+        val id = "DU" + "a".repeat(34)
+        assertTrue(PrefManager.saveSzlmId(id, PrefManager.messageAccountGeneration))
         val generation = PrefManager.messageAccountGeneration
-        val pending = requireNotNull(PrefManager.addAccountIdentity(idB))
         val candidate = AccountSession("200", "New+User", "web-token")
         val api = object : AccountApi {
             override suspend fun exchange(code: String, identity: AccountRequestIdentity?): Response<CheckResponse> =
                 error("Unexpected exchange")
             override suspend fun check(checkInit: Int, cookie: String?, identity: AccountRequestIdentity?): Response<CheckResponse> {
                 assertEquals(candidate.cookie(), cookie)
-                assertEquals(idB, DeviceCode.decode(requireNotNull(identity).device).substringBefore(';'))
-                assertEquals(idA, PrefManager.SZLMID)
+                assertEquals(id, DeviceCode.decode(requireNotNull(identity).device).substringBefore(';'))
+                assertEquals("", identity.cookie)
+                assertEquals(id, PrefManager.SZLMID)
                 assertEquals(OLD.cookie(), PrefManager.accountSnapshot().session?.cookie())
                 return success(uid = "200", name = "New User")
             }
         }
         val repository = AccountRepository(api)
-        val reused = requireNotNull(PrefManager.addAccountIdentity(idA))
-        assertEquals(Result.ID_IN_USE, repository.loginWithCookie(candidate, generation, reused))
-        assertEquals(OLD.uid, PrefManager.uid)
-        assertEquals(Result.CONFIRMED, repository.loginWithCookie(candidate, generation, pending))
-        assertEquals(idB, PrefManager.SZLMID)
+        assertEquals(Result.CONFIRMED, repository.loginWithCookie(candidate, generation, adding = true))
+        assertEquals("200", PrefManager.uid)
+        assertEquals(id, PrefManager.SZLMID)
         assertTrue(AccountVault.switchTo(OLD.uid))
-        assertEquals(idA, PrefManager.SZLMID)
+        assertEquals(id, PrefManager.SZLMID)
+    }
+
+    @Test fun aLoginPageWithAnOldSharedIdCannotCommitAfterRenewal() = runTest {
+        save(OLD)
+        assertTrue(PrefManager.saveSzlmId("DU" + "a".repeat(34), PrefManager.messageAccountGeneration))
+        val launch = AccountRequestIdentity.capture(includeSession = false)
+        assertTrue(PrefManager.saveSzlmId("DU" + "b".repeat(34), launch.generation))
+        val repository = AccountRepository(FakeApi(check = { _, _ -> error("Unexpected check") }))
+        val candidate = AccountSession("200", "New+User", "web-token")
+        assertEquals(Result.STALE, repository.loginWithCookie(candidate, launch.generation, adding = true, requestIdentity = launch))
+        assertEquals(OLD.uid, PrefManager.uid)
     }
 
     private fun save(session: AccountSession) {

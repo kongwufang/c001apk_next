@@ -32,6 +32,7 @@ internal object SzlmIdAutoRefresh {
     fun install(app: Application) {
         if (installed || !isMainProcess(app)) return
         installed = true
+        PrefManager.migrateSharedSzlmId()
         // Main-process, app-private receiver: one short message, without opening a page.
         ContextCompat.registerReceiver(app, object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -84,7 +85,7 @@ internal object SzlmIdAutoRefresh {
     }
 
     private fun check(app: Application) {
-        if (pending?.isActive == true || PrefManager.manuallyPairedAccount) return
+        if (pending?.isActive == true) return
         val generation = PrefManager.messageAccountGeneration
         val oldId = PrefManager.SZLMID
         val lastSuccess = PrefManager.szlmIdLastObtainedAt
@@ -98,7 +99,7 @@ internal object SzlmIdAutoRefresh {
                 val saved = synchronized(PrefManager) {
                     PrefManager.autoRefreshSzlmId && PrefManager.onboarded &&
                         PrefManager.SZLMID == oldId && PrefManager.szlmIdLastObtainedAt == lastSuccess &&
-                        SzlmIdPrompt.save(id, generation, fromAutomatic = true)
+                        SzlmIdPrompt.save(id, generation)
                 }
                 if (saved) {
                     AppLog.i(LogModule.NET, "SzlmIdAutoRefresh", "自动刷新成功，已记录获取时间")

@@ -42,9 +42,9 @@ object AddCookiesInterceptor : Interceptor {
         if (useSavedCookies && identity.cookie.isNotBlank()) builder.header("Cookie", identity.cookie)
         identity.requireCurrent()
         val response = chain.proceed(builder.build())
-        if (identity.generation != PrefManager.messageAccountGeneration) {
+        if (!identity.currentLoginContext()) {
             response.close()
-            throw IOException("Account changed")
+            throw IOException("Account or device ID changed")
         }
         return response
     }
