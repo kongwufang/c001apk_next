@@ -336,28 +336,7 @@ class NetworkRepo @Inject constructor(
      */
     suspend fun getMessage(url: String, page: Int, lastItem: String?) = fire {
         val response = apiService.getMessage(url, page, lastItem).await()
-        val data = when (url) {
-            NotificationV18Kit.URL ->
-                response.data
-                    ?.filter { NotificationV18Kit.isReplyType(it.noteType) }
-                    ?.map { NotificationV18Kit.toMessage(it) }
-                    // V18 的成功响应只有 data、没有 status / message。真把 null 透上去，
-                    // 调用方会落在「既不 LoadingDone 也不 Failed」的空档里（老接口靠 message 兜底），
-                    // 所以这里统一按「本页没有内容」处理，让它正常走到翻页结束。
-                    ?: emptyList()
-
-            NotificationV18Kit.LIKE_URL ->
-                response.data?.map { NotificationV18Kit.toLikeMessage(it) } ?: emptyList()
-
-            else -> response.data
-        }
-        Result.success(response.copy(
-            data = data,
-            rawPageSize = response.data?.size ?: -1,
-            rawLastItem = response.data?.lastOrNull()?.let {
-                it.id.takeIf { id -> id.isNotBlank() } ?: it.entityId
-            }
-        ))
+        Result.success(NotificationV18Kit.normalizePage(url, response))
     }
 
     suspend fun getChatHistory(ukey: String, page: Int) = fire {
