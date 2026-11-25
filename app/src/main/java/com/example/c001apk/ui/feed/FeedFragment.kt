@@ -50,6 +50,7 @@ import com.example.c001apk.ui.feed.reply.reply2reply.Reply2ReplyBottomSheetDialo
 import com.example.c001apk.ui.feed.reply.reply2reply.ReplyRefreshListener
 import com.example.c001apk.ui.others.WebViewActivity
 import com.example.c001apk.util.ClipboardUtil
+import com.example.c001apk.util.CoolapkLinks
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.dp
@@ -254,66 +255,13 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
     }
 
-    /**
-     * 单帖「第三方链接分享」（Issue #18）
-     *
-     * 流程：
-     *   点分享 ⇒ 弹「是否通过第三方链接分享」
-     *     ⇒ 确认 ⇒ 生成（客户端渲染 HTML + 上传 123 冷 / OSS 热）
-     *       ⇒ 回来弹「链接已生成 [分享] [复制]」
-     *
-     * 两个入口共用：内容卡底栏的「转发」(+ [ItemListener.onShareFeed]) 和 ⋮ 菜单的「分享链接」
-     *
-     * ⚠️ 拿不到帖子数据（离线包里只有摘要等情况）就退回老做法：
-     *    直接分享酷安原帖地址 ✓ 至少不会点了没反应
-     */
-    private fun shareAsLink(id: String?) {
-        val target = id ?: viewModel.id
-        val data = viewModel.feedDataList?.firstOrNull { it.id == target }
+    private fun shareOfficialLink(id: String?) {
         val ctx = context ?: return
-        if (data == null) {
-            IntentUtil.shareText(ctx, "https://www.coolapk.com/feed/$target")
-            return
-        }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.share_link_confirm_title)
-            .setMessage(R.string.share_link_confirm_message)
-            .setPositiveButton(R.string.share_link_confirm_ok) { _, _ ->
-                viewModel.shareAsLink(data)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        val url = CoolapkLinks.feed(id ?: viewModel.id) ?: return
+        IntentUtil.shareText(ctx, url)
     }
 
     private fun initObserve() {
-        // ---------------- 单帖第三方分享 ----------------
-        viewModel.shareLoading.observe(viewLifecycleOwner) { loading ->
-            // 生成中给个不阻塞的提示（转几秒就完事，不弹进度框 ✗）
-            if (loading) requireContext().makeToast(getString(R.string.share_link_generating))
-        }
-        viewModel.shareResult.observe(viewLifecycleOwner) { event ->
-            val r = event.getContentIfNotHandledOrReturnNull() ?: return@observe
-            val ctx = context ?: return@observe
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle(R.string.share_link_ready)
-                .setMessage(r.url)
-                .setPositiveButton(R.string.share) { _, _ ->
-                    // 系统分享面板 ✓
-                    IntentUtil.shareText(ctx, r.url)
-                }
-                .setNegativeButton(R.string.copyText) { _, _ ->
-                    val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                        as android.content.ClipboardManager
-                    cm.setPrimaryClip(android.content.ClipData.newPlainText("分享链接", r.url))
-                    ctx.makeToast(getString(R.string.share_link_copied))
-                }
-                .show()
-        }
-        viewModel.shareError.observe(viewLifecycleOwner) { event ->
-            val msg = event.getContentIfNotHandledOrReturnNull() ?: return@observe
-            requireContext().makeToast(getString(R.string.share_link_failed, msg))
-        }
-
         viewModel.feedDataUpdateState.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
                 // 详情回来了：首屏那批是列表项直出的，adapter 还持有预览 list 的引用，必须换掉
@@ -520,14 +468,13 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
             setOnMenuItemClickListener {
                 when (it.itemId) {
-                    // 单帖第三方链接分享：复用 itemListener 里那套确认弹窗逻辑 ✓
                     R.id.shareAsLink -> {
-                        shareAsLink(viewModel.id)
+                        shareOfficialLink(viewModel.id)
                         true
                     }
                     R.id.offlineCache -> {
                         viewModel.saveOffline()
-                        requireContext().makeToast("已开始离线缓存，完成后会自动上云")
+                        requireContext().makeToast(getString(R.string.offline_cache_saving))
                         true
                     }
                     R.id.showQuestion -> {
@@ -557,10 +504,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                     }
 
                     R.id.copyLink -> {
-                        ClipboardUtil.copyText(
-                            requireContext(),
-                            "https://www.coolapk1s.com/feed/${viewModel.id}"
-                        )
+                        CoolapkLinks.feed(viewModel.id)?.let { url ->
+                            ClipboardUtil.copyText(requireContext(), url)
+                        }
                     }
 
                     R.id.editFeed -> {
@@ -1109,8 +1055,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
 
         override fun onShareFeed(id: String?) {
-            // 内容卡底栏的「转发」也走同一套 ✓
-            shareAsLink(id)
+            shareOfficialLink(id)
         }
 
         override fun showTotalReply(

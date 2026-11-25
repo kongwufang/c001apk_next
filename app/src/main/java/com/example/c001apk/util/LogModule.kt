@@ -7,7 +7,7 @@ package com.example.c001apk.util
  * TAG），logcat 里既没法按模块筛，也没法在设置页按模块开关 ✗
  *
  * 这里把 tag 拆成「模块 + 子标签」：
- *   logcat 上看到的 form 是 `M:card/Generic`、`M:net/ShareLinkRepo`
+ *   logcat 上看到的 form 是 `M:card/Generic`、`M:net/UpdateChecker`
  *   ⇒ `adb logcat -s` / `| findstr M:card` 就能只看某一块
  *   ⇒ 设置页可以按模块勾选要不要落盘
  *

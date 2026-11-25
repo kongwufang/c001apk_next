@@ -24,10 +24,10 @@ import java.util.Locale
  *
  * ## 用法
  * ```
- * AppLog.i(LogModule.NET, "ShareLinkRepo", "现下图片 ${out.size}/${urls.size} 张")
- * AppLog.w(LogModule.CACHE, "OfflineCache", e) { "上云异常 $fid" }
+ * AppLog.i(LogModule.NET, "UpdateChecker", "检查更新完成")
+ * AppLog.w(LogModule.CACHE, "OfflineCache", e) { "读取缓存失败" }
  * ```
- * tag 会是 `M:net/ShareLinkRepo`，logcat 里 `findstr M:net` 就能只看网络层。
+ * tag 会是 `M:net/UpdateChecker`，logcat 里 `findstr M:net` 就能只看网络层。
  */
 object AppLog {
 

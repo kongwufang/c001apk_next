@@ -21,6 +21,7 @@ import com.example.c001apk.ui.messagedetail.MessageDetailActivity
 import com.example.c001apk.ui.others.WebViewActivity
 import com.example.c001apk.ui.search.SearchActivity
 import com.example.c001apk.util.DateUtils
+import com.example.c001apk.util.CoolapkLinks
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.ReplaceViewHelper
@@ -375,10 +376,9 @@ class UserPagerFragment : BasePagerFragment() {
                     }
 
                     R.id.share -> {
-                        IntentUtil.shareText(
-                            requireContext(),
-                            "https://www.coolapk1s.com/u/${viewModel.uid}"
-                        )
+                        CoolapkLinks.user(viewModel.uid)?.let { url ->
+                            IntentUtil.shareText(requireContext(), url)
+                        }
                     }
 
                     // ★ 2026-10-31：不再跳酷安举报页 ✗ 走匿名举报联盟 ✓
