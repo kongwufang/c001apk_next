@@ -22,6 +22,7 @@ import com.example.c001apk.ui.login.WebLoginActivity
 import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.ui.settings.SettingsActivity
 import com.example.c001apk.ui.user.UserActivity
+import com.example.c001apk.util.AccountVault
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.NoticeRepo
@@ -138,7 +139,7 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             }
         } else {
             binding.clickToLogin.setOnClickListener {
-                if (com.example.c001apk.util.AccountVault.accounts().isNotEmpty()) {
+                if (AccountVault.accounts().isNotEmpty()) {
                     IntentUtil.startActivity<AccountManagerActivity>(requireContext()) {}
                 } else {
                     IntentUtil.startActivity<WebLoginActivity>(requireContext()) {}

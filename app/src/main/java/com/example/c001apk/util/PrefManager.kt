@@ -24,7 +24,7 @@ object PrefManager {
     private const val TOKEN = "token"
     private const val REFRESH_TOKEN = "refreshToken"
 
-    private val pref = context.getSharedPreferences("settings", MODE_PRIVATE)
+    private val pref get() = context.getSharedPreferences("settings", MODE_PRIVATE)
 
     var darkTheme: Int
         get() = pref.getInt(PREF_DARK_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
@@ -112,7 +112,9 @@ object PrefManager {
 
     /** Additional saved sessions are device-local and never included in a manual export. */
     @Synchronized
-    fun dumpAll(): Map<String, *> = pref.all.filterKeys { it != SAVED_ACCOUNTS && it != MANUAL_ACCOUNT_ID }
+    fun dumpAll(): Map<String, *> = pref.all.filterKeys {
+        it != SAVED_ACCOUNTS && it != MANUAL_ACCOUNT_ID && !it.startsWith("accountCloud.")
+    }
 
     /** 还原：整份覆盖，已有备用账号保留在本机。 */
     @Synchronized
@@ -121,7 +123,19 @@ object PrefManager {
         val generation = messageAccountGeneration
         val editor = pref.edit().clear().putLong("messageAccountGeneration", generation + 1)
         editor.putString(SAVED_ACCOUNTS, saved)
-        values.filterKeys { it !in setOf(SAVED_ACCOUNTS, MANUAL_ACCOUNT_ID, "messageAccountGeneration") }.forEach { (k, v) ->
+        val restoreAuth = readInactiveAccounts().isEmpty() && !manuallyPairedAccount
+        val protected = setOf(UID, NAME, TOKEN, REFRESH_TOKEN, "isLogin", "accountAdminType", "userAvatar",
+            "level", "experience", "nextLevelExperience", "SZLMID", "szlmIdConfigured", "szlmIdNoticed",
+            "szlmIdLastObtainedAt", "xAppDevice", MANUAL_ACCOUNT_ID) + deviceFields
+        val current = pref.all
+        val merged = if (restoreAuth) values else values.filterKeys { it !in protected && !it.startsWith("accountCloud.") } +
+            current.filterKeys { it in protected || it.startsWith("accountCloud.") }.mapNotNull { (k, v) ->
+                v?.let { k to it }
+            }.toMap()
+        merged.filterKeys {
+            it != SAVED_ACCOUNTS && it != "messageAccountGeneration" &&
+                (!restoreAuth || (it != MANUAL_ACCOUNT_ID && !it.startsWith("accountCloud.")))
+        }.forEach { (k, v) ->
             when (v) {
                 is Boolean -> editor.putBoolean(k, v)
                 is Int -> editor.putInt(k, v)
@@ -201,7 +215,7 @@ object PrefManager {
         if (session != null) require(session.isValid)
         val nextUid = session?.uid.orEmpty()
         val changed = isLogin != (session != null) || uid != nextUid
-        if (changed && session != null && !canBindSzlmId(session.uid, SZLMID)) return false
+        if (changed && session != null && (readInactiveAccounts().isNotEmpty() || !canBindSzlmId(session.uid, SZLMID))) return false
         if (changed && session == null && (manuallyPairedAccount || readInactiveAccounts().isNotEmpty())) {
             return activate(null, removeCurrent = true)
         }
@@ -287,6 +301,7 @@ object PrefManager {
     internal fun saveSzlmId(id: String, generation: Long, fromAutomatic: Boolean = false): Boolean {
         if (generation != messageAccountGeneration || !canUseSzlmId(id) || ';' in id || id.any { it.isWhitespace() }) return false
         if (manuallyPairedAccount && (fromAutomatic || !AccountIdentity.acceptsNewId(id))) return false
+        if (isLogin && id.isBlank() && readInactiveAccounts().isNotEmpty()) return false
         val device = TokenDeviceUtils.deviceCodeWithSzlmId(id)
         pref.edit().putString("SZLMID", id).putString("xAppDevice", device)
             .putLong("szlmIdLastObtainedAt", if (id.isNotEmpty()) System.currentTimeMillis() else 0L)
@@ -296,7 +311,7 @@ object PrefManager {
 
     @Synchronized
     internal fun addAccountIdentity(id: String): AccountIdentity? {
-        if (!AccountIdentity.acceptsNewId(id)) return null
+        if (!AccountIdentity.acceptsNewId(id) || (isLogin && SZLMID.isBlank())) return null
         TokenDeviceUtils.getLastingDeviceCode()
         val current = readAccountIdentity()
         return AccountIdentity(id, TokenDeviceUtils.deviceCodeWithSzlmId(id, current.overrideDeviceCode),
@@ -801,9 +816,29 @@ object PrefManager {
         }
 
     /** 其他屏蔽项（关键字/用户/节点）的服务端配置缓存，离线也能先过滤 */
-    var spamConfig: String
-        get() = pref.getString("spamConfig", "")!!
-        set(value) = pref.edit().putString("spamConfig", value).apply()
+    private fun cloudCacheKey(kind: String, uid: String) = "accountCloud.$kind.$uid"
+
+    @Synchronized
+    internal fun getCloudSpam(account: MessageAccount): String =
+        pref.getString(cloudCacheKey("spam", account.uid), "").orEmpty()
+
+    @Synchronized
+    internal fun saveCloudSpam(account: MessageAccount, value: String): Boolean {
+        if (!account.isCurrent()) return false
+        pref.edit().putString(cloudCacheKey("spam", account.uid), value).apply()
+        return true
+    }
+
+    @Synchronized
+    internal fun cloudBlocked(account: MessageAccount): Set<String> =
+        pref.getStringSet(cloudCacheKey("blocked", account.uid), emptySet()).orEmpty()
+
+    @Synchronized
+    internal fun saveCloudBlocked(account: MessageAccount, ids: Set<String>): Boolean {
+        if (!account.isCurrent()) return false
+        pref.edit().putStringSet(cloudCacheKey("blocked", account.uid), ids.toSet()).apply()
+        return true
+    }
 
     /**
      * 用户认证表缓存（userverify 接口的原始响应，见 [RemoteConfig]）。

@@ -64,6 +64,14 @@ class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
     }
 
     private fun startAddAccount() {
+        if (PrefManager.isLogin && PrefManager.SZLMID.isBlank()) {
+            MaterialAlertDialogBuilder(this)
+                .setMessage(R.string.accountSetCurrentIdentity)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok) { _, _ -> com.example.c001apk.util.SzlmIdPrompt.showConsent(this) }
+                .show()
+            return
+        }
         val view = layoutInflater.inflate(R.layout.item_x_app_token, null, false)
         val input = view.findViewById<EditText>(R.id.editText)
         input.hint = getString(R.string.szlmId)

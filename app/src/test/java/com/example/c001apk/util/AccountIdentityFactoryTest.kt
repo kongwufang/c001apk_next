@@ -31,7 +31,7 @@ class AccountIdentityFactoryTest {
         CookieUtil.clearAccountState()
         PrefManager.ssaid = "1234567890abcdef"
         PrefManager.userRandomId = "local-installation"
-        assertTrue(PrefManager.replaceAccount(0L, a))
+        assertTrue(PrefManager.replaceAccount(PrefManager.messageAccountGeneration, a))
         assertTrue(PrefManager.saveSzlmId(idA, PrefManager.messageAccountGeneration))
     }
 
@@ -71,6 +71,26 @@ class AccountIdentityFactoryTest {
         assertEquals(a.cookie(), AccountRequestIdentity.capture().cookie)
         assertFalse(AccountIdentity.acceptsNewId("DU" + "0".repeat(34)))
         assertFalse(PrefManager.dumpAll().values.any { it.toString().contains("refresh-b") })
+    }
+
+    @Test fun keepsCloudCachesPerAccountAndRejectsDelayedWrites() {
+        val ownerA = requireNotNull(MessageAccount.current())
+        assertTrue(PrefManager.saveCloudBlocked(ownerA, setOf("11")))
+        assertTrue(PrefManager.saveCloudSpam(ownerA, "first-cloud"))
+        assertTrue(AccountVault.finishLogin(ownerA.generation, b, requireNotNull(PrefManager.addAccountIdentity(idB))))
+        val ownerB = requireNotNull(MessageAccount.current())
+        assertTrue(PrefManager.cloudBlocked(ownerB).isEmpty())
+        assertEquals("", PrefManager.getCloudSpam(ownerB))
+        assertFalse(PrefManager.saveCloudSpam(ownerA, "delayed"))
+        assertFalse(PrefManager.saveCloudBlocked(ownerA, setOf("22")))
+        assertTrue(PrefManager.saveCloudBlocked(ownerB, setOf("33")))
+        val exported = PrefManager.dumpAll()
+        assertFalse(exported.values.any { it.toString().contains("token-a") || it.toString().contains("first-cloud") })
+        assertTrue(AccountVault.switchTo(a.uid))
+        val returned = requireNotNull(MessageAccount.current())
+        assertEquals(setOf("11"), PrefManager.cloudBlocked(returned))
+        assertEquals("first-cloud", PrefManager.getCloudSpam(returned))
+        assertFalse(PrefManager.saveCloudSpam(ownerB, "delayed"))
     }
 
     @Test fun rejectsQueuedOldRequestBeforeItCanSendUnderNewAccount() {

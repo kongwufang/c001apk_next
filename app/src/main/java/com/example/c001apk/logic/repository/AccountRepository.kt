@@ -31,6 +31,7 @@ internal class AccountRepository(private val api: AccountApi = AccountApi.instan
     }
 
     private suspend fun confirm(candidate: AccountSession, request: AccountRequestIdentity, pending: AccountIdentity?, fromWebCookie: Boolean): Result {
+        if (pending != null && !PrefManager.canBindSzlmId(candidate.uid, pending.szlmId)) return Result.ID_IN_USE
         val response = api.check(checkInit = 1, cookie = candidate.cookie(), identity = request)
         val data = eligibleData(response) ?: return failure(response)
         val session = AccountSession.fromResponse(data)

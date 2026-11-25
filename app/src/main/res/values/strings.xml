@@ -300,6 +300,7 @@
     <string name="accountEmpty">还没有保存的账号</string>
     <string name="accountIdentityNote">请填入该账号对应的数字联盟 ID（szlmid），再继续登录。不同账号不能共用同一个 ID，机型和版本可以相同。</string>
     <string name="accountIdentityInvalid">请输入有效的数字联盟 ID</string>
+    <string name="accountSetCurrentIdentity">请先为当前账号配置数字联盟 ID，再添加其他账号。这样切回来时仍能使用原来的设备身份。</string>
     <string name="accountIdentitySaveRejected">数字联盟 ID 未修改：账号已切换，或该 ID 无效或已被其他账号使用。</string>
     <string name="accountManualIdRequired">此账号使用单独绑定的数字联盟 ID，请手动更新。</string>
     <string name="accountIdentityInUse">这个数字联盟 ID 已被另一个账号使用，原账号未切换。</string>

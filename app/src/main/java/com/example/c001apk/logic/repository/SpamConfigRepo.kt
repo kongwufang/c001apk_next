@@ -1,8 +1,8 @@
 package com.example.c001apk.logic.repository
 
-import androidx.lifecycle.MutableLiveData
 import com.example.c001apk.logic.model.HomeFeedResponse
 import com.example.c001apk.logic.model.SpamConfig
+import com.example.c001apk.util.MessageAccount
 import com.example.c001apk.util.PrefManager
 import com.google.gson.Gson
 import javax.inject.Inject
@@ -16,41 +16,37 @@ import kotlinx.coroutines.withContext
  *
  * 服务端读键与写键不一致：读 `spam_word_config` 时关键字在 `custom` 里，写的时候键名是 `word`
  * （用户 `user`、节点 `node` 读写一致，节点值是 `[{tid,name}]`）。
- * 配置会缓存在 [PrefManager.spamConfig] 里，冷启动没网也能先过滤。
+ * 云端配置按账号本地缓存，切换后不会读到上一账号的设置。
  */
 @Singleton
 class SpamConfigRepo @Inject constructor(
     private val networkRepo: NetworkRepo
 ) {
 
-    val spamConfig = MutableLiveData<SpamConfig>()
+    private val empty = SpamConfig()
+    private val gson = Gson()
+    private var cached: Pair<MessageAccount, SpamConfig>? = null
 
-    @Volatile
-    private var cached: SpamConfig = loadFromPref()
-
-    /** 当前内存中的配置，后台线程可直接同步读取（LiveData 的 post 会滞后一拍） */
-    val current: SpamConfig get() = cached
-
-    init {
-        spamConfig.postValue(cached)
-    }
-
-    private fun loadFromPref(): SpamConfig {
-        val raw = PrefManager.spamConfig
-        if (raw.isEmpty()) return SpamConfig()
-        return runCatching { Gson().fromJson(raw, SpamConfig::class.java) }
-            .getOrNull() ?: SpamConfig()
+    val current: SpamConfig get() = synchronized(PrefManager) {
+        val owner = MessageAccount.current() ?: return@synchronized empty
+        cached?.takeIf { it.first == owner }?.second ?: run {
+            val config = runCatching { gson.fromJson(PrefManager.getCloudSpam(owner), SpamConfig::class.java) }
+                .getOrNull() ?: empty
+            cached = owner to config
+            config
+        }
     }
 
     suspend fun refresh(): Boolean {
+        val owner = MessageAccount.current() ?: return false
         val result = networkRepo.getSpamWordList().firstOrNull()
         val raw = result?.getOrNull()?.data?.spam_word_config ?: return false
-        val config = runCatching { Gson().fromJson(raw, SpamConfig::class.java) }
-            .getOrNull() ?: return false
-        cached = config
-        PrefManager.spamConfig = raw
-        spamConfig.postValue(config)
-        return true
+        val config = runCatching { gson.fromJson(raw, SpamConfig::class.java) }.getOrNull() ?: return false
+        return synchronized(PrefManager) {
+            if (!PrefManager.saveCloudSpam(owner, raw)) return@synchronized false
+            cached = owner to config
+            true
+        }
     }
 
     private suspend fun update(value: String): Boolean {
@@ -79,7 +75,7 @@ class SpamConfigRepo @Inject constructor(
     /** 供列表同步判断：命中关键字 / 用户 / 节点任一即算屏蔽 */
     fun isSpam(data: HomeFeedResponse.Data?): Boolean {
         if (data == null) return false
-        val config = cached
+        val config = current
         if (config.custom.isEmpty() && config.user.isEmpty() && config.node.isEmpty()) return false
 
         val text = (data.message ?: "") + "\n" + (data.messageTitle ?: "") + "\n" + (data.title ?: "")

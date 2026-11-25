@@ -112,7 +112,9 @@ class MessageCenterActivity : BaseActivity<ActivityMessageCenterBinding>() {
             viewModel.messCountList.value = true
         } else {
             binding.clickToLogin.setOnClickListener {
-                IntentUtil.startActivity<WebLoginActivity>(this) {}
+                if (com.example.c001apk.util.AccountVault.accounts().isNotEmpty()) {
+                    IntentUtil.startActivity<com.example.c001apk.ui.account.AccountManagerActivity>(this) {}
+                } else IntentUtil.startActivity<WebLoginActivity>(this) {}
             }
         }
     }
