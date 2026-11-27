@@ -48,7 +48,9 @@ object UserCardUtils {
 
     /** 点评得分：rating_score_old 是 10 分制 */
     @JvmStatic
-    fun scoreText(score: Int?): String = if (score == null || score <= 0) "" else "$score 分"
+    fun scoreText(score: Double?): String =
+        if (score == null || !score.isFinite() || score <= 0) ""
+        else "${score.toBigDecimal().stripTrailingZeros().toPlainString()} 分"
 
     /** 「平均 8.4」这类前缀文案 */
     @JvmStatic
