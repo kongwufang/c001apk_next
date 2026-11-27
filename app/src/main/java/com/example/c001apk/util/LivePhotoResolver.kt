@@ -14,7 +14,7 @@ object LivePhotoResolver {
     private data class Cached(val url: String, val expiresAt: Long)
     private val cache = java.util.concurrent.ConcurrentHashMap<String, Cached>()
     private val client by lazy {
-        SslVerify.apply(okhttp3.OkHttpClient.Builder()
+        SslVerify.apply(NetworkHealth.clientBuilder()
             .addInterceptor(AddCookiesInterceptor)
             .followRedirects(false)
             .followSslRedirects(false)

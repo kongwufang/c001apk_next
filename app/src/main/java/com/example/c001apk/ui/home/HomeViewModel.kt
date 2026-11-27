@@ -88,25 +88,20 @@ class HomeViewModel @Inject constructor(
      * 未登录直接清零，不发请求。
      */
     fun refreshUnreadCount() {
-        if (!PrefManager.isLogin) {
+        val account = com.example.c001apk.util.MessageAccount.current() ?: run {
             unreadCount.postValue(0)
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.checkCount()
-                .collect { result ->
+            networkRepo.checkCount().collect { result ->
+                synchronized(PrefManager) {
+                    if (!account.isCurrent()) return@synchronized
                     result.getOrNull()?.data?.let {
-                        CookieUtil.atme = it.atme
-                        CookieUtil.atcommentme = it.atcommentme
-                        CookieUtil.feedlike = it.feedlike
-                        CookieUtil.contacts_follow = it.contactsFollow
-                        CookieUtil.badge = it.unreadBadge
-                        CookieUtil.notification = it.unreadNotification
-                        CookieUtil.message = it.message
-                        CookieUtil.commentme = it.commentme
+                        CookieUtil.applyCheckCounts(it)
                         unreadCount.postValue(UnreadCounter.total)
                     }
                 }
+            }
         }
     }
 

@@ -14,7 +14,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -23,7 +22,7 @@ import okhttp3.Response
 /** Isolated upstream client: no Coolapk cookies, account headers, cloud API, or request body logging. */
 internal object LocalDuidClient {
     private val client by lazy {
-        SslVerify.apply(OkHttpClient.Builder())
+        SslVerify.apply(NetworkHealth.clientBuilder())
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)

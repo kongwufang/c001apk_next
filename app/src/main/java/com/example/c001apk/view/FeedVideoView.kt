@@ -271,6 +271,7 @@ class FeedVideoView @JvmOverloads constructor(
             playWhenReady = true
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
+                    com.example.c001apk.util.NetworkHealth.onMediaRequestFailed(error)
                     playFailed = true
                     releasePlayer()
                     applyState()

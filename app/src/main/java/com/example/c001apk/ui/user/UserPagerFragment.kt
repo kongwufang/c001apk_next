@@ -21,7 +21,9 @@ import com.example.c001apk.ui.messagedetail.MessageDetailActivity
 import com.example.c001apk.ui.others.WebViewActivity
 import com.example.c001apk.ui.search.SearchActivity
 import com.example.c001apk.util.DateUtils
+import com.example.c001apk.util.CoolapkLinks
 import com.example.c001apk.util.IntentUtil
+import com.example.c001apk.util.OfficialReport
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.ReplaceViewHelper
 import com.example.c001apk.view.AppBarLayoutStateChangeListener
@@ -103,33 +105,7 @@ class UserPagerFragment : BasePagerFragment() {
         // ★ 2026-10-31：initUser() 时 userData 已就绪 ✓ 这里**必须**绑一次
         //   （followState / profileState 两个 observer 在**首次加载时都不触发** ✗
         //     ⇒ 之前主页一直没红条就是这个原因 ✓）
-        bindBlocklist()
-    }
 
-    /**
-     * 个人主页也查公共黑名单（2026-10-31 用户要求）。
-     *
-     * ⚠️ 三个坑（都踩过）：
-     *   ① 不能放 `initBar()` —— 它比 `initUser()` 先跑，`userBinding` 还没初始化 ⇒ 崩 ✗
-     *   ② 不能放 `initUser()` 里绑完就完 —— 那时 `viewModel.uid` 还是**空**的 ⇒ bind 直接 return ✗
-     *      ⇒ 必须等 `userData` 到手（`followState` observer 里）✓
-     *   ③ `base_view_user.xml` 的卡片根 id 是 **infoLayout**（不是 blurContainer ✗）
-     */
-    private fun bindBlocklist() {
-        val uid = viewModel.userData?.uid ?: viewModel.uid
-        if (uid.isBlank() || !::userBinding.isInitialized) return
-        // ⚠️ 个人主页没有独立的 blockedBar 容器 ✗
-        //    （CollapsingToolbarLayout 只认一个子 View ⇒ 红条放进了 infoLayout 内部 ✓）
-        //    所以 bar / banner 都传 blockedBanner ✓ 显示时 banner 自己就是"条" ✓
-        com.example.c001apk.util.BlocklistUi.bind(
-            userBinding.infoLayout, userBinding.blockedBanner,
-            userBinding.blockedBanner, userBinding.blockedReveal,
-            com.example.c001apk.util.Blocklist.Kind.USER,
-            uid,
-            com.example.c001apk.R.string.blocked_multi_report_user,
-            // ★ 个人主页**不要模糊** ✓ 只加红条 ✓（用户 2026-10-31）
-            com.example.c001apk.util.BlocklistUi.Mode.BANNER_ONLY
-        )
     }
 
     private fun bindFollowButton() {
@@ -161,7 +137,7 @@ class UserPagerFragment : BasePagerFragment() {
                 userBinding.userData = viewModel.userData
                 userBinding.executePendingBindings()
                 bindFollowButton()
-                bindBlocklist()
+
             }
         }
 
@@ -176,7 +152,7 @@ class UserPagerFragment : BasePagerFragment() {
                 // 签名可能刚被编辑过，重新折叠一次
                 bindBio()
                 // ★ 2026-10-31 资料到手后再查黑名单 ✓（uid 这时才确定 ✓）
-                bindBlocklist()
+
             }
         }
 
@@ -375,21 +351,12 @@ class UserPagerFragment : BasePagerFragment() {
                     }
 
                     R.id.share -> {
-                        IntentUtil.shareText(
-                            requireContext(),
-                            "https://www.coolapk1s.com/u/${viewModel.uid}"
-                        )
+                        CoolapkLinks.user(viewModel.uid)?.let { url ->
+                            IntentUtil.shareText(requireContext(), url)
+                        }
                     }
 
-                    // ★ 2026-10-31：不再跳酷安举报页 ✗ 走匿名举报联盟 ✓
-                    //   被公共黑名单屏蔽的 => 变成「申诉」✓（用户要求）
-                    R.id.report -> {
-                        val uid = viewModel.uid
-                        if (uid.isBlank()) {
-                            return@setOnMenuItemClickListener true
-                        }
-                        android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
-                    }
+                    R.id.report -> if (!isSelf) OfficialReport.open(requireContext(), "user", viewModel.uid)
                 }
                 return@setOnMenuItemClickListener true
             }

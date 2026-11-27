@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatDelegate
 import com.example.c001apk.ui.others.BugHandlerActivity
+import com.example.c001apk.util.NetworkHealth
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.RemoteConfig
 import com.example.c001apk.util.RiskControlPrompter
@@ -20,7 +21,11 @@ import dagger.hilt.android.HiltAndroidApp
 import net.mikaelzero.mojito.Mojito
 import net.mikaelzero.mojito.loader.glide.GlideImageLoader
 import net.mikaelzero.mojito.view.sketch.SketchImageLoadFactory
+import net.mikaelzero.mojito.view.sketch.core.ErrorTracker
 import net.mikaelzero.mojito.view.sketch.core.Sketch
+import net.mikaelzero.mojito.view.sketch.core.http.DownloadException
+import net.mikaelzero.mojito.view.sketch.core.request.DownloadRequest
+import net.mikaelzero.mojito.view.sketch.core.request.ErrorCause
 import kotlin.system.exitProcess
 
 @HiltAndroidApp
@@ -41,6 +46,7 @@ class MyApplication : Application() {
         super.onCreate()
 
         context = applicationContext
+        NetworkHealth.install(this)
         registerActivityLifecycleCallbacks(com.example.c001apk.util.RapidReturn)
         com.example.c001apk.util.SelfUpdates.register(this)
         // Load the installed emoji pack before the first screen in the main process.
@@ -51,9 +57,6 @@ class MyApplication : Application() {
 
         // 风控命中（-415 账号过多 / err_request_captcha_v2）→ 「设备标识未配置」引导弹窗
         RiskControlPrompter.install(this)
-
-        // ★ 2026-11-01 启动时拉一次云控开关（6 小时 TTL ✓ 失败沿用上次 ✓）
-        com.example.c001apk.util.CloudGates.refresh()
 
         // 每次进入应用读一次剪贴板：是酷安分享链接就弹「是否打开」
         ShareLinkPrompter.install(this)
@@ -156,7 +159,18 @@ class MyApplication : Application() {
         // 在主线程上就是几百毫秒 —— 表现正好是第一次点开图片会卡/闪一下，退出去再进来就好了
         // （那时单例已经建好）。这里冷启动时后台预热，把这份一次性开销从点开的瞬间挪走。
         Thread {
-            runCatching { Sketch.with(this) }.onFailure {
+            runCatching {
+                Sketch.with(this).configuration.setErrorTracker(object : ErrorTracker(this) {
+                    override fun onDownloadError(request: DownloadRequest, throwable: Throwable) {
+                        if (request.isCanceled()) return
+                        if (throwable is java.io.IOException || (throwable is DownloadException &&
+                                throwable.errorCause in setOf(ErrorCause.DOWNLOAD_GET_RESPONSE_CODE_EXCEPTION,
+                                    ErrorCause.DOWNLOAD_RESPONSE_CODE_EXCEPTION))) {
+                            NetworkHealth.onRequestFailed()
+                        }
+                    }
+                })
+            }.onFailure {
                 AppLog.w(LogModule.APP, "MyApplication", "Sketch 预热失败", it)
             }
         }.start()

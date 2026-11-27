@@ -22,6 +22,7 @@ import com.example.c001apk.ui.login.WebLoginActivity
 import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.ui.settings.SettingsActivity
 import com.example.c001apk.ui.user.UserActivity
+import com.example.c001apk.util.AccountVault
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.IntentUtil
 import com.example.c001apk.util.NoticeRepo
@@ -34,7 +35,6 @@ import com.example.c001apk.util.dp
 import com.example.c001apk.view.LinearItemDecoration
 import com.example.c001apk.view.MessStaggerItemDecoration
 import com.google.android.material.color.MaterialColors
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -139,7 +139,11 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
             }
         } else {
             binding.clickToLogin.setOnClickListener {
-                IntentUtil.startActivity<WebLoginActivity>(requireContext()) {}
+                if (AccountVault.accounts().isNotEmpty()) {
+                    IntentUtil.startActivity<AccountManagerActivity>(requireContext()) {}
+                } else {
+                    IntentUtil.startActivity<WebLoginActivity>(requireContext()) {}
+                }
             }
         }
     }
@@ -216,19 +220,6 @@ class MineFragment : BaseFragment<FragmentMineBinding>() {
 
     private fun getData() {
         viewModel.fetchProfile()
-    }
-
-    private fun doLogout() {
-        MaterialAlertDialogBuilder(requireContext()).apply {
-            setTitle(R.string.logoutTitle)
-            setNegativeButton(android.R.string.cancel, null)
-            setPositiveButton(android.R.string.ok) { _, _ ->
-                viewModel.countList.value = emptyList()
-                PrefManager.logout()
-                (requireActivity() as? MainActivity)?.recreate()
-            }
-            show()
-        }
     }
 
     override fun onResume() {

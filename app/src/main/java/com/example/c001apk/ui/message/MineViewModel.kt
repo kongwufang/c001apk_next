@@ -7,12 +7,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.c001apk.adapter.LoadingState
 import com.example.c001apk.logic.repository.NetworkRepo
+import com.example.c001apk.util.MessageAccount
 import com.example.c001apk.util.NoticeRepo
 import com.example.c001apk.util.PrefManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import javax.inject.Inject
 
@@ -44,32 +44,23 @@ class MineViewModel @Inject constructor(
     val loadingState = MutableLiveData<LoadingState>()
 
     fun fetchProfile() {
+        val account = MessageAccount.current() ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.getProfile(PrefManager.uid)
-                .collect { result ->
-                    val data = result.getOrNull()
-                    if (data?.data != null) {
-                        countList.postValue(
-                            listOf(
-                                data.data.feed,
-                                data.data.follow,
-                                data.data.fans
-                            )
-                        )
-                        PrefManager.username =
-                            withContext(Dispatchers.IO) {
-                                URLEncoder.encode(data.data.username, "UTF-8")
-                            }
-                        PrefManager.userAvatar = data.data.userAvatar
-                        PrefManager.level = data.data.level
-                        PrefManager.experience = data.data.experience.toString()
-                        PrefManager.nextLevelExperience = data.data.nextLevelExperience.toString()
+            networkRepo.getProfile(account.uid).collect { result ->
+                synchronized(PrefManager) {
+                    if (!account.isCurrent()) return@synchronized
+                    val data = result.getOrNull()?.data
+                    if (data != null) {
+                        countList.postValue(listOf(data.feed, data.follow, data.fans))
+                        PrefManager.username = URLEncoder.encode(data.username, "UTF-8")
+                        PrefManager.userAvatar = data.userAvatar
+                        PrefManager.level = data.level
+                        PrefManager.experience = data.experience.toString()
+                        PrefManager.nextLevelExperience = data.nextLevelExperience.toString()
                         loadingState.postValue(LoadingState.LoadingDone)
-                    } else {
-                        loadingState.postValue(LoadingState.LoadingFailed(""))
-                        result.exceptionOrNull()?.printStackTrace()
-                    }
+                    } else loadingState.postValue(LoadingState.LoadingFailed(""))
                 }
+            }
         }
     }
 

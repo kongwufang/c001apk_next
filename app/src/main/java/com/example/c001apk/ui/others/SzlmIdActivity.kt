@@ -15,6 +15,7 @@ import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivitySzlmIdBinding
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.util.LocalDuidClient
+import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.SzlmIdPrompt
 import java.io.IOException
 import javax.net.ssl.SSLException
@@ -75,12 +76,13 @@ class SzlmIdViewModel : ViewModel() {
     fun fetch(context: Context) {
         if (state.value.loading || state.value.id != null) return
         com.example.c001apk.util.SzlmIdAutoRefresh.cancelPending()
+        val generation = PrefManager.messageAccountGeneration
         mutableState.value = State(loading = true)
         request = viewModelScope.launch {
             try {
                 val id = LocalDuidClient.fetch(context.applicationContext)
-                SzlmIdPrompt.save(id)
-                mutableState.value = State(id = id)
+                mutableState.value = if (SzlmIdPrompt.save(id, generation)) State(id = id)
+                else State(error = R.string.accountIdentitySaveRejected)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: IllegalArgumentException) {

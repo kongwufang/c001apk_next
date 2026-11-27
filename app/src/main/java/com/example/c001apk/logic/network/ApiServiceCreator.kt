@@ -1,7 +1,9 @@
 package com.example.c001apk.logic.network
 
+import com.example.c001apk.util.NetworkHealth
 import com.example.c001apk.logic.network.LenientGson
 import com.example.c001apk.BuildConfig
+import com.example.c001apk.util.AccountRequestIdentity
 import com.example.c001apk.util.AddCookiesInterceptor
 import com.example.c001apk.util.RiskControlInterceptor
 import com.example.c001apk.util.SslErrorInterceptor
@@ -22,7 +24,7 @@ object ApiServiceCreator {
     private const val API2_BASE_URL = "https://api2.coolapk.com"
 
     private fun getClient(serviceType: ServiceType, followRedirects: Boolean): OkHttpClient =
-        OkHttpClient.Builder()
+        NetworkHealth.clientBuilder()
             .addInterceptor(AddCookiesInterceptor)
             .addInterceptor(SslErrorInterceptor)
             .addInterceptor(RiskControlInterceptor)
@@ -47,7 +49,7 @@ object ApiServiceCreator {
                 }
             )
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(getClient(serviceType, followRedirects))
+            .callFactory(AccountRequestIdentity.bind(getClient(serviceType, followRedirects)))
             .build()
 
     fun <T> create(serviceType: ServiceType, followRedirects: Boolean, serviceClass: Class<T>): T =

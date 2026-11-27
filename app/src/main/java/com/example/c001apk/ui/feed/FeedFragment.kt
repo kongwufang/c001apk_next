@@ -48,9 +48,10 @@ import com.example.c001apk.ui.base.BaseFragment
 import com.example.c001apk.ui.feed.reply.ReplyActivity
 import com.example.c001apk.ui.feed.reply.reply2reply.Reply2ReplyBottomSheetDialog
 import com.example.c001apk.ui.feed.reply.reply2reply.ReplyRefreshListener
-import com.example.c001apk.ui.others.WebViewActivity
 import com.example.c001apk.util.ClipboardUtil
+import com.example.c001apk.util.CoolapkLinks
 import com.example.c001apk.util.IntentUtil
+import com.example.c001apk.util.OfficialReport
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.dp
 import com.example.c001apk.util.makeToast
@@ -254,66 +255,13 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
     }
 
-    /**
-     * 单帖「第三方链接分享」（Issue #18）
-     *
-     * 流程：
-     *   点分享 ⇒ 弹「是否通过第三方链接分享」
-     *     ⇒ 确认 ⇒ 生成（客户端渲染 HTML + 上传 123 冷 / OSS 热）
-     *       ⇒ 回来弹「链接已生成 [分享] [复制]」
-     *
-     * 两个入口共用：内容卡底栏的「转发」(+ [ItemListener.onShareFeed]) 和 ⋮ 菜单的「分享链接」
-     *
-     * ⚠️ 拿不到帖子数据（离线包里只有摘要等情况）就退回老做法：
-     *    直接分享酷安原帖地址 ✓ 至少不会点了没反应
-     */
-    private fun shareAsLink(id: String?) {
-        val target = id ?: viewModel.id
-        val data = viewModel.feedDataList?.firstOrNull { it.id == target }
+    private fun shareOfficialLink(id: String?) {
         val ctx = context ?: return
-        if (data == null) {
-            IntentUtil.shareText(ctx, "https://www.coolapk.com/feed/$target")
-            return
-        }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.share_link_confirm_title)
-            .setMessage(R.string.share_link_confirm_message)
-            .setPositiveButton(R.string.share_link_confirm_ok) { _, _ ->
-                viewModel.shareAsLink(data)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        val url = CoolapkLinks.feed(id ?: viewModel.id) ?: return
+        IntentUtil.shareText(ctx, url)
     }
 
     private fun initObserve() {
-        // ---------------- 单帖第三方分享 ----------------
-        viewModel.shareLoading.observe(viewLifecycleOwner) { loading ->
-            // 生成中给个不阻塞的提示（转几秒就完事，不弹进度框 ✗）
-            if (loading) requireContext().makeToast(getString(R.string.share_link_generating))
-        }
-        viewModel.shareResult.observe(viewLifecycleOwner) { event ->
-            val r = event.getContentIfNotHandledOrReturnNull() ?: return@observe
-            val ctx = context ?: return@observe
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle(R.string.share_link_ready)
-                .setMessage(r.url)
-                .setPositiveButton(R.string.share) { _, _ ->
-                    // 系统分享面板 ✓
-                    IntentUtil.shareText(ctx, r.url)
-                }
-                .setNegativeButton(R.string.copyText) { _, _ ->
-                    val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                        as android.content.ClipboardManager
-                    cm.setPrimaryClip(android.content.ClipData.newPlainText("分享链接", r.url))
-                    ctx.makeToast(getString(R.string.share_link_copied))
-                }
-                .show()
-        }
-        viewModel.shareError.observe(viewLifecycleOwner) { event ->
-            val msg = event.getContentIfNotHandledOrReturnNull() ?: return@observe
-            requireContext().makeToast(getString(R.string.share_link_failed, msg))
-        }
-
         viewModel.feedDataUpdateState.observe(viewLifecycleOwner) { event ->
             event.getContentIfNotHandledOrReturnNull()?.let {
                 // 详情回来了：首屏那批是列表项直出的，adapter 还持有预览 list 的引用，必须换掉
@@ -506,8 +454,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
             menu.findItem(R.id.showReply).isVisible = isPortrait
             // 举报要联网、可见性要回写服务端，离线缓存里都做不了
-            // 匿名举报不要求登录 ✓（联盟本身就是匿名通道 ✓）
-        menu.findItem(R.id.report).isVisible = !viewModel.isOffline
+            menu.findItem(R.id.report).isVisible = PrefManager.isLogin && !viewModel.isOffline
             menu.findItem(R.id.showQuestion).isVisible = viewModel.feedType == "answer"
             // 编辑：只有「自己发的」且「服务端说还能编辑」才显示 ✓
             //   enableModify = 1（自己发的、未超时、未被锁 ✓）
@@ -520,14 +467,13 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
 
             setOnMenuItemClickListener {
                 when (it.itemId) {
-                    // 单帖第三方链接分享：复用 itemListener 里那套确认弹窗逻辑 ✓
                     R.id.shareAsLink -> {
-                        shareAsLink(viewModel.id)
+                        shareOfficialLink(viewModel.id)
                         true
                     }
                     R.id.offlineCache -> {
                         viewModel.saveOffline()
-                        requireContext().makeToast("已开始离线缓存，完成后会自动上云")
+                        requireContext().makeToast(getString(R.string.offline_cache_saving))
                         true
                     }
                     R.id.showQuestion -> {
@@ -557,10 +503,9 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                     }
 
                     R.id.copyLink -> {
-                        ClipboardUtil.copyText(
-                            requireContext(),
-                            "https://www.coolapk1s.com/feed/${viewModel.id}"
-                        )
+                        CoolapkLinks.feed(viewModel.id)?.let { url ->
+                            ClipboardUtil.copyText(requireContext(), url)
+                        }
                     }
 
                     R.id.editFeed -> {
@@ -575,10 +520,8 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                             viewModel.onPostPublishStatus(viewModel.id, publishStatus)
                         }
                     }
-
-                    // 匿名举报联盟（2026-10-31）：不再跳酷安的举报页 ✗
                     R.id.report -> {
-                        reportFeedAnonymously(viewModel.id)
+                        reportFeed(viewModel.id)
                     }
 
                 }
@@ -938,46 +881,14 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         feedFixAdapter.setListType(viewModel.listType)
     }
 
-    /**
-     * 匿名举报入口（2026-10-31 用户需求）
-     *
-     * 「不使用酷安的举报功能 ... 首次点击会跳出弹窗 ...
-     *  用户同意后先保存他的偏好 ... 这个开关开启之后，用户在点击举报按钮，可填举报原因」
-     *
-     * ⚠️ 不跳酷安的任何页面 ✗ 完全走自建后端 ✓
-     */
-    private fun reportFeedAnonymously(feedId: String?) {
-        val id = feedId ?: viewModel.id
-        if (id.isBlank()) {
-            Toast.makeText(requireContext(), R.string.report_no_id, Toast.LENGTH_SHORT).show()
-            return
-        }
-        // 话题 ID：详情数据里没有现成字段 ✗ 留空 ✓
-        // （在话题页举报时才会带 topic_id ✓ 见 TopicFragment）
-        // ★ 被拉黑的 => 申诉 ✓（用户 2026-10-31）
-        if (com.example.c001apk.util.Blocklist.isBlocked(
-                com.example.c001apk.util.Blocklist.Kind.FEED, id
-            )
-        ) {
-            android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
-            return
-        }
-        reportAnonymously("feed", id, null)
-    }
-
-    /** 统一的匿名举报流程：弹窗 → 选原因 → 上报 */
-    private fun reportAnonymously(type: String, id: String, topicId: String?) {
-        // 2026-11-08 社区建议：匿名举报联盟已移除，这里只留提示
-        android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
+    private fun reportFeed(id: String?) {
+        if (!viewModel.isOffline) OfficialReport.open(requireContext(), "feed", id ?: viewModel.id)
     }
 
     inner class ItemClickListener : ItemListener {
         override val showAuthorFollow: Boolean get() = !viewModel.isOffline
 
-        /** 底栏「举报」图标（2026-10-31）—— 详情页用 viewModel.id 更准 */
-        override fun onReportFeed(view: android.view.View, id: String?) {
-            reportFeedAnonymously(id)
-        }
+        override fun onReportFeed(view: View, id: String?) = reportFeed(id)
 
         override fun onViewFeed(
             view: View,
@@ -1035,8 +946,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                     // 删 / 举报 / 置顶都要联网回写，离线缓存里只留「查看回复」和「复制」
                     menu.findItem(R.id.delete).isVisible =
                         PrefManager.uid == uid && !viewModel.isOffline
-                    // 匿名举报不要求登录 ✓（联盟本身就是匿名通道 ✓）
-        menu.findItem(R.id.report).isVisible = !viewModel.isOffline
+                    menu.findItem(R.id.report).isVisible = PrefManager.isLogin && !viewModel.isOffline
                     // 置顶：只有帖主能操作，而且接口置顶的是「动态的回复」，
                     // 所以二级回复（rPosition 有效）不给这一项。标题按当前状态切换。
                     menu.findItem(R.id.stickTop)?.apply {
@@ -1109,8 +1019,7 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
         }
 
         override fun onShareFeed(id: String?) {
-            // 内容卡底栏的「转发」也走同一套 ✓
-            shareAsLink(id)
+            shareOfficialLink(id)
         }
 
         override fun showTotalReply(
@@ -1190,10 +1099,8 @@ class FeedFragment : BaseFragment<FragmentFeedBinding>() {
                         }
                     viewModel.feedReplyData.value = newList
                 }
-
-                // 匿名举报联盟（2026-10-31）：评论也走自建通道 ✓
                 R.id.report -> {
-                    reportAnonymously("reply", id, null)
+                    if (!viewModel.isOffline) OfficialReport.open(requireContext(), "feed_reply", id)
                 }
 
                 R.id.delete -> {

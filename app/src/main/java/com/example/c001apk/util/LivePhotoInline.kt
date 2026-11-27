@@ -99,6 +99,7 @@ object LivePhotoInline {
                         }
                     }
                     override fun onPlayerError(error: PlaybackException) {
+                        NetworkHealth.onMediaRequestFailed(error)
                         AppLog.w(LogModule.CARD, "LivePhoto", "INLINE error=${error.errorCodeName}")
                         stop()
                     }

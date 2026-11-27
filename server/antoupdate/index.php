@@ -89,6 +89,35 @@ function antoupdateLoadStable(): ?array
     ];
 }
 
+function antoupdateRecordAccess(): void
+{
+    // Published clients and public probes may omit identity headers. Keep serving them,
+    // but do not pass anonymous requests or browser/scanner traffic to the shared logger.
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $ssaid = $_SERVER['HTTP_X_CLIENT_SSAID'] ?? '';
+    $uid = $_SERVER['HTTP_X_APP_USERRANDOMID'] ?? '';
+    if (strpos($ua, 'Dalvik/2.1.0 (Linux; U; Android') !== 0
+        || strpos($ua, '(#Build;') === false
+        || (preg_match('/\A[0-9a-f]{16}\z/i', $ssaid) !== 1
+            && preg_match('/\A[0-9a-f]{32}\z/i', $uid) !== 1)) {
+        return;
+    }
+
+    // This handler lives outside the document root; the shared library does not.
+    $root = $_SERVER['DOCUMENT_ROOT'] ?? '';
+    $library = $root === '' ? '' : rtrim($root, '/\\') . '/c001apk/access_lib.php';
+    if ($library === '' || !is_readable($library)) {
+        return;
+    }
+    try {
+        require_once $library;
+        access_record('antoupdate');
+    } catch (Throwable $e) {
+        // Statistics/cookie failures must not interrupt the update contract.
+        error_log('antoupdate: shared access recording failed');
+    }
+}
+
 $requestPath = explode('?', $_SERVER['REQUEST_URI'] ?? '', 2)[0];
 if ($requestPath !== ANTOUPDATE_PATH) {
     antoupdateRespond(404, ['code' => 404, 'message' => 'Not found.']);
@@ -105,4 +134,5 @@ if ($stable === null) {
     antoupdateRespond(503, ['code' => 403, 'message' => 'Automatic update is unavailable.']);
     return;
 }
+antoupdateRecordAccess();
 antoupdateRespond(200, ['code' => 0, 'stable' => $stable]);

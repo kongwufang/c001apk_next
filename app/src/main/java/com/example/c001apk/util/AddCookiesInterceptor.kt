@@ -1,102 +1,58 @@
 package com.example.c001apk.util
 
-import com.example.c001apk.constant.Constants
 import com.example.c001apk.constant.Constants.APP_ID
 import com.example.c001apk.constant.Constants.CHANNEL
 import com.example.c001apk.constant.Constants.DARK_MODE
 import com.example.c001apk.constant.Constants.LOCALE
 import com.example.c001apk.constant.Constants.MODE
 import com.example.c001apk.constant.Constants.REQUEST_WITH
-import com.example.c001apk.util.CookieUtil.SESSID
 import com.example.c001apk.util.TokenDeviceUtils.getTokenV3
 import okhttp3.Interceptor
-import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 
 object AddCookiesInterceptor : Interceptor {
     @Throws(IOException::class)
-    override fun intercept(chain: Interceptor.Chain): Response = intercept(chain, useSavedCookies = true)
+    override fun intercept(chain: Interceptor.Chain): Response = send(chain, useSavedCookies = true, form = true)
 
-    internal fun intercept(chain: Interceptor.Chain, useSavedCookies: Boolean): Response {
-        val builder: Request.Builder = chain.request().newBuilder()
-        val deviceCode = TokenDeviceUtils.getLastingDeviceCode()
-        // 版本头必须与 token 使用同一个 versionCode，否则服务端校验不通过
-        val versionName = PrefManager.VERSION_NAME.ifEmpty { Constants.VERSION_NAME }
-        val versionCode = PrefManager.VERSION_CODE.ifEmpty { Constants.VERSION_CODE }
-        val token = deviceCode.getTokenV3(versionCode)
-        builder.apply {
-            addHeader("User-Agent", PrefManager.USER_AGENT.ifEmpty { Constants.USER_AGENT })
-            addHeader("X-Requested-With", REQUEST_WITH)
-            addHeader("X-Sdk-Int", PrefManager.SDK_INT)
-            addHeader("X-Sdk-Locale", LOCALE)
-            addHeader("X-App-Id", APP_ID)
-            addHeader("X-App-Token", token)
-            addHeader("X-App-Version", versionName)
-            addHeader("X-App-Code", versionCode)
-            addHeader("X-Api-Version", PrefManager.API_VERSION.ifEmpty { Constants.API_VERSION })
-            addHeader("X-App-Device", deviceCode)
-            addHeader("X-Dark-Mode", DARK_MODE)
-            addHeader("X-App-Channel", CHANNEL)
-            addHeader("X-App-Mode", MODE)
-            addHeader("X-App-Supported", versionCode)
-            addHeader(
-                "Referer",
-                "https://api.coolapk.com/?ref=CoolMarket/$versionName-$versionCode-$MODE"
-            )
-            addHeader("Content-Type", "application/x-www-form-urlencoded")
-            if (useSavedCookies) {
-                val session = PrefManager.accountSnapshot().session
-                val cookie = session?.takeIf { it.isValid }?.cookie() ?: SESSID
-                if (cookie.isNotBlank()) header("Cookie", cookie)
-            }
+    internal fun intercept(chain: Interceptor.Chain, useSavedCookies: Boolean): Response =
+        send(chain, useSavedCookies, form = true)
+
+    internal fun send(chain: Interceptor.Chain, useSavedCookies: Boolean, form: Boolean): Response {
+        val request = chain.request()
+        val identity = request.tag(AccountRequestIdentity::class.java) ?: AccountRequestIdentity.capture()
+        identity.requireCurrent()
+        val builder = request.newBuilder()
+            .header("User-Agent", identity.ua)
+            .header("X-Requested-With", REQUEST_WITH)
+            .header("X-Sdk-Int", identity.sdk)
+            .header("X-Sdk-Locale", LOCALE)
+            .header("X-App-Id", APP_ID)
+            .header("X-App-Token", identity.device.getTokenV3(identity.versionCode))
+            .header("X-App-Version", identity.versionName)
+            .header("X-App-Code", identity.versionCode)
+            .header("X-Api-Version", identity.apiVersion)
+            .header("X-App-Device", identity.device)
+            .header("X-Dark-Mode", DARK_MODE)
+            .header("X-App-Channel", CHANNEL)
+            .header("X-App-Mode", MODE)
+            .header("X-App-Supported", identity.versionCode)
+            .header("Referer", "https://api.coolapk.com/?ref=CoolMarket/${identity.versionName}-${identity.versionCode}-$MODE")
+        if (form) builder.addHeader("Content-Type", "application/x-www-form-urlencoded")
+        if (useSavedCookies && identity.cookie.isNotBlank()) builder.header("Cookie", identity.cookie)
+        identity.requireCurrent()
+        val response = chain.proceed(builder.build())
+        if (!identity.currentLoginContext()) {
+            response.close()
+            throw IOException("Account or device ID changed")
         }
-        return chain.proceed(builder.build())
+        return response
     }
 }
 
-
-/**
- * ★ 2026-11-01 **不带 Cookie** 的酷安请求头（探测话题专用）
- *
- * 用户要求：「用无 cookie 的情况请求详情页避免污染用户的历史记录数据」
- *
- * 和 [AddCookiesInterceptor] 唯一的区别：**不加 `Cookie` 头** ✓
- *   ⇒ 酷安收到的是匿名请求 ⇒ 不会记成「你看过这条」✓
- *
- * ⚠️ 其余头必须**完全一致** ✓（`X-App-Token` / `X-App-Version` / `X-App-Device` …）
- *    少一个酷安就会拒绝（403 / 空 data）✗
- * ⚠️ 也**绝不**能塞自家后台的 `X-Client-*` 头 ✗（那是我们 service.houlangs.cn 的自定义头 ✗）
- */
+/** Anonymous Coolapk probes use the same signing fields without Cookie. */
 object AddCookiesInterceptorNoCookie : Interceptor {
     @Throws(IOException::class)
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val builder: Request.Builder = chain.request().newBuilder()
-        val deviceCode = TokenDeviceUtils.getLastingDeviceCode()
-        val versionName = PrefManager.VERSION_NAME.ifEmpty { Constants.VERSION_NAME }
-        val versionCode = PrefManager.VERSION_CODE.ifEmpty { Constants.VERSION_CODE }
-        val token = deviceCode.getTokenV3(versionCode)
-        builder.apply {
-            addHeader("User-Agent", PrefManager.USER_AGENT.ifEmpty { Constants.USER_AGENT })
-            addHeader("X-Requested-With", REQUEST_WITH)
-            addHeader("X-Sdk-Int", PrefManager.SDK_INT)
-            addHeader("X-Sdk-Locale", LOCALE)
-            addHeader("X-App-Id", APP_ID)
-            addHeader("X-App-Token", token)
-            addHeader("X-App-Version", versionName)
-            addHeader("X-App-Code", versionCode)
-            addHeader("X-Api-Version", PrefManager.API_VERSION.ifEmpty { Constants.API_VERSION })
-            addHeader("X-App-Device", deviceCode)
-            addHeader("X-Dark-Mode", DARK_MODE)
-            addHeader("X-App-Channel", CHANNEL)
-            addHeader("X-App-Mode", MODE)
-            addHeader("X-App-Supported", versionCode)
-            addHeader(
-                "Referer",
-                "https://api.coolapk.com/?ref=CoolMarket/$versionName-$versionCode-$MODE"
-            )
-            // ★ 这里**没有** Cookie 头 ✓（这是唯一区别）
-        }
-        return chain.proceed(builder.build())
-    }
+    override fun intercept(chain: Interceptor.Chain): Response =
+        AddCookiesInterceptor.send(chain, useSavedCookies = false, form = false)
 }

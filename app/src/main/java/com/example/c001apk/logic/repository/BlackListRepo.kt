@@ -1,5 +1,6 @@
 package com.example.c001apk.logic.repository
 
+import com.example.c001apk.util.MessageAccount
 import com.example.c001apk.util.PrefManager
 import androidx.lifecycle.LiveData
 import com.example.c001apk.di.TopicBlackList
@@ -35,7 +36,10 @@ class BlackListRepo @Inject constructor(
     }
 
     suspend fun checkUid(uid: String): Boolean {
-        return userBlackListDao.isExist(uid)
+        val account = MessageAccount.current()
+        return if (account != null && PrefManager.saveBlackListToCloud) {
+            uid in PrefManager.cloudBlocked(account)
+        } else userBlackListDao.isExist(uid)
     }
 
     /**
@@ -52,13 +56,12 @@ class BlackListRepo @Inject constructor(
             }
             return true
         }
-        val synced = runCatching {
-            networkRepo.addToBlackList(uid).first().getOrNull()?.data != null
-        }.getOrDefault(false)
-        if (!userBlackListDao.isExist(uid)) {
-            userBlackListDao.insert(StringEntity(uid))
+        val owner = MessageAccount.current() ?: return false
+        val synced = networkRepo.addToBlackList(uid).first().getOrNull()?.data != null
+        synchronized(PrefManager) {
+            PrefManager.saveCloudBlocked(owner, PrefManager.cloudBlocked(owner) + uid)
         }
-        return synced
+        return synced && owner.isCurrent()
     }
 
     /** 移出黑名单：先同步云端（POST /v6/user/removeFromBlackList?uid=x），再删本地库 */
@@ -68,11 +71,12 @@ class BlackListRepo @Inject constructor(
             userBlackListDao.delete(uid)
             return true
         }
-        val synced = runCatching {
-            networkRepo.removeFromBlackList(uid).first().getOrNull()?.data != null
-        }.getOrDefault(false)
-        userBlackListDao.delete(uid)
-        return synced
+        val owner = MessageAccount.current() ?: return false
+        val synced = networkRepo.removeFromBlackList(uid).first().getOrNull()?.data != null
+        synchronized(PrefManager) {
+            PrefManager.saveCloudBlocked(owner, PrefManager.cloudBlocked(owner) - uid)
+        }
+        return synced && owner.isCurrent()
     }
 
     suspend fun deleteAllUser() {
@@ -86,39 +90,21 @@ class BlackListRepo @Inject constructor(
         }.getOrNull()?.let { it == 1 }
     }
 
-    /** 用云端结果整体覆盖本地 uid 列表（云端为准；本地库只作为各列表过滤用的镜像） */
-    suspend fun replaceAllUid(uids: List<String>) {
-        userBlackListDao.deleteAll()
-        if (uids.isNotEmpty()) {
-            userBlackListDao.insertList(uids.map { StringEntity(it) })
-        }
-    }
-
-    /**
-     * 拉取云端黑名单全部用户（自动翻页，直到某页没有用户实体），并把 uid 镜像进本地库。
-     *
-     * 返回 null 表示第一页就请求失败（未登录 / 网络异常）—— 此时**不动**本地库，避免误清空。
-     */
+    /** Fetch the cloud list without overwriting the shared, explicitly local blacklist. */
     suspend fun fetchCloudUsers(): List<BlackListUser>? {
+        val owner = MessageAccount.current() ?: return null
         val all = LinkedHashMap<String, BlackListUser>()
         var page = 1
         while (page <= CLOUD_MAX_PAGE) {
-            val response = runCatching {
-                networkRepo.getBlackList(page).first().getOrNull()
-            }.getOrNull()
-            val data = response?.data
-            if (data == null) {
-                if (page == 1) return null
-                break
-            }
+            if (!owner.isCurrent()) return null
+            val data = networkRepo.getBlackList(page).first().getOrNull()?.data ?: return null
             val users = data.filter { it.entityType == "user" && !it.uid.isNullOrEmpty() }
             users.forEach { user -> user.uid?.let { all[it] = user } }
             if (users.isEmpty()) break
             page++
         }
         val list = all.values.toList()
-        replaceAllUid(list.mapNotNull { it.uid })
-        return list
+        return if (PrefManager.saveCloudBlocked(owner, list.mapNotNull { it.uid }.toSet())) list else null
     }
 
     /** 启动时把云端黑名单同步到本地镜像（幂等，失败静默） */

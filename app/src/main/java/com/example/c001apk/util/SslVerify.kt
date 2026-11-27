@@ -239,7 +239,7 @@ object SslVerify {
      * 只有开了「网络传输调试模式」才整体放行，方便抓包。
      */
     fun imageClient(): OkHttpClient {
-        val builder = OkHttpClient.Builder().addInterceptor { chain ->
+        val builder = NetworkHealth.clientBuilder().addInterceptor { chain ->
             val ua = PrefManager.USER_AGENT.ifEmpty { Constants.USER_AGENT }
             chain.proceed(chain.request().newBuilder().header("User-Agent", ua).build())
         }

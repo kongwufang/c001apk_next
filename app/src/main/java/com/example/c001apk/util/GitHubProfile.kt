@@ -2,7 +2,6 @@ package com.example.c001apk.util
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
@@ -21,7 +20,7 @@ object GitHubProfile {
 
     /** 独立客户端：请求发往 GitHub，不该挂酷安的 Cookie / 签名 / 日志拦截器 */
     private val client by lazy {
-        OkHttpClient.Builder()
+        NetworkHealth.clientBuilder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build()

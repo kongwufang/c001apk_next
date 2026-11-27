@@ -3,6 +3,8 @@ package com.example.c001apk.logic.repository
 import com.example.c001apk.logic.model.AccountSession
 import com.example.c001apk.logic.model.CheckResponse
 import com.example.c001apk.logic.network.AccountApi
+import com.example.c001apk.util.AccountRequestIdentity
+import com.example.c001apk.util.AccountVault
 import com.example.c001apk.util.CookieUtil
 import com.example.c001apk.util.PrefManager
 import kotlinx.coroutines.CancellationException
@@ -12,34 +14,53 @@ import retrofit2.Response
 internal class AccountRepository(private val api: AccountApi = AccountApi.instance) {
     internal enum class Result { CONFIRMED, REJECTED, UNAVAILABLE, STALE }
 
-    suspend fun loginWithCode(code: String, generation: Long): Result = request {
-        val exchange = api.exchange(code)
+    suspend fun loginWithCode(code: String, generation: Long, adding: Boolean = false,
+                              requestIdentity: AccountRequestIdentity? = null): Result = request {
+        val identity = requestIdentity ?: AccountRequestIdentity.capture(includeSession = false)
+        if (identity.generation != generation || !identity.currentLoginContext()) return@request Result.STALE
+        val exchange = api.exchange(code, identity)
         val proposed = eligibleData(exchange)?.let { AccountSession.fromResponse(it) }
             ?.takeIf { it.isValid } ?: return@request failure(exchange)
-        confirm(proposed, generation, fromWebCookie = false)
+        confirm(proposed, identity, adding, fromWebCookie = false)
     }
 
-    suspend fun loginWithCookie(candidate: AccountSession, generation: Long): Result = request {
-        confirm(candidate, generation, fromWebCookie = true)
+    suspend fun loginWithCookie(candidate: AccountSession, generation: Long, adding: Boolean = false,
+                                requestIdentity: AccountRequestIdentity? = null): Result = request {
+        val identity = requestIdentity ?: AccountRequestIdentity.capture(includeSession = false)
+        if (identity.generation != generation) return@request Result.STALE
+        confirm(candidate, identity, adding, fromWebCookie = true)
     }
 
-    private suspend fun confirm(candidate: AccountSession, generation: Long, fromWebCookie: Boolean): Result {
-        val response = api.check(checkInit = 1, cookie = candidate.cookie())
+    private suspend fun confirm(candidate: AccountSession, request: AccountRequestIdentity, adding: Boolean, fromWebCookie: Boolean): Result {
+        if (!request.currentLoginContext()) return Result.STALE
+        val response = api.check(checkInit = 1, cookie = candidate.cookie(), identity = request)
         val data = eligibleData(response) ?: return failure(response)
         val session = AccountSession.fromResponse(data)
         if (!session.isValid || !sameIdentity(candidate, session, compareName = !fromWebCookie)) return Result.REJECTED
-        return if (save(generation, session, data.notifyCount)) Result.CONFIRMED else Result.STALE
+        return synchronized(PrefManager) {
+            if (!request.currentLoginContext()) return@synchronized Result.STALE
+            if (!adding) {
+                if (!save(request.generation, session, data.notifyCount)) return@synchronized Result.STALE
+            } else {
+                if (!AccountVault.finishLogin(request.generation, session)) return@synchronized Result.UNAVAILABLE
+                data.notifyCount?.let(CookieUtil::applyLoginCounts)
+            }
+            Result.CONFIRMED
+        }
     }
 
     /** Signed-out check still obtains a guest SESSID, but can never sign into an account. */
     suspend fun checkStartup(checkInit: Int = 1): Result = request {
-        val snapshot = PrefManager.accountSnapshot()
+        val (snapshot, identity) = synchronized(PrefManager) {
+            PrefManager.accountSnapshot() to AccountRequestIdentity.capture()
+        }
         val prior = snapshot.session
         if (prior != null && !prior.isValid) return@request invalidate(snapshot.generation)
-        val response = api.check(checkInit, prior?.cookie() ?: CookieUtil.SESSID.ifBlank { null })
+        val response = api.check(checkInit, prior?.cookie() ?: identity.cookie.ifBlank { null }, identity)
+        if (!identity.currentLoginContext()) return@request Result.STALE
         if (prior == null) {
             synchronized(PrefManager) {
-                if (PrefManager.messageAccountGeneration != snapshot.generation) return@request Result.STALE
+                if (!identity.currentLoginContext()) return@request Result.STALE
                 if (response.isSuccessful) {
                     Cookie.parseAll(response.raw().request.url, response.headers())
                         .firstOrNull { it.name == "SESSID" && it.value.isNotEmpty() }

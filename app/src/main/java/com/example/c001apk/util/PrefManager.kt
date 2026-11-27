@@ -8,6 +8,9 @@ import com.example.c001apk.MyApplication.Companion.context
 import com.example.c001apk.constant.Constants
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.logic.model.AccountSession
+import com.example.c001apk.logic.model.StoredAccount
+import org.json.JSONArray
+import org.json.JSONObject
 
 object PrefManager {
 
@@ -21,7 +24,7 @@ object PrefManager {
     private const val TOKEN = "token"
     private const val REFRESH_TOKEN = "refreshToken"
 
-    private val pref = context.getSharedPreferences("settings", MODE_PRIVATE)
+    private val pref get() = context.getSharedPreferences("settings", MODE_PRIVATE)
 
     var darkTheme: Int
         get() = pref.getInt(PREF_DARK_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
@@ -107,13 +110,32 @@ object PrefManager {
     //   Gson 读 JSON 时数字都变成 Double ✗ ⇒ Int 会被写成 Float ✗
     //   ⇒ 导出时带类型标记、导入时按类型还原 ✓（见 BackupHelper.Tagged）
 
-    /** 导出：整份偏好（原样，类型由 BackupHelper 标记） */
-    fun dumpAll(): Map<String, *> = pref.all
+    /** Additional saved sessions are device-local and never included in a manual export. */
+    @Synchronized
+    fun dumpAll(): Map<String, *> = pref.all.filterKeys {
+        it != SAVED_ACCOUNTS && it != LEGACY_MANUAL_ACCOUNT_ID && !it.startsWith("accountCloud.")
+    }
 
-    /** 还原：整份覆盖 ✓ 先清空 ✓ 免得旧键残留 */
+    /** 还原：整份覆盖，已有备用账号保留在本机。 */
+    @Synchronized
     fun restoreAll(values: Map<String, Any>) {
-        val editor = pref.edit().clear()
-        values.forEach { (k, v) ->
+        val saved = pref.getString(SAVED_ACCOUNTS, null)
+        val generation = messageAccountGeneration
+        val editor = pref.edit().clear().putLong("messageAccountGeneration", generation + 1)
+        editor.putString(SAVED_ACCOUNTS, saved)
+        val restoreAuth = readInactiveAccounts().isEmpty()
+        val protected = setOf(UID, NAME, TOKEN, REFRESH_TOKEN, "isLogin", "accountAdminType", "userAvatar",
+            "level", "experience", "nextLevelExperience", "SZLMID", "szlmIdConfigured", "szlmIdNoticed",
+            "szlmIdLastObtainedAt", "xAppDevice", LEGACY_MANUAL_ACCOUNT_ID) + deviceFields
+        val current = pref.all
+        val merged = if (restoreAuth) values else values.filterKeys { it !in protected && !it.startsWith("accountCloud.") } +
+            current.filterKeys { it in protected || it.startsWith("accountCloud.") }.mapNotNull { (k, v) ->
+                v?.let { k to it }
+            }.toMap()
+        merged.filterKeys {
+            it != SAVED_ACCOUNTS && it != "messageAccountGeneration" &&
+                it != LEGACY_MANUAL_ACCOUNT_ID && (!restoreAuth || !it.startsWith("accountCloud."))
+        }.forEach { (k, v) ->
             when (v) {
                 is Boolean -> editor.putBoolean(k, v)
                 is Int -> editor.putInt(k, v)
@@ -123,6 +145,7 @@ object PrefManager {
                 is Set<*> -> editor.putStringSet(k, v.map { it.toString() }.toSet())
             }
         }
+        CookieUtil.clearAccountState()
         editor.apply()
     }
 
@@ -192,15 +215,11 @@ object PrefManager {
         if (session != null) require(session.isValid)
         val nextUid = session?.uid.orEmpty()
         val changed = isLogin != (session != null) || uid != nextUid
-        val editor = pref.edit()
-            .putBoolean("isLogin", session != null)
-            .putString(UID, nextUid)
-            .putString(NAME, session?.username.orEmpty())
-            .putString(TOKEN, session?.token.orEmpty())
-            .putString(REFRESH_TOKEN, session?.refreshToken.orEmpty())
-            .putString("userAvatar", session?.avatar.orEmpty())
-        if (session?.adminType == null) editor.remove("accountAdminType")
-        else editor.putInt("accountAdminType", session.adminType)
+        if (changed && session != null && readInactiveAccounts().isNotEmpty()) return false
+        if (changed && session == null) {
+            return activate(null, removeCurrent = true)
+        }
+        val editor = sessionEditor(session)
         if (changed) {
             editor.putLong("messageAccountGeneration", expectedGeneration + 1)
             CookieUtil.clearAccountState()
@@ -209,9 +228,159 @@ object PrefManager {
         return true
     }
 
+    private fun sessionEditor(session: AccountSession?): SharedPreferences.Editor = pref.edit()
+        .putBoolean("isLogin", session != null)
+        .putString(UID, session?.uid.orEmpty())
+        .putString(NAME, session?.username.orEmpty())
+        .putString(TOKEN, session?.token.orEmpty())
+        .putString(REFRESH_TOKEN, session?.refreshToken.orEmpty())
+        .putString("userAvatar", session?.avatar.orEmpty())
+        .apply {
+            val admin = session?.adminType
+            if (admin == null) remove("accountAdminType") else putInt("accountAdminType", admin)
+        }
+
+    private const val SAVED_ACCOUNTS = "savedAccountsV1"
+    private const val LEGACY_MANUAL_ACCOUNT_ID = "accountPairedManually"
+    private val deviceFields = setOf("MANUFACTURER", "BRAND", "MODEL", "BUILDNUMBER", "SDK_INT",
+        "ANDROID_VERSION", "USER_AGENT", "VERSION_NAME", "VERSION_CODE", "API_VERSION",
+        "reportRealDevice", "customFingerprint", "DEVICE_FINGERPRINT_VERSION")
+
+    private fun readAccountIdentity() = AccountIdentity(
+        accountDeviceSkeleton(xAppDevice),
+        pref.all.filterKeys { it in deviceFields }.mapNotNull { (key, value) ->
+            value?.let { key to it }
+        }.toMap(),
+    )
+
+    private fun accountDeviceSkeleton(code: String): String =
+        if (code.isBlank()) "" else TokenDeviceUtils.deviceCodeWithSzlmId("", code)
+
+    private fun readSavedRows(): JSONArray? = pref.getString(SAVED_ACCOUNTS, null)?.let { raw ->
+        runCatching { JSONArray(raw) }.getOrNull()
+    }
+
+    private fun readInactiveAccounts(): List<StoredAccount> {
+        val array = readSavedRows() ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val row = array.optJSONObject(index) ?: return@mapNotNull null
+            val session = AccountSession(row.optString("uid"), row.optString("username"),
+                row.optString("token"), row.optString("refreshToken"), row.optString("avatar"),
+                row.optInt("admin", Int.MIN_VALUE).takeUnless { it == Int.MIN_VALUE })
+            if (!session.isValid) return@mapNotNull null
+            val device = row.optJSONObject("device")
+            val settings = deviceFields.mapNotNull { key ->
+                device?.opt(key)?.takeIf { it is String || it is Boolean || it is Int }?.let { key to it }
+            }.toMap()
+            StoredAccount(session, AccountIdentity(accountDeviceSkeleton(row.optString("deviceCode")), settings))
+        }.filterNot { isLogin && it.uid == uid }.distinctBy { it.uid }
+    }
+
+    private fun encodeAccounts(accounts: List<StoredAccount>): String = JSONArray().apply {
+        accounts.forEach { account ->
+            val session = account.session
+            val identity = account.identity
+            put(JSONObject().put("uid", session.uid).put("username", session.username)
+                .put("token", session.token).put("refreshToken", session.refreshToken)
+                .put("avatar", session.avatar).put("admin", session.adminType)
+                .put("deviceCode", identity.deviceCodeSkeleton)
+                .put("device", JSONObject(identity.deviceSettings)))
+        }
+    }.toString()
+
     @Synchronized
-    internal fun logout() {
-        replaceAccount(messageAccountGeneration, null)
+    internal fun savedAccounts(): List<StoredAccount> =
+        listOfNotNull(readAccount()?.takeIf { it.isValid }?.let { StoredAccount(it, readAccountIdentity()) }) +
+            readInactiveAccounts()
+
+    /** Drop legacy per-account IDs without touching stored credentials or device parameters. */
+    @Synchronized
+    internal fun migrateSharedSzlmId() {
+        val rows = readSavedRows()
+        val manual = pref.getBoolean(LEGACY_MANUAL_ACCOUNT_ID, false)
+        val legacyRows = rows?.let { array -> (0 until array.length()).mapNotNull(array::optJSONObject) }.orEmpty()
+        if (!pref.contains(LEGACY_MANUAL_ACCOUNT_ID) && legacyRows.none { it.has("duid") }) return
+        val original = if (manual || SZLMID.isBlank()) legacyRows.firstOrNull {
+            !it.optBoolean("manual") && it.optString("duid").isNotBlank()
+        } else null
+        val id = original?.optString("duid")?.takeIf { it.isNotBlank() } ?: SZLMID
+        val obtainedAt = if (id != SZLMID) original?.optLong("obtainedAt") ?: 0L else szlmIdLastObtainedAt
+        pref.edit().putString(SAVED_ACCOUNTS, encodeAccounts(readInactiveAccounts()))
+            .remove(LEGACY_MANUAL_ACCOUNT_ID)
+            .putString("SZLMID", id)
+            .putLong("szlmIdLastObtainedAt", obtainedAt)
+            .putBoolean("szlmIdConfigured", id.isNotBlank())
+            .putString("xAppDevice", xAppDevice.takeIf { it.isNotBlank() }
+                ?.let { TokenDeviceUtils.deviceCodeWithSzlmId(id, it) }.orEmpty())
+            .commit()
+    }
+
+    @Synchronized
+    internal fun saveSzlmId(id: String, generation: Long): Boolean {
+        if (generation != messageAccountGeneration || ';' in id || id.any { it.isWhitespace() || it.isISOControl() }) return false
+        val device = TokenDeviceUtils.deviceCodeWithSzlmId(id)
+        pref.edit().putString("SZLMID", id).putString("xAppDevice", device)
+            .putLong("szlmIdLastObtainedAt", if (id.isNotEmpty()) System.currentTimeMillis() else 0L)
+            .putBoolean("szlmIdConfigured", id.isNotEmpty()).putBoolean("szlmIdNoticed", true).apply()
+        return true
+    }
+
+    @Synchronized
+    internal fun activateAddedAccount(generation: Long, session: AccountSession): Boolean {
+        if (messageAccountGeneration != generation || !session.isValid) return false
+        val identity = readInactiveAccounts().firstOrNull { it.uid == session.uid }?.identity ?: readAccountIdentity()
+        return activate(StoredAccount(session, identity))
+    }
+
+    @Synchronized
+    internal fun switchAccount(targetUid: String): Boolean {
+        val target = readInactiveAccounts().firstOrNull { it.uid == targetUid } ?: return false
+        return activate(target)
+    }
+
+    @Synchronized
+    internal fun removeAccount(targetUid: String): Boolean {
+        if (isLogin && uid == targetUid) return logout()
+        val inactive = readInactiveAccounts()
+        if (inactive.none { it.uid == targetUid }) return false
+        return pref.edit().putString(SAVED_ACCOUNTS, encodeAccounts(inactive.filterNot { it.uid == targetUid }))
+            .remove(cloudCacheKey("spam", targetUid)).remove(cloudCacheKey("blocked", targetUid)).commit()
+    }
+
+    @Synchronized
+    internal fun logout(): Boolean {
+        if (!isLogin) return true
+        return activate(null, removeCurrent = true)
+    }
+
+    private fun activate(target: StoredAccount?, removeCurrent: Boolean = false): Boolean {
+        val inactive = readInactiveAccounts().filterNot { it.uid == target?.uid }.toMutableList()
+        val before = readAccount()
+        val currentIdentity = readAccountIdentity()
+        if (!removeCurrent && before != null && before.isValid && before.uid != target?.uid) {
+            inactive.add(0, StoredAccount(before, currentIdentity))
+        }
+        val session = target?.session
+        val identity = target?.identity ?: currentIdentity
+        val editor = sessionEditor(session)
+            .putString(SAVED_ACCOUNTS, encodeAccounts(inactive))
+            .putString("xAppDevice", if (identity.deviceCodeSkeleton.isBlank()) ""
+                else TokenDeviceUtils.deviceCodeWithSzlmId(SZLMID, identity.deviceCodeSkeleton))
+            .putLong("messageAccountGeneration", messageAccountGeneration + 1)
+            .remove("level").remove("experience").remove("nextLevelExperience")
+        if (removeCurrent && before != null) {
+            editor.remove(cloudCacheKey("spam", before.uid)).remove(cloudCacheKey("blocked", before.uid))
+        }
+        deviceFields.forEach { key ->
+            when (val value = identity.deviceSettings[key]) {
+                is String -> editor.putString(key, value)
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                else -> editor.remove(key)
+            }
+        }
+        CookieUtil.clearAccountState()
+        return editor.commit()
     }
 
     var userAvatar: String
@@ -516,6 +685,16 @@ object PrefManager {
         set(value) = pref.edit().putString("SSAID", value).apply()
 
     /**
+     * 系统派发给本应用的真实 SSAID。
+     *
+     * 多账号下 [ssaid] 是当前账号的派生值，启动时不能再拿系统值覆盖它；
+     * 这里单独保存真实值，退出登录 / 新建账号时作为派生基准。
+     */
+    var realSsaid: String
+        get() = pref.getString("REAL_SSAID", "") ?: ""
+        set(value) = pref.edit().putString("REAL_SSAID", value).apply()
+
+    /**
      * 是否记录 HTTP 请求日志（设置 → 高级，**默认关闭** ✓）
      *
      * 打开后 `HttpLog.Interceptor` 会把每个请求的方法/地址/状态码/耗时/
@@ -635,9 +814,29 @@ object PrefManager {
         }
 
     /** 其他屏蔽项（关键字/用户/节点）的服务端配置缓存，离线也能先过滤 */
-    var spamConfig: String
-        get() = pref.getString("spamConfig", "")!!
-        set(value) = pref.edit().putString("spamConfig", value).apply()
+    private fun cloudCacheKey(kind: String, uid: String) = "accountCloud.$kind.$uid"
+
+    @Synchronized
+    internal fun getCloudSpam(account: MessageAccount): String =
+        pref.getString(cloudCacheKey("spam", account.uid), "").orEmpty()
+
+    @Synchronized
+    internal fun saveCloudSpam(account: MessageAccount, value: String): Boolean {
+        if (!account.isCurrent()) return false
+        pref.edit().putString(cloudCacheKey("spam", account.uid), value).apply()
+        return true
+    }
+
+    @Synchronized
+    internal fun cloudBlocked(account: MessageAccount): Set<String> =
+        pref.getStringSet(cloudCacheKey("blocked", account.uid), emptySet()).orEmpty()
+
+    @Synchronized
+    internal fun saveCloudBlocked(account: MessageAccount, ids: Set<String>): Boolean {
+        if (!account.isCurrent()) return false
+        pref.edit().putStringSet(cloudCacheKey("blocked", account.uid), ids.toSet()).apply()
+        return true
+    }
 
     /**
      * 用户认证表缓存（userverify 接口的原始响应，见 [RemoteConfig]）。
@@ -679,11 +878,6 @@ object PrefManager {
         }
 
     /**
-     * 「匿名举报联盟」：用户是否已在首次弹窗里点过「加入」。
-     *
-     * 用户 2026-10-31 需求：「首次点击会跳出弹窗 ... 用户同意后先保存他的偏好」
-     */
-    /**
      * 首次启动的欢迎/激活流程是否走完（2026-11-08）
      *
      * 四步：欢迎 → 机型参数 → 取号 → 开关确认
@@ -704,73 +898,6 @@ object PrefManager {
             ) else 0
             pref.edit().putBoolean("onboarded", value)
                 .putInt("onboardingRevision", revision).apply()
-        }
-
-
-    // ---------------------------------------------------------------- 云控开关
-    // ★ 2026-11-01 三级门闸（见 CloudGates.kt）
-    //   ⚠️ 全部默认 **true** ✓ 从没拉到过云控时功能照常 ✓
-    //      拉到了才按云控的值走 ✓ 拉不到就沿用上次 ✓
-
-    /** 云控：联盟总开关（只能关不能开 ✗ 用户开关仍然是前提 ✓）*/
-    var cloudAlliance: Boolean
-        get() = pref.getBoolean("cloud_alliance", true)
-        set(value) {
-            pref.edit().putBoolean("cloud_alliance", value).apply()
-        }
-
-    /** 云控：其他卡片（话题/用户/优质图文…）上报总开关 */
-    var cloudReportOther: Boolean
-        get() = pref.getBoolean("cloud_report_other", true)
-        set(value) {
-            pref.edit().putBoolean("cloud_report_other", value).apply()
-        }
-
-    /** 云控：卡片关联（帖子↔话题）上报开关 */
-    var cloudCardAssoc: Boolean
-        get() = pref.getBoolean("cloud_card_assoc", true)
-        set(value) {
-            pref.edit().putBoolean("cloud_card_assoc", value).apply()
-        }
-
-    // ---------------------------------------------------------------- 自动上报预算
-    // ★ 2026-11-01 修「不停地上报话题」：
-    //   原来只按「每次调用最多 3 条」限流 ✗ 但调用方每次只传 1 条 ⇒ 等于没限 ✗
-    //   ⇒ 改成**全局预算**：每小时最多 3 条、每天最多 10 条 ✓
-
-    /** 本窗口内已自动上报条数 */
-    var autoReportCount: Int
-        get() = pref.getInt("auto_report_count", 0)
-        set(value) {
-            pref.edit().putInt("auto_report_count", value).apply()
-        }
-
-    /** 当前窗口起点（毫秒）*/
-    var autoReportWindowStart: Long
-        get() = pref.getLong("auto_report_window_start", 0L)
-        set(value) {
-            pref.edit().putLong("auto_report_window_start", value).apply()
-        }
-
-    /** 当天已自动上报条数（跨天清零 ✓）*/
-    var autoReportDayCount: Int
-        get() = pref.getInt("auto_report_day_count", 0)
-        set(value) {
-            pref.edit().putInt("auto_report_day_count", value).apply()
-        }
-
-    /** 当天日期（yyyyMMdd，用于跨天清零 ✓）*/
-    var autoReportDay: Int
-        get() = pref.getInt("auto_report_day", 0)
-        set(value) {
-            pref.edit().putInt("auto_report_day", value).apply()
-        }
-
-    /** 云控配置上次拉取时间（0 = 从没拉过 ✓）*/
-    var cloudGatesTs: Long
-        get() = pref.getLong("cloud_gates_ts", 0L)
-        set(value) {
-            pref.edit().putLong("cloud_gates_ts", value).apply()
         }
 
 

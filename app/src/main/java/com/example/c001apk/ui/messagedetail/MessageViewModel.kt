@@ -134,7 +134,7 @@ class MessageViewModel @AssistedInject constructor(
                             isLoadMore = false
                             return@collect
                         } else if (!feed.data.isNullOrEmpty()) {
-                            lastItem = feed.data.last().id
+                            lastItem = feed.rawLastItem ?: feed.data.last().id
                             // 只有第一页开头才是未读区间，翻页的不算
                             if (page == 1) markSeen(feed.data)
                             if (isRefreshing) messageList.clear()

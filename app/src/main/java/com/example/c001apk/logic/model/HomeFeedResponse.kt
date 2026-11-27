@@ -203,7 +203,8 @@ data class HomeFeedResponse(
         // ---- 用户主页「点评」tab 的 nodeRating 实体 ----
         @SerializedName("target_info") val ratingTargetInfo: RatingTargetInfo? = null,
         val star: Int? = null,
-        @SerializedName("rating_score_old") val ratingScoreOld: Int? = null,
+        // The 10-point score can be fractional, including on /v6/feed/detail.
+        @SerializedName("rating_score_old") val ratingScoreOld: Double? = null,
         @SerializedName("comment_good") val commentGood: String? = null,
         @SerializedName("comment_bad") val commentBad: String? = null,
         @SerializedName("comment_general") val commentGeneral: String? = null,

@@ -54,6 +54,25 @@ object NotificationV18Kit {
     fun isReplyType(noteType: String?): Boolean =
         noteType == "feed_reply" || noteType == "feed_reply_reply"
 
+    // Some wire responses explicitly set id to null despite the legacy model's Kotlin type.
+    private fun nonBlank(value: String?): String? = value?.takeIf { it.isNotBlank() }
+
+    private fun cursorOf(data: MessageResponse.Data): String? =
+        nonBlank(data.id) ?: nonBlank(data.entityId)
+
+    internal fun normalizePage(url: String, response: MessageResponse): MessageResponse {
+        val rows = response.data
+        val data = when (url) {
+            URL -> rows.orEmpty().filter { isReplyType(it.noteType) }.map(::toMessage)
+            LIKE_URL -> rows.orEmpty().map(::toLikeMessage)
+            else -> rows
+        }
+        // The last raw row may be filtered out of the visible category.
+        // Keep its cursor instead of taking one from the normalized display rows.
+        return response.copy(data = data, rawPageSize = rows?.size ?: -1,
+            rawLastItem = rows?.lastOrNull()?.let(::cursorOf))
+    }
+
     /** 只用于 [toMessage] 的补字段往返，线程安全，共用一个实例 */
     private val gson = Gson()
 
@@ -92,6 +111,7 @@ object NotificationV18Kit {
             }
         }
         val json = gson.toJsonTree(data).asJsonObject
+        json.addProperty("id", cursorOf(data).orEmpty())
         json.addProperty("fromuid", data.fromUid.orEmpty())
         json.addProperty("type", data.noteType)
         json.addProperty("note", note)
@@ -115,7 +135,7 @@ object NotificationV18Kit {
         val fromName = data.fromUsername.orEmpty()
         val avatar = data.fromUserAvatar.orEmpty()
         val json = gson.toJsonTree(data).asJsonObject
-        json.addProperty("id", data.entityId.orEmpty())
+        json.addProperty("id", data.entityId?.takeIf { it.isNotBlank() } ?: cursorOf(data).orEmpty())
         json.addProperty("fromuid", fromUid)
         json.addProperty("type", data.noteType)
         json.addProperty("likeUid", fromUid)

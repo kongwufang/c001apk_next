@@ -128,13 +128,50 @@ class AccountLoginTest {
         assertEquals(OLD.cookie(), PrefManager.accountSnapshot().session?.cookie())
     }
 
+    @Test fun addedLoginKeepsTheDeviceIdAndOnlySwitchesAfterConfirmation() = runTest {
+        save(OLD)
+        val id = "DU" + "a".repeat(34)
+        assertTrue(PrefManager.saveSzlmId(id, PrefManager.messageAccountGeneration))
+        val generation = PrefManager.messageAccountGeneration
+        val candidate = AccountSession("200", "New+User", "web-token")
+        val api = object : AccountApi {
+            override suspend fun exchange(code: String, identity: AccountRequestIdentity?): Response<CheckResponse> =
+                error("Unexpected exchange")
+            override suspend fun check(checkInit: Int, cookie: String?, identity: AccountRequestIdentity?): Response<CheckResponse> {
+                assertEquals(candidate.cookie(), cookie)
+                assertEquals(id, DeviceCode.decode(requireNotNull(identity).device).substringBefore(';'))
+                assertEquals("", identity.cookie)
+                assertEquals(id, PrefManager.SZLMID)
+                assertEquals(OLD.cookie(), PrefManager.accountSnapshot().session?.cookie())
+                return success(uid = "200", name = "New User")
+            }
+        }
+        val repository = AccountRepository(api)
+        assertEquals(Result.CONFIRMED, repository.loginWithCookie(candidate, generation, adding = true))
+        assertEquals("200", PrefManager.uid)
+        assertEquals(id, PrefManager.SZLMID)
+        assertTrue(AccountVault.switchTo(OLD.uid))
+        assertEquals(id, PrefManager.SZLMID)
+    }
+
+    @Test fun aLoginPageWithAnOldSharedIdCannotCommitAfterRenewal() = runTest {
+        save(OLD)
+        assertTrue(PrefManager.saveSzlmId("DU" + "a".repeat(34), PrefManager.messageAccountGeneration))
+        val launch = AccountRequestIdentity.capture(includeSession = false)
+        assertTrue(PrefManager.saveSzlmId("DU" + "b".repeat(34), launch.generation))
+        val repository = AccountRepository(FakeApi(check = { _, _ -> error("Unexpected check") }))
+        val candidate = AccountSession("200", "New+User", "web-token")
+        assertEquals(Result.STALE, repository.loginWithCookie(candidate, launch.generation, adding = true, requestIdentity = launch))
+        assertEquals(OLD.uid, PrefManager.uid)
+    }
+
     private fun save(session: AccountSession) {
         assertTrue(PrefManager.replaceAccount(PrefManager.messageAccountGeneration, session))
     }
 
     private class FakeApi(val check: suspend (Int, String?) -> Response<CheckResponse>) : AccountApi {
-        override suspend fun exchange(code: String): Response<CheckResponse> = error("Unexpected exchange")
-        override suspend fun check(checkInit: Int, cookie: String?) = check.invoke(checkInit, cookie)
+        override suspend fun exchange(code: String, identity: AccountRequestIdentity?): Response<CheckResponse> = error("Unexpected exchange")
+        override suspend fun check(checkInit: Int, cookie: String?, identity: AccountRequestIdentity?) = check.invoke(checkInit, cookie)
     }
 
     private fun success(uid: String, name: String, adminType: Int = 0): Response<CheckResponse> = Response.success(

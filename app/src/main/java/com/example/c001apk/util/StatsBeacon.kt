@@ -102,7 +102,7 @@ class StatsBeacon @Inject constructor(
     private var job: Job? = null
 
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        NetworkHealth.clientBuilder()
             // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
             .addInterceptor(ServerCookieStore.interceptor())
             // ★ SSL 策略跟着「校验 SSL 证书」开关走 ✓（2026-10-31 用户要求：

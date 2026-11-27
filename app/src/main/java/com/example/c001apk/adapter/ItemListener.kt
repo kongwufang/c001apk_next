@@ -1,6 +1,5 @@
 package com.example.c001apk.adapter
 
-import android.app.Activity
 import android.view.View
 import com.example.c001apk.util.LogModule
 import com.example.c001apk.util.AppLog
@@ -17,6 +16,7 @@ import com.example.c001apk.ui.user.UserActivity
 import com.example.c001apk.util.ClipboardUtil.copyText
 import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.IntentUtil
+import com.example.c001apk.util.OfficialReport
 import com.example.c001apk.util.NetWorkUtil.openLink
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -228,24 +228,8 @@ interface ItemListener {
     /** 详情页底栏「转发」：拉系统分享面板发链接（不是转发动态，forwardnum 不变） */
     fun onShareFeed(id: String?) {}
 
-    /**
-     * 内容卡底栏的「举报」—— 匿名举报联盟（2026-10-31 用户需求）。
-     *
-     * 用户原话：「不使用酷安的举报功能，在点赞，评论，收藏，转发那里增加一个举报选项，
-     *            首次点击会跳出弹窗 ... 用户同意后先保存他的偏好 ...」
-     *
-     * ⚠️ 用 [View] 而不是只传 id：`view.context` 就是 Activity ✓
-     *    （ViewModel 里拿不到 Activity ✗ 用 application Context 弹 Dialog 会崩 ✗）
-     * ⇒ 默认实现写在接口里 ✓ 所有页面（首页列表 / 搜索 / 话题 / 详情…）自动生效 ✓
-     * ⚠️ 不跳酷安的任何页面 ✗ 完全走自建后端 ✓
-     */
     fun onReportFeed(view: View, id: String?) {
-        val ctx = view.context
-        if (id.isNullOrBlank() || ctx !is Activity) {
-            return
-        }
-        // 2026-11-08 社区建议：匿名举报联盟已移除，举报入口只提示
-        android.widget.Toast.makeText(ctx, "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
+        OfficialReport.open(view.context, "feed", id)
     }
 
     fun onReply(

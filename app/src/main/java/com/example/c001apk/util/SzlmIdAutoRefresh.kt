@@ -32,6 +32,7 @@ internal object SzlmIdAutoRefresh {
     fun install(app: Application) {
         if (installed || !isMainProcess(app)) return
         installed = true
+        PrefManager.migrateSharedSzlmId()
         // Main-process, app-private receiver: one short message, without opening a page.
         ContextCompat.registerReceiver(app, object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -85,6 +86,7 @@ internal object SzlmIdAutoRefresh {
 
     private fun check(app: Application) {
         if (pending?.isActive == true) return
+        val generation = PrefManager.messageAccountGeneration
         val oldId = PrefManager.SZLMID
         val lastSuccess = PrefManager.szlmIdLastObtainedAt
         if (!DuidRefreshPolicy.shouldRefresh(
@@ -94,10 +96,12 @@ internal object SzlmIdAutoRefresh {
         pending = scope.launch {
             try {
                 val id = LocalDuidClient.fetch(app)
-                // Explicit manual changes and switching off always win over an in-flight refresh.
-                if (PrefManager.autoRefreshSzlmId && PrefManager.onboarded &&
-                    PrefManager.SZLMID == oldId && PrefManager.szlmIdLastObtainedAt == lastSuccess) {
-                    SzlmIdPrompt.save(id)
+                val saved = synchronized(PrefManager) {
+                    PrefManager.autoRefreshSzlmId && PrefManager.onboarded &&
+                        PrefManager.SZLMID == oldId && PrefManager.szlmIdLastObtainedAt == lastSuccess &&
+                        SzlmIdPrompt.save(id, generation)
+                }
+                if (saved) {
                     AppLog.i(LogModule.NET, "SzlmIdAutoRefresh", "自动刷新成功，已记录获取时间")
                     // Save first; never include the device identifier in the event.
                     notifyResult(app, success = true)
@@ -106,7 +110,8 @@ internal object SzlmIdAutoRefresh {
                 throw e
             } catch (e: Exception) {
                 AppLog.w(LogModule.NET, "SzlmIdAutoRefresh", "自动刷新失败，保留原 ID 和获取时间：${e.javaClass.simpleName}")
-                if (PrefManager.autoRefreshSzlmId && PrefManager.onboarded &&
+                if (PrefManager.messageAccountGeneration == generation &&
+                    PrefManager.autoRefreshSzlmId && PrefManager.onboarded &&
                     PrefManager.SZLMID == oldId && PrefManager.szlmIdLastObtainedAt == lastSuccess) {
                     notifyResult(app, success = false)
                 }

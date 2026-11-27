@@ -70,21 +70,14 @@ class MainViewModel @Inject constructor(
     }
 
     fun onCheckCount() {
+        val account = com.example.c001apk.util.MessageAccount.current() ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            networkRepo.checkCount()
-                .collect { result ->
-                    val response = result.getOrNull()
-                    response?.data?.let {
-                        CookieUtil.atme = it.atme
-                        CookieUtil.atcommentme = it.atcommentme
-                        CookieUtil.feedlike = it.feedlike
-                        CookieUtil.contacts_follow = it.contactsFollow
-                        CookieUtil.badge = it.unreadBadge
-                        CookieUtil.notification = it.unreadNotification
-                        CookieUtil.message = it.message
-                        CookieUtil.commentme = it.commentme
-                    }
+            networkRepo.checkCount().collect { result ->
+                synchronized(PrefManager) {
+                    if (!account.isCurrent()) return@synchronized
+                    result.getOrNull()?.data?.let(CookieUtil::applyCheckCounts)
                 }
+            }
         }
     }
 

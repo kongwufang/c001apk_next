@@ -1,5 +1,7 @@
 package com.example.c001apk.util
 
+import com.example.c001apk.BuildConfig
+import com.example.c001apk.MyApplication
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -13,12 +15,37 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = android.app.Application::class)
 class AutoUpdateTest {
     @get:Rule val folder = TemporaryFolder()
+
+    @Test fun automaticMetadataUsesTheSameFirstPartyIdentityAsLegacyUpdate() {
+        MyApplication.context = RuntimeEnvironment.getApplication()
+        PrefManager.ssaid = "0123456789abcdef"
+        PrefManager.userRandomId = "fedcba9876543210".repeat(2)
+        val legacy = UpdateChecker.metadataRequest(UpdateChecker.BASE_URL).build()
+        val automatic = UpdateChecker.metadataRequest(AutoUpdateInfo.ENDPOINT).build()
+        assertEquals(legacy.headers, automatic.headers)
+        assertEquals(ServerIdentity.API_VERSION.toString(), automatic.header(ServerIdentity.HEADER_API))
+        assertEquals(BuildConfig.VERSION_CODE.toString(), automatic.header("X-Client-Code"))
+        assertEquals(PrefManager.ssaid, automatic.header("X-Client-SSaid"))
+        assertEquals(PrefManager.userRandomId, automatic.header("X-App-userrandomid"))
+        assertTrue(automatic.header("User-Agent").orEmpty().contains("(#Build;"))
+    }
+
+    @Test fun publicDownloadsAndInsecureUrlsDoNotGetFirstPartyIdentity() {
+        for (url in listOf(
+            "https://github.com/project/repo/releases/download/V1/app.apk",
+            "https://service.houlangs.cn.example.org/c001apk/antoupdate/",
+            "http://service.houlangs.cn/c001apk/antoupdate/",
+        )) {
+            assertEquals(0, UpdateChecker.metadataRequest(url).build().headers.size)
+        }
+    }
 
     @Test fun supersedingReleaseKeepsOnlyTheNewMatchingArtifact() {
         val old = folder.newFile("10012-old.apk")

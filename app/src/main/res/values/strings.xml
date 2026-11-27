@@ -268,6 +268,9 @@
     <string name="ssl_debug_restart_now">立即重启</string>
     <string name="ssl_debug_enabled_toast">已开启网络传输调试模式，重启应用后生效</string>
     <string name="ssl_debug_disabled_toast">已关闭网络传输调试模式，重启应用后生效</string>
+    <string name="network_health_title">网络状态异常</string>
+    <string name="network_health_message">请检查网络连接状况。</string>
+    <string name="network_health_settings">检查网络连接</string>
     <string name="ssl_error_title">网络环境存在安全风险</string>
     <string name="ssl_error_message">SSL 证书校验失败，当前网络可能被监听或篡改（例如处于抓包或中间人攻击环境）。\n\n建议检查所连接的 Wi-Fi 和代理设置，切换到可信网络后重试。\n\n「关闭SSL证书校验（不推荐）」：这可能使你处于危险的网络环境，修改需重启应用后生效。</string>
     <string name="ssl_error_confirm">确定</string>
@@ -293,6 +296,20 @@
     
     <!-- 账号管理页（阶段 ②）-->
     <string name="accountManagerTitle">账号管理</string>
+    <string name="accountSavedTitle">切换账号</string>
+    <string name="accountAdd">添加账号</string>
+    <string name="accountCurrent">当前</string>
+    <string name="accountDelete">删除</string>
+    <string name="accountEmpty">还没有保存的账号</string>
+    <string name="accountIdentityNote">所有账号共用本机的数字联盟 ID，登录状态分别保存。</string>
+    <string name="accountIdentitySaveRejected">数字联盟 ID 未修改：页面状态已变化或 ID 无效。</string>
+    <string name="accountLoginExpired">本次登录已失效，请回账号管理重试。</string>
+    <string name="accountDeleteTitle">删除这个账号？</string>
+    <string name="accountDeleteMessage">只删除本机保存的登录信息，不会注销酷安账号。</string>
+    <string name="accountLogoutNote">退出并移除当前账号的登录信息，其他已保存账号不受影响。</string>
+    <string name="accountSwitchFailed">未能完成账号操作，请重试</string>
+    <string name="accountDeleted">已删除账号</string>
+    <string name="accountUid">UID %1$s</string>
     <string name="scanLogin">扫码登录</string>
     <string name="comingSoon">敬请期待</string>
 
@@ -329,51 +346,12 @@
     <string name="settings_save_follow_summary">开启=关注关系同步到云端账号；关闭=只保存在本机</string>
     <string name="settings_save_blacklist">黑名单（用户）</string>
     <string name="settings_save_blacklist_summary">开启=同步到云端账号；关闭=只在本机生效</string>
-    <!-- 单帖「第三方链接分享」（Issue #18） -->
-    <string name="share_link_confirm_title">通过第三方链接分享</string>
-    <string name="share_link_confirm_message">会生成一个网页链接，别人打开就能看到这篇帖子（含图片）。\n即使原帖被删除，链接里的内容也还在。</string>
-    <string name="share_link_confirm_ok">生成链接</string>
-    <string name="share_link_generating">正在生成链接…</string>
-    <string name="share_link_ready">链接已生成</string>
-    <string name="share_link_failed">生成失败：%1$s</string>
-    <string name="share_link_copied">链接已复制</string>
-    <string name="share_link_offline_hint">离线缓存会自动把帖子备份到云端</string>
+    <!-- 帖子分享和本地离线缓存 -->
     <string name="share_link_menu">分享链接</string>
     <string name="offline_cache_title">离线缓存</string>
 
-    <!-- ============ 匿名举报联盟（2026-10-31 用户需求）============ -->
-    <string name="report_alliance_join_title">加入匿名举报联盟？</string>
-    <string name="report_alliance_join_message">加入后，你点的举报会走自建匿名通道 —— 不上报给酷安，也不带你的账号。\n\n被多人举报的内容会对更多人显示为「已被多人举报」，仅此而已：不拦截、也不通知被举报人。\n\n随时可以在「设置 - 偏好设置」里关掉。</string>
-    <string name="report_alliance_join">加入</string>
-    <string name="report_alliance_later">以后再说</string>
-    <string name="report_alliance_off_title">匿名举报已关闭</string>
-    <string name="report_alliance_off_message">你可以在「设置 - 偏好设置」里随时打开。</string>
-    <string name="report_alliance_enable">打开</string>
-    <string name="report_reason_title">选择举报原因（可多选）</string>
-    <string name="report_submit">提交举报</string>
-    <string name="report_need_reason">请至少选择一个原因</string>
-    <string name="report_submitted">已提交，感谢你</string>
-    <string name="report_submit_failed">提交失败，稍后再试</string>
-    <string name="report_note_hint">补充说明（可选）</string>
-    <!-- 设置项 -->
-    <string name="report_no_id">这条内容缺少 ID，无法举报</string>
-    <!-- 公共黑名单（2026-10-31） -->
-    <string name="blocked_multi_report">该内容已被多人举报</string>
-    <string name="blocked_multi_report_user">该用户已被多人举报</string>
-    <string name="blocked_multi_report_topic">该话题已被多人举报</string>
-    <!-- 优质图文组内被屏蔽小卡的中性占位（2026-10-31）-->
-    <string name="blocked_placeholder">已屏蔽</string>
-
-    <!-- 云控关闭时的提示（2026-11-01）-->
-    <string name="settings_cloud_off">已被云端关闭，当前不生效</string>
-
-    <string name="blocked_reveal">依然查看</string>
-    <!-- 申诉（2026-10-31）：被拉黑的内容点举报 => 申诉 -->
-    <string name="appeal_title">申诉误拉黑</string>
-    <string name="appeal_message">该内容已被多人举报而折叠。如果你认为这是误判，可以提交申诉。</string>
-    <string name="appeal_submit">提交申诉</string>
-    <string name="appeal_submitted">申诉已提交，感谢你</string>
-    <string name="appeal_menu">申诉</string>
+    <string name="report_no_id">这条内容缺少有效 ID，无法举报</string>
+    <string name="report_login_required">请登录酷安账号后举报</string>
     <!-- 关于页「致谢」栏（2026-11-01）-->
     <string name="about_thanks">致谢</string>
     <string name="about_role_thanks">取号算法（libdu.so 逆向研究）</string>

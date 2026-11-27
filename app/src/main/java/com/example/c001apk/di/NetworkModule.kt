@@ -1,8 +1,10 @@
 package com.example.c001apk.di
 
+import com.example.c001apk.util.NetworkHealth
 import com.example.c001apk.logic.network.LenientGson
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.logic.network.ApiService
+import com.example.c001apk.util.AccountRequestIdentity
 import com.example.c001apk.util.AddCookiesInterceptor
 import com.example.c001apk.util.HttpLog
 import com.example.c001apk.util.RiskControlInterceptor
@@ -66,7 +68,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(API_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(okHttpClient)
+            .callFactory(AccountRequestIdentity.bind(okHttpClient))
             .build()
     }
 
@@ -77,7 +79,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(API_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(okHttpClient)
+            .callFactory(AccountRequestIdentity.bind(okHttpClient))
             .build()
     }
 
@@ -88,7 +90,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(API2_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create(LenientGson.gson))
-            .client(okHttpClient)
+            .callFactory(AccountRequestIdentity.bind(okHttpClient))
             .build()
     }
 
@@ -96,7 +98,7 @@ object NetworkModule {
     @Singleton
     @Provides
     fun provideOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
+        return NetworkHealth.clientBuilder()
             .addInterceptor(AddCookiesInterceptor)
             // HTTP 请求日志（设置 → 高级 开关 ✓ 关着时零开销 ✓）
             // 放在最前：能记到**完整**的请求头与响应体 ✓
@@ -120,7 +122,7 @@ object NetworkModule {
     @Singleton
     @Provides
     fun provideNoOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
+        return NetworkHealth.clientBuilder()
             .addInterceptor(AddCookiesInterceptor)
             // HTTP 请求日志（设置 → 高级 开关 ✓ 关着时零开销 ✓）
             // 放在最前：能记到**完整**的请求头与响应体 ✓

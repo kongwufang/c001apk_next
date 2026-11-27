@@ -1,65 +1,112 @@
 package com.example.c001apk.ui.account
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.isVisible
 import com.example.c001apk.R
 import com.example.c001apk.databinding.ActivityAccountManagerBinding
+import com.example.c001apk.databinding.ItemAccountBinding
+import com.example.c001apk.logic.model.StoredAccount
 import com.example.c001apk.ui.base.BaseActivity
+import com.example.c001apk.ui.login.WebLoginActivity
 import com.example.c001apk.ui.main.MainActivity
+import com.example.c001apk.util.AccountVault
+import com.example.c001apk.util.ImageUtil
 import com.example.c001apk.util.PrefManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
-/**
- * 账号管理页。
- *
- * 入口：「我的」页工具栏右上角的图标（原来是「退出登录」，改成 [R.drawable.ic_mine_selector] 后跳这里）。
- *
- * ## 页面结构（用户指定，见 `activity_account_manager.xml`）
- * - 上方 16 宫格（4×4）：1 个「扫码登录」有功能，其余 15 个「敬请期待」
- * - 最底部：红色长条形「退出登录」
- *
- * ## 当前实现范围（**不假装能用**）
- * - **扫码登录**：阶段 ④ 还没做 ⇒ 现在点了弹「敬请期待」✗
- * - **其余 15 格**：布局里就是 `enabled="false"`（点不动）
- * - **退出登录**：**能真用** ✓ —— 逻辑与 `MineFragment.doLogout()` 一致：
- *   确认对话框 → 清 PrefManager → 回 MainActivity
- *
- * ⚠️ 退出时**一并清掉 refreshToken**（阶段 ① 新加的凭据），
- *    否则下次启动会拿着已失效的 refreshToken 去请求 ✗
- */
+/** Entry in the Mine drawer; the account list is above the existing logout button. */
 class AccountManagerActivity : BaseActivity<ActivityAccountManagerBinding>() {
+    private var restarting = false
+    private val addAccount = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) restartMain() else renderAccounts()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 返回箭头（MaterialToolbar 自带，BaseActivity 不管这个）
+        binding.toolbar.setNavigationIcon(R.drawable.ic_back)
         binding.toolbar.setNavigationOnClickListener { finish() }
-
-        // ② 底部红色退出登录
+        binding.btnAddAccount.setOnClickListener { startAddAccount() }
         binding.btnLogout.setOnClickListener { confirmLogout() }
     }
 
-    /**
-     * 退出登录。
-     *
-     * 与 `MineFragment.doLogout()` 行为一致（那边是「我的」页里原来的入口），
-     * 差别只在于退出后回到 [MainActivity] 而不是 `requireActivity().recreate()`。
-     */
+    override fun onResume() {
+        super.onResume()
+        renderAccounts()
+    }
+
+    private fun renderAccounts() {
+        val accounts = AccountVault.accounts()
+        val currentUid = if (PrefManager.isLogin) PrefManager.uid else ""
+        binding.accountList.removeAllViews()
+        binding.accountEmpty.isVisible = accounts.isEmpty()
+        binding.btnLogout.isVisible = currentUid.isNotEmpty()
+        for (account in accounts) {
+            val item = ItemAccountBinding.inflate(layoutInflater, binding.accountList, false)
+            item.name.text = account.displayName.ifBlank { account.uid }
+            item.uid.text = getString(R.string.accountUid, account.uid)
+            item.currentBadge.isVisible = account.uid == currentUid
+            item.deleteButton.isVisible = account.uid != currentUid
+            if (account.avatar.isNotBlank()) ImageUtil.showIMG(item.avatar, account.avatar)
+            else item.avatar.setImageResource(R.drawable.ic_account)
+            item.deleteButton.setOnClickListener { if (!restarting) confirmDelete(account) }
+            item.root.isClickable = account.uid != currentUid
+            if (item.root.isClickable) item.root.setOnClickListener {
+                if (restarting) return@setOnClickListener
+                if (AccountVault.switchTo(account.uid)) restartMain()
+                else toast(R.string.accountSwitchFailed)
+            }
+            binding.accountList.addView(item.root)
+        }
+    }
+
+    private fun startAddAccount() {
+        if (restarting) return
+        addAccount.launch(Intent(this, WebLoginActivity::class.java).apply {
+            putExtra(WebLoginActivity.EXTRA_ADD_ACCOUNT, AccountVault.prepareLogin())
+        })
+    }
+
+    private fun confirmDelete(account: StoredAccount) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.accountDeleteTitle)
+            .setMessage(R.string.accountDeleteMessage)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                toast(if (AccountVault.delete(account.uid)) R.string.accountDeleted else R.string.accountSwitchFailed)
+                renderAccounts()
+            }.show()
+    }
+
     private fun confirmLogout() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.logoutTitle)
+            .setMessage(R.string.accountLogoutNote)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                PrefManager.logout()
+                if (AccountVault.logoutCurrent()) restartMain() else toast(R.string.accountSwitchFailed)
+            }.show()
+    }
 
-                startActivity(
-                    Intent(this, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    }
-                )
+    private fun toast(message: Int) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    private fun restartMain() {
+        if (restarting) return
+        restarting = true
+        binding.btnAddAccount.isEnabled = false
+        binding.btnLogout.isEnabled = false
+        // Web login and embedded Coolapk pages share this WebView cookie jar.
+        // Finish clearing it before entering the new account's pages.
+        android.webkit.CookieManager.getInstance().removeAllCookies {
+            if (!isFinishing && !isDestroyed) {
+                startActivity(Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                })
                 finish()
             }
-            .show()
+        }
     }
 }
