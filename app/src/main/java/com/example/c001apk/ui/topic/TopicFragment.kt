@@ -55,7 +55,6 @@ class TopicFragment : BasePagerFragment() {
      * ✅ 最终做法：叠在 `binding.view`（FrameLayout 占位）里、`layout_gravity=bottom`
      *    ⇒ 只是绘制在上面 ✓ 不参与 `header.root` 的测量 ✓ 绝对安全 ✓
      */
-    private var topicBlockedBand: android.widget.TextView? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -154,35 +153,6 @@ class TopicFragment : BasePagerFragment() {
         header.root.isVisible = false
         headerBinding = header
 
-        // ★ 话题详情页红带
-        //   ⚠️ `binding.view` 是个**占位 <View>** ✗ `toReplaceView` 会把它从层级里移除 ✓
-        //      ⇒ 加到它上面没用 ✗（第一次就是这么失败的 ✓）
-        //   ✅ 加到 `collapsingToolbar`（FrameLayout）底部 ✓
-        //      不影响 `header.root` 的 `CollapsingToolbarLayout.LayoutParams` ✓
-        val host: android.view.ViewGroup? = binding.collapsingToolbar
-        if (host != null && true) {
-            val band = android.widget.TextView(requireContext()).apply {
-                text = requireContext().getString(
-                    com.example.c001apk.R.string.blocked_multi_report_topic
-                )
-                setTextColor(0xFFD32F2F.toInt())
-                textSize = 13f
-                gravity = android.view.Gravity.CENTER
-                setPadding(0, 20, 0, 20)
-                setBackgroundColor(0xFFF2FFEBEE.toInt())
-                visibility = View.GONE
-            }
-            host.addView(
-                band,
-                android.widget.FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    android.view.Gravity.BOTTOM
-                )
-            )
-            topicBlockedBand = band
-        }
-
         // 未登录不显示关注按钮（和工具栏菜单项保持一致）
         header.followBtn.isVisible = PrefManager.isLogin
         header.followBtn.setOnClickListener { onSubscribeClick() }
@@ -260,40 +230,6 @@ class TopicFragment : BasePagerFragment() {
         )
         headerBinding.stats.text = stats.joinToString(" · ")
         headerBinding.stats.isVisible = stats.isNotEmpty()
-
-        // ★ 2026-10-31 话题详情页红带（只控制这一个 View ✓ 不碰头部其它东西 ✓）
-        val tid = viewModel.id
-        val band = topicBlockedBand
-        if (band != null && !tid.isNullOrBlank() &&
-            com.example.c001apk.util.Blocklist.enabled()
-        ) {
-            val show = { blocked: Boolean ->
-                band.visibility = if (blocked) View.VISIBLE else View.GONE
-                if (blocked) {
-                    band.text = com.example.c001apk.util.Blocklist.cachedMsg(
-                        com.example.c001apk.util.Blocklist.Kind.TOPIC, tid
-                    ) ?: requireContext().getString(
-                        com.example.c001apk.R.string.blocked_multi_report_topic
-                    )
-                }
-            }
-            val known = com.example.c001apk.util.Blocklist.cached(
-                com.example.c001apk.util.Blocklist.Kind.TOPIC, tid
-            )
-            if (known != null) {
-                show(known)
-            } else {
-                com.example.c001apk.util.Blocklist.prefetch(
-                    com.example.c001apk.util.Blocklist.Kind.TOPIC, listOf(tid)
-                ) {
-                    show(
-                        com.example.c001apk.util.Blocklist.isBlocked(
-                            com.example.c001apk.util.Blocklist.Kind.TOPIC, tid
-                        )
-                    )
-                }
-            }
-        }
 
         // 简介放头部里（不放工具栏 subtitle：见 initBar 的注释）
         headerBinding.intro.text = header.intro.orEmpty()
@@ -412,16 +348,6 @@ class TopicFragment : BasePagerFragment() {
                                 putExtra("title", viewModel.title)
                             }
                         }
-                    }
-
-                    // 匿名举报话题（2026-10-31 用户需求：放在右上角的更多菜单里 ✓）
-                    // 「如果填写就上报话题ID」=> id 和 topic_id 都传话题 ID ✓
-                    R.id.reportTopic -> {
-                        val tid = viewModel.id
-                        if (tid.isBlank()) {
-                            return@setOnMenuItemClickListener true
-                        }
-                        android.widget.Toast.makeText(requireContext(), "举报功能已下线", android.widget.Toast.LENGTH_SHORT).show()
                     }
 
                     R.id.block -> {

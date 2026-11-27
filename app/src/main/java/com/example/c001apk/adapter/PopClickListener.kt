@@ -4,8 +4,7 @@ import android.content.Context
 import android.view.MenuItem
 import androidx.appcompat.widget.PopupMenu
 import com.example.c001apk.R
-import com.example.c001apk.ui.others.WebViewActivity
-import com.example.c001apk.util.IntentUtil
+import com.example.c001apk.util.OfficialReport
 
 class PopClickListener(
     val listener: ItemListener,
@@ -25,17 +24,7 @@ class PopClickListener(
             }
 
             R.id.report -> {
-                IntentUtil.startActivity<WebViewActivity>(context) {
-                    putExtra(
-                        "url",
-                        when (entityType) {
-                            "feed" -> "https://m.coolapk.com/mp/do?c=feed&m=report&type=feed&id=$id"
-                            "feed_reply" -> "https://m.coolapk.com/mp/do?c=feed&m=report&type=feed_reply&id=$id"
-                            "user" -> "https://m.coolapk.com/mp/do?c=user&m=report&id=$uid"
-                            else -> "error: entityType: $entityType, id: $id, uid: $uid"
-                        }
-                    )
-                }
+                OfficialReport.open(context, entityType, if (entityType == "user") uid else id)
             }
 
             R.id.delete -> {

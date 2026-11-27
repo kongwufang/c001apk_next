@@ -878,11 +878,6 @@ object PrefManager {
         }
 
     /**
-     * 「匿名举报联盟」：用户是否已在首次弹窗里点过「加入」。
-     *
-     * 用户 2026-10-31 需求：「首次点击会跳出弹窗 ... 用户同意后先保存他的偏好」
-     */
-    /**
      * 首次启动的欢迎/激活流程是否走完（2026-11-08）
      *
      * 四步：欢迎 → 机型参数 → 取号 → 开关确认
@@ -903,73 +898,6 @@ object PrefManager {
             ) else 0
             pref.edit().putBoolean("onboarded", value)
                 .putInt("onboardingRevision", revision).apply()
-        }
-
-
-    // ---------------------------------------------------------------- 云控开关
-    // ★ 2026-11-01 三级门闸（见 CloudGates.kt）
-    //   ⚠️ 全部默认 **true** ✓ 从没拉到过云控时功能照常 ✓
-    //      拉到了才按云控的值走 ✓ 拉不到就沿用上次 ✓
-
-    /** 云控：联盟总开关（只能关不能开 ✗ 用户开关仍然是前提 ✓）*/
-    var cloudAlliance: Boolean
-        get() = pref.getBoolean("cloud_alliance", true)
-        set(value) {
-            pref.edit().putBoolean("cloud_alliance", value).apply()
-        }
-
-    /** 云控：其他卡片（话题/用户/优质图文…）上报总开关 */
-    var cloudReportOther: Boolean
-        get() = pref.getBoolean("cloud_report_other", true)
-        set(value) {
-            pref.edit().putBoolean("cloud_report_other", value).apply()
-        }
-
-    /** 云控：卡片关联（帖子↔话题）上报开关 */
-    var cloudCardAssoc: Boolean
-        get() = pref.getBoolean("cloud_card_assoc", true)
-        set(value) {
-            pref.edit().putBoolean("cloud_card_assoc", value).apply()
-        }
-
-    // ---------------------------------------------------------------- 自动上报预算
-    // ★ 2026-11-01 修「不停地上报话题」：
-    //   原来只按「每次调用最多 3 条」限流 ✗ 但调用方每次只传 1 条 ⇒ 等于没限 ✗
-    //   ⇒ 改成**全局预算**：每小时最多 3 条、每天最多 10 条 ✓
-
-    /** 本窗口内已自动上报条数 */
-    var autoReportCount: Int
-        get() = pref.getInt("auto_report_count", 0)
-        set(value) {
-            pref.edit().putInt("auto_report_count", value).apply()
-        }
-
-    /** 当前窗口起点（毫秒）*/
-    var autoReportWindowStart: Long
-        get() = pref.getLong("auto_report_window_start", 0L)
-        set(value) {
-            pref.edit().putLong("auto_report_window_start", value).apply()
-        }
-
-    /** 当天已自动上报条数（跨天清零 ✓）*/
-    var autoReportDayCount: Int
-        get() = pref.getInt("auto_report_day_count", 0)
-        set(value) {
-            pref.edit().putInt("auto_report_day_count", value).apply()
-        }
-
-    /** 当天日期（yyyyMMdd，用于跨天清零 ✓）*/
-    var autoReportDay: Int
-        get() = pref.getInt("auto_report_day", 0)
-        set(value) {
-            pref.edit().putInt("auto_report_day", value).apply()
-        }
-
-    /** 云控配置上次拉取时间（0 = 从没拉过 ✓）*/
-    var cloudGatesTs: Long
-        get() = pref.getLong("cloud_gates_ts", 0L)
-        set(value) {
-            pref.edit().putLong("cloud_gates_ts", value).apply()
         }
 
 
