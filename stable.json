@@ -1,19 +1,19 @@
 {
-  "versionName": "V1.0.12",
-  "versionCode": 10012,
-  "changelog": "V1.0.12 · 正式版\n\n【关注与登录】\n- 未登录也能使用本机关注；首页、个人主页和侧栏同步更新，不会上传到云端。登录后仍可选择云端关注。\n- 改进酷安网页授权和会话校验；消息缓存按账号隔离，刷新后同步新增、修改和删除。\n\n【引导与表情】\n- 升级后会重新显示一次四页引导，保留已有账号、数字联盟 ID 和设置。\n- 183 个内置表情改为独立资源包，下载一次后可离线使用，减小安装包体积。\n\n【更新与浏览】\n- 可选 Wi-Fi 自动下载更新；下载后校验安装包，仍需手动确认安装。\n- 修复实况图全屏首帧闪动；全屏 GIF 改用 Glide 播放。文章和评论支持短按打开链接、长按选字。\n- 内置网页支持后退、刷新和关闭；侧栏新增「酷回收」，页面转场默认跟随系统。\n\n【数字联盟】\n- 取消后台主动验号；已有的 24 小时自动刷新开关及业务请求异常提示不变。",
+  "versionName": "V1.0.13",
+  "versionCode": 10013,
+  "changelog": "V1.0.13 · 正式版\n\n【多账号】\n- 支持保存多个酷安账号并切换，各账号的登录会话和云端缓存相互隔离。\n- 多账号共用本机数字联盟 ID，切换账号时保留各自的设备配置。\n\n【浏览与分享】\n- 恢复酷安官方举报页面，移除已下线的自建拉黑联盟；个人黑名单功能保留。\n- 分享改用酷安官方链接和系统分享面板。\n- 修复部分带小数点评评分的动态加载失败，以及通知点赞列表缺少 ID 时的翻页问题。\n\n【网络与兼容】\n- 改进网络连通性检测和异常连接提示。\n- 旧版共享存储权限仅在 Android 9 及以下声明。",
   "download": [
     {
       "name": "高速下载",
-      "url": "https://cdn1.houlangs.cn/c001apk/antoupdate/V1.0.12/c001apk_next-V1.0.12-release.10012.apk"
+      "url": "https://cdn1.houlangs.cn/c001apk/antoupdate/V1.0.13/c001apk_next-V1.0.13-release.10013.apk"
     },
     {
       "name": "线路一（GitHub 直链）",
-      "url": "https://github.com/kongwufang/c001apk_next/releases/download/release-latest/c001apk_next-V1.0.12-release.10012.apk"
+      "url": "https://github.com/kongwufang/c001apk_next/releases/download/V1.0.13/c001apk_next-V1.0.13-release.10013.apk"
     },
     {
       "name": "线路二（发行版页面）",
-      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.12"
+      "url": "https://github.com/kongwufang/c001apk_next/releases/tag/V1.0.13"
     }
   ]
 }
