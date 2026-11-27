@@ -163,7 +163,7 @@ class MyApplication : Application() {
         // （那时单例已经建好）。这里冷启动时后台预热，把这份一次性开销从点开的瞬间挪走。
         Thread {
             runCatching {
-                Sketch.with(this).configuration.setErrorTracker(object : ErrorTracker() {
+                Sketch.with(this).configuration.setErrorTracker(object : ErrorTracker(this) {
                     override fun onDownloadError(request: DownloadRequest, throwable: Throwable) {
                         if (request.isCanceled()) return
                         if (throwable is java.io.IOException || (throwable is DownloadException &&
