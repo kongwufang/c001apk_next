@@ -1,5 +1,6 @@
 package com.example.c001apk.logic.network
 
+import com.example.c001apk.util.NetworkHealth
 import com.example.c001apk.logic.network.LenientGson
 import com.example.c001apk.BuildConfig
 import com.example.c001apk.util.AccountRequestIdentity
@@ -23,7 +24,7 @@ object ApiServiceCreator {
     private const val API2_BASE_URL = "https://api2.coolapk.com"
 
     private fun getClient(serviceType: ServiceType, followRedirects: Boolean): OkHttpClient =
-        OkHttpClient.Builder()
+        NetworkHealth.clientBuilder()
             .addInterceptor(AddCookiesInterceptor)
             .addInterceptor(SslErrorInterceptor)
             .addInterceptor(RiskControlInterceptor)

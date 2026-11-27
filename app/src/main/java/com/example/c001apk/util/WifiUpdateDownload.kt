@@ -28,14 +28,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Dns
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.ByteString.Companion.toByteString
 
 internal object WifiUpdateDownload {
     const val DIRECTORY = "self-update"
 
-    private val client = OkHttpClient.Builder()
+    private val client = NetworkHealth.clientBuilder()
         .followSslRedirects(false) // Allow HTTPS CDN redirects, never downgrade to HTTP.
         .proxy(Proxy.NO_PROXY) // A system proxy on a different network must not carry APK bytes.
         .retryOnConnectionFailure(false)

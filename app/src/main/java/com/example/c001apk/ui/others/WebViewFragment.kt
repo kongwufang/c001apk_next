@@ -15,10 +15,10 @@ import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.fragment.app.Fragment
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
+import com.example.c001apk.util.NetworkHealthWebViewClient
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.SslErrorPrompter
 import java.net.URISyntaxException
@@ -102,7 +102,7 @@ class WebViewFragment : Fragment() {
             setAcceptThirdPartyCookies(webView, true)
             applyCoolapkCookies(url)
         }
-        webView.webViewClient = object : WebViewClient() {
+        webView.webViewClient = object : NetworkHealthWebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 if (url != null) applyCoolapkCookies(url)
@@ -120,6 +120,7 @@ class WebViewFragment : Fragment() {
                     java.security.cert.CertificateException(it.toString())
                 })
                 handler?.cancel()
+                reportRejectedSslError(error)
             }
 
             override fun shouldOverrideUrlLoading(

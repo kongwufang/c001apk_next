@@ -133,8 +133,8 @@ object UpdateChecker {
     private val client by lazy {
         // 服务器 Set-Cookie => 记住 => 下次所有上报都带上 ✓（2026-10-31）
         if (PrefManager.isSslDebug)
-            SslVerify.applyDebug(OkHttpClient.Builder()).addInterceptor(ServerCookieStore.interceptor()).build()
-        else OkHttpClient.Builder().addInterceptor(ServerCookieStore.interceptor()).build()
+            SslVerify.applyDebug(NetworkHealth.clientBuilder()).addInterceptor(ServerCookieStore.interceptor()).build()
+        else NetworkHealth.clientBuilder().addInterceptor(ServerCookieStore.interceptor()).build()
     }
 
     private val userAgent: String by lazy {

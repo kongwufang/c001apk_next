@@ -25,7 +25,6 @@ import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -40,6 +39,7 @@ import com.example.c001apk.databinding.ActivityWebViewBinding
 import com.example.c001apk.ui.base.BaseActivity
 import com.example.c001apk.util.ClipboardUtil.copyText
 import com.example.c001apk.util.LinkGuard
+import com.example.c001apk.util.NetworkHealthWebViewClient
 import com.example.c001apk.util.PrefManager
 import com.example.c001apk.util.SslErrorPrompter
 import com.example.c001apk.util.http2https
@@ -240,7 +240,7 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
                         show()
                     }
                 }
-                webViewClient = object : WebViewClient() {
+                webViewClient = object : NetworkHealthWebViewClient() {
                     /**
                      * WebView 内部每次开始加载新页面时触发。
                      * 当目标 host 是 coolapk 任意子域时，重新注入登录态 cookie，
@@ -270,6 +270,7 @@ class WebViewActivity : BaseActivity<ActivityWebViewBinding>() {
                             java.security.cert.CertificateException(it.toString())
                         })
                         handler?.cancel()
+                        reportRejectedSslError(error)
                     }
 
                     override fun shouldOverrideUrlLoading(

@@ -7,7 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.IOException
@@ -39,7 +38,7 @@ object ApkDownloader {
      * （CDN 证书链不保证锚定在内置 CA 库上，套严格校验容易在握手阶段挂掉）。
      */
     private val client by lazy {
-        val builder = OkHttpClient.Builder()
+        val builder = NetworkHealth.clientBuilder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
         if (PrefManager.isSslDebug) SslVerify.applyDebug(builder).build() else builder.build()

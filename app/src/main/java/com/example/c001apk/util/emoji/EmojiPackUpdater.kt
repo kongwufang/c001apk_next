@@ -1,5 +1,6 @@
 package com.example.c001apk.util.emoji
 
+import com.example.c001apk.util.NetworkHealth
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -21,7 +22,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.security.MessageDigest
@@ -50,7 +50,7 @@ internal object EmojiPackUpdater : Application.ActivityLifecycleCallbacks {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutableState = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = mutableState.asStateFlow()
-    private val client = OkHttpClient.Builder()
+    private val client = NetworkHealth.clientBuilder()
         .callTimeout(30, TimeUnit.SECONDS)
         .build()
     private val gate = Mutex()

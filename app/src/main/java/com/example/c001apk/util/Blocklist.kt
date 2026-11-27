@@ -110,7 +110,7 @@ object Blocklist {
     private var serverTtlMs: Long = TTL_MS
 
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        NetworkHealth.clientBuilder()
             // 黑名单接口要带齐身份头（跟举报一致 ✓ 服务端也校验）
             .addInterceptor(ServerCookieStore.interceptor())
             // ★ SSL 策略跟着「校验 SSL 证书」开关走 ✓（2026-10-31）

@@ -17,7 +17,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.isVisible
@@ -34,6 +33,7 @@ import com.example.c001apk.ui.main.MainActivity
 import com.example.c001apk.util.AccountRequestIdentity
 import com.example.c001apk.util.AccountVault
 import com.example.c001apk.util.ActivityCollector
+import com.example.c001apk.util.NetworkHealthWebViewClient
 import com.example.c001apk.util.SslErrorPrompter
 import com.google.android.material.appbar.AppBarLayout.ScrollingViewBehavior
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -164,10 +164,11 @@ class WebLoginActivity : BaseActivity<ActivityWebViewBinding>() {
                 binding.progressBar.progress = newProgress
             }
         }
-        webViewClient = object : WebViewClient() {
+        webViewClient = object : NetworkHealthWebViewClient() {
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
                 handler?.cancel()
                 SslErrorPrompter.onSslFailure(error?.let { java.security.cert.CertificateException(it.toString()) })
+                reportRejectedSslError(error)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {

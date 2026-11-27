@@ -19,7 +19,7 @@ object LivePhotoPlayer {
                 val dir = app.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: app.filesDir
                 check(dir.exists() || dir.mkdirs())
                 val base = original.substringAfterLast('/').substringBefore('@').substringBeforeLast('.')
-                val client = SslVerify.apply(okhttp3.OkHttpClient.Builder()).build()
+                val client = SslVerify.apply(NetworkHealth.clientBuilder()).build()
                 listOf(original to "$base.jpg", signed to "$base.mp4").forEach { (url, name) ->
                     val file = File(dir, name)
                     val request = okhttp3.Request.Builder().url(url)

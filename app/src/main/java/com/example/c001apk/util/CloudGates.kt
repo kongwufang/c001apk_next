@@ -54,7 +54,7 @@ object CloudGates {
     private const val ENDPOINT = "https://service.houlangs.cn/c001apk/config/gates.php"
 
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        NetworkHealth.clientBuilder()
             .addInterceptor(ServerCookieStore.interceptor())
             .let { SslVerify.apply(it) }
             .connectTimeout(10, TimeUnit.SECONDS)

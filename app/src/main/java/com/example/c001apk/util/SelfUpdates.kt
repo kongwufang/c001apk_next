@@ -29,7 +29,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 
 internal sealed interface UpdateState {
     data object Idle : UpdateState
@@ -93,7 +92,7 @@ internal object SelfUpdates : Application.ActivityLifecycleCallbacks {
     private var firstState: CompletableDeferred<UpdateState>? = null
     private var ready: AutoUpdateInfo? = null
     private val files = Mutex() // A cancelled writer must finish before newer files are touched.
-    private val client = OkHttpClient.Builder()
+    private val client = NetworkHealth.clientBuilder()
         .followRedirects(false)
         .callTimeout(12, TimeUnit.SECONDS)
         .addInterceptor(ServerCookieStore.interceptor())

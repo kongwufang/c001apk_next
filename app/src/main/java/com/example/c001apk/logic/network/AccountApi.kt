@@ -1,11 +1,11 @@
 package com.example.c001apk.logic.network
 
+import com.example.c001apk.util.NetworkHealth
 import com.example.c001apk.logic.model.CheckResponse
 import com.example.c001apk.util.AddCookiesInterceptor
 import com.example.c001apk.util.AccountRequestIdentity
 import retrofit2.http.Tag
 import com.example.c001apk.util.SslVerify
-import okhttp3.OkHttpClient
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -31,7 +31,7 @@ internal interface AccountApi {
 
     companion object {
         val instance: AccountApi by lazy {
-            val client = OkHttpClient.Builder()
+            val client = NetworkHealth.clientBuilder()
                 .addInterceptor { chain -> AddCookiesInterceptor.intercept(chain, useSavedCookies = false) }
                 .followRedirects(false)
                 .followSslRedirects(false)
